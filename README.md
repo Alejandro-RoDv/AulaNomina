@@ -1,27 +1,43 @@
 # AulaNomina
 
-Simulador de gestión laboral orientado a formación en RRHH, relaciones laborales y administración.
+AulaNomina es una plataforma web de simulación educativa para formación en Recursos Humanos, Relaciones Laborales, Administración y gestión laboral.
 
-## Stack
+El objetivo es crear un entorno similar a un ERP profesional donde alumnos y docentes puedan practicar procesos reales de gestión laboral sin afectar a sistemas reales.
+
+## Objetivo del proyecto
+
+Crear un SaaS educativo comercializable para centros de FP, universidades y academias.
+
+La primera meta es disponer de una demo funcional y presentable para centros educativos.
+
+## Funcionalidades previstas del MVP
+
+- Gestión de trabajadores
+- Gestión de empresas/centros
+- Gestión de contratos
+- Incidencias laborales
+- Simulación de nóminas
+- Casos prácticos docentes
+- Panel de profesor
+- Gestión documental simulada
+
+## Stack técnico
 
 - Backend: FastAPI
-- Frontend: React + Tailwind
 - Base de datos: PostgreSQL
+- ORM: SQLAlchemy
+- Frontend: React + Tailwind CSS
+- Contenedores: Podman
+- Sistema objetivo de desarrollo: Fedora/Linux
 
-## Estructura
+## Estructura del proyecto
 
-- backend/: API y lógica de negocio
-- frontend/: interfaz tipo ERP
-- docs/: documentación de desarrollo
-- infra/: despliegue y configuración
-
-## Estado actual
-
-MVP en desarrollo:
-- Gestión de trabajadores
-- Contratos
-- Nómina simulada (en progreso)
-
-## Objetivo
-
-Crear un entorno de simulación realista para formación práctica en gestión laboral.
+```text
+AulaNomina/
+├── backend/
+├── frontend/
+├── docs/
+├── infra/
+├── models/
+├── scripts/
+└── README.md
