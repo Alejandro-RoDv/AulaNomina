@@ -1,9 +1,12 @@
 import { useEffect, useState } from "react";
+import CompanyForm from "./components/CompanyForm";
+import CompanyTable from "./components/CompanyTable";
 import ContractForm from "./components/ContractForm";
 import ContractTable from "./components/ContractTable";
 import { createContract, fetchContracts, fetchEmployees } from "./services/api";
+import { createCompany, fetchCompanies } from "./services/companyApi";
 
-const initialForm = {
+const initialContractForm = {
   employee_id: "",
   contract_type: "",
   start_date: "",
@@ -12,27 +15,43 @@ const initialForm = {
   status: "active",
 };
 
+const initialCompanyForm = {
+  name: "",
+  cif: "",
+  address: "",
+  city: "",
+  province: "",
+};
+
 export default function App() {
   const [contracts, setContracts] = useState([]);
   const [employees, setEmployees] = useState([]);
+  const [companies, setCompanies] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
-  const [form, setForm] = useState(initialForm);
+  const [contractSubmitting, setContractSubmitting] = useState(false);
+  const [companySubmitting, setCompanySubmitting] = useState(false);
+  const [contractError, setContractError] = useState("");
+  const [contractSuccess, setContractSuccess] = useState("");
+  const [companyError, setCompanyError] = useState("");
+  const [companySuccess, setCompanySuccess] = useState("");
+  const [contractForm, setContractForm] = useState(initialContractForm);
+  const [companyForm, setCompanyForm] = useState(initialCompanyForm);
 
   const loadData = async () => {
     try {
       setLoading(true);
-      const [contractsData, employeesData] = await Promise.all([
+      const [contractsData, employeesData, companiesData] = await Promise.all([
         fetchContracts(),
         fetchEmployees(),
+        fetchCompanies(),
       ]);
 
       setContracts(contractsData);
       setEmployees(employeesData);
+      setCompanies(companiesData);
     } catch {
-      setError("Error cargando datos");
+      setContractError("Error cargando datos");
+      setCompanyError("Error cargando datos");
     } finally {
       setLoading(false);
     }
@@ -42,67 +61,99 @@ export default function App() {
     loadData();
   }, []);
 
-  const handleChange = (event) => {
+  const handleContractChange = (event) => {
     const { name, value } = event.target;
-    setForm((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+    setContractForm((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = async (event) => {
+  const handleCompanyChange = (event) => {
+    const { name, value } = event.target;
+    setCompanyForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleContractSubmit = async (event) => {
     event.preventDefault();
-    setError("");
-    setSuccess("");
+    setContractError("");
+    setContractSuccess("");
 
     const payload = {
-      employee_id: Number(form.employee_id),
-      contract_type: form.contract_type,
-      start_date: form.start_date,
-      end_date: form.end_date || null,
-      salary_base: form.salary_base ? Number(form.salary_base) : null,
-      status: form.status,
+      employee_id: Number(contractForm.employee_id),
+      contract_type: contractForm.contract_type,
+      start_date: contractForm.start_date,
+      end_date: contractForm.end_date || null,
+      salary_base: contractForm.salary_base ? Number(contractForm.salary_base) : null,
+      status: contractForm.status,
     };
 
     try {
-      setSubmitting(true);
+      setContractSubmitting(true);
       await createContract(payload);
-
-      setSuccess("Contrato creado correctamente");
-      setForm(initialForm);
+      setContractSuccess("Contrato creado correctamente");
+      setContractForm(initialContractForm);
       await loadData();
     } catch (err) {
-      setError(err.message || "Error al crear contrato");
+      setContractError(err.message || "Error al crear contrato");
     } finally {
-      setSubmitting(false);
+      setContractSubmitting(false);
+    }
+  };
+
+  const handleCompanySubmit = async (event) => {
+    event.preventDefault();
+    setCompanyError("");
+    setCompanySuccess("");
+
+    try {
+      setCompanySubmitting(true);
+      await createCompany(companyForm);
+      setCompanySuccess("Empresa creada correctamente");
+      setCompanyForm(initialCompanyForm);
+      await loadData();
+    } catch (err) {
+      setCompanyError(err.message || "Error al crear empresa");
+    } finally {
+      setCompanySubmitting(false);
     }
   };
 
   return (
     <div style={styles.page}>
       <div style={styles.container}>
-        <h1 style={styles.title}>AulaNomina - Contratos</h1>
+        <h1 style={styles.title}>AulaNomina</h1>
+
+        <div style={styles.card}>
+          <h2 style={styles.sectionTitle}>Empresas / Centros</h2>
+          <CompanyForm
+            form={companyForm}
+            onChange={handleCompanyChange}
+            onSubmit={handleCompanySubmit}
+            error={companyError}
+            success={companySuccess}
+            submitting={companySubmitting}
+          />
+        </div>
+
+        <div style={styles.card}>
+          <h2 style={styles.sectionTitle}>Listado de empresas</h2>
+          <CompanyTable loading={loading} companies={companies} />
+        </div>
 
         <div style={styles.card}>
           <h2 style={styles.sectionTitle}>Nuevo contrato</h2>
           <ContractForm
-            form={form}
+            form={contractForm}
             employees={employees}
-            onChange={handleChange}
-            onSubmit={handleSubmit}
-            error={error}
-            success={success}
-            submitting={submitting}
+            onChange={handleContractChange}
+            onSubmit={handleContractSubmit}
+            error={contractError}
+            success={contractSuccess}
+            submitting={contractSubmitting}
           />
         </div>
 
         <div style={styles.card}>
           <h2 style={styles.sectionTitle}>Listado de contratos</h2>
-          <ContractTable
-            loading={loading}
-            contracts={contracts}
-            employees={employees}
-          />
+          <ContractTable loading={loading} contracts={contracts} employees={employees} />
         </div>
       </div>
     </div>
