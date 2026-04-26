@@ -13,8 +13,14 @@ export default function Sidebar({ activePage, setActivePage }) {
 
   return (
     <aside style={styles.sidebar}>
-      <div style={styles.logoBox}>
-        <img src={logo} alt="AulaNomina" style={styles.logo} />
+      <div style={styles.brand}>
+        <div style={styles.logoBox}>
+          <img src={logo} alt="AulaNomina" style={styles.logo} />
+        </div>
+        <div>
+          <p style={styles.brandTitle}>AulaNomina</p>
+          <p style={styles.brandSubtitle}>Gestión laboral simulada</p>
+        </div>
       </div>
 
       <nav style={styles.nav}>
@@ -40,18 +46,18 @@ export default function Sidebar({ activePage, setActivePage }) {
         })}
       </nav>
 
-      <div style={styles.footer}>MVP educativo · Split 5</div>
+      <div style={styles.footer}>Demo MVP · Entorno docente</div>
     </aside>
   );
 }
 
 const styles = {
   sidebar: {
-    width: "260px",
+    width: "240px",
     minHeight: "100vh",
-    backgroundColor: "#111827",
+    backgroundColor: "#0f172a",
     color: "#ffffff",
-    padding: "22px 18px",
+    padding: "18px 14px",
     boxSizing: "border-box",
     display: "flex",
     flexDirection: "column",
@@ -60,32 +66,56 @@ const styles = {
     top: 0,
     bottom: 0,
   },
+  brand: {
+    display: "flex",
+    alignItems: "center",
+    gap: "10px",
+    padding: "8px 6px 18px",
+    borderBottom: "1px solid rgba(255,255,255,0.08)",
+    marginBottom: "16px",
+  },
   logoBox: {
+    width: "54px",
+    height: "42px",
     backgroundColor: "#ffffff",
-    borderRadius: "16px",
-    padding: "12px",
-    marginBottom: "28px",
+    borderRadius: "10px",
+    padding: "6px",
+    boxSizing: "border-box",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
   },
   logo: {
     display: "block",
     width: "100%",
   },
+  brandTitle: {
+    margin: 0,
+    fontSize: "15px",
+    fontWeight: 900,
+  },
+  brandSubtitle: {
+    margin: "2px 0 0",
+    fontSize: "11px",
+    color: "#94a3b8",
+  },
   nav: {
     display: "flex",
     flexDirection: "column",
-    gap: "10px",
+    gap: "6px",
     flex: 1,
   },
   navItem: {
     border: "none",
-    borderRadius: "12px",
-    padding: "12px 14px",
+    borderRadius: "10px",
+    padding: "11px 12px",
     textAlign: "left",
     cursor: "pointer",
     backgroundColor: "transparent",
-    color: "#d4d4d8",
+    color: "#cbd5e1",
     fontWeight: 700,
-    fontSize: "14px",
+    fontSize: "13px",
   },
   navItemActive: {
     backgroundColor: "#f4c430",
@@ -93,18 +123,18 @@ const styles = {
   },
   navItemDisabled: {
     cursor: "not-allowed",
-    color: "#71717a",
+    color: "#64748b",
   },
   soon: {
     display: "block",
-    marginTop: "4px",
-    fontSize: "11px",
+    marginTop: "3px",
+    fontSize: "10px",
     fontWeight: 500,
   },
   footer: {
-    borderTop: "1px solid #27272a",
-    paddingTop: "14px",
-    color: "#a1a1aa",
-    fontSize: "12px",
+    borderTop: "1px solid rgba(255,255,255,0.08)",
+    paddingTop: "12px",
+    color: "#94a3b8",
+    fontSize: "11px",
   },
 };
