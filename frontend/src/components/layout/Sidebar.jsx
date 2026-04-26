@@ -1,63 +1,81 @@
 import logo from "../../assets/aulanomina-logo.svg";
 
 export default function Sidebar({ activePage, setActivePage }) {
-  const menuItems = [
-    { id: "dashboard", label: "Dashboard", enabled: true },
-    { id: "companies", label: "Empresas / Centros", enabled: true },
-    { id: "contracts", label: "Contratos", enabled: true },
-    { id: "employees", label: "Empleados", enabled: false },
-    { id: "payroll", label: "Nóminas", enabled: false },
-    { id: "incidents", label: "Incidencias", enabled: false },
-    { id: "cases", label: "Casos prácticos", enabled: false },
+  const groups = [
+    {
+      title: "Datos",
+      items: [
+        { id: "dashboard", label: "Panel", enabled: true },
+        { id: "companies", label: "Empresa", enabled: true },
+        { id: "contracts", label: "Contratos", enabled: true },
+        { id: "employees", label: "Trabajador", enabled: false },
+        { id: "documents", label: "Documentos", enabled: false },
+        { id: "reports", label: "Informes", enabled: false },
+      ],
+    },
+    {
+      title: "Acciones",
+      items: [
+        { id: "payroll", label: "Cálculo nóminas", enabled: false },
+        { id: "irpf", label: "IRPF", enabled: false },
+        { id: "tax", label: "Mod. 111/190", enabled: false },
+        { id: "social-security", label: "Seguros sociales", enabled: false },
+      ],
+    },
+    {
+      title: "Seg. Social",
+      items: [
+        { id: "incidents", label: "Altas y bajas", enabled: false },
+        { id: "variations", label: "Variaciones", enabled: false },
+        { id: "communications", label: "Comunicados", enabled: false },
+      ],
+    },
   ];
 
   return (
     <aside style={styles.sidebar}>
-      <div style={styles.brand}>
-        <div style={styles.logoBox}>
-          <img src={logo} alt="AulaNomina" style={styles.logo} />
-        </div>
-        <div>
-          <p style={styles.brandTitle}>AulaNomina</p>
-          <p style={styles.brandSubtitle}>Gestión laboral simulada</p>
-        </div>
+      <div style={styles.logoPanel}>
+        <img src={logo} alt="AulaNomina" style={styles.logo} />
       </div>
 
-      <nav style={styles.nav}>
-        {menuItems.map((item) => {
-          const isActive = activePage === item.id;
+      <div style={styles.menuPanel}>
+        {groups.map((group) => (
+          <section key={group.title} style={styles.group}>
+            <p style={styles.groupTitle}>{group.title}</p>
+            <div style={styles.groupItems}>
+              {group.items.map((item) => {
+                const isActive = activePage === item.id;
 
-          return (
-            <button
-              key={item.id}
-              type="button"
-              disabled={!item.enabled}
-              onClick={() => item.enabled && setActivePage(item.id)}
-              style={{
-                ...styles.navItem,
-                ...(isActive ? styles.navItemActive : {}),
-                ...(!item.enabled ? styles.navItemDisabled : {}),
-              }}
-            >
-              <span>{item.label}</span>
-              {!item.enabled && <small style={styles.soon}>Próximamente</small>}
-            </button>
-          );
-        })}
-      </nav>
-
-      <div style={styles.footer}>Demo MVP · Entorno docente</div>
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    disabled={!item.enabled}
+                    onClick={() => item.enabled && setActivePage(item.id)}
+                    style={{
+                      ...styles.navItem,
+                      ...(isActive ? styles.navItemActive : {}),
+                      ...(!item.enabled ? styles.navItemDisabled : {}),
+                    }}
+                  >
+                    {item.label}
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+        ))}
+      </div>
     </aside>
   );
 }
 
 const styles = {
   sidebar: {
-    width: "240px",
+    width: "272px",
     minHeight: "100vh",
-    backgroundColor: "#0f172a",
-    color: "#ffffff",
-    padding: "18px 14px",
+    backgroundColor: "#fff36b",
+    borderRight: "3px solid #111111",
     boxSizing: "border-box",
     display: "flex",
     flexDirection: "column",
@@ -66,75 +84,64 @@ const styles = {
     top: 0,
     bottom: 0,
   },
-  brand: {
-    display: "flex",
-    alignItems: "center",
-    gap: "10px",
-    padding: "8px 6px 18px",
-    borderBottom: "1px solid rgba(255,255,255,0.08)",
-    marginBottom: "16px",
-  },
-  logoBox: {
-    width: "54px",
-    height: "42px",
+  logoPanel: {
+    height: "132px",
     backgroundColor: "#ffffff",
-    borderRadius: "10px",
-    padding: "6px",
-    boxSizing: "border-box",
+    borderBottom: "3px solid #111111",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    flexShrink: 0,
+    padding: "14px",
+    boxSizing: "border-box",
   },
   logo: {
+    maxWidth: "210px",
+    maxHeight: "92px",
+    objectFit: "contain",
     display: "block",
-    width: "100%",
   },
-  brandTitle: {
-    margin: 0,
-    fontSize: "15px",
+  menuPanel: {
+    flex: 1,
+    padding: "16px 14px 26px",
+    overflowY: "auto",
+  },
+  group: {
+    marginBottom: "24px",
+  },
+  groupTitle: {
+    margin: "0 0 8px",
+    color: "#111111",
+    fontSize: "18px",
     fontWeight: 900,
+    letterSpacing: "0.02em",
+    textTransform: "uppercase",
   },
-  brandSubtitle: {
-    margin: "2px 0 0",
-    fontSize: "11px",
-    color: "#94a3b8",
-  },
-  nav: {
+  groupItems: {
     display: "flex",
     flexDirection: "column",
-    gap: "6px",
-    flex: 1,
+    alignItems: "flex-start",
+    gap: "4px",
+    paddingLeft: "62px",
   },
   navItem: {
-    border: "none",
-    borderRadius: "10px",
-    padding: "11px 12px",
-    textAlign: "left",
-    cursor: "pointer",
+    border: "2px solid transparent",
     backgroundColor: "transparent",
-    color: "#cbd5e1",
+    color: "#111111",
+    fontSize: "14px",
     fontWeight: 700,
-    fontSize: "13px",
+    lineHeight: 1.15,
+    cursor: "pointer",
+    padding: "4px 7px",
+    textAlign: "left",
+    textTransform: "uppercase",
   },
   navItemActive: {
-    backgroundColor: "#f4c430",
-    color: "#111827",
+    border: "3px solid #111111",
+    backgroundColor: "#ffffff",
+    boxShadow: "3px 3px 0 #f2c500",
   },
   navItemDisabled: {
     cursor: "not-allowed",
-    color: "#64748b",
-  },
-  soon: {
-    display: "block",
-    marginTop: "3px",
-    fontSize: "10px",
-    fontWeight: 500,
-  },
-  footer: {
-    borderTop: "1px solid rgba(255,255,255,0.08)",
-    paddingTop: "12px",
-    color: "#94a3b8",
-    fontSize: "11px",
+    opacity: 0.55,
   },
 };
