@@ -4,37 +4,84 @@ export default function Dashboard({ companies, contracts }) {
   const activeCompanies = companies?.length || 0;
   const totalContracts = contracts?.length || 0;
 
+  const stats = [
+    {
+      label: "Empresas activas",
+      value: activeCompanies,
+      description: "Centros disponibles para simulaciones",
+    },
+    {
+      label: "Contratos creados",
+      value: totalContracts,
+      description: "Contratos registrados en el sistema",
+    },
+    {
+      label: "Módulos activos",
+      value: 2,
+      description: "Empresas y contratos",
+    },
+    {
+      label: "Módulos pendientes",
+      value: 4,
+      description: "Empleados, nóminas, incidencias y casos",
+    },
+  ];
+
+  const processes = [
+    {
+      title: "Alta de empresa",
+      description: "Registro de nuevo centro de trabajo para prácticas.",
+    },
+    {
+      title: "Creación de contrato",
+      description: "Simulación de contratación vinculada a un trabajador.",
+    },
+    {
+      title: "Preparación de módulos",
+      description: "Próximos pasos: empleados, nómina e incidencias laborales.",
+    },
+  ];
+
   return (
     <div style={styles.wrapper}>
       <div style={styles.grid}>
-        <PageCard>
-          <p style={styles.label}>Empresas activas</p>
-          <p style={styles.value}>{activeCompanies}</p>
-        </PageCard>
-
-        <PageCard>
-          <p style={styles.label}>Contratos creados</p>
-          <p style={styles.value}>{totalContracts}</p>
-        </PageCard>
-
-        <PageCard>
-          <p style={styles.label}>Módulos activos</p>
-          <p style={styles.value}>2</p>
-        </PageCard>
-
-        <PageCard>
-          <p style={styles.label}>Módulos pendientes</p>
-          <p style={styles.value}>4</p>
-        </PageCard>
+        {stats.map((stat) => (
+          <PageCard key={stat.label}>
+            <p style={styles.label}>{stat.label}</p>
+            <p style={styles.value}>{stat.value}</p>
+            <p style={styles.description}>{stat.description}</p>
+          </PageCard>
+        ))}
       </div>
 
-      <PageCard title="Últimos procesos" subtitle="Actividad reciente">
-        <ul style={styles.list}>
-          <li>Alta de empresa</li>
-          <li>Creación de contrato</li>
-          <li>Preparación de módulos</li>
-        </ul>
-      </PageCard>
+      <div style={styles.columns}>
+        <PageCard title="Últimos procesos" subtitle="Actividad reciente del entorno de prácticas">
+          <div style={styles.processList}>
+            {processes.map((process) => (
+              <div key={process.title} style={styles.processItem}>
+                <div style={styles.processMarker} />
+                <div>
+                  <p style={styles.processTitle}>{process.title}</p>
+                  <p style={styles.processDescription}>{process.description}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </PageCard>
+
+        <PageCard title="Estado del MVP" subtitle="Resumen funcional actual">
+          <div style={styles.statusBlock}>
+            <div>
+              <p style={styles.statusTitle}>Disponible</p>
+              <p style={styles.statusText}>Empresas, contratos y navegación modular.</p>
+            </div>
+            <div>
+              <p style={styles.statusTitle}>Siguiente fase</p>
+              <p style={styles.statusText}>Gestión de empleados y conexión con contratos.</p>
+            </div>
+          </div>
+        </PageCard>
+      </div>
     </div>
   );
 }
@@ -43,23 +90,81 @@ const styles = {
   wrapper: {
     display: "flex",
     flexDirection: "column",
-    gap: "20px",
+    gap: "22px",
   },
   grid: {
     display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+    gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
     gap: "16px",
   },
   label: {
+    margin: 0,
+    fontSize: "13px",
+    color: "#6b7280",
+    fontWeight: 700,
+  },
+  value: {
+    margin: "10px 0 0",
+    fontSize: "34px",
+    lineHeight: 1,
+    fontWeight: 900,
+    color: "#111827",
+  },
+  description: {
+    margin: "10px 0 0",
+    fontSize: "12px",
+    color: "#6b7280",
+  },
+  columns: {
+    display: "grid",
+    gridTemplateColumns: "2fr 1fr",
+    gap: "16px",
+    alignItems: "start",
+  },
+  processList: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "12px",
+  },
+  processItem: {
+    display: "flex",
+    gap: "12px",
+    padding: "14px",
+    border: "1px solid #edf0f5",
+    borderRadius: "12px",
+    backgroundColor: "#fafafa",
+  },
+  processMarker: {
+    width: "10px",
+    height: "10px",
+    borderRadius: "999px",
+    backgroundColor: "#f4c430",
+    marginTop: "5px",
+    flexShrink: 0,
+  },
+  processTitle: {
+    margin: 0,
+    fontWeight: 800,
+    color: "#111827",
+  },
+  processDescription: {
+    margin: "4px 0 0",
     fontSize: "13px",
     color: "#6b7280",
   },
-  value: {
-    fontSize: "28px",
-    fontWeight: 900,
-    marginTop: "6px",
+  statusBlock: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "14px",
   },
-  list: {
-    paddingLeft: "18px",
+  statusTitle: {
+    margin: 0,
+    fontWeight: 800,
+    color: "#111827",
+  },
+  statusText: {
+    margin: "4px 0 0",
+    fontSize: "13px",
+    color: "#6b7280",
   },
 };
