@@ -120,7 +120,9 @@ export default function App() {
   return (
     <div style={styles.layout}>
       <aside style={styles.sidebar}>
-        <img src={logo} alt="AulaNomina" style={styles.logo} />
+        <div style={styles.logoBox}>
+          <img src={logo} alt="AulaNomina" style={styles.logo} />
+        </div>
         <nav style={styles.nav}>
           <a style={styles.navItem} href="#empresas">Empresas</a>
           <a style={styles.navItem} href="#contratos">Contratos</a>
@@ -130,11 +132,13 @@ export default function App() {
       </aside>
 
       <main style={styles.main}>
-        <header style={styles.header}>
-          <div>
+        <header style={styles.hero}>
+          <div style={styles.heroText}>
+            <p style={styles.kicker}>Panel docente · Demo MVP</p>
             <h1 style={styles.title}>AulaNomina</h1>
-            <p style={styles.subtitle}>Simulación educativa de gestión laboral</p>
+            <p style={styles.subtitle}>Simulación educativa de gestión laboral para RRHH, FP y universidad</p>
           </div>
+          <div style={styles.heroBadge}>Split 4 · Empresas / Centros</div>
         </header>
 
         <section id="empresas" style={styles.card}>
@@ -180,7 +184,7 @@ const styles = {
   layout: {
     display: "flex",
     minHeight: "100vh",
-    backgroundColor: "#f6f7fb",
+    backgroundColor: "#f3f4f8",
     fontFamily: "Arial, sans-serif",
   },
   sidebar: {
@@ -188,76 +192,109 @@ const styles = {
     left: 0,
     top: 0,
     bottom: 0,
-    width: "250px",
-    backgroundColor: "#f3c43b",
-    color: "#141414",
+    width: "260px",
+    background: "linear-gradient(180deg, #f4c430 0%, #e9b526 100%)",
+    color: "#171717",
     padding: "22px 18px",
     boxSizing: "border-box",
-    boxShadow: "4px 0 18px rgba(0,0,0,0.12)",
+    boxShadow: "6px 0 22px rgba(0,0,0,0.14)",
+  },
+  logoBox: {
+    backgroundColor: "#ffffff",
+    borderRadius: "18px",
+    padding: "14px",
+    boxShadow: "0 10px 24px rgba(0,0,0,0.14)",
+    marginBottom: "30px",
   },
   logo: {
     width: "100%",
-    backgroundColor: "#ffffff",
-    borderRadius: "12px",
-    padding: "8px",
-    boxSizing: "border-box",
-    marginBottom: "28px",
+    display: "block",
   },
   nav: {
     display: "flex",
     flexDirection: "column",
-    gap: "10px",
+    gap: "12px",
   },
   navItem: {
-    color: "#141414",
+    color: "#111827",
     textDecoration: "none",
-    fontWeight: 700,
-    backgroundColor: "rgba(255,255,255,0.65)",
-    padding: "12px 14px",
-    borderRadius: "10px",
+    fontWeight: 800,
+    backgroundColor: "rgba(255,255,255,0.78)",
+    padding: "13px 16px",
+    borderRadius: "12px",
+    boxShadow: "0 4px 10px rgba(0,0,0,0.08)",
   },
   navItemMuted: {
-    color: "#3b3b3b",
+    color: "#3f3f46",
     textDecoration: "none",
-    fontWeight: 600,
-    padding: "12px 14px",
-    borderRadius: "10px",
+    fontWeight: 700,
+    padding: "13px 16px",
+    borderRadius: "12px",
     opacity: 0.75,
   },
   main: {
-    marginLeft: "250px",
-    width: "calc(100% - 250px)",
-    padding: "34px",
+    marginLeft: "260px",
+    width: "calc(100% - 260px)",
+    padding: "34px 42px",
     boxSizing: "border-box",
   },
-  header: {
-    backgroundColor: "#ffffff",
-    borderRadius: "16px",
-    padding: "24px 28px",
-    marginBottom: "24px",
-    boxShadow: "0 2px 14px rgba(0,0,0,0.06)",
-    borderLeft: "8px solid #f3c43b",
+  hero: {
+    minHeight: "150px",
+    background: "linear-gradient(135deg, #f4c430 0%, #ffd966 44%, #ffffff 45%, #ffffff 100%)",
+    borderRadius: "22px",
+    padding: "28px 34px",
+    marginBottom: "26px",
+    boxShadow: "0 12px 28px rgba(0,0,0,0.08)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: "20px",
+    border: "1px solid rgba(0,0,0,0.04)",
+  },
+  heroText: {
+    maxWidth: "660px",
+  },
+  kicker: {
+    margin: 0,
+    fontSize: "13px",
+    fontWeight: 800,
+    letterSpacing: "0.08em",
+    textTransform: "uppercase",
+    color: "#5c4100",
   },
   title: {
-    margin: 0,
-    fontSize: "42px",
+    margin: "8px 0 2px",
+    fontSize: "46px",
     color: "#111827",
+    fontWeight: 900,
   },
   subtitle: {
-    margin: "6px 0 0",
-    color: "#5f6470",
+    margin: 0,
+    color: "#4b5563",
+    fontWeight: 600,
+  },
+  heroBadge: {
+    backgroundColor: "#111827",
+    color: "#ffffff",
+    padding: "12px 16px",
+    borderRadius: "999px",
+    fontSize: "14px",
+    fontWeight: 800,
+    whiteSpace: "nowrap",
   },
   card: {
     backgroundColor: "#ffffff",
-    padding: "24px",
-    borderRadius: "16px",
-    boxShadow: "0 2px 14px rgba(0,0,0,0.06)",
+    padding: "26px",
+    borderRadius: "18px",
+    boxShadow: "0 8px 24px rgba(0,0,0,0.06)",
     marginBottom: "24px",
+    border: "1px solid #edf0f5",
   },
   sectionTitle: {
     marginTop: 0,
     marginBottom: "20px",
     fontSize: "24px",
     color: "#111827",
+    fontWeight: 800,
   },
 };
