@@ -1,9 +1,8 @@
 from fastapi import FastAPI, Depends, HTTPException
-from sqlalchemy.orm import Session
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy.orm import Session
 
 from app.db import Base, engine, SessionLocal
-from app.models import User, Employee
 from app.models import User, Employee
 from app.models.contract import Contract
 from app.schemas.employee import EmployeeCreate, EmployeeUpdate, EmployeeResponse
@@ -32,11 +31,18 @@ app = FastAPI(title="AulaNomina API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:5174",
+        "http://127.0.0.1:5174",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+Base.metadata.create_all(bind=engine)
 
 Base.metadata.create_all(bind=engine)
 
