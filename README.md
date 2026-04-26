@@ -1,6 +1,6 @@
 # AulaNomina
 
-AulaNomina es una plataforma web de simulación educativa para formación en Recursos Humanos, Relaciones Laborales, Administración y gestión laboral.
+AulaNomina es una plataforma web de simulación educativa para formación en Recursos Humanos, Relaciones Laborales, Administración y gestión laboral española.
 
 El objetivo es crear un entorno similar a un ERP profesional donde alumnos y docentes puedan practicar procesos reales de gestión laboral sin afectar a sistemas reales.
 
