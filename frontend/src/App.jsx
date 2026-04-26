@@ -136,9 +136,9 @@ export default function App() {
   }
 
   function getSubtitle() {
-    if (activePage === "dashboard") return "Vista general del sistema";
-    if (activePage === "companies") return "Gestión de empresas";
-    if (activePage === "contracts") return "Gestión de contratos";
+    if (activePage === "dashboard") return "Resumen del entorno de simulación";
+    if (activePage === "companies") return "Gestión de empresas y centros";
+    if (activePage === "contracts") return "Gestión de contratos laborales";
     return "";
   }
 
@@ -182,42 +182,50 @@ export default function App() {
   }
 
   return (
-    <div style={styles.layout}>
+    <div style={styles.appFrame}>
       <Sidebar activePage={activePage} setActivePage={setActivePage} />
 
       <div style={styles.mainWrapper}>
         <Header title={getTitle()} subtitle={getSubtitle()} />
 
-        <main style={styles.main}>
-          <div style={styles.content}>{renderPage()}</div>
-        </main>
+        <main style={styles.main}>{renderPage()}</main>
+
+        <footer style={styles.footer}>
+          AulaNomina · Entorno educativo de simulación laboral · Demo MVP
+        </footer>
       </div>
     </div>
   );
 }
 
 const styles = {
-  layout: {
+  appFrame: {
     display: "flex",
     minHeight: "100vh",
-    backgroundColor: "#f3f4f8",
-    color: "#111827",
+    backgroundColor: "#ffffff",
+    color: "#1f2937",
+    fontFamily:
+      "Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif",
   },
   mainWrapper: {
-    marginLeft: "260px",
-    width: "calc(100% - 260px)",
+    marginLeft: "272px",
+    width: "calc(100% - 272px)",
     minHeight: "100vh",
     display: "flex",
     flexDirection: "column",
+    backgroundColor: "#ffffff",
   },
   main: {
     flex: 1,
-    padding: "28px 36px 42px",
+    padding: "28px 34px 48px",
     boxSizing: "border-box",
+    maxWidth: "none",
   },
-  content: {
-    width: "100%",
-    maxWidth: "1180px",
-    margin: "0 auto",
+  footer: {
+    borderTop: "1px solid #f0e7aa",
+    padding: "10px 34px",
+    color: "#8a7a22",
+    fontSize: "11px",
+    backgroundColor: "#fffbe6",
   },
 };
