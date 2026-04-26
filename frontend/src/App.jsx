@@ -188,7 +188,9 @@ export default function App() {
       <div style={styles.mainWrapper}>
         <Header title={getTitle()} subtitle={getSubtitle()} />
 
-        <main style={styles.main}>{renderPage()}</main>
+        <main style={styles.main}>
+          <div style={styles.content}>{renderPage()}</div>
+        </main>
       </div>
     </div>
   );
@@ -199,14 +201,23 @@ const styles = {
     display: "flex",
     minHeight: "100vh",
     backgroundColor: "#f3f4f8",
+    color: "#111827",
   },
   mainWrapper: {
     marginLeft: "260px",
-    width: "100%",
+    width: "calc(100% - 260px)",
+    minHeight: "100vh",
     display: "flex",
     flexDirection: "column",
   },
   main: {
-    padding: "24px 32px",
+    flex: 1,
+    padding: "28px 36px 42px",
+    boxSizing: "border-box",
+  },
+  content: {
+    width: "100%",
+    maxWidth: "1180px",
+    margin: "0 auto",
   },
 };
