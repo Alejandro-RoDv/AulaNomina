@@ -16,23 +16,26 @@ export default function PageCard({ title, subtitle, children }) {
 const styles = {
   card: {
     backgroundColor: "#ffffff",
-    padding: "24px",
-    borderRadius: "16px",
-    boxShadow: "0 8px 20px rgba(0,0,0,0.05)",
-    border: "1px solid #eef0f4",
+    padding: "22px",
+    borderRadius: "0",
+    border: "2px solid #111111",
+    boxShadow: "6px 6px 0 #fff36b",
   },
   header: {
     marginBottom: "16px",
+    borderBottom: "1px solid #eee3a0",
+    paddingBottom: "10px",
   },
   title: {
     margin: 0,
     fontSize: "18px",
-    fontWeight: 800,
-    color: "#111827",
+    fontWeight: 900,
+    color: "#111111",
   },
   subtitle: {
     margin: "4px 0 0",
     fontSize: "13px",
-    color: "#6b7280",
+    color: "#5f6368",
+    fontWeight: 600,
   },
 };
