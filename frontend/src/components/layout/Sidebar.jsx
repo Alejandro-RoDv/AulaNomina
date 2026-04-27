@@ -96,9 +96,9 @@ const styles = {
     overflow: "hidden",
   },
   logo: {
-    width: "250px",
-    maxWidth: "100%",
-    maxHeight: "124px",
+    width: "275px",
+    maxWidth: "110%",
+    maxHeight: "130px",
     objectFit: "contain",
     display: "block",
   },
