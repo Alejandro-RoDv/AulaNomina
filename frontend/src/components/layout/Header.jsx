@@ -23,7 +23,7 @@ const styles = {
   },
   topBar: {
     minHeight: "54px",
-    background: "linear-gradient(90deg, #f7d000 0%, #ffe25a 55%, #fff3a6 100%)",
+    background: "linear-gradient(90deg, #e6d85c 0%, #f5ef9c 55%, #ffffff 100%)",
     borderBottom: "2px solid #111111",
     display: "flex",
     alignItems: "center",
@@ -40,8 +40,8 @@ const styles = {
   },
   statusBox: {
     color: "#111111",
-    backgroundColor: "rgba(255, 255, 255, 0.55)",
-    border: "1px solid rgba(0, 0, 0, 0.35)",
+    backgroundColor: "rgba(255, 255, 255, 0.65)",
+    border: "1px solid rgba(0, 0, 0, 0.25)",
     padding: "5px 10px",
     fontSize: "12px",
     fontWeight: 800,
