@@ -74,7 +74,7 @@ const styles = {
   sidebar: {
     width: "272px",
     minHeight: "100vh",
-    backgroundColor: "#fff36b",
+    backgroundColor: "#f8f3b5",
     borderRight: "3px solid #111111",
     boxSizing: "border-box",
     display: "flex",
@@ -140,7 +140,7 @@ const styles = {
   navItemActive: {
     border: "3px solid #111111",
     backgroundColor: "#ffffff",
-    boxShadow: "3px 3px 0 #f2c500",
+    boxShadow: "3px 3px 0 #e6d85c",
   },
   navItemDisabled: {
     cursor: "not-allowed",
