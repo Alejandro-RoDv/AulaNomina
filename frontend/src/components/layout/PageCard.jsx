@@ -19,11 +19,11 @@ const styles = {
     padding: "22px",
     borderRadius: "0",
     border: "2px solid #111111",
-    boxShadow: "5px 5px 0 #f3e7a2",
+    boxShadow: "5px 5px 0 #f5ef9c",
   },
   header: {
     marginBottom: "16px",
-    borderBottom: "1px solid #eadf9a",
+    borderBottom: "1px solid #e6d85c",
     paddingBottom: "10px",
   },
   title: {
