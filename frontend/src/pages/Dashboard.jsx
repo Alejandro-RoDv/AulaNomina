@@ -1,7 +1,8 @@
 import PageCard from "../components/layout/PageCard";
 
-export default function Dashboard({ companies, contracts }) {
+export default function Dashboard({ companies, employees, contracts }) {
   const activeCompanies = companies?.length || 0;
+  const registeredEmployees = employees?.length || 0;
   const totalContracts = contracts?.length || 0;
 
   const stats = [
@@ -11,19 +12,19 @@ export default function Dashboard({ companies, contracts }) {
       description: "Centros disponibles para simulaciones",
     },
     {
+      label: "Empleados registrados",
+      value: registeredEmployees,
+      description: "Trabajadores creados en el sistema",
+    },
+    {
       label: "Contratos creados",
       value: totalContracts,
       description: "Contratos registrados en el sistema",
     },
     {
       label: "Módulos activos",
-      value: 2,
-      description: "Empresas y contratos",
-    },
-    {
-      label: "Módulos pendientes",
-      value: 4,
-      description: "Empleados, nóminas, incidencias y casos",
+      value: 3,
+      description: "Empresas, empleados y contratos",
     },
   ];
 
@@ -33,12 +34,12 @@ export default function Dashboard({ companies, contracts }) {
       description: "Registro de nuevo centro de trabajo para prácticas.",
     },
     {
-      title: "Creación de contrato",
-      description: "Simulación de contratación vinculada a un trabajador.",
+      title: "Alta de trabajador",
+      description: "Creación de trabajadores para vincularlos al flujo laboral.",
     },
     {
-      title: "Preparación de módulos",
-      description: "Próximos pasos: empleados, nómina e incidencias laborales.",
+      title: "Creación de contrato",
+      description: "Simulación de contratación vinculada a un trabajador.",
     },
   ];
 
@@ -73,11 +74,11 @@ export default function Dashboard({ companies, contracts }) {
           <div style={styles.statusBlock}>
             <div>
               <p style={styles.statusTitle}>Disponible</p>
-              <p style={styles.statusText}>Empresas, contratos y navegación modular.</p>
+              <p style={styles.statusText}>Empresas, trabajadores, contratos y navegación modular.</p>
             </div>
             <div>
               <p style={styles.statusTitle}>Siguiente fase</p>
-              <p style={styles.statusText}>Gestión de empleados y conexión con contratos.</p>
+              <p style={styles.statusText}>Nómina simulada, incidencias laborales y casos prácticos.</p>
             </div>
           </div>
         </PageCard>
