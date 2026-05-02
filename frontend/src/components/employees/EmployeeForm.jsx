@@ -1,8 +1,8 @@
-export default function EmployeeForm({ form, onChange, onSubmit, error, success, submitting }) {
+export default function EmployeeForm({ form, companies, onChange, onSubmit, error, success, submitting }) {
   return (
     <form onSubmit={onSubmit} style={styles.form}>
       <div style={styles.formRow}>
-        <div style={styles.formGroup}>
+        <div style={styles.formGroupCode}>
           <label>Código trabajador</label>
           <input
             name="employee_code"
@@ -11,12 +11,17 @@ export default function EmployeeForm({ form, onChange, onSubmit, error, success,
             disabled
             style={{ ...styles.input, ...styles.readOnlyInput }}
           />
-          <small style={styles.helpText}>Se asigna automáticamente con el primer código libre.</small>
+          <small style={styles.helpText}>Automático.</small>
         </div>
 
-        <div style={styles.formGroup}>
+        <div style={styles.formGroupDni}>
           <label>DNI</label>
           <input name="dni" value={form.dni} onChange={onChange} required style={styles.input} />
+        </div>
+
+        <div style={styles.formGroupNaf}>
+          <label>NAF</label>
+          <input name="naf" value={form.naf} onChange={onChange} style={styles.input} />
         </div>
       </div>
 
@@ -41,6 +46,20 @@ export default function EmployeeForm({ form, onChange, onSubmit, error, success,
             required
             style={styles.input}
           />
+        </div>
+      </div>
+
+      <div style={styles.formRow}>
+        <div style={styles.formGroup}>
+          <label>Empresa / Centro</label>
+          <select name="company_id" value={form.company_id} onChange={onChange} style={styles.input}>
+            <option value="">Sin asignar</option>
+            {companies.map((company) => (
+              <option key={company.id} value={company.id}>
+                {company.name}
+              </option>
+            ))}
+          </select>
         </div>
       </div>
 
@@ -105,6 +124,9 @@ const styles = {
   form: { display: "flex", flexDirection: "column", gap: "16px" },
   formRow: { display: "flex", gap: "16px", flexWrap: "wrap" },
   formGroup: { flex: 1, minWidth: "220px", display: "flex", flexDirection: "column", gap: "6px" },
+  formGroupCode: { width: "150px", display: "flex", flexDirection: "column", gap: "6px" },
+  formGroupDni: { width: "190px", display: "flex", flexDirection: "column", gap: "6px" },
+  formGroupNaf: { width: "230px", display: "flex", flexDirection: "column", gap: "6px" },
   input: { padding: "10px 12px", border: "1px solid #ccc", borderRadius: "8px", fontSize: "14px" },
   readOnlyInput: { backgroundColor: "#f3f4f6", color: "#6b7280", cursor: "not-allowed", fontWeight: 800 },
   helpText: { color: "#6b7280", fontSize: "12px" },
