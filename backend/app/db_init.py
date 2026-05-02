@@ -28,6 +28,8 @@ def init_database() -> None:
         "city": "VARCHAR",
         "province": "VARCHAR",
         "postal_code": "VARCHAR",
+        "naf": "VARCHAR",
+        "company_id": "INTEGER REFERENCES companies(id)",
         "is_active": "BOOLEAN DEFAULT TRUE NOT NULL",
         "created_at": "TIMESTAMP",
     }
