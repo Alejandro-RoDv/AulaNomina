@@ -17,6 +17,7 @@ from app.crud.employee import (
     get_employee_by_code,
     get_employee_by_dni,
     get_employee_by_email,
+    get_next_employee_code,
 )
 from app.schemas.contract import ContractCreate, ContractUpdate, ContractResponse
 from app.crud.contract import (
@@ -69,11 +70,13 @@ def root():
 
 
 # EMPLOYEES
+@app.get("/employees/next-code")
+def get_next_employee_code_endpoint(db: Session = Depends(get_db)):
+    return {"employee_code": get_next_employee_code(db)}
+
+
 @app.post("/employees", response_model=EmployeeResponse)
 def create_employee_endpoint(employee: EmployeeCreate, db: Session = Depends(get_db)):
-    if get_employee_by_code(db, employee.employee_code):
-        raise HTTPException(status_code=400, detail="Ya existe un trabajador con ese código")
-
     if get_employee_by_dni(db, employee.dni):
         raise HTTPException(status_code=400, detail="Ya existe un trabajador con ese DNI")
 
@@ -102,11 +105,6 @@ def update_employee_endpoint(
     current_employee = get_employee(db, employee_id)
     if not current_employee:
         raise HTTPException(status_code=404, detail="Trabajador no encontrado")
-
-    if employee.employee_code:
-        existing = get_employee_by_code(db, employee.employee_code)
-        if existing and existing.id != employee_id:
-            raise HTTPException(status_code=400, detail="Ya existe un trabajador con ese código")
 
     if employee.dni:
         existing = get_employee_by_dni(db, employee.dni)
