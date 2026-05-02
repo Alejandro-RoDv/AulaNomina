@@ -22,6 +22,7 @@ class Employee(Base):
     province = Column(String, nullable=True)
     postal_code = Column(String, nullable=True)
     is_active = Column(Boolean, default=True, nullable=False)
+    status = Column(String, default="active", nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     contracts = relationship("Contract", back_populates="employee")
