@@ -1,4 +1,4 @@
-export default function EmployeeForm({ form, companies, onChange, onSubmit, error, success, submitting }) {
+export default function EmployeeForm({ form, onChange, onSubmit, error, success, submitting }) {
   return (
     <form onSubmit={onSubmit} style={styles.form}>
       <div style={styles.formRow}>
@@ -46,20 +46,6 @@ export default function EmployeeForm({ form, companies, onChange, onSubmit, erro
             required
             style={styles.input}
           />
-        </div>
-      </div>
-
-      <div style={styles.formRow}>
-        <div style={styles.formGroup}>
-          <label>Empresa / Centro</label>
-          <select name="company_id" value={form.company_id} onChange={onChange} style={styles.input}>
-            <option value="">Sin asignar</option>
-            {companies.map((company) => (
-              <option key={company.id} value={company.id}>
-                {company.name}
-              </option>
-            ))}
-          </select>
         </div>
       </div>
 
