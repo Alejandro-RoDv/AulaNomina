@@ -66,19 +66,17 @@ def root():
     return {"message": "AulaNomina backend activo"}
 
 
-# CREATE EMPLOYEE
+# EMPLOYEES
 @app.post("/employees", response_model=EmployeeResponse)
-def create_employee_endpoint(
-    employee: EmployeeCreate, db: Session = Depends(get_db)
-):
+def create_employee_endpoint(employee: EmployeeCreate, db: Session = Depends(get_db)):
     if get_employee_by_code(db, employee.employee_code):
-        raise HTTPException(status_code=400, detail="Employee code already exists")
+        raise HTTPException(status_code=400, detail="Ya existe un trabajador con ese código")
 
     if get_employee_by_dni(db, employee.dni):
-        raise HTTPException(status_code=400, detail="DNI already exists")
+        raise HTTPException(status_code=400, detail="Ya existe un trabajador con ese DNI")
 
     if employee.email and get_employee_by_email(db, employee.email):
-        raise HTTPException(status_code=400, detail="Email already exists")
+        raise HTTPException(status_code=400, detail="Ya existe un trabajador con ese email")
 
     return create_employee(db, employee)
 
@@ -91,6 +89,43 @@ def list_employees(db: Session = Depends(get_db)):
 @app.get("/employees/all", response_model=list[EmployeeResponse])
 def list_all_employees(db: Session = Depends(get_db)):
     return get_employees_all(db)
+
+
+@app.put("/employees/{employee_id}", response_model=EmployeeResponse)
+def update_employee_endpoint(
+    employee_id: int,
+    employee: EmployeeUpdate,
+    db: Session = Depends(get_db),
+):
+    current_employee = get_employee(db, employee_id)
+    if not current_employee:
+        raise HTTPException(status_code=404, detail="Trabajador no encontrado")
+
+    if employee.employee_code:
+        existing = get_employee_by_code(db, employee.employee_code)
+        if existing and existing.id != employee_id:
+            raise HTTPException(status_code=400, detail="Ya existe un trabajador con ese código")
+
+    if employee.dni:
+        existing = get_employee_by_dni(db, employee.dni)
+        if existing and existing.id != employee_id:
+            raise HTTPException(status_code=400, detail="Ya existe un trabajador con ese DNI")
+
+    if employee.email:
+        existing = get_employee_by_email(db, employee.email)
+        if existing and existing.id != employee_id:
+            raise HTTPException(status_code=400, detail="Ya existe un trabajador con ese email")
+
+    return update_employee(db, employee_id, employee)
+
+
+@app.delete("/employees/{employee_id}", response_model=EmployeeResponse)
+def delete_employee_endpoint(employee_id: int, db: Session = Depends(get_db)):
+    deleted_employee = soft_delete_employee(db, employee_id)
+    if not deleted_employee:
+        raise HTTPException(status_code=404, detail="Trabajador no encontrado")
+
+    return deleted_employee
 
 
 # CONTRACTS
