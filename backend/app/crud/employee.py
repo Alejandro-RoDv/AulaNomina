@@ -1,7 +1,12 @@
+import re
+
 from sqlalchemy.orm import Session
 
 from app.models.employee import Employee
 from app.schemas.employee import EmployeeCreate, EmployeeUpdate
+
+EMPLOYEE_CODE_PREFIX = "EMP"
+EMPLOYEE_CODE_DIGITS = 3
 
 
 def get_employee_by_code(db: Session, employee_code: str):
@@ -16,8 +21,30 @@ def get_employee_by_email(db: Session, email: str):
     return db.query(Employee).filter(Employee.email == email).first()
 
 
+def get_next_employee_code(db: Session):
+    employees = db.query(Employee.employee_code).all()
+    used_numbers = set()
+
+    for (employee_code,) in employees:
+        if not employee_code:
+            continue
+
+        match = re.fullmatch(rf"{EMPLOYEE_CODE_PREFIX}(\d+)", employee_code.strip().upper())
+        if match:
+            used_numbers.add(int(match.group(1)))
+
+    next_number = 1
+    while next_number in used_numbers:
+        next_number += 1
+
+    return f"{EMPLOYEE_CODE_PREFIX}{next_number:0{EMPLOYEE_CODE_DIGITS}d}"
+
+
 def create_employee(db: Session, employee: EmployeeCreate):
-    db_employee = Employee(**employee.model_dump())
+    employee_data = employee.model_dump()
+    employee_data["employee_code"] = get_next_employee_code(db)
+
+    db_employee = Employee(**employee_data)
     db.add(db_employee)
     db.commit()
     db.refresh(db_employee)
@@ -47,6 +74,8 @@ def update_employee(db: Session, employee_id: int, employee_data: EmployeeUpdate
         return None
 
     update_data = employee_data.model_dump(exclude_unset=True)
+    update_data.pop("employee_code", None)
+
     for field, value in update_data.items():
         setattr(employee, field, value)
 
