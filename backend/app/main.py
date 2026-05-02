@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 
 from app.db import Base, engine, SessionLocal
+from app.db_init import init_database
 from app.models import User, Employee, Company
 from app.models.contract import Contract
 from app.schemas.employee import EmployeeCreate, EmployeeUpdate, EmployeeResponse
@@ -49,7 +50,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-Base.metadata.create_all(bind=engine)
+# MVP: create tables and ensure missing columns exist
+init_database()
 
 
 # dependencia DB
