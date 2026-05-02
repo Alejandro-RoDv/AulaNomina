@@ -7,10 +7,11 @@ export default function EmployeeForm({ form, onChange, onSubmit, error, success,
           <input
             name="employee_code"
             value={form.employee_code}
-            onChange={onChange}
-            required
-            style={styles.input}
+            readOnly
+            disabled
+            style={{ ...styles.input, ...styles.readOnlyInput }}
           />
+          <small style={styles.helpText}>Se asigna automáticamente con el primer código libre.</small>
         </div>
 
         <div style={styles.formGroup}>
@@ -105,6 +106,8 @@ const styles = {
   formRow: { display: "flex", gap: "16px", flexWrap: "wrap" },
   formGroup: { flex: 1, minWidth: "220px", display: "flex", flexDirection: "column", gap: "6px" },
   input: { padding: "10px 12px", border: "1px solid #ccc", borderRadius: "8px", fontSize: "14px" },
+  readOnlyInput: { backgroundColor: "#f3f4f6", color: "#6b7280", cursor: "not-allowed", fontWeight: 800 },
+  helpText: { color: "#6b7280", fontSize: "12px" },
   button: { backgroundColor: "#111827", color: "white", border: "none", borderRadius: "8px", padding: "12px 18px", cursor: "pointer", width: "fit-content" },
   error: { backgroundColor: "#fee2e2", color: "#991b1b", padding: "10px 12px", borderRadius: "8px" },
   success: { backgroundColor: "#dcfce7", color: "#166534", padding: "10px 12px", borderRadius: "8px" },
