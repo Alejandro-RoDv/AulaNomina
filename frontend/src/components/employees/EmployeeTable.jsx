@@ -9,7 +9,6 @@ const emptyEditForm = {
   email: "",
   phone: "",
   birth_date: "",
-  company_id: "",
   address: "",
   city: "",
   province: "",
@@ -27,7 +26,6 @@ function toEditForm(employee) {
     email: employee.email || "",
     phone: employee.phone || "",
     birth_date: employee.birth_date || "",
-    company_id: employee.company_id || "",
     address: employee.address || "",
     city: employee.city || "",
     province: employee.province || "",
@@ -36,7 +34,7 @@ function toEditForm(employee) {
   };
 }
 
-export default function EmployeeTable({ loading, employees, companies, onUpdateEmployee, submitting }) {
+export default function EmployeeTable({ loading, employees, onUpdateEmployee, submitting }) {
   const [editingEmployee, setEditingEmployee] = useState(null);
   const [editForm, setEditForm] = useState(emptyEditForm);
   const [editError, setEditError] = useState("");
@@ -88,7 +86,6 @@ export default function EmployeeTable({ loading, employees, companies, onUpdateE
                 <th style={styles.th}>DNI</th>
                 <th style={styles.th}>NAF</th>
                 <th style={styles.th}>Nombre completo</th>
-                <th style={styles.th}>Empresa / Centro</th>
                 <th style={styles.th}>Email</th>
                 <th style={styles.th}>Teléfono</th>
                 <th style={styles.th}>Estado</th>
@@ -102,7 +99,6 @@ export default function EmployeeTable({ loading, employees, companies, onUpdateE
                   <td style={styles.td}>{employee.dni}</td>
                   <td style={styles.td}>{employee.naf || "-"}</td>
                   <td style={styles.td}>{employee.first_name} {employee.last_name}</td>
-                  <td style={styles.td}>{employee.company_name || "Sin asignar"}</td>
                   <td style={styles.td}>{employee.email || "-"}</td>
                   <td style={styles.td}>{employee.phone || "-"}</td>
                   <td style={styles.td}>
@@ -161,20 +157,6 @@ export default function EmployeeTable({ loading, employees, companies, onUpdateE
                 <div style={styles.formGroup}>
                   <label>Apellidos</label>
                   <input name="last_name" value={editForm.last_name} onChange={handleEditChange} required style={styles.input} />
-                </div>
-              </div>
-
-              <div style={styles.formRow}>
-                <div style={styles.formGroup}>
-                  <label>Empresa / Centro</label>
-                  <select name="company_id" value={editForm.company_id} onChange={handleEditChange} style={styles.input}>
-                    <option value="">Sin asignar</option>
-                    {companies.map((company) => (
-                      <option key={company.id} value={company.id}>
-                        {company.name}
-                      </option>
-                    ))}
-                  </select>
                 </div>
               </div>
 
