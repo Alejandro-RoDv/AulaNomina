@@ -10,7 +10,7 @@ import EmployeesPage from "./pages/EmployeesPage";
 
 import { createContract, fetchContracts } from "./services/api";
 import { createCompany, fetchCompanies } from "./services/companyApi";
-import { createEmployee, deleteEmployee, fetchAllEmployees, updateEmployee } from "./services/employeeApi";
+import { createEmployee, deleteEmployee, fetchAllEmployees, fetchNextEmployeeCode, updateEmployee } from "./services/employeeApi";
 
 const initialContractForm = {
   employee_id: "",
@@ -83,19 +83,26 @@ export default function App() {
   const [companyForm, setCompanyForm] = useState(initialCompanyForm);
   const [employeeForm, setEmployeeForm] = useState(initialEmployeeForm);
 
+  const loadNextEmployeeCode = async () => {
+    const data = await fetchNextEmployeeCode();
+    setEmployeeForm((prev) => ({ ...prev, employee_code: data.employee_code }));
+  };
+
   const loadData = async () => {
     try {
       setLoading(true);
 
-      const [contractsData, employeesData, companiesData] = await Promise.all([
+      const [contractsData, employeesData, companiesData, nextEmployeeCodeData] = await Promise.all([
         fetchContracts(),
         fetchAllEmployees(),
         fetchCompanies(),
+        fetchNextEmployeeCode(),
       ]);
 
       setContracts(contractsData);
       setEmployees(employeesData);
       setCompanies(companiesData);
+      setEmployeeForm((prev) => ({ ...prev, employee_code: nextEmployeeCodeData.employee_code }));
     } catch {
       setContractError("Error cargando datos");
       setCompanyError("Error cargando datos");
@@ -182,6 +189,7 @@ export default function App() {
       await loadData();
     } catch (err) {
       setEmployeeError(err.message || "Error al crear trabajador");
+      await loadNextEmployeeCode();
     } finally {
       setEmployeeSubmitting(false);
     }
