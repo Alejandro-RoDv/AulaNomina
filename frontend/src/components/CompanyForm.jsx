@@ -15,6 +15,18 @@ export default function CompanyForm({ form, onChange, onSubmit, error, success, 
 
       <div style={styles.formRow}>
         <div style={styles.formGroup}>
+          <label>CCC</label>
+          <input
+            name="ccc"
+            value={form.ccc}
+            onChange={onChange}
+            required
+            placeholder="Ej. 01111234567"
+            style={styles.input}
+          />
+        </div>
+
+        <div style={styles.formGroup}>
           <label>Dirección</label>
           <input name="address" value={form.address} onChange={onChange} style={styles.input} />
         </div>
