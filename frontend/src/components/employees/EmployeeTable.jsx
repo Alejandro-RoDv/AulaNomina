@@ -32,7 +32,7 @@ function toEditForm(employee) {
   };
 }
 
-export default function EmployeeTable({ loading, employees, onUpdateEmployee, onDeleteEmployee, submitting }) {
+export default function EmployeeTable({ loading, employees, onUpdateEmployee, submitting }) {
   const [editingEmployee, setEditingEmployee] = useState(null);
   const [editForm, setEditForm] = useState(emptyEditForm);
   const [editError, setEditError] = useState("");
@@ -107,25 +107,13 @@ export default function EmployeeTable({ loading, employees, onUpdateEmployee, on
                     </span>
                   </td>
                   <td style={styles.td}>
-                    <div style={styles.actions}>
-                      <button
-                        type="button"
-                        style={styles.editButton}
-                        onClick={() => openEditModal(employee)}
-                      >
-                        Editar
-                      </button>
-
-                      {employee.is_active ? (
-                        <button
-                          type="button"
-                          style={styles.deleteButton}
-                          onClick={() => onDeleteEmployee(employee.id)}
-                        >
-                          Desactivar
-                        </button>
-                      ) : null}
-                    </div>
+                    <button
+                      type="button"
+                      style={styles.editButton}
+                      onClick={() => openEditModal(employee)}
+                    >
+                      Editar
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -236,9 +224,7 @@ const styles = {
   td: { padding: "12px", borderBottom: "1px solid #eee", whiteSpace: "nowrap" },
   activeBadge: { backgroundColor: "#dcfce7", color: "#166534", padding: "4px 8px", borderRadius: "999px", fontSize: "12px", fontWeight: 800 },
   inactiveBadge: { backgroundColor: "#fee2e2", color: "#991b1b", padding: "4px 8px", borderRadius: "999px", fontSize: "12px", fontWeight: 800 },
-  actions: { display: "flex", gap: "8px", alignItems: "center" },
   editButton: { backgroundColor: "#111827", color: "#ffffff", border: "1px solid #111827", borderRadius: "8px", padding: "7px 10px", cursor: "pointer", fontWeight: 700 },
-  deleteButton: { backgroundColor: "#fee2e2", color: "#991b1b", border: "1px solid #fecaca", borderRadius: "8px", padding: "7px 10px", cursor: "pointer", fontWeight: 700 },
   modalBackdrop: { position: "fixed", inset: 0, backgroundColor: "rgba(17, 24, 39, 0.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, padding: "24px" },
   modal: { width: "min(920px, 100%)", maxHeight: "90vh", overflowY: "auto", backgroundColor: "#ffffff", border: "3px solid #111111", borderRadius: "12px", boxShadow: "8px 8px 0 #e6d85c", padding: "22px" },
   modalHeader: { display: "flex", justifyContent: "space-between", alignItems: "start", gap: "16px", marginBottom: "18px", borderBottom: "1px solid #e5e7eb", paddingBottom: "14px" },
