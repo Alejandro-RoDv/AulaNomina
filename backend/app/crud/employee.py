@@ -9,20 +9,6 @@ EMPLOYEE_CODE_PREFIX = "EMP"
 EMPLOYEE_CODE_DIGITS = 3
 
 
-def attach_company_name(employee: Employee | None):
-    if employee is None:
-        return None
-
-    employee.company_name = employee.company.name if employee.company else None
-    return employee
-
-
-def attach_company_names(employees: list[Employee]):
-    for employee in employees:
-        attach_company_name(employee)
-    return employees
-
-
 def get_employee_by_code(db: Session, employee_code: str):
     return db.query(Employee).filter(Employee.employee_code == employee_code).first()
 
@@ -66,27 +52,24 @@ def create_employee(db: Session, employee: EmployeeCreate):
     db.add(db_employee)
     db.commit()
     db.refresh(db_employee)
-    return attach_company_name(db_employee)
+    return db_employee
 
 
 def get_employees_all(db: Session):
-    employees = db.query(Employee).order_by(Employee.id.desc()).all()
-    return attach_company_names(employees)
+    return db.query(Employee).order_by(Employee.id.desc()).all()
 
 
 def get_employees(db: Session):
-    employees = (
+    return (
         db.query(Employee)
         .filter(Employee.is_active.is_(True))
         .order_by(Employee.id.desc())
         .all()
     )
-    return attach_company_names(employees)
 
 
 def get_employee(db: Session, employee_id: int):
-    employee = db.query(Employee).filter(Employee.id == employee_id).first()
-    return attach_company_name(employee)
+    return db.query(Employee).filter(Employee.id == employee_id).first()
 
 
 def update_employee(db: Session, employee_id: int, employee_data: EmployeeUpdate):
@@ -102,7 +85,7 @@ def update_employee(db: Session, employee_id: int, employee_data: EmployeeUpdate
 
     db.commit()
     db.refresh(employee)
-    return attach_company_name(employee)
+    return employee
 
 
 def soft_delete_employee(db: Session, employee_id: int):
@@ -113,4 +96,4 @@ def soft_delete_employee(db: Session, employee_id: int):
     employee.is_active = False
     db.commit()
     db.refresh(employee)
-    return attach_company_name(employee)
+    return employee
