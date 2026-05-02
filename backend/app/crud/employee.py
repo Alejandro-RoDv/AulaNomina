@@ -9,6 +9,20 @@ EMPLOYEE_CODE_PREFIX = "EMP"
 EMPLOYEE_CODE_DIGITS = 3
 
 
+def attach_company_name(employee: Employee | None):
+    if employee is None:
+        return None
+
+    employee.company_name = employee.company.name if employee.company else None
+    return employee
+
+
+def attach_company_names(employees: list[Employee]):
+    for employee in employees:
+        attach_company_name(employee)
+    return employees
+
+
 def get_employee_by_code(db: Session, employee_code: str):
     return db.query(Employee).filter(Employee.employee_code == employee_code).first()
 
@@ -19,6 +33,10 @@ def get_employee_by_dni(db: Session, dni: str):
 
 def get_employee_by_email(db: Session, email: str):
     return db.query(Employee).filter(Employee.email == email).first()
+
+
+def get_employee_by_naf(db: Session, naf: str):
+    return db.query(Employee).filter(Employee.naf == naf).first()
 
 
 def get_next_employee_code(db: Session):
@@ -48,28 +66,31 @@ def create_employee(db: Session, employee: EmployeeCreate):
     db.add(db_employee)
     db.commit()
     db.refresh(db_employee)
-    return db_employee
+    return attach_company_name(db_employee)
 
 
 def get_employees_all(db: Session):
-    return db.query(Employee).order_by(Employee.id.desc()).all()
+    employees = db.query(Employee).order_by(Employee.id.desc()).all()
+    return attach_company_names(employees)
 
 
 def get_employees(db: Session):
-    return (
+    employees = (
         db.query(Employee)
         .filter(Employee.is_active.is_(True))
         .order_by(Employee.id.desc())
         .all()
     )
+    return attach_company_names(employees)
 
 
 def get_employee(db: Session, employee_id: int):
-    return db.query(Employee).filter(Employee.id == employee_id).first()
+    employee = db.query(Employee).filter(Employee.id == employee_id).first()
+    return attach_company_name(employee)
 
 
 def update_employee(db: Session, employee_id: int, employee_data: EmployeeUpdate):
-    employee = get_employee(db, employee_id)
+    employee = db.query(Employee).filter(Employee.id == employee_id).first()
     if not employee:
         return None
 
@@ -81,15 +102,15 @@ def update_employee(db: Session, employee_id: int, employee_data: EmployeeUpdate
 
     db.commit()
     db.refresh(employee)
-    return employee
+    return attach_company_name(employee)
 
 
 def soft_delete_employee(db: Session, employee_id: int):
-    employee = get_employee(db, employee_id)
+    employee = db.query(Employee).filter(Employee.id == employee_id).first()
     if not employee:
         return None
 
     employee.is_active = False
     db.commit()
     db.refresh(employee)
-    return employee
+    return attach_company_name(employee)
