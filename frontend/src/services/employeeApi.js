@@ -20,6 +20,11 @@ export async function fetchAllEmployees() {
   return handleResponse(response, "Error al cargar trabajadores");
 }
 
+export async function fetchNextEmployeeCode() {
+  const response = await fetch(`${API_BASE_URL}/employees/next-code`);
+  return handleResponse(response, "Error al cargar el siguiente código de trabajador");
+}
+
 export async function createEmployee(payload) {
   const response = await fetch(`${API_BASE_URL}/employees`, {
     method: "POST",
