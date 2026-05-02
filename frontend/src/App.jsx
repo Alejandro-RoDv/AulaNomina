@@ -38,7 +38,6 @@ const initialEmployeeForm = {
   email: "",
   phone: "",
   birth_date: "",
-  company_id: "",
   address: "",
   city: "",
   province: "",
@@ -52,7 +51,6 @@ function buildEmployeePayload(form) {
     email: form.email || null,
     phone: form.phone || null,
     birth_date: form.birth_date || null,
-    company_id: form.company_id ? Number(form.company_id) : null,
     address: form.address || null,
     city: form.city || null,
     province: form.province || null,
@@ -270,7 +268,6 @@ export default function App() {
         <EmployeesPage
           loading={loading}
           employees={employees}
-          companies={companies}
           employeeForm={employeeForm}
           onEmployeeChange={handleEmployeeChange}
           onEmployeeSubmit={handleEmployeeSubmit}
