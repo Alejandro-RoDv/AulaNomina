@@ -8,7 +8,7 @@ export default function Sidebar({ activePage, setActivePage }) {
         { id: "dashboard", label: "Panel", enabled: true },
         { id: "companies", label: "Empresa", enabled: true },
         { id: "contracts", label: "Contratos", enabled: true },
-        { id: "employees", label: "Trabajador", enabled: false },
+        { id: "employees", label: "Trabajador", enabled: true },
         { id: "documents", label: "Documentos", enabled: false },
         { id: "reports", label: "Informes", enabled: false },
       ],
