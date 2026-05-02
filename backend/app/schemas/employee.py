@@ -16,7 +16,6 @@ class EmployeeBase(BaseModel):
     city: str | None = None
     province: str | None = None
     postal_code: str | None = None
-    company_id: int | None = None
     is_active: bool = True
 
 
@@ -37,13 +36,11 @@ class EmployeeUpdate(BaseModel):
     city: str | None = None
     province: str | None = None
     postal_code: str | None = None
-    company_id: int | None = None
     is_active: bool | None = None
 
 
 class EmployeeResponse(EmployeeBase):
     id: int
-    company_name: str | None = None
     created_at: datetime
 
     class Config:
