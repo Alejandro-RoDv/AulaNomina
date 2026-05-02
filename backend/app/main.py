@@ -17,6 +17,7 @@ from app.crud.employee import (
     get_employee_by_code,
     get_employee_by_dni,
     get_employee_by_email,
+    get_employee_by_naf,
     get_next_employee_code,
 )
 from app.schemas.contract import ContractCreate, ContractUpdate, ContractResponse
@@ -80,6 +81,9 @@ def create_employee_endpoint(employee: EmployeeCreate, db: Session = Depends(get
     if get_employee_by_dni(db, employee.dni):
         raise HTTPException(status_code=400, detail="Ya existe un trabajador con ese DNI")
 
+    if employee.naf and get_employee_by_naf(db, employee.naf):
+        raise HTTPException(status_code=400, detail="Ya existe un trabajador con ese NAF")
+
     if employee.email and get_employee_by_email(db, employee.email):
         raise HTTPException(status_code=400, detail="Ya existe un trabajador con ese email")
 
@@ -110,6 +114,11 @@ def update_employee_endpoint(
         existing = get_employee_by_dni(db, employee.dni)
         if existing and existing.id != employee_id:
             raise HTTPException(status_code=400, detail="Ya existe un trabajador con ese DNI")
+
+    if employee.naf:
+        existing = get_employee_by_naf(db, employee.naf)
+        if existing and existing.id != employee_id:
+            raise HTTPException(status_code=400, detail="Ya existe un trabajador con ese NAF")
 
     if employee.email:
         existing = get_employee_by_email(db, employee.email)
