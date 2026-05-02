@@ -14,6 +14,7 @@ import { createEmployee, deleteEmployee, fetchAllEmployees, fetchNextEmployeeCod
 
 const initialContractForm = {
   employee_id: "",
+  company_id: "",
   contract_type: "",
   start_date: "",
   end_date: "",
@@ -24,6 +25,7 @@ const initialContractForm = {
 const initialCompanyForm = {
   name: "",
   cif: "",
+  ccc: "",
   address: "",
   city: "",
   province: "",
@@ -56,6 +58,16 @@ function buildEmployeePayload(form) {
     province: form.province || null,
     postal_code: form.postal_code || null,
     is_active: form.is_active ?? true,
+  };
+}
+
+function buildCompanyPayload(form) {
+  return {
+    ...form,
+    ccc: form.ccc || null,
+    address: form.address || null,
+    city: form.city || null,
+    province: form.province || null,
   };
 }
 
@@ -140,6 +152,7 @@ export default function App() {
 
     const payload = {
       employee_id: Number(contractForm.employee_id),
+      company_id: Number(contractForm.company_id),
       contract_type: contractForm.contract_type,
       start_date: contractForm.start_date,
       end_date: contractForm.end_date || null,
@@ -167,7 +180,7 @@ export default function App() {
 
     try {
       setCompanySubmitting(true);
-      await createCompany(companyForm);
+      await createCompany(buildCompanyPayload(companyForm));
       setCompanySuccess("Empresa creada correctamente");
       setCompanyForm(initialCompanyForm);
       await loadData();
@@ -286,6 +299,7 @@ export default function App() {
           loading={loading}
           contracts={contracts}
           employees={employees.filter((employee) => employee.is_active)}
+          companies={companies.filter((company) => company.is_active)}
           contractForm={contractForm}
           onContractChange={handleContractChange}
           onContractSubmit={handleContractSubmit}
