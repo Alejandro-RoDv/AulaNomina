@@ -6,6 +6,7 @@ export default function ContractsPage({
   loading,
   contracts,
   employees,
+  companies,
   contractForm,
   onContractChange,
   onContractSubmit,
@@ -19,6 +20,7 @@ export default function ContractsPage({
         <ContractForm
           form={contractForm}
           employees={employees}
+          companies={companies}
           onChange={onContractChange}
           onSubmit={onContractSubmit}
           error={contractError}
@@ -28,7 +30,12 @@ export default function ContractsPage({
       </PageCard>
 
       <PageCard title="Listado de contratos" subtitle="Contratos creados en el sistema.">
-        <ContractTable loading={loading} contracts={contracts} employees={employees} />
+        <ContractTable
+          loading={loading}
+          contracts={contracts}
+          employees={employees}
+          companies={companies}
+        />
       </PageCard>
     </div>
   );
