@@ -1,4 +1,5 @@
 from sqlalchemy.orm import Session
+
 from app.models.employee import Employee
 from app.schemas.employee import EmployeeCreate, EmployeeUpdate
 
@@ -22,11 +23,18 @@ def create_employee(db: Session, employee: EmployeeCreate):
     db.refresh(db_employee)
     return db_employee
 
+
 def get_employees_all(db: Session):
-    return db.query(Employee).all()
+    return db.query(Employee).order_by(Employee.id.desc()).all()
+
 
 def get_employees(db: Session):
-    return db.query(Employee).filter(Employee.status == "active").all()
+    return (
+        db.query(Employee)
+        .filter(Employee.is_active.is_(True))
+        .order_by(Employee.id.desc())
+        .all()
+    )
 
 
 def get_employee(db: Session, employee_id: int):
@@ -34,11 +42,12 @@ def get_employee(db: Session, employee_id: int):
 
 
 def update_employee(db: Session, employee_id: int, employee_data: EmployeeUpdate):
-    employee = db.query(Employee).filter(Employee.id == employee_id).first()
+    employee = get_employee(db, employee_id)
     if not employee:
         return None
 
-    for field, value in employee_data.model_dump().items():
+    update_data = employee_data.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
         setattr(employee, field, value)
 
     db.commit()
@@ -47,11 +56,11 @@ def update_employee(db: Session, employee_id: int, employee_data: EmployeeUpdate
 
 
 def soft_delete_employee(db: Session, employee_id: int):
-    employee = db.query(Employee).filter(Employee.id == employee_id).first()
+    employee = get_employee(db, employee_id)
     if not employee:
         return None
 
-    employee.status = "inactive"
+    employee.is_active = False
     db.commit()
     db.refresh(employee)
     return employee
