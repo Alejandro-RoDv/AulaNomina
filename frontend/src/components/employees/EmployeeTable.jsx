@@ -3,11 +3,13 @@ import { useState } from "react";
 const emptyEditForm = {
   employee_code: "",
   dni: "",
+  naf: "",
   first_name: "",
   last_name: "",
   email: "",
   phone: "",
   birth_date: "",
+  company_id: "",
   address: "",
   city: "",
   province: "",
@@ -19,11 +21,13 @@ function toEditForm(employee) {
   return {
     employee_code: employee.employee_code || "",
     dni: employee.dni || "",
+    naf: employee.naf || "",
     first_name: employee.first_name || "",
     last_name: employee.last_name || "",
     email: employee.email || "",
     phone: employee.phone || "",
     birth_date: employee.birth_date || "",
+    company_id: employee.company_id || "",
     address: employee.address || "",
     city: employee.city || "",
     province: employee.province || "",
@@ -32,7 +36,7 @@ function toEditForm(employee) {
   };
 }
 
-export default function EmployeeTable({ loading, employees, onUpdateEmployee, submitting }) {
+export default function EmployeeTable({ loading, employees, companies, onUpdateEmployee, submitting }) {
   const [editingEmployee, setEditingEmployee] = useState(null);
   const [editForm, setEditForm] = useState(emptyEditForm);
   const [editError, setEditError] = useState("");
@@ -82,10 +86,11 @@ export default function EmployeeTable({ loading, employees, onUpdateEmployee, su
               <tr>
                 <th style={styles.th}>Código</th>
                 <th style={styles.th}>DNI</th>
+                <th style={styles.th}>NAF</th>
                 <th style={styles.th}>Nombre completo</th>
+                <th style={styles.th}>Empresa / Centro</th>
                 <th style={styles.th}>Email</th>
                 <th style={styles.th}>Teléfono</th>
-                <th style={styles.th}>Ciudad / Provincia</th>
                 <th style={styles.th}>Estado</th>
                 <th style={styles.th}>Acciones</th>
               </tr>
@@ -95,12 +100,11 @@ export default function EmployeeTable({ loading, employees, onUpdateEmployee, su
                 <tr key={employee.id}>
                   <td style={styles.td}>{employee.employee_code}</td>
                   <td style={styles.td}>{employee.dni}</td>
+                  <td style={styles.td}>{employee.naf || "-"}</td>
                   <td style={styles.td}>{employee.first_name} {employee.last_name}</td>
+                  <td style={styles.td}>{employee.company_name || "Sin asignar"}</td>
                   <td style={styles.td}>{employee.email || "-"}</td>
                   <td style={styles.td}>{employee.phone || "-"}</td>
-                  <td style={styles.td}>
-                    {[employee.city, employee.province].filter(Boolean).join(" / ") || "-"}
-                  </td>
                   <td style={styles.td}>
                     <span style={employee.is_active ? styles.activeBadge : styles.inactiveBadge}>
                       {employee.is_active ? "Activo" : "Inactivo"}
@@ -135,13 +139,17 @@ export default function EmployeeTable({ loading, employees, onUpdateEmployee, su
 
             <form onSubmit={handleEditSubmit} style={styles.form}>
               <div style={styles.formRow}>
-                <div style={styles.formGroup}>
+                <div style={styles.formGroupCode}>
                   <label>Código trabajador</label>
-                  <input name="employee_code" value={editForm.employee_code} onChange={handleEditChange} required style={styles.input} />
+                  <input name="employee_code" value={editForm.employee_code} readOnly disabled style={{ ...styles.input, ...styles.readOnlyInput }} />
                 </div>
-                <div style={styles.formGroup}>
+                <div style={styles.formGroupDni}>
                   <label>DNI</label>
                   <input name="dni" value={editForm.dni} onChange={handleEditChange} required style={styles.input} />
+                </div>
+                <div style={styles.formGroupNaf}>
+                  <label>NAF</label>
+                  <input name="naf" value={editForm.naf} onChange={handleEditChange} style={styles.input} />
                 </div>
               </div>
 
@@ -153,6 +161,20 @@ export default function EmployeeTable({ loading, employees, onUpdateEmployee, su
                 <div style={styles.formGroup}>
                   <label>Apellidos</label>
                   <input name="last_name" value={editForm.last_name} onChange={handleEditChange} required style={styles.input} />
+                </div>
+              </div>
+
+              <div style={styles.formRow}>
+                <div style={styles.formGroup}>
+                  <label>Empresa / Centro</label>
+                  <select name="company_id" value={editForm.company_id} onChange={handleEditChange} style={styles.input}>
+                    <option value="">Sin asignar</option>
+                    {companies.map((company) => (
+                      <option key={company.id} value={company.id}>
+                        {company.name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
 
@@ -235,7 +257,11 @@ const styles = {
   formRow: { display: "flex", gap: "16px", flexWrap: "wrap" },
   formGroup: { flex: 1, minWidth: "200px", display: "flex", flexDirection: "column", gap: "6px" },
   formGroupWide: { flex: 1, minWidth: "100%", display: "flex", flexDirection: "column", gap: "6px" },
+  formGroupCode: { width: "150px", display: "flex", flexDirection: "column", gap: "6px" },
+  formGroupDni: { width: "190px", display: "flex", flexDirection: "column", gap: "6px" },
+  formGroupNaf: { width: "230px", display: "flex", flexDirection: "column", gap: "6px" },
   input: { padding: "10px 12px", border: "1px solid #ccc", borderRadius: "8px", fontSize: "14px" },
+  readOnlyInput: { backgroundColor: "#f3f4f6", color: "#6b7280", cursor: "not-allowed", fontWeight: 800 },
   checkboxLabel: { display: "flex", alignItems: "center", gap: "8px", fontWeight: 700 },
   error: { backgroundColor: "#fee2e2", color: "#991b1b", padding: "10px 12px", borderRadius: "8px" },
   modalActions: { display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "6px" },
