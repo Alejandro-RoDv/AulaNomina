@@ -6,6 +6,7 @@ from decimal import Decimal
 
 class ContractBase(BaseModel):
     employee_id: int
+    company_id: Optional[int] = None
     contract_type: str
     start_date: date
     end_date: Optional[date] = None
@@ -33,6 +34,7 @@ class ContractCreate(ContractBase):
 
 
 class ContractUpdate(BaseModel):
+    company_id: Optional[int] = None
     contract_type: Optional[str] = None
     start_date: Optional[date] = None
     end_date: Optional[date] = None
@@ -53,6 +55,9 @@ class ContractUpdate(BaseModel):
 class ContractResponse(BaseModel):
     id: int
     employee_id: int
+    company_id: Optional[int] = None
+    employee_name: Optional[str] = None
+    company_name: Optional[str] = None
     contract_type: str
     start_date: date
     end_date: Optional[date]
