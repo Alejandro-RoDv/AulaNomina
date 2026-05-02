@@ -17,6 +17,21 @@ def init_database() -> None:
     table_names = inspector.get_table_names()
 
     with engine.begin() as connection:
+        if "companies" in table_names:
+            existing_company_columns = {
+                column["name"] for column in inspector.get_columns("companies")
+            }
+
+            company_columns = {
+                "ccc": "VARCHAR",
+            }
+
+            for column_name, column_definition in company_columns.items():
+                if column_name not in existing_company_columns:
+                    connection.execute(
+                        text(f"ALTER TABLE companies ADD COLUMN {column_name} {column_definition}")
+                    )
+
         if "employees" in table_names:
             existing_employee_columns = {
                 column["name"] for column in inspector.get_columns("employees")
