@@ -10,7 +10,7 @@ import EmployeesPage from "./pages/EmployeesPage";
 
 import { createContract, fetchContracts } from "./services/api";
 import { createCompany, fetchCompanies } from "./services/companyApi";
-import { createEmployee, deleteEmployee, fetchAllEmployees } from "./services/employeeApi";
+import { createEmployee, deleteEmployee, fetchAllEmployees, updateEmployee } from "./services/employeeApi";
 
 const initialContractForm = {
   employee_id: "",
@@ -42,6 +42,20 @@ const initialEmployeeForm = {
   province: "",
   postal_code: "",
 };
+
+function buildEmployeePayload(form) {
+  return {
+    ...form,
+    email: form.email || null,
+    phone: form.phone || null,
+    birth_date: form.birth_date || null,
+    address: form.address || null,
+    city: form.city || null,
+    province: form.province || null,
+    postal_code: form.postal_code || null,
+    is_active: form.is_active ?? true,
+  };
+}
 
 export default function App() {
   const [activePage, setActivePage] = useState("dashboard");
@@ -160,26 +174,31 @@ export default function App() {
     setEmployeeError("");
     setEmployeeSuccess("");
 
-    const payload = {
-      ...employeeForm,
-      email: employeeForm.email || null,
-      phone: employeeForm.phone || null,
-      birth_date: employeeForm.birth_date || null,
-      address: employeeForm.address || null,
-      city: employeeForm.city || null,
-      province: employeeForm.province || null,
-      postal_code: employeeForm.postal_code || null,
-      is_active: true,
-    };
-
     try {
       setEmployeeSubmitting(true);
-      await createEmployee(payload);
+      await createEmployee(buildEmployeePayload({ ...employeeForm, is_active: true }));
       setEmployeeSuccess("Trabajador creado correctamente");
       setEmployeeForm(initialEmployeeForm);
       await loadData();
     } catch (err) {
       setEmployeeError(err.message || "Error al crear trabajador");
+    } finally {
+      setEmployeeSubmitting(false);
+    }
+  };
+
+  const handleUpdateEmployee = async (employeeId, form) => {
+    setEmployeeError("");
+    setEmployeeSuccess("");
+
+    try {
+      setEmployeeSubmitting(true);
+      await updateEmployee(employeeId, buildEmployeePayload(form));
+      setEmployeeSuccess("Trabajador actualizado correctamente");
+      await loadData();
+    } catch (err) {
+      setEmployeeError(err.message || "Error al actualizar trabajador");
+      throw err;
     } finally {
       setEmployeeSubmitting(false);
     }
@@ -242,6 +261,7 @@ export default function App() {
           employeeForm={employeeForm}
           onEmployeeChange={handleEmployeeChange}
           onEmployeeSubmit={handleEmployeeSubmit}
+          onUpdateEmployee={handleUpdateEmployee}
           onDeleteEmployee={handleDeleteEmployee}
           employeeError={employeeError}
           employeeSuccess={employeeSuccess}
