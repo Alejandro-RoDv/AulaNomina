@@ -9,6 +9,7 @@ export default function CompanyTable({ loading, companies }) {
             <th style={styles.th}>ID</th>
             <th style={styles.th}>Nombre</th>
             <th style={styles.th}>CIF</th>
+            <th style={styles.th}>CCC</th>
             <th style={styles.th}>Ciudad</th>
             <th style={styles.th}>Provincia</th>
           </tr>
@@ -19,6 +20,7 @@ export default function CompanyTable({ loading, companies }) {
               <td style={styles.td}>{c.id}</td>
               <td style={styles.td}>{c.name}</td>
               <td style={styles.td}>{c.cif}</td>
+              <td style={styles.td}>{c.ccc || "-"}</td>
               <td style={styles.td}>{c.city}</td>
               <td style={styles.td}>{c.province}</td>
             </tr>
