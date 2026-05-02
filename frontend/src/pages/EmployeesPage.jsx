@@ -15,6 +15,7 @@ function normalizeText(value) {
 export default function EmployeesPage({
   loading,
   employees,
+  companies,
   employeeForm,
   onEmployeeChange,
   onEmployeeSubmit,
@@ -65,6 +66,7 @@ export default function EmployeesPage({
       >
         <EmployeeForm
           form={employeeForm}
+          companies={companies}
           onChange={onEmployeeChange}
           onSubmit={onEmployeeSubmit}
           error={employeeError}
@@ -119,6 +121,7 @@ export default function EmployeesPage({
         <EmployeeTable
           loading={loading}
           employees={filteredEmployees}
+          companies={companies}
           onUpdateEmployee={onUpdateEmployee}
           onDeleteEmployee={onDeleteEmployee}
           submitting={employeeSubmitting}
