@@ -6,9 +6,11 @@ import Header from "./components/layout/Header";
 import Dashboard from "./pages/Dashboard";
 import CompaniesPage from "./pages/CompaniesPage";
 import ContractsPage from "./pages/ContractsPage";
+import EmployeesPage from "./pages/EmployeesPage";
 
-import { createContract, fetchContracts, fetchEmployees } from "./services/api";
+import { createContract, fetchContracts } from "./services/api";
 import { createCompany, fetchCompanies } from "./services/companyApi";
+import { createEmployee, deleteEmployee, fetchAllEmployees } from "./services/employeeApi";
 
 const initialContractForm = {
   employee_id: "",
@@ -27,6 +29,20 @@ const initialCompanyForm = {
   province: "",
 };
 
+const initialEmployeeForm = {
+  employee_code: "",
+  dni: "",
+  first_name: "",
+  last_name: "",
+  email: "",
+  phone: "",
+  birth_date: "",
+  address: "",
+  city: "",
+  province: "",
+  postal_code: "",
+};
+
 export default function App() {
   const [activePage, setActivePage] = useState("dashboard");
 
@@ -38,6 +54,7 @@ export default function App() {
 
   const [contractSubmitting, setContractSubmitting] = useState(false);
   const [companySubmitting, setCompanySubmitting] = useState(false);
+  const [employeeSubmitting, setEmployeeSubmitting] = useState(false);
 
   const [contractError, setContractError] = useState("");
   const [contractSuccess, setContractSuccess] = useState("");
@@ -45,8 +62,12 @@ export default function App() {
   const [companyError, setCompanyError] = useState("");
   const [companySuccess, setCompanySuccess] = useState("");
 
+  const [employeeError, setEmployeeError] = useState("");
+  const [employeeSuccess, setEmployeeSuccess] = useState("");
+
   const [contractForm, setContractForm] = useState(initialContractForm);
   const [companyForm, setCompanyForm] = useState(initialCompanyForm);
+  const [employeeForm, setEmployeeForm] = useState(initialEmployeeForm);
 
   const loadData = async () => {
     try {
@@ -54,7 +75,7 @@ export default function App() {
 
       const [contractsData, employeesData, companiesData] = await Promise.all([
         fetchContracts(),
-        fetchEmployees(),
+        fetchAllEmployees(),
         fetchCompanies(),
       ]);
 
@@ -64,6 +85,7 @@ export default function App() {
     } catch {
       setContractError("Error cargando datos");
       setCompanyError("Error cargando datos");
+      setEmployeeError("Error cargando datos");
     } finally {
       setLoading(false);
     }
@@ -81,6 +103,11 @@ export default function App() {
   const handleCompanyChange = (event) => {
     const { name, value } = event.target;
     setCompanyForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleEmployeeChange = (event) => {
+    const { name, value } = event.target;
+    setEmployeeForm((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleContractSubmit = async (event) => {
@@ -128,9 +155,53 @@ export default function App() {
     }
   };
 
+  const handleEmployeeSubmit = async (event) => {
+    event.preventDefault();
+    setEmployeeError("");
+    setEmployeeSuccess("");
+
+    const payload = {
+      ...employeeForm,
+      email: employeeForm.email || null,
+      phone: employeeForm.phone || null,
+      birth_date: employeeForm.birth_date || null,
+      address: employeeForm.address || null,
+      city: employeeForm.city || null,
+      province: employeeForm.province || null,
+      postal_code: employeeForm.postal_code || null,
+      is_active: true,
+    };
+
+    try {
+      setEmployeeSubmitting(true);
+      await createEmployee(payload);
+      setEmployeeSuccess("Trabajador creado correctamente");
+      setEmployeeForm(initialEmployeeForm);
+      await loadData();
+    } catch (err) {
+      setEmployeeError(err.message || "Error al crear trabajador");
+    } finally {
+      setEmployeeSubmitting(false);
+    }
+  };
+
+  const handleDeleteEmployee = async (employeeId) => {
+    setEmployeeError("");
+    setEmployeeSuccess("");
+
+    try {
+      await deleteEmployee(employeeId);
+      setEmployeeSuccess("Trabajador desactivado correctamente");
+      await loadData();
+    } catch (err) {
+      setEmployeeError(err.message || "Error al desactivar trabajador");
+    }
+  };
+
   function getTitle() {
     if (activePage === "dashboard") return "Dashboard";
     if (activePage === "companies") return "Empresas / Centros";
+    if (activePage === "employees") return "Trabajadores";
     if (activePage === "contracts") return "Contratos";
     return "AulaNomina";
   }
@@ -138,13 +209,14 @@ export default function App() {
   function getSubtitle() {
     if (activePage === "dashboard") return "Resumen del entorno de simulación";
     if (activePage === "companies") return "Gestión de empresas y centros";
+    if (activePage === "employees") return "Gestión de trabajadores";
     if (activePage === "contracts") return "Gestión de contratos laborales";
     return "";
   }
 
   function renderPage() {
     if (activePage === "dashboard") {
-      return <Dashboard companies={companies} contracts={contracts} />;
+      return <Dashboard companies={companies} employees={employees} contracts={contracts} />;
     }
 
     if (activePage === "companies") {
@@ -162,12 +234,28 @@ export default function App() {
       );
     }
 
+    if (activePage === "employees") {
+      return (
+        <EmployeesPage
+          loading={loading}
+          employees={employees}
+          employeeForm={employeeForm}
+          onEmployeeChange={handleEmployeeChange}
+          onEmployeeSubmit={handleEmployeeSubmit}
+          onDeleteEmployee={handleDeleteEmployee}
+          employeeError={employeeError}
+          employeeSuccess={employeeSuccess}
+          employeeSubmitting={employeeSubmitting}
+        />
+      );
+    }
+
     if (activePage === "contracts") {
       return (
         <ContractsPage
           loading={loading}
           contracts={contracts}
-          employees={employees}
+          employees={employees.filter((employee) => employee.is_active)}
           contractForm={contractForm}
           onContractChange={handleContractChange}
           onContractSubmit={handleContractSubmit}
