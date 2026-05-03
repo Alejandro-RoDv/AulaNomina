@@ -11,17 +11,15 @@ class PayrollBase(BaseModel):
     company_id: Optional[int] = None
     period_month: int
     period_year: int
-    base_salary: Optional[Decimal] = None
     salary_supplements: Decimal = Decimal("0.00")
-    extra_pay_proration: Decimal = Decimal("0.00")
     irpf_percentage: Decimal = Decimal("10.00")
     status: str = "draft"
 
     @field_validator("period_month")
     @classmethod
     def validate_period_month(cls, value):
-        if value < 1 or value > 12:
-            raise ValueError("period_month debe estar entre 1 y 12")
+        if value < 1 or value > 15:
+            raise ValueError("period_month debe estar entre 1 y 15")
         return value
 
     @field_validator("period_year")
@@ -39,7 +37,7 @@ class PayrollBase(BaseModel):
             raise ValueError("status debe ser 'draft', 'calculated' o 'closed'")
         return value
 
-    @field_validator("base_salary", "salary_supplements", "extra_pay_proration", "irpf_percentage")
+    @field_validator("salary_supplements", "irpf_percentage")
     @classmethod
     def validate_non_negative_amounts(cls, value):
         if value is not None and value < 0:
@@ -54,17 +52,15 @@ class PayrollCreate(PayrollBase):
 class PayrollUpdate(BaseModel):
     period_month: Optional[int] = None
     period_year: Optional[int] = None
-    base_salary: Optional[Decimal] = None
     salary_supplements: Optional[Decimal] = None
-    extra_pay_proration: Optional[Decimal] = None
     irpf_percentage: Optional[Decimal] = None
     status: Optional[str] = None
 
     @field_validator("period_month")
     @classmethod
     def validate_period_month(cls, value):
-        if value is not None and (value < 1 or value > 12):
-            raise ValueError("period_month debe estar entre 1 y 12")
+        if value is not None and (value < 1 or value > 15):
+            raise ValueError("period_month debe estar entre 1 y 15")
         return value
 
     @field_validator("period_year")
@@ -84,7 +80,7 @@ class PayrollUpdate(BaseModel):
             raise ValueError("status debe ser 'draft', 'calculated' o 'closed'")
         return value
 
-    @field_validator("base_salary", "salary_supplements", "extra_pay_proration", "irpf_percentage")
+    @field_validator("salary_supplements", "irpf_percentage")
     @classmethod
     def validate_non_negative_amounts(cls, value):
         if value is not None and value < 0:
