@@ -148,6 +148,28 @@ def get_contracts_endpoint(db: Session = Depends(get_db)):
     return get_contracts(db)
 
 
+@app.put("/contracts/{contract_id}", response_model=ContractResponse)
+def update_contract_endpoint(
+    contract_id: int,
+    contract: ContractUpdate,
+    db: Session = Depends(get_db),
+):
+    updated_contract = update_contract(db, contract_id, contract)
+    if not updated_contract:
+        raise HTTPException(status_code=404, detail="Contrato no encontrado")
+
+    return updated_contract
+
+
+@app.delete("/contracts/{contract_id}", response_model=ContractResponse)
+def delete_contract_endpoint(contract_id: int, db: Session = Depends(get_db)):
+    deleted_contract = soft_delete_contract(db, contract_id)
+    if not deleted_contract:
+        raise HTTPException(status_code=404, detail="Contrato no encontrado")
+
+    return deleted_contract
+
+
 # COMPANIES
 @app.get("/companies", response_model=list[CompanyResponse])
 def get_companies_endpoint(db: Session = Depends(get_db)):
