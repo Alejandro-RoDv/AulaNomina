@@ -22,6 +22,7 @@ function formatSalary(value) {
   return new Intl.NumberFormat("es-ES", {
     style: "currency",
     currency: "EUR",
+    maximumFractionDigits: 0,
   }).format(Number(value));
 }
 
@@ -142,35 +143,35 @@ export default function ContractTable({
         <table style={styles.table}>
           <thead>
             <tr>
-              <th style={styles.th}>Código</th>
+              <th style={styles.thCode}>Cód.</th>
               <th style={styles.th}>Empleado</th>
               <th style={styles.th}>Empresa / centro</th>
-              <th style={styles.th}>CCC</th>
-              <th style={styles.th}>Tipo</th>
-              <th style={styles.th}>Inicio</th>
-              <th style={styles.th}>Fin</th>
-              <th style={styles.th}>Estado</th>
-              <th style={styles.th}>Salario anual</th>
-              <th style={styles.th}>Acciones</th>
+              <th style={styles.thCcc}>CCC</th>
+              <th style={styles.thType}>Tipo</th>
+              <th style={styles.thDate}>Inicio</th>
+              <th style={styles.thDate}>Fin</th>
+              <th style={styles.thStatus}>Estado</th>
+              <th style={styles.thSalary}>Salario</th>
+              <th style={styles.thActions}>Acciones</th>
             </tr>
           </thead>
           <tbody>
             {contracts.map((contract) => (
               <tr key={contract.id}>
-                <td style={styles.td}>{getContractCode(contract)}</td>
+                <td style={styles.tdCode}>{getContractCode(contract)}</td>
                 <td style={styles.td}>{getEmployeeName(contract)}</td>
                 <td style={styles.td}>{getCompanyName(contract)}</td>
-                <td style={styles.td}>{getCompanyCcc(contract)}</td>
-                <td style={styles.td}>{contract.contract_type}</td>
-                <td style={styles.td}>{formatDate(contract.start_date)}</td>
-                <td style={styles.td}>{formatDate(contract.end_date)}</td>
-                <td style={styles.td}>
+                <td style={styles.tdCcc}>{getCompanyCcc(contract)}</td>
+                <td style={styles.tdType}>{contract.contract_type}</td>
+                <td style={styles.tdDate}>{formatDate(contract.start_date)}</td>
+                <td style={styles.tdDate}>{formatDate(contract.end_date)}</td>
+                <td style={styles.tdStatus}>
                   <span style={contract.status === "active" ? styles.activeBadge : styles.inactiveBadge}>
                     {formatStatus(contract.status)}
                   </span>
                 </td>
-                <td style={styles.td}>{formatSalary(contract.salary_base)}</td>
-                <td style={styles.td}>
+                <td style={styles.tdSalary}>{formatSalary(contract.salary_base)}</td>
+                <td style={styles.tdActions}>
                   <button type="button" onClick={() => openEditModal(contract)} style={styles.editButton}>
                     Detalles
                   </button>
@@ -311,13 +312,27 @@ export default function ContractTable({
 }
 
 const styles = {
-  tableWrapper: { overflowX: "auto" },
-  table: { width: "100%", borderCollapse: "collapse" },
-  th: { textAlign: "left", padding: "12px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb", whiteSpace: "nowrap" },
-  td: { padding: "12px", borderBottom: "1px solid #eee", whiteSpace: "nowrap" },
+  tableWrapper: { overflowX: "hidden", width: "100%" },
+  table: { width: "100%", borderCollapse: "collapse", tableLayout: "fixed" },
+  th: { textAlign: "left", padding: "12px 8px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" },
+  thCode: { width: "66px", textAlign: "left", padding: "12px 8px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb", whiteSpace: "nowrap" },
+  thCcc: { width: "98px", textAlign: "left", padding: "12px 8px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb", whiteSpace: "nowrap" },
+  thType: { width: "90px", textAlign: "left", padding: "12px 8px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb", whiteSpace: "nowrap" },
+  thDate: { width: "88px", textAlign: "left", padding: "12px 8px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb", whiteSpace: "nowrap" },
+  thStatus: { width: "88px", textAlign: "left", padding: "12px 8px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb", whiteSpace: "nowrap" },
+  thSalary: { width: "86px", textAlign: "right", padding: "12px 8px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb", whiteSpace: "nowrap" },
+  thActions: { width: "80px", textAlign: "left", padding: "12px 8px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb", whiteSpace: "nowrap" },
+  td: { padding: "12px 8px", borderBottom: "1px solid #eee", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" },
+  tdCode: { width: "66px", padding: "12px 8px", borderBottom: "1px solid #eee", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" },
+  tdCcc: { width: "98px", padding: "12px 8px", borderBottom: "1px solid #eee", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" },
+  tdType: { width: "90px", padding: "12px 8px", borderBottom: "1px solid #eee", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" },
+  tdDate: { width: "88px", padding: "12px 8px", borderBottom: "1px solid #eee", whiteSpace: "nowrap" },
+  tdStatus: { width: "88px", padding: "12px 8px", borderBottom: "1px solid #eee", whiteSpace: "nowrap" },
+  tdSalary: { width: "86px", padding: "12px 8px", borderBottom: "1px solid #eee", whiteSpace: "nowrap", textAlign: "right" },
+  tdActions: { width: "80px", padding: "12px 8px", borderBottom: "1px solid #eee", whiteSpace: "nowrap" },
   activeBadge: { backgroundColor: "#dcfce7", color: "#166534", padding: "4px 8px", borderRadius: "999px", fontSize: "12px", fontWeight: 800 },
   inactiveBadge: { backgroundColor: "#fee2e2", color: "#991b1b", padding: "4px 8px", borderRadius: "999px", fontSize: "12px", fontWeight: 800 },
-  editButton: { backgroundColor: "#111827", color: "#ffffff", border: "1px solid #111827", borderRadius: "8px", padding: "7px 10px", cursor: "pointer", fontWeight: 700 },
+  editButton: { backgroundColor: "#111827", color: "#ffffff", border: "1px solid #111827", borderRadius: "8px", padding: "7px 9px", cursor: "pointer", fontWeight: 700, fontSize: "12px" },
   deleteButton: { backgroundColor: "#fee2e2", color: "#991b1b", border: "1px solid #fecaca", borderRadius: "8px", padding: "10px 14px", cursor: "pointer", fontWeight: 800 },
   modalBackdrop: { position: "fixed", inset: 0, backgroundColor: "rgba(17, 24, 39, 0.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, padding: "24px" },
   modal: { width: "min(920px, 100%)", maxHeight: "90vh", overflowY: "auto", backgroundColor: "#ffffff", border: "3px solid #111111", borderRadius: "12px", boxShadow: "8px 8px 0 #e6d85c", padding: "22px" },
