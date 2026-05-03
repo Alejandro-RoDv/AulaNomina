@@ -16,6 +16,10 @@ function getStatusLabel(value) {
   return STATUS_OPTIONS.find((status) => status.value === value)?.label || value || "-";
 }
 
+function getEmployeeCode(incident) {
+  return incident.employee_code || incident.employee_id || "-";
+}
+
 function toEditForm(incident) {
   return {
     incident_type: incident.incident_type || "",
@@ -121,7 +125,7 @@ export default function IncidentTable({
         <table style={styles.table}>
           <thead>
             <tr>
-              <th style={styles.thEmployeeId}>ID trabajador</th>
+              <th style={styles.thEmployeeCode}>Código trabajador</th>
               <th style={styles.th}>Trabajador</th>
               <th style={styles.th}>Empresa</th>
               <th style={styles.th}>Contrato</th>
@@ -135,7 +139,7 @@ export default function IncidentTable({
           <tbody>
             {incidents.map((incident) => (
               <tr key={incident.id}>
-                <td style={styles.td}>{incident.employee_id || "-"}</td>
+                <td style={styles.td}>{getEmployeeCode(incident)}</td>
                 <td style={styles.td}>{incident.employee_name || incident.employee_id}</td>
                 <td style={styles.td}>{incident.company_name || incident.company_id}</td>
                 <td style={styles.td}>{incident.contract_type || "-"}</td>
@@ -171,13 +175,14 @@ export default function IncidentTable({
             <div style={styles.modalHeader}>
               <div>
                 <h3 style={styles.modalTitle}>Detalle de incidencia</h3>
-                <p style={styles.modalSubtitle}>Incidencia #{selectedIncident.id} · Trabajador #{selectedIncident.employee_id} · {selectedIncident.employee_name || selectedIncident.employee_id}</p>
+                <p style={styles.modalSubtitle}>Incidencia #{selectedIncident.id} · {getEmployeeCode(selectedIncident)} · {selectedIncident.employee_name || selectedIncident.employee_id}</p>
               </div>
               <button type="button" onClick={closeDetailsModal} style={styles.closeButton}>×</button>
             </div>
 
             <div style={styles.detailsGrid}>
-              <div style={styles.detailBox}><span>ID trabajador</span><strong>{selectedIncident.employee_id || "-"}</strong></div>
+              <div style={styles.detailBox}><span>Código trabajador</span><strong>{getEmployeeCode(selectedIncident)}</strong></div>
+              <div style={styles.detailBox}><span>ID técnico trabajador</span><strong>{selectedIncident.employee_id || "-"}</strong></div>
               <div style={styles.detailBox}><span>Trabajador</span><strong>{selectedIncident.employee_name || selectedIncident.employee_id}</strong></div>
               <div style={styles.detailBox}><span>Empresa</span><strong>{selectedIncident.company_name || selectedIncident.company_id}</strong></div>
               <div style={styles.detailBox}><span>ID técnico contrato</span><strong>{selectedIncident.contract_id || "-"}</strong></div>
@@ -314,7 +319,7 @@ const styles = {
   tableWrapper: { overflowX: "hidden", width: "100%" },
   table: { width: "100%", borderCollapse: "collapse", tableLayout: "fixed" },
   th: { textAlign: "left", padding: "12px 10px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" },
-  thEmployeeId: { width: "98px", textAlign: "left", padding: "12px 10px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb" },
+  thEmployeeCode: { width: "132px", textAlign: "left", padding: "12px 10px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb" },
   thDate: { width: "96px", textAlign: "left", padding: "12px 10px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb" },
   thStatus: { width: "88px", textAlign: "left", padding: "12px 10px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb" },
   thActions: { width: "92px", textAlign: "left", padding: "12px 10px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb" },
