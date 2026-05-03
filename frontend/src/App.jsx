@@ -71,7 +71,9 @@ const initialPayrollForm = {
   company_id: "",
   period_month: String(currentMonth),
   period_year: String(currentYear),
-  salary_supplements: "0",
+  salary_supplement_1: "0",
+  salary_supplement_2: "0",
+  salary_supplement_3: "0",
   irpf_percentage: "10",
   status: "draft",
 };
@@ -137,6 +139,14 @@ function buildIncidentUpdatePayload(form) {
   };
 }
 
+function getSalarySupplementsTotal(form) {
+  return (
+    Number(form.salary_supplement_1 || 0) +
+    Number(form.salary_supplement_2 || 0) +
+    Number(form.salary_supplement_3 || 0)
+  );
+}
+
 function buildPayrollPayload(form) {
   return {
     employee_id: Number(form.employee_id),
@@ -144,7 +154,7 @@ function buildPayrollPayload(form) {
     company_id: form.company_id ? Number(form.company_id) : null,
     period_month: Number(form.period_month),
     period_year: Number(form.period_year),
-    salary_supplements: form.salary_supplements ? Number(form.salary_supplements) : 0,
+    salary_supplements: getSalarySupplementsTotal(form),
     irpf_percentage: form.irpf_percentage ? Number(form.irpf_percentage) : 10,
     status: form.status,
   };
@@ -154,7 +164,7 @@ function buildPayrollUpdatePayload(form) {
   return {
     period_month: Number(form.period_month),
     period_year: Number(form.period_year),
-    salary_supplements: form.salary_supplements ? Number(form.salary_supplements) : 0,
+    salary_supplements: getSalarySupplementsTotal(form),
     irpf_percentage: form.irpf_percentage ? Number(form.irpf_percentage) : 10,
     status: form.status,
   };

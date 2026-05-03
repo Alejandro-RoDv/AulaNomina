@@ -35,6 +35,14 @@ function getPayScheduleLabel(value) {
   return "14 pagas no prorrateadas";
 }
 
+function getSalarySupplementsTotal(form) {
+  return (
+    Number(form.salary_supplement_1 || 0) +
+    Number(form.salary_supplement_2 || 0) +
+    Number(form.salary_supplement_3 || 0)
+  );
+}
+
 function calculateBaseSalary(contract, periodMonth) {
   const annualSalary = Number(contract?.salary_base || 0);
   const paySchedule = contract?.pay_schedule || "not_prorated_14";
@@ -58,7 +66,7 @@ function calculateExtraPayProration(contract, periodMonth) {
 
 function calculatePreview(form, contract) {
   const baseSalary = calculateBaseSalary(contract, form.period_month);
-  const supplements = Number(form.salary_supplements || 0);
+  const supplements = getSalarySupplementsTotal(form);
   const extraPay = calculateExtraPayProration(contract, form.period_month);
   const irpfPercentage = Number(form.irpf_percentage || 0);
   const grossSalary = baseSalary + supplements + extraPay;
@@ -69,6 +77,7 @@ function calculatePreview(form, contract) {
 
   return {
     baseSalary,
+    supplements,
     extraPay,
     grossSalary,
     socialSecurity,
@@ -175,12 +184,22 @@ export default function PayrollForm({
         </div>
       )}
 
-      <div style={styles.formRow}>
+      <div style={styles.supplementsGrid}>
         <div style={styles.formGroup}>
-          <label>Complementos salariales</label>
-          <input type="number" step="0.01" name="salary_supplements" value={form.salary_supplements} onChange={onChange} min="0" style={styles.input} />
+          <label>Complemento salarial 1</label>
+          <input type="number" step="0.01" name="salary_supplement_1" value={form.salary_supplement_1} onChange={onChange} min="0" style={styles.input} />
         </div>
+        <div style={styles.formGroup}>
+          <label>Complemento salarial 2</label>
+          <input type="number" step="0.01" name="salary_supplement_2" value={form.salary_supplement_2} onChange={onChange} min="0" style={styles.input} />
+        </div>
+        <div style={styles.formGroup}>
+          <label>Complemento salarial 3</label>
+          <input type="number" step="0.01" name="salary_supplement_3" value={form.salary_supplement_3} onChange={onChange} min="0" style={styles.input} />
+        </div>
+      </div>
 
+      <div style={styles.formRow}>
         <div style={styles.formGroupSmall}>
           <label>IRPF %</label>
           <input type="number" step="0.01" name="irpf_percentage" value={form.irpf_percentage} onChange={onChange} min="0" max="100" style={styles.input} />
@@ -193,6 +212,11 @@ export default function PayrollForm({
               <option key={status.value} value={status.value}>{status.label}</option>
             ))}
           </select>
+        </div>
+
+        <div style={styles.totalSupplementsBox}>
+          <span>Total complementos</span>
+          <strong>{formatCurrency(preview.supplements)}</strong>
         </div>
       </div>
 
@@ -220,12 +244,14 @@ export { PAYROLL_STATUS_OPTIONS, MONTH_OPTIONS, formatCurrency, calculateBaseSal
 const styles = {
   form: { display: "flex", flexDirection: "column", gap: "16px" },
   formRow: { display: "flex", gap: "16px", flexWrap: "wrap" },
+  supplementsGrid: { display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: "16px", width: "100%" },
   formGroup: { flex: 1, minWidth: "220px", display: "flex", flexDirection: "column", gap: "6px" },
   formGroupSmall: { width: "160px", minWidth: "140px", display: "flex", flexDirection: "column", gap: "6px" },
   input: { padding: "10px 12px", border: "1px solid #ccc", borderRadius: "8px", fontSize: "14px" },
   readOnlyInput: { backgroundColor: "#f3f4f6", color: "#6b7280", cursor: "not-allowed", fontWeight: 700 },
   calculationInfo: { display: "grid", gridTemplateColumns: "repeat(4, minmax(140px, 1fr))", gap: "10px", border: "1px solid #e6d85c", borderRadius: "10px", backgroundColor: "#fefce8", padding: "10px" },
   previewPanel: { display: "grid", gridTemplateColumns: "repeat(4, minmax(110px, 1fr))", gap: "8px", border: "1px solid #e5e7eb", borderRadius: "10px", backgroundColor: "#f9fafb", padding: "10px" },
+  totalSupplementsBox: { flex: 1, minWidth: "220px", border: "1px solid #e5e7eb", borderRadius: "10px", backgroundColor: "#f9fafb", padding: "10px 12px", display: "flex", justifyContent: "space-between", alignItems: "center", fontWeight: 800 },
   button: { backgroundColor: "#111827", color: "white", border: "none", borderRadius: "8px", padding: "12px 18px", fontSize: "14px", cursor: "pointer", width: "fit-content", fontWeight: 800 },
   error: { backgroundColor: "#fee2e2", color: "#991b1b", padding: "10px 12px", borderRadius: "8px" },
   success: { backgroundColor: "#dcfce7", color: "#166534", padding: "10px 12px", borderRadius: "8px" },
