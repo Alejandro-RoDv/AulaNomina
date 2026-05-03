@@ -16,11 +16,6 @@ function getStatusLabel(value) {
   return STATUS_OPTIONS.find((status) => status.value === value)?.label || value || "-";
 }
 
-function getContractCode(contract) {
-  if (!contract) return "-";
-  return contract.contract_display_code || String(contract.id);
-}
-
 function toEditForm(incident) {
   return {
     incident_type: incident.incident_type || "",
@@ -34,7 +29,6 @@ function toEditForm(incident) {
 export default function IncidentTable({
   loading,
   incidents,
-  contracts = [],
   onUpdateIncident,
   onDeleteIncident,
   submitting,
@@ -45,20 +39,6 @@ export default function IncidentTable({
   const [isEditing, setIsEditing] = useState(false);
   const [editError, setEditError] = useState("");
   const [deleteError, setDeleteError] = useState("");
-
-  const getLinkedContract = (incident) => {
-    return contracts.find((contract) => Number(contract.id) === Number(incident.contract_id));
-  };
-
-  const getIncidentContractCode = (incident) => {
-    const contract = getLinkedContract(incident);
-    return getContractCode(contract) || incident.contract_id || "-";
-  };
-
-  const getIncidentContractType = (incident) => {
-    const contract = getLinkedContract(incident);
-    return incident.contract_type || contract?.contract_type || "-";
-  };
 
   const openDetailsModal = (incident) => {
     setSelectedIncident(incident);
@@ -141,10 +121,10 @@ export default function IncidentTable({
         <table style={styles.table}>
           <thead>
             <tr>
-              <th style={styles.thContractId}>Contrato</th>
+              <th style={styles.thEmployeeId}>ID trabajador</th>
               <th style={styles.th}>Trabajador</th>
               <th style={styles.th}>Empresa</th>
-              <th style={styles.th}>Tipo contrato</th>
+              <th style={styles.th}>Contrato</th>
               <th style={styles.th}>Tipo</th>
               <th style={styles.thDate}>Inicio</th>
               <th style={styles.thDate}>Fin</th>
@@ -155,10 +135,10 @@ export default function IncidentTable({
           <tbody>
             {incidents.map((incident) => (
               <tr key={incident.id}>
-                <td style={styles.td}>{getIncidentContractCode(incident)}</td>
+                <td style={styles.td}>{incident.employee_id || "-"}</td>
                 <td style={styles.td}>{incident.employee_name || incident.employee_id}</td>
                 <td style={styles.td}>{incident.company_name || incident.company_id}</td>
-                <td style={styles.td}>{getIncidentContractType(incident)}</td>
+                <td style={styles.td}>{incident.contract_type || "-"}</td>
                 <td style={styles.td}>
                   <span style={styles.typeBadge}>{getTypeLabel(incident.incident_type)}</span>
                 </td>
@@ -191,17 +171,17 @@ export default function IncidentTable({
             <div style={styles.modalHeader}>
               <div>
                 <h3 style={styles.modalTitle}>Detalle de incidencia</h3>
-                <p style={styles.modalSubtitle}>Incidencia #{selectedIncident.id} · Contrato {getIncidentContractCode(selectedIncident)} · {selectedIncident.employee_name || selectedIncident.employee_id}</p>
+                <p style={styles.modalSubtitle}>Incidencia #{selectedIncident.id} · Trabajador #{selectedIncident.employee_id} · {selectedIncident.employee_name || selectedIncident.employee_id}</p>
               </div>
               <button type="button" onClick={closeDetailsModal} style={styles.closeButton}>×</button>
             </div>
 
             <div style={styles.detailsGrid}>
+              <div style={styles.detailBox}><span>ID trabajador</span><strong>{selectedIncident.employee_id || "-"}</strong></div>
               <div style={styles.detailBox}><span>Trabajador</span><strong>{selectedIncident.employee_name || selectedIncident.employee_id}</strong></div>
               <div style={styles.detailBox}><span>Empresa</span><strong>{selectedIncident.company_name || selectedIncident.company_id}</strong></div>
-              <div style={styles.detailBox}><span>Código contrato</span><strong>{getIncidentContractCode(selectedIncident)}</strong></div>
               <div style={styles.detailBox}><span>ID técnico contrato</span><strong>{selectedIncident.contract_id || "-"}</strong></div>
-              <div style={styles.detailBox}><span>Tipo contrato</span><strong>{getIncidentContractType(selectedIncident)}</strong></div>
+              <div style={styles.detailBox}><span>Contrato</span><strong>{selectedIncident.contract_type || "-"}</strong></div>
               <div style={styles.detailBox}><span>Fecha creación</span><strong>{formatDate(selectedIncident.created_at?.slice(0, 10))}</strong></div>
             </div>
 
@@ -312,7 +292,7 @@ export default function IncidentTable({
             </div>
 
             <p style={styles.confirmText}>
-              ¿Seguro que quieres eliminar la incidencia del contrato {getIncidentContractCode(incidentToDelete)} de {incidentToDelete.employee_name || incidentToDelete.employee_id}?
+              ¿Seguro que quieres eliminar la incidencia de {incidentToDelete.employee_name || incidentToDelete.employee_id}?
             </p>
 
             {deleteError && <div style={styles.error}>{deleteError}</div>}
@@ -334,7 +314,7 @@ const styles = {
   tableWrapper: { overflowX: "hidden", width: "100%" },
   table: { width: "100%", borderCollapse: "collapse", tableLayout: "fixed" },
   th: { textAlign: "left", padding: "12px 10px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" },
-  thContractId: { width: "92px", textAlign: "left", padding: "12px 10px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb" },
+  thEmployeeId: { width: "98px", textAlign: "left", padding: "12px 10px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb" },
   thDate: { width: "96px", textAlign: "left", padding: "12px 10px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb" },
   thStatus: { width: "88px", textAlign: "left", padding: "12px 10px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb" },
   thActions: { width: "92px", textAlign: "left", padding: "12px 10px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb" },
