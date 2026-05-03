@@ -45,3 +45,17 @@ export async function updateContract(contractId, payload) {
 
   return data;
 }
+
+export async function deleteContract(contractId) {
+  const response = await fetch(`${API_BASE_URL}/contracts/${contractId}`, {
+    method: "DELETE",
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.detail || "Error al eliminar contrato");
+  }
+
+  return data;
+}
