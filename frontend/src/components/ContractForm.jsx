@@ -177,7 +177,7 @@ export default function ContractForm({
             <div style={styles.modalHeader}>
               <div>
                 <h3 style={styles.modalTitle}>Seleccionar trabajador</h3>
-                <p style={styles.modalSubtitle}>Filtra por nombre, DNI o ID.</p>
+                <p style={styles.modalSubtitle}>Filtra por ID, nombre o DNI.</p>
               </div>
               <button
                 type="button"
@@ -189,27 +189,38 @@ export default function ContractForm({
             </div>
 
             <div style={styles.filterRow}>
-              <input
-                name="name"
-                value={employeeFilters.name}
-                onChange={handleEmployeeFilterChange}
-                placeholder="Nombre o apellidos"
-                style={styles.input}
-              />
-              <input
-                name="dni"
-                value={employeeFilters.dni}
-                onChange={handleEmployeeFilterChange}
-                placeholder="DNI"
-                style={styles.input}
-              />
-              <input
-                name="id"
-                value={employeeFilters.id}
-                onChange={handleEmployeeFilterChange}
-                placeholder="ID"
-                style={styles.input}
-              />
+              <div style={styles.filterGroupId}>
+                <label>ID</label>
+                <input
+                  name="id"
+                  value={employeeFilters.id}
+                  onChange={handleEmployeeFilterChange}
+                  placeholder="ID"
+                  style={styles.input}
+                />
+              </div>
+
+              <div style={styles.filterGroupName}>
+                <label>Nombre y apellidos</label>
+                <input
+                  name="name"
+                  value={employeeFilters.name}
+                  onChange={handleEmployeeFilterChange}
+                  placeholder="Nombre o apellidos"
+                  style={styles.input}
+                />
+              </div>
+
+              <div style={styles.filterGroupDni}>
+                <label>DNI</label>
+                <input
+                  name="dni"
+                  value={employeeFilters.dni}
+                  onChange={handleEmployeeFilterChange}
+                  placeholder="DNI"
+                  style={styles.input}
+                />
+              </div>
             </div>
 
             <div style={styles.modalTableWrapper}>
@@ -382,9 +393,31 @@ const styles = {
     fontSize: "13px",
   },
   filterRow: {
-    display: "grid",
-    gridTemplateColumns: "2fr 1fr 1fr",
+    display: "flex",
     gap: "12px",
+    alignItems: "end",
+    flexWrap: "wrap",
+  },
+  filterGroupId: {
+    width: "120px",
+    flex: "0 0 120px",
+    display: "flex",
+    flexDirection: "column",
+    gap: "6px",
+  },
+  filterGroupName: {
+    width: "430px",
+    flex: "1 1 430px",
+    display: "flex",
+    flexDirection: "column",
+    gap: "6px",
+  },
+  filterGroupDni: {
+    width: "210px",
+    flex: "0 0 210px",
+    display: "flex",
+    flexDirection: "column",
+    gap: "6px",
   },
   modalTableWrapper: {
     overflow: "auto",
