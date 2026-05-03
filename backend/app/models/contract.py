@@ -20,6 +20,7 @@ class Contract(Base):
 
     employee = relationship("Employee", back_populates="contracts")
     company = relationship("Company", back_populates="contracts")
+    incidents = relationship("Incident", back_populates="contract")
 
     @property
     def employee_name(self):
