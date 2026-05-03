@@ -17,9 +17,33 @@ function dateToNumber(value) {
   return Number(String(value).replaceAll("-", ""));
 }
 
-function buildContractDisplayCode(contract) {
+function buildVisualContractCodes(contracts) {
+  const groupedByEmployee = contracts.reduce((acc, contract) => {
+    const employeeId = String(contract.employee_id);
+    if (!acc[employeeId]) acc[employeeId] = [];
+    acc[employeeId].push(contract);
+    return acc;
+  }, {});
+
+  return Object.values(groupedByEmployee).reduce((acc, employeeContracts) => {
+    const sortedContracts = [...employeeContracts].sort((a, b) => {
+      const aDate = String(a.start_date || "");
+      const bDate = String(b.start_date || "");
+      if (aDate !== bDate) return aDate.localeCompare(bDate);
+      return Number(a.id) - Number(b.id);
+    });
+
+    sortedContracts.forEach((contract, index) => {
+      acc[String(contract.id)] = `${contract.employee_id}.${index + 1}`;
+    });
+
+    return acc;
+  }, {});
+}
+
+function buildContractDisplayCode(contract, visualContractCodes) {
   if (!contract) return "-";
-  return contract.contract_display_code || contract.display_code || contract.code || String(contract.id);
+  return visualContractCodes[String(contract.id)] || contract.contract_display_code || contract.display_code || contract.code || String(contract.id);
 }
 
 export default function IncidentsPage({
@@ -52,12 +76,14 @@ export default function IncidentsPage({
       return acc;
     }, {});
 
+    const visualContractCodes = buildVisualContractCodes(contracts);
+
     return incidents.map((incident) => {
       const linkedContract = contractMap[String(incident.contract_id)];
 
       return {
         ...incident,
-        contract_display_code: buildContractDisplayCode(linkedContract),
+        contract_display_code: buildContractDisplayCode(linkedContract, visualContractCodes),
         contract_type: incident.contract_type || linkedContract?.contract_type || "-",
       };
     });
