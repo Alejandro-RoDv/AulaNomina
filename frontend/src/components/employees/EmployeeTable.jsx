@@ -16,6 +16,20 @@ const emptyEditForm = {
   is_active: true,
 };
 
+const incidentTypeLabels = {
+  IT: "IT / baja médica",
+  RECAIDA: "Recaída",
+  VACACIONES: "Vacaciones",
+  AUSENCIA: "Ausencia",
+  PERMISO_RETRIBUIDO: "Permiso retribuido",
+  PERMISO_NO_RETRIBUIDO: "Permiso no retribuido",
+};
+
+const incidentStatusLabels = {
+  open: "Abierta",
+  closed: "Cerrada",
+};
+
 function toEditForm(employee) {
   return {
     employee_code: employee.employee_code || "",
@@ -46,12 +60,29 @@ function formatStatus(status) {
   return labels[status] || status || "-";
 }
 
+function formatIncidentStatus(status) {
+  return incidentStatusLabels[status] || status || "-";
+}
+
+function formatIncidentType(type) {
+  return incidentTypeLabels[type] || type || "-";
+}
+
 function formatSalary(value) {
   if (value === null || value === undefined || value === "") return "-";
   return new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" }).format(Number(value));
 }
 
-export default function EmployeeTable({ loading, employees, companies, contracts, onUpdateEmployee, onDeleteEmployee, submitting }) {
+export default function EmployeeTable({
+  loading,
+  employees,
+  companies,
+  contracts,
+  incidents = [],
+  onUpdateEmployee,
+  onDeleteEmployee,
+  submitting,
+}) {
   const [editingEmployee, setEditingEmployee] = useState(null);
   const [selectedFileEmployee, setSelectedFileEmployee] = useState(null);
   const [employeeToDelete, setEmployeeToDelete] = useState(null);
@@ -67,8 +98,14 @@ export default function EmployeeTable({ loading, employees, companies, contracts
     .filter((contract) => Number(contract.employee_id) === Number(employeeId))
     .sort((a, b) => String(b.start_date || "").localeCompare(String(a.start_date || "")));
 
+  const getEmployeeIncidents = (employeeId) => incidents
+    .filter((incident) => Number(incident.employee_id) === Number(employeeId))
+    .sort((a, b) => String(b.start_date || "").localeCompare(String(a.start_date || "")));
+
   const getCompanyName = (contract) => contract.company_name || companyMap[contract.company_id]?.name || "-";
   const getCompanyCcc = (contract) => companyMap[contract.company_id]?.ccc || "-";
+
+  const getIncidentCompanyName = (incident) => incident.company_name || companyMap[incident.company_id]?.name || "-";
 
   const openEditModal = (employee) => {
     setEditingEmployee(employee);
@@ -111,7 +148,9 @@ export default function EmployeeTable({ loading, employees, companies, contracts
   };
 
   const selectedEmployeeContracts = selectedFileEmployee ? getEmployeeContracts(selectedFileEmployee.id) : [];
+  const selectedEmployeeIncidents = selectedFileEmployee ? getEmployeeIncidents(selectedFileEmployee.id) : [];
   const activeContract = selectedEmployeeContracts.find((contract) => contract.status === "active");
+  const openIncidents = selectedEmployeeIncidents.filter((incident) => incident.status === "open");
 
   return (
     <>
@@ -179,7 +218,7 @@ export default function EmployeeTable({ loading, employees, companies, contracts
               <div style={styles.summaryBoxStrong}><span style={styles.summaryLabel}>Contratos totales</span><strong>{selectedEmployeeContracts.length}</strong></div>
               <div style={styles.summaryBoxStrong}><span style={styles.summaryLabel}>Contrato activo</span><strong>{activeContract ? `ID ${activeContract.id} · ${activeContract.contract_type}` : "No"}</strong></div>
               <div style={styles.summaryBoxStrong}><span style={styles.summaryLabel}>Empresa actual</span><strong>{activeContract ? getCompanyName(activeContract) : "-"}</strong></div>
-              <div style={styles.summaryBoxStrong}><span style={styles.summaryLabel}>CCC actual</span><strong>{activeContract ? getCompanyCcc(activeContract) : "-"}</strong></div>
+              <div style={styles.summaryBoxStrong}><span style={styles.summaryLabel}>Incidencias abiertas</span><strong>{openIncidents.length}</strong></div>
             </div>
 
             <div style={styles.sectionHeader}>
@@ -199,6 +238,44 @@ export default function EmployeeTable({ loading, employees, companies, contracts
                     {selectedEmployeeContracts.map((contract) => (
                       <tr key={contract.id}>
                         <td style={styles.td}>{contract.id}</td><td style={styles.td}>{getCompanyName(contract)}</td><td style={styles.td}>{getCompanyCcc(contract)}</td><td style={styles.td}>{contract.contract_type}</td><td style={styles.td}>{formatDate(contract.start_date)}</td><td style={styles.td}>{formatDate(contract.end_date)}</td><td style={styles.td}><span style={contract.status === "active" ? styles.activeBadge : styles.inactiveBadge}>{formatStatus(contract.status)}</span></td><td style={styles.td}>{formatSalary(contract.salary_base)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            <div style={styles.sectionHeaderIncidents}>
+              <h4 style={styles.sectionTitle}>Histórico de incidencias</h4>
+              <span style={styles.incidentCount}>{selectedEmployeeIncidents.length} incidencias</span>
+            </div>
+
+            {!selectedEmployeeIncidents.length ? <p style={styles.empty}>Este trabajador todavía no tiene incidencias registradas.</p> : (
+              <div style={styles.tableWrapper}>
+                <table style={styles.table}>
+                  <thead>
+                    <tr>
+                      <th style={styles.th}>ID</th>
+                      <th style={styles.th}>Empresa / centro</th>
+                      <th style={styles.th}>Contrato</th>
+                      <th style={styles.th}>Tipo</th>
+                      <th style={styles.th}>Inicio</th>
+                      <th style={styles.th}>Fin</th>
+                      <th style={styles.th}>Estado</th>
+                      <th style={styles.th}>Descripción</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {selectedEmployeeIncidents.map((incident) => (
+                      <tr key={incident.id}>
+                        <td style={styles.td}>{incident.id}</td>
+                        <td style={styles.td}>{getIncidentCompanyName(incident)}</td>
+                        <td style={styles.td}>{incident.contract_type || incident.contract_id || "-"}</td>
+                        <td style={styles.td}><span style={styles.incidentTypeBadge}>{formatIncidentType(incident.incident_type)}</span></td>
+                        <td style={styles.td}>{formatDate(incident.start_date)}</td>
+                        <td style={styles.td}>{formatDate(incident.end_date)}</td>
+                        <td style={styles.td}><span style={incident.status === "closed" ? styles.closedIncidentBadge : styles.openIncidentBadge}>{formatIncidentStatus(incident.status)}</span></td>
+                        <td style={styles.descriptionTd}>{incident.description || "-"}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -284,15 +361,19 @@ const styles = {
   table: { width: "100%", borderCollapse: "collapse" },
   th: { textAlign: "left", padding: "12px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb", whiteSpace: "nowrap" },
   td: { padding: "12px", borderBottom: "1px solid #eee", whiteSpace: "nowrap" },
+  descriptionTd: { padding: "12px", borderBottom: "1px solid #eee", minWidth: "220px", maxWidth: "360px", whiteSpace: "normal" },
   actionGroup: { display: "flex", gap: "8px", alignItems: "center" },
   activeBadge: { backgroundColor: "#dcfce7", color: "#166534", padding: "4px 8px", borderRadius: "999px", fontSize: "12px", fontWeight: 800 },
   inactiveBadge: { backgroundColor: "#fee2e2", color: "#991b1b", padding: "4px 8px", borderRadius: "999px", fontSize: "12px", fontWeight: 800 },
+  incidentTypeBadge: { backgroundColor: "#fef3c7", color: "#92400e", padding: "4px 8px", borderRadius: "999px", fontSize: "12px", fontWeight: 800, whiteSpace: "nowrap" },
+  openIncidentBadge: { backgroundColor: "#dcfce7", color: "#166534", padding: "4px 8px", borderRadius: "999px", fontSize: "12px", fontWeight: 800 },
+  closedIncidentBadge: { backgroundColor: "#e5e7eb", color: "#374151", padding: "4px 8px", borderRadius: "999px", fontSize: "12px", fontWeight: 800 },
   fileButton: { backgroundColor: "#f3f4f6", color: "#111827", border: "1px solid #d1d5db", borderRadius: "8px", padding: "7px 10px", cursor: "pointer", fontWeight: 700 },
   editButton: { backgroundColor: "#111827", color: "#ffffff", border: "1px solid #111827", borderRadius: "8px", padding: "7px 10px", cursor: "pointer", fontWeight: 700 },
   deleteButton: { backgroundColor: "#fee2e2", color: "#991b1b", border: "1px solid #fecaca", borderRadius: "8px", padding: "8px 12px", cursor: "pointer", fontWeight: 800 },
   modalBackdrop: { position: "fixed", inset: 0, backgroundColor: "rgba(17, 24, 39, 0.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, padding: "24px" },
   modal: { width: "min(920px, 100%)", maxHeight: "90vh", overflowY: "auto", backgroundColor: "#ffffff", border: "3px solid #111111", borderRadius: "12px", boxShadow: "8px 8px 0 #e6d85c", padding: "22px" },
-  modalLarge: { width: "min(1060px, 100%)", maxHeight: "90vh", overflowY: "auto", backgroundColor: "#ffffff", border: "3px solid #111111", borderRadius: "12px", boxShadow: "8px 8px 0 #e6d85c", padding: "22px" },
+  modalLarge: { width: "min(1120px, 100%)", maxHeight: "90vh", overflowY: "auto", backgroundColor: "#ffffff", border: "3px solid #111111", borderRadius: "12px", boxShadow: "8px 8px 0 #e6d85c", padding: "22px" },
   confirmModal: { width: "min(560px, 100%)", backgroundColor: "#ffffff", border: "3px solid #111111", borderRadius: "12px", boxShadow: "8px 8px 0 #e6d85c", padding: "22px" },
   modalHeader: { display: "flex", justifyContent: "space-between", alignItems: "start", gap: "16px", marginBottom: "18px", borderBottom: "1px solid #e5e7eb", paddingBottom: "14px" },
   modalTitle: { margin: 0, fontSize: "20px", fontWeight: 900, color: "#111827" },
@@ -304,8 +385,10 @@ const styles = {
   summaryBoxStrong: { border: "1px solid #e6d85c", borderRadius: "10px", padding: "12px", backgroundColor: "#fefce8", display: "flex", flexDirection: "column", gap: "4px" },
   summaryLabel: { fontSize: "12px", color: "#6b7280", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.04em" },
   sectionHeader: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px", margin: "8px 0 12px", paddingTop: "12px", borderTop: "1px solid #e5e7eb" },
+  sectionHeaderIncidents: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px", margin: "22px 0 12px", paddingTop: "16px", borderTop: "2px solid #111827" },
   sectionTitle: { margin: 0, fontSize: "16px", fontWeight: 900, color: "#111827" },
   contractCount: { backgroundColor: "#fef9c3", color: "#713f12", border: "1px solid #e6d85c", borderRadius: "999px", padding: "4px 10px", fontSize: "12px", fontWeight: 900 },
+  incidentCount: { backgroundColor: "#f3f4f6", color: "#111827", border: "1px solid #d1d5db", borderRadius: "999px", padding: "4px 10px", fontSize: "12px", fontWeight: 900 },
   form: { display: "flex", flexDirection: "column", gap: "16px" },
   formRow: { display: "flex", gap: "16px", flexWrap: "wrap" },
   formGroup: { flex: 1, minWidth: "200px", display: "flex", flexDirection: "column", gap: "6px" },
