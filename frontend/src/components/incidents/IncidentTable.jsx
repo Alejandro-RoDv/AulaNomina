@@ -36,12 +36,14 @@ export default function IncidentTable({
   const [selectedIncident, setSelectedIncident] = useState(null);
   const [incidentToDelete, setIncidentToDelete] = useState(null);
   const [editForm, setEditForm] = useState(null);
+  const [isEditing, setIsEditing] = useState(false);
   const [editError, setEditError] = useState("");
   const [deleteError, setDeleteError] = useState("");
 
   const openDetailsModal = (incident) => {
     setSelectedIncident(incident);
     setEditForm(toEditForm(incident));
+    setIsEditing(false);
     setEditError("");
     setDeleteError("");
   };
@@ -49,6 +51,19 @@ export default function IncidentTable({
   const closeDetailsModal = () => {
     setSelectedIncident(null);
     setEditForm(null);
+    setIsEditing(false);
+    setEditError("");
+  };
+
+  const enableEditing = () => {
+    setIsEditing(true);
+    setEditForm(toEditForm(selectedIncident));
+    setEditError("");
+  };
+
+  const cancelEditing = () => {
+    setIsEditing(false);
+    setEditForm(toEditForm(selectedIncident));
     setEditError("");
   };
 
@@ -70,6 +85,11 @@ export default function IncidentTable({
   const handleEditSubmit = async (event) => {
     event.preventDefault();
     setEditError("");
+
+    if (!isEditing) {
+      enableEditing();
+      return;
+    }
 
     try {
       await onUpdateIncident(selectedIncident.id, editForm);
@@ -167,7 +187,14 @@ export default function IncidentTable({
               <div style={styles.formRow}>
                 <div style={styles.formGroup}>
                   <label>Tipo</label>
-                  <select name="incident_type" value={editForm.incident_type} onChange={handleEditChange} required style={styles.input}>
+                  <select
+                    name="incident_type"
+                    value={editForm.incident_type}
+                    onChange={handleEditChange}
+                    required
+                    disabled={!isEditing}
+                    style={{ ...styles.input, ...(!isEditing ? styles.readOnlyInput : {}) }}
+                  >
                     {INCIDENT_TYPES.map((type) => (
                       <option key={type.value} value={type.value}>{type.label}</option>
                     ))}
@@ -176,7 +203,13 @@ export default function IncidentTable({
 
                 <div style={styles.formGroup}>
                   <label>Estado</label>
-                  <select name="status" value={editForm.status} onChange={handleEditChange} style={styles.input}>
+                  <select
+                    name="status"
+                    value={editForm.status}
+                    onChange={handleEditChange}
+                    disabled={!isEditing}
+                    style={{ ...styles.input, ...(!isEditing ? styles.readOnlyInput : {}) }}
+                  >
                     {STATUS_OPTIONS.map((status) => (
                       <option key={status.value} value={status.value}>{status.label}</option>
                     ))}
@@ -187,18 +220,40 @@ export default function IncidentTable({
               <div style={styles.formRow}>
                 <div style={styles.formGroup}>
                   <label>Fecha inicio</label>
-                  <input type="date" name="start_date" value={editForm.start_date} onChange={handleEditChange} required style={styles.input} />
+                  <input
+                    type="date"
+                    name="start_date"
+                    value={editForm.start_date}
+                    onChange={handleEditChange}
+                    required
+                    disabled={!isEditing}
+                    style={{ ...styles.input, ...(!isEditing ? styles.readOnlyInput : {}) }}
+                  />
                 </div>
 
                 <div style={styles.formGroup}>
                   <label>Fecha fin</label>
-                  <input type="date" name="end_date" value={editForm.end_date} onChange={handleEditChange} style={styles.input} />
+                  <input
+                    type="date"
+                    name="end_date"
+                    value={editForm.end_date}
+                    onChange={handleEditChange}
+                    disabled={!isEditing}
+                    style={{ ...styles.input, ...(!isEditing ? styles.readOnlyInput : {}) }}
+                  />
                 </div>
               </div>
 
               <div style={styles.formGroupFull}>
                 <label>Descripción</label>
-                <textarea name="description" value={editForm.description} onChange={handleEditChange} rows="5" style={styles.textarea} />
+                <textarea
+                  name="description"
+                  value={editForm.description}
+                  onChange={handleEditChange}
+                  rows="5"
+                  disabled={!isEditing}
+                  style={{ ...styles.textarea, ...(!isEditing ? styles.readOnlyInput : {}) }}
+                />
               </div>
 
               {editError && <div style={styles.error}>{editError}</div>}
@@ -208,9 +263,13 @@ export default function IncidentTable({
                   Eliminar incidencia
                 </button>
                 <div style={styles.modalActionsRight}>
-                  <button type="button" onClick={closeDetailsModal} style={styles.cancelButton}>Cancelar</button>
+                  {isEditing && (
+                    <button type="button" onClick={cancelEditing} style={styles.cancelButton}>
+                      Cancelar
+                    </button>
+                  )}
                   <button type="submit" disabled={submitting} style={styles.saveButton}>
-                    {submitting ? "Guardando..." : "Guardar cambios"}
+                    {submitting ? "Guardando..." : isEditing ? "Guardar cambios" : "Editar"}
                   </button>
                 </div>
               </div>
@@ -278,6 +337,7 @@ const styles = {
   formGroupFull: { display: "flex", flexDirection: "column", gap: "6px" },
   input: { padding: "10px 12px", border: "1px solid #ccc", borderRadius: "8px", fontSize: "14px" },
   textarea: { padding: "10px 12px", border: "1px solid #ccc", borderRadius: "8px", fontSize: "14px", resize: "vertical", fontFamily: "inherit" },
+  readOnlyInput: { backgroundColor: "#f3f4f6", color: "#111827", cursor: "not-allowed", opacity: 1 },
   confirmText: { margin: "0 0 16px", color: "#374151", lineHeight: 1.5 },
   error: { backgroundColor: "#fee2e2", color: "#991b1b", padding: "10px 12px", borderRadius: "8px" },
   modalActions: { display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "6px" },
