@@ -12,6 +12,16 @@ class CompanyCreate(BaseModel):
     province: str | None = None
 
 
+class CompanyUpdate(BaseModel):
+    name: str | None = None
+    cif: str | None = None
+    ccc: str | None = None
+    address: str | None = None
+    city: str | None = None
+    province: str | None = None
+    is_active: bool | None = None
+
+
 class CompanyResponse(BaseModel):
     id: int
     name: str
