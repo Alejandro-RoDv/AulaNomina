@@ -81,7 +81,7 @@ export default function EmployeesPage({
         subtitle="Trabajadores registrados actualmente en AulaNomina."
       >
         <div style={styles.filters}>
-          <div style={styles.filterGroup}>
+          <div style={styles.filterGroupCode}>
             <label>ID / Código</label>
             <input
               name="id"
@@ -92,7 +92,7 @@ export default function EmployeesPage({
             />
           </div>
 
-          <div style={styles.filterGroup}>
+          <div style={styles.filterGroupName}>
             <label>Nombre y apellidos</label>
             <input
               name="name"
@@ -103,7 +103,7 @@ export default function EmployeesPage({
             />
           </div>
 
-          <div style={styles.filterGroup}>
+          <div style={styles.filterGroupDni}>
             <label>DNI</label>
             <input
               name="dni"
@@ -146,8 +146,23 @@ const styles = {
     flexWrap: "wrap",
     marginBottom: "18px",
   },
-  filterGroup: {
-    minWidth: "220px",
+  filterGroupCode: {
+    width: "220px",
+    flex: "0 0 220px",
+    display: "flex",
+    flexDirection: "column",
+    gap: "6px",
+  },
+  filterGroupName: {
+    width: "360px",
+    flex: "0 0 360px",
+    display: "flex",
+    flexDirection: "column",
+    gap: "6px",
+  },
+  filterGroupDni: {
+    width: "240px",
+    flex: "0 0 240px",
     display: "flex",
     flexDirection: "column",
     gap: "6px",
