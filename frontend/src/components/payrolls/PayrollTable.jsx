@@ -22,9 +22,9 @@ function toEditForm(payroll) {
   return {
     period_month: String(payroll.period_month || ""),
     period_year: String(payroll.period_year || ""),
-    base_salary: String(payroll.base_salary ?? ""),
-    salary_supplements: String(payroll.salary_supplements ?? "0"),
-    extra_pay_proration: String(payroll.extra_pay_proration ?? "0"),
+    salary_supplement_1: String(payroll.salary_supplements ?? "0"),
+    salary_supplement_2: "0",
+    salary_supplement_3: "0",
     irpf_percentage: "10",
     status: payroll.status || "draft",
   };
