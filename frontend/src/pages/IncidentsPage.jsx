@@ -183,6 +183,7 @@ export default function IncidentsPage({
         <IncidentTable
           loading={loading}
           incidents={filteredIncidents}
+          contracts={contracts}
           onUpdateIncident={onUpdateIncident}
           onDeleteIncident={onDeleteIncident}
           submitting={incidentSubmitting}
