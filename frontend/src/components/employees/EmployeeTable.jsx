@@ -34,6 +34,30 @@ function toEditForm(employee) {
   };
 }
 
+function formatDate(value) {
+  if (!value) return "-";
+  const [year, month, day] = String(value).split("-");
+  if (!year || !month || !day) return value;
+  return `${day}/${month}/${year}`;
+}
+
+function formatStatus(status) {
+  const labels = {
+    active: "Activo",
+    ended: "Finalizado",
+    deleted: "Eliminado",
+  };
+  return labels[status] || status || "-";
+}
+
+function formatSalary(value) {
+  if (value === null || value === undefined || value === "") return "-";
+  return new Intl.NumberFormat("es-ES", {
+    style: "currency",
+    currency: "EUR",
+  }).format(Number(value));
+}
+
 export default function EmployeeTable({ loading, employees, companies, contracts, onUpdateEmployee, submitting }) {
   const [editingEmployee, setEditingEmployee] = useState(null);
   const [selectedFileEmployee, setSelectedFileEmployee] = useState(null);
@@ -75,10 +99,19 @@ export default function EmployeeTable({ loading, employees, companies, contracts
       .sort((a, b) => String(b.start_date || "").localeCompare(String(a.start_date || "")));
   };
 
+  const getCompany = (contract) => {
+    return companyMap[contract.company_id];
+  };
+
   const getCompanyName = (contract) => {
     if (contract.company_name) return contract.company_name;
-    const company = companyMap[contract.company_id];
+    const company = getCompany(contract);
     return company ? company.name : "-";
+  };
+
+  const getCompanyCcc = (contract) => {
+    const company = getCompany(contract);
+    return company?.ccc || "-";
   };
 
   const handleEditChange = (event) => {
@@ -104,6 +137,10 @@ export default function EmployeeTable({ loading, employees, companies, contracts
   const selectedEmployeeContracts = selectedFileEmployee
     ? getEmployeeContracts(selectedFileEmployee.id)
     : [];
+
+  const activeContract = selectedEmployeeContracts.find((contract) => contract.status === "active");
+  const activeCompanyName = activeContract ? getCompanyName(activeContract) : "-";
+  const activeCompanyCcc = activeContract ? getCompanyCcc(activeContract) : "-";
 
   return (
     <>
@@ -203,6 +240,25 @@ export default function EmployeeTable({ loading, employees, companies, contracts
               </div>
             </div>
 
+            <div style={styles.summaryGridCompact}>
+              <div style={styles.summaryBoxStrong}>
+                <span style={styles.summaryLabel}>Contratos totales</span>
+                <strong>{selectedEmployeeContracts.length}</strong>
+              </div>
+              <div style={styles.summaryBoxStrong}>
+                <span style={styles.summaryLabel}>Contrato activo</span>
+                <strong>{activeContract ? `ID ${activeContract.id} · ${activeContract.contract_type}` : "No"}</strong>
+              </div>
+              <div style={styles.summaryBoxStrong}>
+                <span style={styles.summaryLabel}>Empresa actual</span>
+                <strong>{activeCompanyName}</strong>
+              </div>
+              <div style={styles.summaryBoxStrong}>
+                <span style={styles.summaryLabel}>CCC actual</span>
+                <strong>{activeCompanyCcc}</strong>
+              </div>
+            </div>
+
             <div style={styles.sectionHeader}>
               <h4 style={styles.sectionTitle}>Histórico contractual</h4>
               <span style={styles.contractCount}>{selectedEmployeeContracts.length} contratos</span>
@@ -217,6 +273,7 @@ export default function EmployeeTable({ loading, employees, companies, contracts
                     <tr>
                       <th style={styles.th}>ID</th>
                       <th style={styles.th}>Empresa / centro</th>
+                      <th style={styles.th}>CCC</th>
                       <th style={styles.th}>Tipo</th>
                       <th style={styles.th}>Inicio</th>
                       <th style={styles.th}>Fin</th>
@@ -229,15 +286,16 @@ export default function EmployeeTable({ loading, employees, companies, contracts
                       <tr key={contract.id}>
                         <td style={styles.td}>{contract.id}</td>
                         <td style={styles.td}>{getCompanyName(contract)}</td>
+                        <td style={styles.td}>{getCompanyCcc(contract)}</td>
                         <td style={styles.td}>{contract.contract_type}</td>
-                        <td style={styles.td}>{contract.start_date}</td>
-                        <td style={styles.td}>{contract.end_date || "-"}</td>
+                        <td style={styles.td}>{formatDate(contract.start_date)}</td>
+                        <td style={styles.td}>{formatDate(contract.end_date)}</td>
                         <td style={styles.td}>
                           <span style={contract.status === "active" ? styles.activeBadge : styles.inactiveBadge}>
-                            {contract.status === "active" ? "Activo" : "Finalizado"}
+                            {formatStatus(contract.status)}
                           </span>
                         </td>
-                        <td style={styles.td}>{contract.salary_base || "-"}</td>
+                        <td style={styles.td}>{formatSalary(contract.salary_base)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -364,8 +422,10 @@ const styles = {
   modalTitle: { margin: 0, fontSize: "20px", fontWeight: 900, color: "#111827" },
   modalSubtitle: { margin: "4px 0 0", color: "#6b7280", fontSize: "13px", fontWeight: 700 },
   closeButton: { border: "none", backgroundColor: "transparent", fontSize: "28px", lineHeight: 1, cursor: "pointer", color: "#111827" },
-  summaryGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "12px", marginBottom: "20px" },
+  summaryGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "12px", marginBottom: "16px" },
+  summaryGridCompact: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: "12px", marginBottom: "20px" },
   summaryBox: { border: "1px solid #e5e7eb", borderRadius: "10px", padding: "12px", backgroundColor: "#f9fafb", display: "flex", flexDirection: "column", gap: "4px" },
+  summaryBoxStrong: { border: "1px solid #e6d85c", borderRadius: "10px", padding: "12px", backgroundColor: "#fefce8", display: "flex", flexDirection: "column", gap: "4px" },
   summaryLabel: { fontSize: "12px", color: "#6b7280", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.04em" },
   sectionHeader: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px", margin: "8px 0 12px", paddingTop: "12px", borderTop: "1px solid #e5e7eb" },
   sectionTitle: { margin: 0, fontSize: "16px", fontWeight: 900, color: "#111827" },
