@@ -36,10 +36,20 @@ function toEditForm(contract) {
   };
 }
 
-export default function ContractTable({ loading, contracts, employees, companies, onUpdateContract, submitting }) {
+export default function ContractTable({
+  loading,
+  contracts,
+  employees,
+  companies,
+  onUpdateContract,
+  onDeleteContract,
+  submitting,
+}) {
   const [editingContract, setEditingContract] = useState(null);
+  const [contractToDelete, setContractToDelete] = useState(null);
   const [editForm, setEditForm] = useState(null);
   const [editError, setEditError] = useState("");
+  const [deleteError, setDeleteError] = useState("");
 
   const getEmployeeName = (contract) => {
     if (contract.employee_name) return contract.employee_name;
@@ -76,6 +86,16 @@ export default function ContractTable({ loading, contracts, employees, companies
     setEditError("");
   };
 
+  const openDeleteModal = (contract) => {
+    setContractToDelete(contract);
+    setDeleteError("");
+  };
+
+  const closeDeleteModal = () => {
+    setContractToDelete(null);
+    setDeleteError("");
+  };
+
   const handleEditChange = (event) => {
     const { name, value } = event.target;
     setEditForm((prev) => ({ ...prev, [name]: value }));
@@ -90,6 +110,17 @@ export default function ContractTable({ loading, contracts, employees, companies
       closeEditModal();
     } catch (err) {
       setEditError(err.message || "Error al actualizar contrato");
+    }
+  };
+
+  const handleConfirmDelete = async () => {
+    setDeleteError("");
+
+    try {
+      await onDeleteContract(contractToDelete.id);
+      closeDeleteModal();
+    } catch (err) {
+      setDeleteError(err.message || "Error al eliminar contrato");
     }
   };
 
@@ -132,9 +163,14 @@ export default function ContractTable({ loading, contracts, employees, companies
                 </td>
                 <td style={styles.td}>{formatSalary(contract.salary_base)}</td>
                 <td style={styles.td}>
-                  <button type="button" onClick={() => openEditModal(contract)} style={styles.editButton}>
-                    Editar
-                  </button>
+                  <div style={styles.actionGroup}>
+                    <button type="button" onClick={() => openEditModal(contract)} style={styles.editButton}>
+                      Editar
+                    </button>
+                    <button type="button" onClick={() => openDeleteModal(contract)} style={styles.deleteButton}>
+                      Eliminar
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
@@ -157,14 +193,13 @@ export default function ContractTable({ loading, contracts, employees, companies
               <div style={styles.formRow}>
                 <div style={styles.formGroup}>
                   <label>Empleado</label>
-                  <select name="employee_id" value={editForm.employee_id} onChange={handleEditChange} required style={styles.input}>
-                    <option value="">Selecciona un empleado</option>
-                    {employees.map((employee) => (
-                      <option key={employee.id} value={employee.id}>
-                        {employee.first_name} {employee.last_name} · DNI {employee.dni || "-"}
-                      </option>
-                    ))}
-                  </select>
+                  <input
+                    value={getEmployeeName(editingContract)}
+                    readOnly
+                    disabled
+                    style={{ ...styles.input, ...styles.readOnlyInput }}
+                  />
+                  <small style={styles.helpText}>El trabajador no se puede modificar desde la edición del contrato.</small>
                 </div>
 
                 <div style={styles.formGroup}>
@@ -230,6 +265,33 @@ export default function ContractTable({ loading, contracts, employees, companies
           </div>
         </div>
       )}
+
+      {contractToDelete && (
+        <div style={styles.modalBackdrop}>
+          <div style={styles.confirmModal}>
+            <div style={styles.modalHeader}>
+              <div>
+                <h3 style={styles.modalTitle}>Eliminar contrato</h3>
+                <p style={styles.modalSubtitle}>Esta acción marcará el contrato como eliminado.</p>
+              </div>
+              <button type="button" onClick={closeDeleteModal} style={styles.closeButton}>×</button>
+            </div>
+
+            <p style={styles.confirmText}>
+              ¿Seguro que quieres eliminar el contrato ID {contractToDelete.id} de {getEmployeeName(contractToDelete)}?
+            </p>
+
+            {deleteError && <div style={styles.error}>{deleteError}</div>}
+
+            <div style={styles.modalActions}>
+              <button type="button" onClick={closeDeleteModal} style={styles.cancelButton}>Cancelar</button>
+              <button type="button" onClick={handleConfirmDelete} disabled={submitting} style={styles.dangerButton}>
+                {submitting ? "Eliminando..." : "Confirmar eliminación"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
@@ -253,6 +315,11 @@ const styles = {
     padding: "12px",
     borderBottom: "1px solid #eee",
     whiteSpace: "nowrap",
+  },
+  actionGroup: {
+    display: "flex",
+    gap: "8px",
+    alignItems: "center",
   },
   activeBadge: {
     backgroundColor: "#dcfce7",
@@ -279,6 +346,15 @@ const styles = {
     cursor: "pointer",
     fontWeight: 700,
   },
+  deleteButton: {
+    backgroundColor: "#fee2e2",
+    color: "#991b1b",
+    border: "1px solid #fecaca",
+    borderRadius: "8px",
+    padding: "7px 10px",
+    cursor: "pointer",
+    fontWeight: 800,
+  },
   modalBackdrop: {
     position: "fixed",
     inset: 0,
@@ -293,6 +369,14 @@ const styles = {
     width: "min(920px, 100%)",
     maxHeight: "90vh",
     overflowY: "auto",
+    backgroundColor: "#ffffff",
+    border: "3px solid #111111",
+    borderRadius: "12px",
+    boxShadow: "8px 8px 0 #e6d85c",
+    padding: "22px",
+  },
+  confirmModal: {
+    width: "min(560px, 100%)",
     backgroundColor: "#ffffff",
     border: "3px solid #111111",
     borderRadius: "12px",
@@ -315,8 +399,12 @@ const styles = {
   formRow: { display: "flex", gap: "16px", flexWrap: "wrap" },
   formGroup: { flex: 1, minWidth: "220px", display: "flex", flexDirection: "column", gap: "6px" },
   input: { padding: "10px 12px", border: "1px solid #ccc", borderRadius: "8px", fontSize: "14px" },
+  readOnlyInput: { backgroundColor: "#f3f4f6", color: "#6b7280", cursor: "not-allowed", fontWeight: 800 },
+  helpText: { color: "#6b7280", fontSize: "12px", fontWeight: 700 },
+  confirmText: { margin: "0 0 16px", color: "#374151", lineHeight: 1.5 },
   error: { backgroundColor: "#fee2e2", color: "#991b1b", padding: "10px 12px", borderRadius: "8px" },
   modalActions: { display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "6px" },
   cancelButton: { backgroundColor: "#f3f4f6", color: "#111827", border: "1px solid #d1d5db", borderRadius: "8px", padding: "10px 14px", cursor: "pointer", fontWeight: 800 },
   saveButton: { backgroundColor: "#111827", color: "#ffffff", border: "1px solid #111827", borderRadius: "8px", padding: "10px 14px", cursor: "pointer", fontWeight: 800 },
+  dangerButton: { backgroundColor: "#991b1b", color: "#ffffff", border: "1px solid #991b1b", borderRadius: "8px", padding: "10px 14px", cursor: "pointer", fontWeight: 900 },
 };
