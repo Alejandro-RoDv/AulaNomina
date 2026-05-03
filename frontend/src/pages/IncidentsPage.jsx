@@ -12,6 +12,11 @@ function normalizeText(value) {
     .trim();
 }
 
+function dateToNumber(value) {
+  if (!value) return null;
+  return Number(String(value).replaceAll("-", ""));
+}
+
 export default function IncidentsPage({
   loading,
   incidents,
@@ -32,6 +37,8 @@ export default function IncidentsPage({
     company: "",
     incidentType: "",
     status: "",
+    dateFrom: "",
+    dateTo: "",
   });
 
   const handleFilterChange = (event) => {
@@ -40,7 +47,14 @@ export default function IncidentsPage({
   };
 
   const clearFilters = () => {
-    setFilters({ employee: "", company: "", incidentType: "", status: "" });
+    setFilters({
+      employee: "",
+      company: "",
+      incidentType: "",
+      status: "",
+      dateFrom: "",
+      dateTo: "",
+    });
   };
 
   const filteredIncidents = useMemo(() => {
@@ -48,19 +62,25 @@ export default function IncidentsPage({
     const companyFilter = normalizeText(filters.company);
     const typeFilter = normalizeText(filters.incidentType);
     const statusFilter = normalizeText(filters.status);
+    const fromDate = dateToNumber(filters.dateFrom);
+    const toDate = dateToNumber(filters.dateTo);
 
     return incidents.filter((incident) => {
       const employeeText = normalizeText(`${incident.employee_name || ""} ${incident.employee_id || ""}`);
       const companyText = normalizeText(`${incident.company_name || ""} ${incident.company_id || ""}`);
       const typeText = normalizeText(incident.incident_type);
       const statusText = normalizeText(incident.status);
+      const incidentStartDate = dateToNumber(incident.start_date);
+      const incidentEndDate = dateToNumber(incident.end_date) || incidentStartDate;
 
-      return (
-        (!employeeFilter || employeeText.includes(employeeFilter)) &&
-        (!companyFilter || companyText.includes(companyFilter)) &&
-        (!typeFilter || typeText === typeFilter) &&
-        (!statusFilter || statusText === statusFilter)
-      );
+      const matchesEmployee = !employeeFilter || employeeText.includes(employeeFilter);
+      const matchesCompany = !companyFilter || companyText.includes(companyFilter);
+      const matchesType = !typeFilter || typeText === typeFilter;
+      const matchesStatus = !statusFilter || statusText === statusFilter;
+      const matchesFromDate = !fromDate || (incidentEndDate && incidentEndDate >= fromDate);
+      const matchesToDate = !toDate || (incidentStartDate && incidentStartDate <= toDate);
+
+      return matchesEmployee && matchesCompany && matchesType && matchesStatus && matchesFromDate && matchesToDate;
     });
   }, [incidents, filters]);
 
@@ -129,9 +149,35 @@ export default function IncidentsPage({
             </select>
           </div>
 
+          <div style={styles.filterGroup}>
+            <label>Desde</label>
+            <input
+              type="date"
+              name="dateFrom"
+              value={filters.dateFrom}
+              onChange={handleFilterChange}
+              style={styles.input}
+            />
+          </div>
+
+          <div style={styles.filterGroup}>
+            <label>Hasta</label>
+            <input
+              type="date"
+              name="dateTo"
+              value={filters.dateTo}
+              onChange={handleFilterChange}
+              style={styles.input}
+            />
+          </div>
+
           <button type="button" onClick={clearFilters} style={styles.clearButton}>
             Limpiar filtros
           </button>
+        </div>
+
+        <div style={styles.resultInfo}>
+          Mostrando {filteredIncidents.length} de {incidents.length} incidencias
         </div>
 
         <IncidentTable
@@ -154,11 +200,11 @@ const styles = {
   },
   filters: {
     display: "grid",
-    gridTemplateColumns: "minmax(220px, 1fr) minmax(220px, 1fr) 220px 160px 124px",
+    gridTemplateColumns: "minmax(220px, 1fr) minmax(220px, 1fr) 220px 160px 150px 150px 124px",
     columnGap: "14px",
     rowGap: "10px",
     alignItems: "end",
-    marginBottom: "18px",
+    marginBottom: "10px",
   },
   filterGroup: {
     minWidth: 0,
@@ -182,6 +228,12 @@ const styles = {
     borderRadius: "8px",
     padding: "10px 14px",
     cursor: "pointer",
+    fontWeight: 700,
+  },
+  resultInfo: {
+    marginBottom: "16px",
+    color: "#6b7280",
+    fontSize: "13px",
     fontWeight: 700,
   },
 };
