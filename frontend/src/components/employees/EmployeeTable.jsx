@@ -42,31 +42,16 @@ function formatDate(value) {
 }
 
 function formatStatus(status) {
-  const labels = {
-    active: "Activo",
-    ended: "Finalizado",
-    deleted: "Eliminado",
-  };
+  const labels = { active: "Activo", ended: "Finalizado", deleted: "Eliminado" };
   return labels[status] || status || "-";
 }
 
 function formatSalary(value) {
   if (value === null || value === undefined || value === "") return "-";
-  return new Intl.NumberFormat("es-ES", {
-    style: "currency",
-    currency: "EUR",
-  }).format(Number(value));
+  return new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" }).format(Number(value));
 }
 
-export default function EmployeeTable({
-  loading,
-  employees,
-  companies,
-  contracts,
-  onUpdateEmployee,
-  onDeleteEmployee,
-  submitting,
-}) {
+export default function EmployeeTable({ loading, employees, companies, contracts, onUpdateEmployee, onDeleteEmployee, submitting }) {
   const [editingEmployee, setEditingEmployee] = useState(null);
   const [selectedFileEmployee, setSelectedFileEmployee] = useState(null);
   const [employeeToDelete, setEmployeeToDelete] = useState(null);
@@ -74,19 +59,22 @@ export default function EmployeeTable({
   const [editError, setEditError] = useState("");
   const [deleteError, setDeleteError] = useState("");
 
-  const companyMap = useMemo(() => {
-    return companies.reduce((acc, company) => {
-      acc[company.id] = company;
-      return acc;
-    }, {});
-  }, [companies]);
+  const companyMap = useMemo(() => companies.reduce((acc, company) => ({ ...acc, [company.id]: company }), {}), [companies]);
 
   if (loading) return <p>Cargando...</p>;
+
+  const getEmployeeContracts = (employeeId) => contracts
+    .filter((contract) => Number(contract.employee_id) === Number(employeeId))
+    .sort((a, b) => String(b.start_date || "").localeCompare(String(a.start_date || "")));
+
+  const getCompanyName = (contract) => contract.company_name || companyMap[contract.company_id]?.name || "-";
+  const getCompanyCcc = (contract) => companyMap[contract.company_id]?.ccc || "-";
 
   const openEditModal = (employee) => {
     setEditingEmployee(employee);
     setEditForm(toEditForm(employee));
     setEditError("");
+    setDeleteError("");
   };
 
   const closeEditModal = () => {
@@ -95,57 +83,14 @@ export default function EmployeeTable({
     setEditError("");
   };
 
-  const openFileModal = (employee) => {
-    setSelectedFileEmployee(employee);
-  };
-
-  const closeFileModal = () => {
-    setSelectedFileEmployee(null);
-  };
-
-  const openDeleteModal = (employee) => {
-    setEmployeeToDelete(employee);
-    setDeleteError("");
-  };
-
-  const closeDeleteModal = () => {
-    setEmployeeToDelete(null);
-    setDeleteError("");
-  };
-
-  const getEmployeeContracts = (employeeId) => {
-    return contracts
-      .filter((contract) => Number(contract.employee_id) === Number(employeeId))
-      .sort((a, b) => String(b.start_date || "").localeCompare(String(a.start_date || "")));
-  };
-
-  const getCompany = (contract) => {
-    return companyMap[contract.company_id];
-  };
-
-  const getCompanyName = (contract) => {
-    if (contract.company_name) return contract.company_name;
-    const company = getCompany(contract);
-    return company ? company.name : "-";
-  };
-
-  const getCompanyCcc = (contract) => {
-    const company = getCompany(contract);
-    return company?.ccc || "-";
-  };
-
   const handleEditChange = (event) => {
     const { name, value, type, checked } = event.target;
-    setEditForm((prev) => ({
-      ...prev,
-      [name]: type === "checkbox" ? checked : value,
-    }));
+    setEditForm((prev) => ({ ...prev, [name]: type === "checkbox" ? checked : value }));
   };
 
   const handleEditSubmit = async (event) => {
     event.preventDefault();
     setEditError("");
-
     try {
       await onUpdateEmployee(editingEmployee.id, editForm);
       closeEditModal();
@@ -156,22 +101,17 @@ export default function EmployeeTable({
 
   const handleConfirmDelete = async () => {
     setDeleteError("");
-
     try {
       await onDeleteEmployee(employeeToDelete.id);
-      closeDeleteModal();
+      setEmployeeToDelete(null);
+      closeEditModal();
     } catch (err) {
       setDeleteError(err.message || "Error al desactivar trabajador");
     }
   };
 
-  const selectedEmployeeContracts = selectedFileEmployee
-    ? getEmployeeContracts(selectedFileEmployee.id)
-    : [];
-
+  const selectedEmployeeContracts = selectedFileEmployee ? getEmployeeContracts(selectedFileEmployee.id) : [];
   const activeContract = selectedEmployeeContracts.find((contract) => contract.status === "active");
-  const activeCompanyName = activeContract ? getCompanyName(activeContract) : "-";
-  const activeCompanyCcc = activeContract ? getCompanyCcc(activeContract) : "-";
 
   return (
     <>
@@ -201,34 +141,11 @@ export default function EmployeeTable({
                   <td style={styles.td}>{employee.first_name} {employee.last_name}</td>
                   <td style={styles.td}>{employee.email || "-"}</td>
                   <td style={styles.td}>{employee.phone || "-"}</td>
-                  <td style={styles.td}>
-                    <span style={employee.is_active ? styles.activeBadge : styles.inactiveBadge}>
-                      {employee.is_active ? "Activo" : "Inactivo"}
-                    </span>
-                  </td>
+                  <td style={styles.td}><span style={employee.is_active ? styles.activeBadge : styles.inactiveBadge}>{employee.is_active ? "Activo" : "Inactivo"}</span></td>
                   <td style={styles.td}>
                     <div style={styles.actionGroup}>
-                      <button
-                        type="button"
-                        style={styles.fileButton}
-                        onClick={() => openFileModal(employee)}
-                      >
-                        Ficha
-                      </button>
-                      <button
-                        type="button"
-                        style={styles.editButton}
-                        onClick={() => openEditModal(employee)}
-                      >
-                        Editar
-                      </button>
-                      <button
-                        type="button"
-                        style={styles.deleteButton}
-                        onClick={() => openDeleteModal(employee)}
-                      >
-                        Eliminar
-                      </button>
+                      <button type="button" style={styles.fileButton} onClick={() => setSelectedFileEmployee(employee)}>Ficha</button>
+                      <button type="button" style={styles.editButton} onClick={() => openEditModal(employee)}>Editar</button>
                     </div>
                   </td>
                 </tr>
@@ -244,57 +161,25 @@ export default function EmployeeTable({
             <div style={styles.modalHeader}>
               <div>
                 <h3 style={styles.modalTitle}>Ficha del trabajador</h3>
-                <p style={styles.modalSubtitle}>
-                  {selectedFileEmployee.first_name} {selectedFileEmployee.last_name}
-                </p>
+                <p style={styles.modalSubtitle}>{selectedFileEmployee.first_name} {selectedFileEmployee.last_name}</p>
               </div>
-              <button type="button" onClick={closeFileModal} style={styles.closeButton}>×</button>
+              <button type="button" onClick={() => setSelectedFileEmployee(null)} style={styles.closeButton}>×</button>
             </div>
 
             <div style={styles.summaryGrid}>
-              <div style={styles.summaryBox}>
-                <span style={styles.summaryLabel}>Código</span>
-                <strong>{selectedFileEmployee.employee_code || "-"}</strong>
-              </div>
-              <div style={styles.summaryBox}>
-                <span style={styles.summaryLabel}>ID interno</span>
-                <strong>{selectedFileEmployee.id}</strong>
-              </div>
-              <div style={styles.summaryBox}>
-                <span style={styles.summaryLabel}>DNI</span>
-                <strong>{selectedFileEmployee.dni || "-"}</strong>
-              </div>
-              <div style={styles.summaryBox}>
-                <span style={styles.summaryLabel}>NAF</span>
-                <strong>{selectedFileEmployee.naf || "-"}</strong>
-              </div>
-              <div style={styles.summaryBox}>
-                <span style={styles.summaryLabel}>Email</span>
-                <strong>{selectedFileEmployee.email || "-"}</strong>
-              </div>
-              <div style={styles.summaryBox}>
-                <span style={styles.summaryLabel}>Teléfono</span>
-                <strong>{selectedFileEmployee.phone || "-"}</strong>
-              </div>
+              <div style={styles.summaryBox}><span style={styles.summaryLabel}>Código</span><strong>{selectedFileEmployee.employee_code || "-"}</strong></div>
+              <div style={styles.summaryBox}><span style={styles.summaryLabel}>ID interno</span><strong>{selectedFileEmployee.id}</strong></div>
+              <div style={styles.summaryBox}><span style={styles.summaryLabel}>DNI</span><strong>{selectedFileEmployee.dni || "-"}</strong></div>
+              <div style={styles.summaryBox}><span style={styles.summaryLabel}>NAF</span><strong>{selectedFileEmployee.naf || "-"}</strong></div>
+              <div style={styles.summaryBox}><span style={styles.summaryLabel}>Email</span><strong>{selectedFileEmployee.email || "-"}</strong></div>
+              <div style={styles.summaryBox}><span style={styles.summaryLabel}>Teléfono</span><strong>{selectedFileEmployee.phone || "-"}</strong></div>
             </div>
 
             <div style={styles.summaryGridCompact}>
-              <div style={styles.summaryBoxStrong}>
-                <span style={styles.summaryLabel}>Contratos totales</span>
-                <strong>{selectedEmployeeContracts.length}</strong>
-              </div>
-              <div style={styles.summaryBoxStrong}>
-                <span style={styles.summaryLabel}>Contrato activo</span>
-                <strong>{activeContract ? `ID ${activeContract.id} · ${activeContract.contract_type}` : "No"}</strong>
-              </div>
-              <div style={styles.summaryBoxStrong}>
-                <span style={styles.summaryLabel}>Empresa actual</span>
-                <strong>{activeCompanyName}</strong>
-              </div>
-              <div style={styles.summaryBoxStrong}>
-                <span style={styles.summaryLabel}>CCC actual</span>
-                <strong>{activeCompanyCcc}</strong>
-              </div>
+              <div style={styles.summaryBoxStrong}><span style={styles.summaryLabel}>Contratos totales</span><strong>{selectedEmployeeContracts.length}</strong></div>
+              <div style={styles.summaryBoxStrong}><span style={styles.summaryLabel}>Contrato activo</span><strong>{activeContract ? `ID ${activeContract.id} · ${activeContract.contract_type}` : "No"}</strong></div>
+              <div style={styles.summaryBoxStrong}><span style={styles.summaryLabel}>Empresa actual</span><strong>{activeContract ? getCompanyName(activeContract) : "-"}</strong></div>
+              <div style={styles.summaryBoxStrong}><span style={styles.summaryLabel}>CCC actual</span><strong>{activeContract ? getCompanyCcc(activeContract) : "-"}</strong></div>
             </div>
 
             <div style={styles.sectionHeader}>
@@ -302,38 +187,18 @@ export default function EmployeeTable({
               <span style={styles.contractCount}>{selectedEmployeeContracts.length} contratos</span>
             </div>
 
-            {!selectedEmployeeContracts.length ? (
-              <p style={styles.empty}>Este trabajador todavía no tiene contratos registrados.</p>
-            ) : (
+            {!selectedEmployeeContracts.length ? <p style={styles.empty}>Este trabajador todavía no tiene contratos registrados.</p> : (
               <div style={styles.tableWrapper}>
                 <table style={styles.table}>
                   <thead>
                     <tr>
-                      <th style={styles.th}>ID</th>
-                      <th style={styles.th}>Empresa / centro</th>
-                      <th style={styles.th}>CCC</th>
-                      <th style={styles.th}>Tipo</th>
-                      <th style={styles.th}>Inicio</th>
-                      <th style={styles.th}>Fin</th>
-                      <th style={styles.th}>Estado</th>
-                      <th style={styles.th}>Salario</th>
+                      <th style={styles.th}>ID</th><th style={styles.th}>Empresa / centro</th><th style={styles.th}>CCC</th><th style={styles.th}>Tipo</th><th style={styles.th}>Inicio</th><th style={styles.th}>Fin</th><th style={styles.th}>Estado</th><th style={styles.th}>Salario</th>
                     </tr>
                   </thead>
                   <tbody>
                     {selectedEmployeeContracts.map((contract) => (
                       <tr key={contract.id}>
-                        <td style={styles.td}>{contract.id}</td>
-                        <td style={styles.td}>{getCompanyName(contract)}</td>
-                        <td style={styles.td}>{getCompanyCcc(contract)}</td>
-                        <td style={styles.td}>{contract.contract_type}</td>
-                        <td style={styles.td}>{formatDate(contract.start_date)}</td>
-                        <td style={styles.td}>{formatDate(contract.end_date)}</td>
-                        <td style={styles.td}>
-                          <span style={contract.status === "active" ? styles.activeBadge : styles.inactiveBadge}>
-                            {formatStatus(contract.status)}
-                          </span>
-                        </td>
-                        <td style={styles.td}>{formatSalary(contract.salary_base)}</td>
+                        <td style={styles.td}>{contract.id}</td><td style={styles.td}>{getCompanyName(contract)}</td><td style={styles.td}>{getCompanyCcc(contract)}</td><td style={styles.td}>{contract.contract_type}</td><td style={styles.td}>{formatDate(contract.start_date)}</td><td style={styles.td}>{formatDate(contract.end_date)}</td><td style={styles.td}><span style={contract.status === "active" ? styles.activeBadge : styles.inactiveBadge}>{formatStatus(contract.status)}</span></td><td style={styles.td}>{formatSalary(contract.salary_base)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -357,82 +222,36 @@ export default function EmployeeTable({
 
             <form onSubmit={handleEditSubmit} style={styles.form}>
               <div style={styles.formRow}>
-                <div style={styles.formGroupCode}>
-                  <label>Código trabajador</label>
-                  <input name="employee_code" value={editForm.employee_code} readOnly disabled style={{ ...styles.input, ...styles.readOnlyInput }} />
-                </div>
-                <div style={styles.formGroupDni}>
-                  <label>DNI</label>
-                  <input name="dni" value={editForm.dni} onChange={handleEditChange} required style={styles.input} />
-                </div>
-                <div style={styles.formGroupNaf}>
-                  <label>NAF</label>
-                  <input name="naf" value={editForm.naf} onChange={handleEditChange} style={styles.input} />
-                </div>
+                <div style={styles.formGroupCode}><label>Código trabajador</label><input name="employee_code" value={editForm.employee_code} readOnly disabled style={{ ...styles.input, ...styles.readOnlyInput }} /></div>
+                <div style={styles.formGroupDni}><label>DNI</label><input name="dni" value={editForm.dni} onChange={handleEditChange} required style={styles.input} /></div>
+                <div style={styles.formGroupNaf}><label>NAF</label><input name="naf" value={editForm.naf} onChange={handleEditChange} style={styles.input} /></div>
               </div>
-
               <div style={styles.formRow}>
-                <div style={styles.formGroup}>
-                  <label>Nombre</label>
-                  <input name="first_name" value={editForm.first_name} onChange={handleEditChange} required style={styles.input} />
-                </div>
-                <div style={styles.formGroup}>
-                  <label>Apellidos</label>
-                  <input name="last_name" value={editForm.last_name} onChange={handleEditChange} required style={styles.input} />
-                </div>
+                <div style={styles.formGroup}><label>Nombre</label><input name="first_name" value={editForm.first_name} onChange={handleEditChange} required style={styles.input} /></div>
+                <div style={styles.formGroup}><label>Apellidos</label><input name="last_name" value={editForm.last_name} onChange={handleEditChange} required style={styles.input} /></div>
               </div>
-
               <div style={styles.formRow}>
-                <div style={styles.formGroup}>
-                  <label>Email</label>
-                  <input name="email" type="email" value={editForm.email} onChange={handleEditChange} style={styles.input} />
-                </div>
-                <div style={styles.formGroup}>
-                  <label>Teléfono</label>
-                  <input name="phone" value={editForm.phone} onChange={handleEditChange} style={styles.input} />
-                </div>
-                <div style={styles.formGroup}>
-                  <label>Fecha nacimiento</label>
-                  <input name="birth_date" type="date" value={editForm.birth_date} onChange={handleEditChange} style={styles.input} />
-                </div>
+                <div style={styles.formGroup}><label>Email</label><input name="email" type="email" value={editForm.email} onChange={handleEditChange} style={styles.input} /></div>
+                <div style={styles.formGroup}><label>Teléfono</label><input name="phone" value={editForm.phone} onChange={handleEditChange} style={styles.input} /></div>
+                <div style={styles.formGroup}><label>Fecha nacimiento</label><input name="birth_date" type="date" value={editForm.birth_date} onChange={handleEditChange} style={styles.input} /></div>
               </div>
-
+              <div style={styles.formRow}><div style={styles.formGroupWide}><label>Dirección</label><input name="address" value={editForm.address} onChange={handleEditChange} style={styles.input} /></div></div>
               <div style={styles.formRow}>
-                <div style={styles.formGroupWide}>
-                  <label>Dirección</label>
-                  <input name="address" value={editForm.address} onChange={handleEditChange} style={styles.input} />
-                </div>
+                <div style={styles.formGroup}><label>Ciudad</label><input name="city" value={editForm.city} onChange={handleEditChange} style={styles.input} /></div>
+                <div style={styles.formGroup}><label>Provincia</label><input name="province" value={editForm.province} onChange={handleEditChange} style={styles.input} /></div>
+                <div style={styles.formGroup}><label>Código postal</label><input name="postal_code" value={editForm.postal_code} onChange={handleEditChange} style={styles.input} /></div>
               </div>
+              <label style={styles.checkboxLabel}><input name="is_active" type="checkbox" checked={editForm.is_active} onChange={handleEditChange} />Trabajador activo</label>
 
-              <div style={styles.formRow}>
-                <div style={styles.formGroup}>
-                  <label>Ciudad</label>
-                  <input name="city" value={editForm.city} onChange={handleEditChange} style={styles.input} />
-                </div>
-                <div style={styles.formGroup}>
-                  <label>Provincia</label>
-                  <input name="province" value={editForm.province} onChange={handleEditChange} style={styles.input} />
-                </div>
-                <div style={styles.formGroup}>
-                  <label>Código postal</label>
-                  <input name="postal_code" value={editForm.postal_code} onChange={handleEditChange} style={styles.input} />
-                </div>
+              <div style={styles.dangerZone}>
+                <div><strong>Zona de eliminación</strong><p style={styles.dangerText}>Eliminar un trabajador lo desactivará del listado operativo.</p></div>
+                <button type="button" onClick={() => setEmployeeToDelete(editingEmployee)} style={styles.deleteButton}>Eliminar trabajador</button>
               </div>
-
-              <label style={styles.checkboxLabel}>
-                <input name="is_active" type="checkbox" checked={editForm.is_active} onChange={handleEditChange} />
-                Trabajador activo
-              </label>
 
               {editError && <div style={styles.error}>{editError}</div>}
-
               <div style={styles.modalActions}>
-                <button type="button" onClick={closeEditModal} style={styles.cancelButton}>
-                  Cancelar
-                </button>
-                <button type="submit" disabled={submitting} style={styles.saveButton}>
-                  {submitting ? "Guardando..." : "Guardar cambios"}
-                </button>
+                <button type="button" onClick={closeEditModal} style={styles.cancelButton}>Cancelar</button>
+                <button type="submit" disabled={submitting} style={styles.saveButton}>{submitting ? "Guardando..." : "Guardar cambios"}</button>
               </div>
             </form>
           </div>
@@ -443,26 +262,14 @@ export default function EmployeeTable({
         <div style={styles.modalBackdrop}>
           <div style={styles.confirmModal}>
             <div style={styles.modalHeader}>
-              <div>
-                <h3 style={styles.modalTitle}>Eliminar trabajador</h3>
-                <p style={styles.modalSubtitle}>Esta acción desactivará al trabajador.</p>
-              </div>
-              <button type="button" onClick={closeDeleteModal} style={styles.closeButton}>×</button>
+              <div><h3 style={styles.modalTitle}>Eliminar trabajador</h3><p style={styles.modalSubtitle}>Esta acción desactivará al trabajador.</p></div>
+              <button type="button" onClick={() => setEmployeeToDelete(null)} style={styles.closeButton}>×</button>
             </div>
-
-            <p style={styles.confirmText}>
-              ¿Seguro que quieres eliminar/desactivar a {employeeToDelete.first_name} {employeeToDelete.last_name}?
-            </p>
-
+            <p style={styles.confirmText}>¿Seguro que quieres eliminar/desactivar a {employeeToDelete.first_name} {employeeToDelete.last_name}?</p>
             {deleteError && <div style={styles.error}>{deleteError}</div>}
-
             <div style={styles.modalActions}>
-              <button type="button" onClick={closeDeleteModal} style={styles.cancelButton}>
-                Cancelar
-              </button>
-              <button type="button" onClick={handleConfirmDelete} disabled={submitting} style={styles.dangerButton}>
-                {submitting ? "Eliminando..." : "Confirmar eliminación"}
-              </button>
+              <button type="button" onClick={() => setEmployeeToDelete(null)} style={styles.cancelButton}>Cancelar</button>
+              <button type="button" onClick={handleConfirmDelete} disabled={submitting} style={styles.dangerButton}>{submitting ? "Eliminando..." : "Confirmar eliminación"}</button>
             </div>
           </div>
         </div>
@@ -482,7 +289,7 @@ const styles = {
   inactiveBadge: { backgroundColor: "#fee2e2", color: "#991b1b", padding: "4px 8px", borderRadius: "999px", fontSize: "12px", fontWeight: 800 },
   fileButton: { backgroundColor: "#f3f4f6", color: "#111827", border: "1px solid #d1d5db", borderRadius: "8px", padding: "7px 10px", cursor: "pointer", fontWeight: 700 },
   editButton: { backgroundColor: "#111827", color: "#ffffff", border: "1px solid #111827", borderRadius: "8px", padding: "7px 10px", cursor: "pointer", fontWeight: 700 },
-  deleteButton: { backgroundColor: "#fee2e2", color: "#991b1b", border: "1px solid #fecaca", borderRadius: "8px", padding: "7px 10px", cursor: "pointer", fontWeight: 800 },
+  deleteButton: { backgroundColor: "#fee2e2", color: "#991b1b", border: "1px solid #fecaca", borderRadius: "8px", padding: "8px 12px", cursor: "pointer", fontWeight: 800 },
   modalBackdrop: { position: "fixed", inset: 0, backgroundColor: "rgba(17, 24, 39, 0.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, padding: "24px" },
   modal: { width: "min(920px, 100%)", maxHeight: "90vh", overflowY: "auto", backgroundColor: "#ffffff", border: "3px solid #111111", borderRadius: "12px", boxShadow: "8px 8px 0 #e6d85c", padding: "22px" },
   modalLarge: { width: "min(1060px, 100%)", maxHeight: "90vh", overflowY: "auto", backgroundColor: "#ffffff", border: "3px solid #111111", borderRadius: "12px", boxShadow: "8px 8px 0 #e6d85c", padding: "22px" },
@@ -509,6 +316,8 @@ const styles = {
   input: { padding: "10px 12px", border: "1px solid #ccc", borderRadius: "8px", fontSize: "14px" },
   readOnlyInput: { backgroundColor: "#f3f4f6", color: "#6b7280", cursor: "not-allowed", fontWeight: 800 },
   checkboxLabel: { display: "flex", alignItems: "center", gap: "8px", fontWeight: 700 },
+  dangerZone: { border: "1px solid #fecaca", backgroundColor: "#fef2f2", borderRadius: "10px", padding: "12px", display: "flex", justifyContent: "space-between", gap: "12px", alignItems: "center" },
+  dangerText: { margin: "4px 0 0", color: "#7f1d1d", fontSize: "13px" },
   confirmText: { margin: "0 0 16px", color: "#374151", lineHeight: 1.5 },
   error: { backgroundColor: "#fee2e2", color: "#991b1b", padding: "10px 12px", borderRadius: "8px" },
   modalActions: { display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "6px" },
