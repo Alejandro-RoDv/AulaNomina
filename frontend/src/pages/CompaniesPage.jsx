@@ -8,6 +8,8 @@ export default function CompaniesPage({
   companyForm,
   onCompanyChange,
   onCompanySubmit,
+  onUpdateCompany,
+  onDeleteCompany,
   companyError,
   companySuccess,
   companySubmitting,
@@ -32,7 +34,13 @@ export default function CompaniesPage({
         title="Listado de empresas"
         subtitle="Empresas y centros registrados actualmente en AulaNomina."
       >
-        <CompanyTable loading={loading} companies={companies} />
+        <CompanyTable
+          loading={loading}
+          companies={companies}
+          onUpdateCompany={onUpdateCompany}
+          onDeleteCompany={onDeleteCompany}
+          submitting={companySubmitting}
+        />
       </PageCard>
     </div>
   );
