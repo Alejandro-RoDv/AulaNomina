@@ -9,7 +9,7 @@ import ContractsPage from "./pages/ContractsPage";
 import EmployeesPage from "./pages/EmployeesPage";
 
 import { createContract, deleteContract, fetchContracts, updateContract } from "./services/api";
-import { createCompany, fetchCompanies } from "./services/companyApi";
+import { createCompany, deleteCompany, fetchCompanies, updateCompany } from "./services/companyApi";
 import { createEmployee, deleteEmployee, fetchAllEmployees, fetchNextEmployeeCode, updateEmployee } from "./services/employeeApi";
 
 const initialContractForm = {
@@ -227,6 +227,40 @@ export default function App() {
     }
   };
 
+  const handleUpdateCompany = async (companyId, form) => {
+    setCompanyError("");
+    setCompanySuccess("");
+
+    try {
+      setCompanySubmitting(true);
+      await updateCompany(companyId, buildCompanyPayload(form));
+      setCompanySuccess("Empresa actualizada correctamente");
+      await loadData();
+    } catch (err) {
+      setCompanyError(err.message || "Error al actualizar empresa");
+      throw err;
+    } finally {
+      setCompanySubmitting(false);
+    }
+  };
+
+  const handleDeleteCompany = async (companyId) => {
+    setCompanyError("");
+    setCompanySuccess("");
+
+    try {
+      setCompanySubmitting(true);
+      await deleteCompany(companyId);
+      setCompanySuccess("Empresa desactivada correctamente");
+      await loadData();
+    } catch (err) {
+      setCompanyError(err.message || "Error al desactivar empresa");
+      throw err;
+    } finally {
+      setCompanySubmitting(false);
+    }
+  };
+
   const handleEmployeeSubmit = async (event) => {
     event.preventDefault();
     setEmployeeError("");
@@ -309,6 +343,8 @@ export default function App() {
           companyForm={companyForm}
           onCompanyChange={handleCompanyChange}
           onCompanySubmit={handleCompanySubmit}
+          onUpdateCompany={handleUpdateCompany}
+          onDeleteCompany={handleDeleteCompany}
           companyError={companyError}
           companySuccess={companySuccess}
           companySubmitting={companySubmitting}
