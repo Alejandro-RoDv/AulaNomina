@@ -16,6 +16,14 @@ function getStatusStyle(value) {
   return styles.draftBadge;
 }
 
+function getEditSupplementsTotal(editForm) {
+  return (
+    Number(editForm.salary_supplement_1 || 0) +
+    Number(editForm.salary_supplement_2 || 0) +
+    Number(editForm.salary_supplement_3 || 0)
+  );
+}
+
 function calculatePercentage(amount, grossSalary) {
   const gross = Number(grossSalary || 0);
   if (!gross) return "0,00 %";
@@ -63,6 +71,8 @@ export default function PayrollDetailsModal({
   showDeleteConfirm,
 }) {
   if (!payroll || !editForm) return null;
+
+  const editSupplementsTotal = getEditSupplementsTotal(editForm);
 
   return (
     <div style={styles.modalBackdrop}>
@@ -149,14 +159,29 @@ export default function PayrollDetailsModal({
             </div>
           </div>
 
-          <div style={styles.formRow}>
+          <div style={styles.supplementsGrid}>
             <div style={styles.formGroup}>
-              <label>Complementos</label>
-              <input type="number" step="0.01" name="salary_supplements" value={editForm.salary_supplements} onChange={onEditChange} disabled={!isEditing} style={{ ...styles.input, ...(!isEditing ? styles.readOnlyInput : {}) }} />
+              <label>Complemento salarial 1</label>
+              <input type="number" step="0.01" name="salary_supplement_1" value={editForm.salary_supplement_1} onChange={onEditChange} disabled={!isEditing} style={{ ...styles.input, ...(!isEditing ? styles.readOnlyInput : {}) }} />
             </div>
+            <div style={styles.formGroup}>
+              <label>Complemento salarial 2</label>
+              <input type="number" step="0.01" name="salary_supplement_2" value={editForm.salary_supplement_2} onChange={onEditChange} disabled={!isEditing} style={{ ...styles.input, ...(!isEditing ? styles.readOnlyInput : {}) }} />
+            </div>
+            <div style={styles.formGroup}>
+              <label>Complemento salarial 3</label>
+              <input type="number" step="0.01" name="salary_supplement_3" value={editForm.salary_supplement_3} onChange={onEditChange} disabled={!isEditing} style={{ ...styles.input, ...(!isEditing ? styles.readOnlyInput : {}) }} />
+            </div>
+          </div>
+
+          <div style={styles.formRow}>
             <div style={styles.formGroupSmall}>
               <label>IRPF %</label>
               <input type="number" step="0.01" name="irpf_percentage" value={editForm.irpf_percentage} onChange={onEditChange} disabled={!isEditing} style={{ ...styles.input, ...(!isEditing ? styles.readOnlyInput : {}) }} />
+            </div>
+            <div style={styles.totalSupplementsBox}>
+              <span>Total complementos</span>
+              <strong>{formatCurrency(editSupplementsTotal)}</strong>
             </div>
           </div>
 
@@ -213,10 +238,12 @@ const styles = {
   editTitle: { margin: 0, fontSize: "16px", fontWeight: 900 },
   editSubtitle: { margin: "4px 0 0", color: "#6b7280", fontSize: "13px", fontWeight: 700 },
   formRow: { display: "flex", gap: "16px", flexWrap: "wrap" },
+  supplementsGrid: { display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: "16px", width: "100%" },
   formGroup: { flex: 1, minWidth: "180px", display: "flex", flexDirection: "column", gap: "6px" },
   formGroupSmall: { width: "180px", minWidth: "140px", display: "flex", flexDirection: "column", gap: "6px" },
   input: { padding: "10px 12px", border: "1px solid #ccc", borderRadius: "8px", fontSize: "14px" },
   readOnlyInput: { backgroundColor: "#f3f4f6", color: "#111827", cursor: "not-allowed", opacity: 1 },
+  totalSupplementsBox: { flex: 1, minWidth: "220px", border: "1px solid #e5e7eb", borderRadius: "10px", backgroundColor: "#f9fafb", padding: "10px 12px", display: "flex", justifyContent: "space-between", alignItems: "center", fontWeight: 800 },
   draftBadge: { backgroundColor: "#e5e7eb", color: "#374151", padding: "4px 8px", borderRadius: "999px", fontSize: "12px", fontWeight: 800 },
   calculatedBadge: { backgroundColor: "#dbeafe", color: "#1e40af", padding: "4px 8px", borderRadius: "999px", fontSize: "12px", fontWeight: 800 },
   closedBadge: { backgroundColor: "#dcfce7", color: "#166534", padding: "4px 8px", borderRadius: "999px", fontSize: "12px", fontWeight: 800 },
