@@ -7,6 +7,22 @@ from app.models.company import Company
 from app.schemas.contract import ContractCreate, ContractUpdate
 
 
+def contract_to_response(contract: Contract):
+    return {
+        "id": contract.id,
+        "employee_id": contract.employee_id,
+        "company_id": contract.company_id,
+        "employee_name": contract.employee_name,
+        "company_name": contract.company_name,
+        "contract_type": contract.contract_type,
+        "start_date": contract.start_date,
+        "end_date": contract.end_date,
+        "status": contract.status,
+        "salary_base": contract.salary_base,
+        "created_at": contract.created_at,
+    }
+
+
 def create_contract(db: Session, contract: ContractCreate):
     employee = db.query(Employee).filter(Employee.id == contract.employee_id).first()
     if not employee:
@@ -114,10 +130,15 @@ def update_contract(db: Session, contract_id: int, contract_data: ContractUpdate
 
 
 def soft_delete_contract(db: Session, contract_id: int):
-    db_contract = db.query(Contract).filter(Contract.id == contract_id).first()
+    db_contract = db.query(Contract).options(
+        joinedload(Contract.employee),
+        joinedload(Contract.company),
+    ).filter(Contract.id == contract_id).first()
+
     if not db_contract:
         return None
 
+    deleted_contract_response = contract_to_response(db_contract)
     db.delete(db_contract)
     db.commit()
-    return db_contract
+    return deleted_contract_response
