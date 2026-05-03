@@ -8,7 +8,7 @@ import CompaniesPage from "./pages/CompaniesPage";
 import ContractsPage from "./pages/ContractsPage";
 import EmployeesPage from "./pages/EmployeesPage";
 
-import { createContract, fetchContracts, updateContract } from "./services/api";
+import { createContract, deleteContract, fetchContracts, updateContract } from "./services/api";
 import { createCompany, fetchCompanies } from "./services/companyApi";
 import { createEmployee, deleteEmployee, fetchAllEmployees, fetchNextEmployeeCode, updateEmployee } from "./services/employeeApi";
 
@@ -192,6 +192,23 @@ export default function App() {
     }
   };
 
+  const handleDeleteContract = async (contractId) => {
+    setContractError("");
+    setContractSuccess("");
+
+    try {
+      setContractSubmitting(true);
+      await deleteContract(contractId);
+      setContractSuccess("Contrato eliminado correctamente");
+      await loadData();
+    } catch (err) {
+      setContractError(err.message || "Error al eliminar contrato");
+      throw err;
+    } finally {
+      setContractSubmitting(false);
+    }
+  };
+
   const handleCompanySubmit = async (event) => {
     event.preventDefault();
     setCompanyError("");
@@ -251,11 +268,15 @@ export default function App() {
     setEmployeeSuccess("");
 
     try {
+      setEmployeeSubmitting(true);
       await deleteEmployee(employeeId);
       setEmployeeSuccess("Trabajador desactivado correctamente");
       await loadData();
     } catch (err) {
       setEmployeeError(err.message || "Error al desactivar trabajador");
+      throw err;
+    } finally {
+      setEmployeeSubmitting(false);
     }
   };
 
@@ -325,6 +346,7 @@ export default function App() {
           onContractChange={handleContractChange}
           onContractSubmit={handleContractSubmit}
           onUpdateContract={handleUpdateContract}
+          onDeleteContract={handleDeleteContract}
           contractError={contractError}
           contractSuccess={contractSuccess}
           contractSubmitting={contractSubmitting}
