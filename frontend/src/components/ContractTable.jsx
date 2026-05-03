@@ -24,6 +24,10 @@ function formatSalary(value) {
   }).format(Number(value));
 }
 
+function getContractCode(contract) {
+  return contract.contract_display_code || String(contract.id);
+}
+
 function toEditForm(contract) {
   return {
     employee_id: contract.employee_id ? String(contract.employee_id) : "",
@@ -136,7 +140,7 @@ export default function ContractTable({
         <table style={styles.table}>
           <thead>
             <tr>
-              <th style={styles.th}>ID</th>
+              <th style={styles.th}>Código</th>
               <th style={styles.th}>Empleado</th>
               <th style={styles.th}>Empresa / centro</th>
               <th style={styles.th}>CCC</th>
@@ -151,7 +155,7 @@ export default function ContractTable({
           <tbody>
             {contracts.map((contract) => (
               <tr key={contract.id}>
-                <td style={styles.td}>{contract.id}</td>
+                <td style={styles.td}>{getContractCode(contract)}</td>
                 <td style={styles.td}>{getEmployeeName(contract)}</td>
                 <td style={styles.td}>{getCompanyName(contract)}</td>
                 <td style={styles.td}>{getCompanyCcc(contract)}</td>
@@ -181,7 +185,7 @@ export default function ContractTable({
             <div style={styles.modalHeader}>
               <div>
                 <h3 style={styles.modalTitle}>Editar contrato</h3>
-                <p style={styles.modalSubtitle}>Contrato ID {editingContract.id}</p>
+                <p style={styles.modalSubtitle}>Contrato {getContractCode(editingContract)}</p>
               </div>
               <button type="button" onClick={closeEditModal} style={styles.closeButton}>×</button>
             </div>
@@ -275,7 +279,7 @@ export default function ContractTable({
             </div>
 
             <p style={styles.confirmText}>
-              ¿Seguro que quieres eliminar el contrato ID {contractToDelete.id} de {getEmployeeName(contractToDelete)}?
+              ¿Seguro que quieres eliminar el contrato {getContractCode(contractToDelete)} de {getEmployeeName(contractToDelete)}?
             </p>
 
             {deleteError && <div style={styles.error}>{deleteError}</div>}
