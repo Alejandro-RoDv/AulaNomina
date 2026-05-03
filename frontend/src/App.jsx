@@ -8,7 +8,7 @@ import CompaniesPage from "./pages/CompaniesPage";
 import ContractsPage from "./pages/ContractsPage";
 import EmployeesPage from "./pages/EmployeesPage";
 
-import { createContract, fetchContracts } from "./services/api";
+import { createContract, fetchContracts, updateContract } from "./services/api";
 import { createCompany, fetchCompanies } from "./services/companyApi";
 import { createEmployee, deleteEmployee, fetchAllEmployees, fetchNextEmployeeCode, updateEmployee } from "./services/employeeApi";
 
@@ -68,6 +68,18 @@ function buildCompanyPayload(form) {
     address: form.address || null,
     city: form.city || null,
     province: form.province || null,
+  };
+}
+
+function buildContractPayload(form) {
+  return {
+    employee_id: Number(form.employee_id),
+    company_id: Number(form.company_id),
+    contract_type: form.contract_type,
+    start_date: form.start_date,
+    end_date: form.end_date || null,
+    salary_base: form.salary_base ? Number(form.salary_base) : null,
+    status: form.status,
   };
 }
 
@@ -150,24 +162,31 @@ export default function App() {
     setContractError("");
     setContractSuccess("");
 
-    const payload = {
-      employee_id: Number(contractForm.employee_id),
-      company_id: Number(contractForm.company_id),
-      contract_type: contractForm.contract_type,
-      start_date: contractForm.start_date,
-      end_date: contractForm.end_date || null,
-      salary_base: contractForm.salary_base ? Number(contractForm.salary_base) : null,
-      status: contractForm.status,
-    };
-
     try {
       setContractSubmitting(true);
-      await createContract(payload);
+      await createContract(buildContractPayload(contractForm));
       setContractSuccess("Contrato creado correctamente");
       setContractForm(initialContractForm);
       await loadData();
     } catch (err) {
       setContractError(err.message || "Error al crear contrato");
+    } finally {
+      setContractSubmitting(false);
+    }
+  };
+
+  const handleUpdateContract = async (contractId, form) => {
+    setContractError("");
+    setContractSuccess("");
+
+    try {
+      setContractSubmitting(true);
+      await updateContract(contractId, buildContractPayload(form));
+      setContractSuccess("Contrato actualizado correctamente");
+      await loadData();
+    } catch (err) {
+      setContractError(err.message || "Error al actualizar contrato");
+      throw err;
     } finally {
       setContractSubmitting(false);
     }
@@ -305,6 +324,7 @@ export default function App() {
           contractForm={contractForm}
           onContractChange={handleContractChange}
           onContractSubmit={handleContractSubmit}
+          onUpdateContract={handleUpdateContract}
           contractError={contractError}
           contractSuccess={contractSuccess}
           contractSubmitting={contractSubmitting}
