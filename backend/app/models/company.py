@@ -20,3 +20,4 @@ class Company(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     contracts = relationship("Contract", back_populates="company")
+    incidents = relationship("Incident", back_populates="company")
