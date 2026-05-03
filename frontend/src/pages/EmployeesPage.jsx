@@ -16,6 +16,7 @@ export default function EmployeesPage({
   loading,
   employees,
   companies,
+  contracts,
   employeeForm,
   onEmployeeChange,
   onEmployeeSubmit,
@@ -122,6 +123,7 @@ export default function EmployeesPage({
           loading={loading}
           employees={filteredEmployees}
           companies={companies}
+          contracts={contracts}
           onUpdateEmployee={onUpdateEmployee}
           onDeleteEmployee={onDeleteEmployee}
           submitting={employeeSubmitting}
