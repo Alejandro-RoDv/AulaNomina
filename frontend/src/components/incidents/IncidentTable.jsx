@@ -33,21 +33,21 @@ export default function IncidentTable({
   onDeleteIncident,
   submitting,
 }) {
-  const [editingIncident, setEditingIncident] = useState(null);
+  const [selectedIncident, setSelectedIncident] = useState(null);
   const [incidentToDelete, setIncidentToDelete] = useState(null);
   const [editForm, setEditForm] = useState(null);
   const [editError, setEditError] = useState("");
   const [deleteError, setDeleteError] = useState("");
 
-  const openEditModal = (incident) => {
-    setEditingIncident(incident);
+  const openDetailsModal = (incident) => {
+    setSelectedIncident(incident);
     setEditForm(toEditForm(incident));
     setEditError("");
     setDeleteError("");
   };
 
-  const closeEditModal = () => {
-    setEditingIncident(null);
+  const closeDetailsModal = () => {
+    setSelectedIncident(null);
     setEditForm(null);
     setEditError("");
   };
@@ -72,8 +72,8 @@ export default function IncidentTable({
     setEditError("");
 
     try {
-      await onUpdateIncident(editingIncident.id, editForm);
-      closeEditModal();
+      await onUpdateIncident(selectedIncident.id, editForm);
+      closeDetailsModal();
     } catch (err) {
       setEditError(err.message || "Error al actualizar incidencia");
     }
@@ -85,7 +85,7 @@ export default function IncidentTable({
     try {
       await onDeleteIncident(incidentToDelete.id);
       closeDeleteModal();
-      closeEditModal();
+      closeDetailsModal();
     } catch (err) {
       setDeleteError(err.message || "Error al eliminar incidencia");
     }
@@ -101,16 +101,15 @@ export default function IncidentTable({
         <table style={styles.table}>
           <thead>
             <tr>
-              <th style={styles.th}>ID</th>
+              <th style={styles.thId}>ID</th>
               <th style={styles.th}>Trabajador</th>
               <th style={styles.th}>Empresa</th>
               <th style={styles.th}>Contrato</th>
               <th style={styles.th}>Tipo</th>
-              <th style={styles.th}>Inicio</th>
-              <th style={styles.th}>Fin</th>
-              <th style={styles.th}>Estado</th>
-              <th style={styles.th}>Descripción</th>
-              <th style={styles.th}>Acciones</th>
+              <th style={styles.thDate}>Inicio</th>
+              <th style={styles.thDate}>Fin</th>
+              <th style={styles.thStatus}>Estado</th>
+              <th style={styles.thActions}>Acciones</th>
             </tr>
           </thead>
           <tbody>
@@ -130,32 +129,38 @@ export default function IncidentTable({
                     {getStatusLabel(incident.status)}
                   </span>
                 </td>
-                <td style={styles.descriptionTd}>{incident.description || "-"}</td>
                 <td style={styles.td}>
-                  <button type="button" onClick={() => openEditModal(incident)} style={styles.editButton}>
-                    Editar
+                  <button type="button" onClick={() => openDetailsModal(incident)} style={styles.detailsButton}>
+                    Detalles
                   </button>
                 </td>
               </tr>
             ))}
             {incidents.length === 0 && (
               <tr>
-                <td style={styles.td} colSpan="10">No hay incidencias registradas.</td>
+                <td style={styles.td} colSpan="9">No hay incidencias registradas.</td>
               </tr>
             )}
           </tbody>
         </table>
       </div>
 
-      {editingIncident && editForm && (
+      {selectedIncident && editForm && (
         <div style={styles.modalBackdrop}>
           <div style={styles.modal}>
             <div style={styles.modalHeader}>
               <div>
-                <h3 style={styles.modalTitle}>Editar incidencia</h3>
-                <p style={styles.modalSubtitle}>Incidencia #{editingIncident.id} · {editingIncident.employee_name}</p>
+                <h3 style={styles.modalTitle}>Detalle de incidencia</h3>
+                <p style={styles.modalSubtitle}>Incidencia #{selectedIncident.id} · {selectedIncident.employee_name || selectedIncident.employee_id}</p>
               </div>
-              <button type="button" onClick={closeEditModal} style={styles.closeButton}>×</button>
+              <button type="button" onClick={closeDetailsModal} style={styles.closeButton}>×</button>
+            </div>
+
+            <div style={styles.detailsGrid}>
+              <div style={styles.detailBox}><span>Trabajador</span><strong>{selectedIncident.employee_name || selectedIncident.employee_id}</strong></div>
+              <div style={styles.detailBox}><span>Empresa</span><strong>{selectedIncident.company_name || selectedIncident.company_id}</strong></div>
+              <div style={styles.detailBox}><span>Contrato</span><strong>{selectedIncident.contract_type || selectedIncident.contract_id}</strong></div>
+              <div style={styles.detailBox}><span>Fecha creación</span><strong>{formatDate(selectedIncident.created_at?.slice(0, 10))}</strong></div>
             </div>
 
             <form onSubmit={handleEditSubmit} style={styles.form}>
@@ -193,17 +198,17 @@ export default function IncidentTable({
 
               <div style={styles.formGroupFull}>
                 <label>Descripción</label>
-                <textarea name="description" value={editForm.description} onChange={handleEditChange} rows="3" style={styles.textarea} />
+                <textarea name="description" value={editForm.description} onChange={handleEditChange} rows="5" style={styles.textarea} />
               </div>
 
               {editError && <div style={styles.error}>{editError}</div>}
 
               <div style={styles.modalActionsSplit}>
-                <button type="button" onClick={() => openDeleteModal(editingIncident)} style={styles.deleteButton}>
+                <button type="button" onClick={() => openDeleteModal(selectedIncident)} style={styles.deleteButton}>
                   Eliminar incidencia
                 </button>
                 <div style={styles.modalActionsRight}>
-                  <button type="button" onClick={closeEditModal} style={styles.cancelButton}>Cancelar</button>
+                  <button type="button" onClick={closeDetailsModal} style={styles.cancelButton}>Cancelar</button>
                   <button type="submit" disabled={submitting} style={styles.saveButton}>
                     {submitting ? "Guardando..." : "Guardar cambios"}
                   </button>
@@ -245,15 +250,18 @@ export default function IncidentTable({
 }
 
 const styles = {
-  tableWrapper: { overflowX: "auto" },
-  table: { width: "100%", borderCollapse: "collapse" },
-  th: { textAlign: "left", padding: "12px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb", whiteSpace: "nowrap" },
-  td: { padding: "12px", borderBottom: "1px solid #eee", whiteSpace: "nowrap" },
-  descriptionTd: { padding: "12px", borderBottom: "1px solid #eee", minWidth: "240px", maxWidth: "360px", whiteSpace: "normal" },
+  tableWrapper: { overflowX: "hidden", width: "100%" },
+  table: { width: "100%", borderCollapse: "collapse", tableLayout: "fixed" },
+  th: { textAlign: "left", padding: "12px 10px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" },
+  thId: { width: "42px", textAlign: "left", padding: "12px 10px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb" },
+  thDate: { width: "96px", textAlign: "left", padding: "12px 10px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb" },
+  thStatus: { width: "88px", textAlign: "left", padding: "12px 10px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb" },
+  thActions: { width: "92px", textAlign: "left", padding: "12px 10px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb" },
+  td: { padding: "12px 10px", borderBottom: "1px solid #eee", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" },
   typeBadge: { backgroundColor: "#fef3c7", color: "#92400e", padding: "4px 8px", borderRadius: "999px", fontSize: "12px", fontWeight: 800, whiteSpace: "nowrap" },
   openBadge: { backgroundColor: "#dcfce7", color: "#166534", padding: "4px 8px", borderRadius: "999px", fontSize: "12px", fontWeight: 800 },
   closedBadge: { backgroundColor: "#e5e7eb", color: "#374151", padding: "4px 8px", borderRadius: "999px", fontSize: "12px", fontWeight: 800 },
-  editButton: { backgroundColor: "#111827", color: "#ffffff", border: "1px solid #111827", borderRadius: "8px", padding: "7px 10px", cursor: "pointer", fontWeight: 700 },
+  detailsButton: { backgroundColor: "#111827", color: "#ffffff", border: "1px solid #111827", borderRadius: "8px", padding: "7px 10px", cursor: "pointer", fontWeight: 700 },
   deleteButton: { backgroundColor: "#fee2e2", color: "#991b1b", border: "1px solid #fecaca", borderRadius: "8px", padding: "10px 14px", cursor: "pointer", fontWeight: 800 },
   modalBackdrop: { position: "fixed", inset: 0, backgroundColor: "rgba(17, 24, 39, 0.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, padding: "24px" },
   modal: { width: "min(900px, 100%)", maxHeight: "90vh", overflowY: "auto", backgroundColor: "#ffffff", border: "3px solid #111111", borderRadius: "12px", boxShadow: "8px 8px 0 #e6d85c", padding: "22px" },
@@ -262,6 +270,8 @@ const styles = {
   modalTitle: { margin: 0, fontSize: "20px", fontWeight: 900, color: "#111827" },
   modalSubtitle: { margin: "4px 0 0", color: "#6b7280", fontSize: "13px", fontWeight: 700 },
   closeButton: { border: "none", backgroundColor: "transparent", fontSize: "28px", lineHeight: 1, cursor: "pointer", color: "#111827" },
+  detailsGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "12px", marginBottom: "18px" },
+  detailBox: { border: "1px solid #e5e7eb", borderRadius: "10px", backgroundColor: "#f9fafb", padding: "12px", display: "flex", flexDirection: "column", gap: "4px" },
   form: { display: "flex", flexDirection: "column", gap: "16px" },
   formRow: { display: "flex", gap: "16px", flexWrap: "wrap" },
   formGroup: { flex: 1, minWidth: "220px", display: "flex", flexDirection: "column", gap: "6px" },
