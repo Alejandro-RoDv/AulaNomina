@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 
 from app.db import Base, engine, SessionLocal
 from app.db_init import init_database
-from app.models import User, Employee, Company, Incident
+from app.models import User, Employee, Company, Incident, Payroll
 from app.models.contract import Contract
 from app.schemas.employee import EmployeeCreate, EmployeeUpdate, EmployeeResponse
 from app.crud.employee import (
@@ -46,6 +46,14 @@ from app.crud.incident import (
     get_incidents,
     update_incident,
     delete_incident,
+)
+from app.schemas.payroll import PayrollCreate, PayrollUpdate, PayrollResponse
+from app.crud.payroll import (
+    create_payroll,
+    get_payrolls,
+    get_payroll,
+    update_payroll,
+    delete_payroll,
 )
 
 app = FastAPI(title="AulaNomina API")
@@ -268,3 +276,45 @@ def delete_incident_endpoint(incident_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Incidencia no encontrada")
 
     return {"ok": True}
+
+
+# PAYROLLS
+@app.get("/payrolls", response_model=list[PayrollResponse])
+def get_payrolls_endpoint(db: Session = Depends(get_db)):
+    return get_payrolls(db)
+
+
+@app.post("/payrolls", response_model=PayrollResponse)
+def create_payroll_endpoint(payroll: PayrollCreate, db: Session = Depends(get_db)):
+    return create_payroll(db, payroll)
+
+
+@app.get("/payrolls/{payroll_id}", response_model=PayrollResponse)
+def get_payroll_endpoint(payroll_id: int, db: Session = Depends(get_db)):
+    payroll = get_payroll(db, payroll_id)
+    if not payroll:
+        raise HTTPException(status_code=404, detail="Nómina no encontrada")
+
+    return payroll
+
+
+@app.put("/payrolls/{payroll_id}", response_model=PayrollResponse)
+def update_payroll_endpoint(
+    payroll_id: int,
+    payroll: PayrollUpdate,
+    db: Session = Depends(get_db),
+):
+    updated_payroll = update_payroll(db, payroll_id, payroll)
+    if not updated_payroll:
+        raise HTTPException(status_code=404, detail="Nómina no encontrada")
+
+    return updated_payroll
+
+
+@app.delete("/payrolls/{payroll_id}")
+def delete_payroll_endpoint(payroll_id: int, db: Session = Depends(get_db)):
+    deleted_payroll = delete_payroll(db, payroll_id)
+    if not deleted_payroll:
+        raise HTTPException(status_code=404, detail="Nómina no encontrada")
+
+    return {"ok": True, "deleted_id": deleted_payroll["id"]}
