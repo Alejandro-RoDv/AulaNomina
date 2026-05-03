@@ -12,6 +12,27 @@ function normalizeText(value) {
     .trim();
 }
 
+function buildContractsWithDisplayCodes(contracts, employees) {
+  const employeeCodeById = employees.reduce((acc, employee) => {
+    acc[employee.id] = employee.employee_code || String(employee.id);
+    return acc;
+  }, {});
+
+  const countersByEmployee = {};
+
+  return [...contracts]
+    .sort((a, b) => Number(a.id) - Number(b.id))
+    .map((contract) => {
+      const employeeId = contract.employee_id;
+      countersByEmployee[employeeId] = (countersByEmployee[employeeId] || 0) + 1;
+
+      return {
+        ...contract,
+        contract_display_code: `${employeeCodeById[employeeId] || employeeId}.${countersByEmployee[employeeId]}`,
+      };
+    });
+}
+
 export default function ContractsPage({
   loading,
   contracts,
@@ -34,6 +55,11 @@ export default function ContractsPage({
     status: "",
   });
 
+  const contractsWithDisplayCodes = useMemo(
+    () => buildContractsWithDisplayCodes(contracts, employees),
+    [contracts, employees]
+  );
+
   const handleFilterChange = (event) => {
     const { name, value } = event.target;
     setFilters((prev) => ({ ...prev, [name]: value }));
@@ -53,7 +79,7 @@ export default function ContractsPage({
     if (contract.employee_name) return contract.employee_name;
     const employee = employees.find((item) => Number(item.id) === Number(contract.employee_id));
     if (!employee) return String(contract.employee_id || "");
-    return `${employee.first_name || ""} ${employee.last_name || ""} ${employee.dni || ""} ${employee.id || ""}`;
+    return `${employee.first_name || ""} ${employee.last_name || ""} ${employee.dni || ""} ${employee.employee_code || ""} ${employee.id || ""}`;
   };
 
   const getCompanyText = (contract) => {
@@ -71,8 +97,8 @@ export default function ContractsPage({
     const contractTypeFilter = normalizeText(filters.contractType);
     const statusFilter = normalizeText(filters.status);
 
-    return contracts.filter((contract) => {
-      const contractId = normalizeText(contract.id);
+    return contractsWithDisplayCodes.filter((contract) => {
+      const contractId = normalizeText(`${contract.contract_display_code} ${contract.id}`);
       const employeeText = normalizeText(getEmployeeText(contract));
       const companyText = normalizeText(getCompanyText(contract));
       const contractType = normalizeText(contract.contract_type);
@@ -86,7 +112,7 @@ export default function ContractsPage({
 
       return matchesId && matchesEmployee && matchesCompany && matchesContractType && matchesStatus;
     });
-  }, [contracts, employees, companies, filters]);
+  }, [contractsWithDisplayCodes, employees, companies, filters]);
 
   return (
     <div style={styles.wrapper}>
@@ -106,12 +132,12 @@ export default function ContractsPage({
       <PageCard title="Listado de contratos" subtitle="Contratos creados en el sistema.">
         <div style={styles.filters}>
           <div style={styles.filterGroupId}>
-            <label>ID</label>
+            <label>Código</label>
             <input
               name="id"
               value={filters.id}
               onChange={handleFilterChange}
-              placeholder="Ej. 10"
+              placeholder="Ej. 1.1"
               style={styles.input}
             />
           </div>
@@ -201,8 +227,8 @@ const styles = {
     marginBottom: "18px",
   },
   filterGroupId: {
-    width: "90px",
-    flex: "0 0 90px",
+    width: "110px",
+    flex: "0 0 110px",
     display: "flex",
     flexDirection: "column",
     gap: "6px",
