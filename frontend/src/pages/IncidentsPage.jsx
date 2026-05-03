@@ -17,35 +17,6 @@ function dateToNumber(value) {
   return Number(String(value).replaceAll("-", ""));
 }
 
-function buildVisualContractCodes(contracts) {
-  const groupedByEmployee = contracts.reduce((acc, contract) => {
-    const employeeId = String(contract.employee_id);
-    if (!acc[employeeId]) acc[employeeId] = [];
-    acc[employeeId].push(contract);
-    return acc;
-  }, {});
-
-  return Object.values(groupedByEmployee).reduce((acc, employeeContracts) => {
-    const sortedContracts = [...employeeContracts].sort((a, b) => {
-      const aDate = String(a.start_date || "");
-      const bDate = String(b.start_date || "");
-      if (aDate !== bDate) return aDate.localeCompare(bDate);
-      return Number(a.id) - Number(b.id);
-    });
-
-    sortedContracts.forEach((contract, index) => {
-      acc[String(contract.id)] = `${contract.employee_id}.${index + 1}`;
-    });
-
-    return acc;
-  }, {});
-}
-
-function buildContractDisplayCode(contract, visualContractCodes) {
-  if (!contract) return "-";
-  return visualContractCodes[String(contract.id)] || contract.contract_display_code || contract.display_code || contract.code || String(contract.id);
-}
-
 export default function IncidentsPage({
   loading,
   incidents,
@@ -70,24 +41,21 @@ export default function IncidentsPage({
     dateTo: "",
   });
 
-  const incidentsWithContractData = useMemo(() => {
-    const contractMap = contracts.reduce((acc, contract) => {
-      acc[String(contract.id)] = contract;
+  const incidentsWithEmployeeData = useMemo(() => {
+    const employeeMap = employees.reduce((acc, employee) => {
+      acc[String(employee.id)] = employee;
       return acc;
     }, {});
 
-    const visualContractCodes = buildVisualContractCodes(contracts);
-
     return incidents.map((incident) => {
-      const linkedContract = contractMap[String(incident.contract_id)];
+      const linkedEmployee = employeeMap[String(incident.employee_id)];
 
       return {
         ...incident,
-        contract_display_code: buildContractDisplayCode(linkedContract, visualContractCodes),
-        contract_type: incident.contract_type || linkedContract?.contract_type || "-",
+        employee_code: linkedEmployee?.employee_code || String(incident.employee_id || "-"),
       };
     });
-  }, [incidents, contracts]);
+  }, [incidents, employees]);
 
   const handleFilterChange = (event) => {
     const { name, value } = event.target;
@@ -113,8 +81,8 @@ export default function IncidentsPage({
     const fromDate = dateToNumber(filters.dateFrom);
     const toDate = dateToNumber(filters.dateTo);
 
-    return incidentsWithContractData.filter((incident) => {
-      const employeeText = normalizeText(`${incident.employee_name || ""} ${incident.employee_id || ""}`);
+    return incidentsWithEmployeeData.filter((incident) => {
+      const employeeText = normalizeText(`${incident.employee_code || ""} ${incident.employee_name || ""} ${incident.employee_id || ""}`);
       const companyText = normalizeText(`${incident.company_name || ""} ${incident.company_id || ""}`);
       const typeText = normalizeText(incident.incident_type);
       const statusText = normalizeText(incident.status);
@@ -130,7 +98,7 @@ export default function IncidentsPage({
 
       return matchesEmployee && matchesCompany && matchesType && matchesStatus && matchesFromDate && matchesToDate;
     });
-  }, [incidentsWithContractData, filters]);
+  }, [incidentsWithEmployeeData, filters]);
 
   return (
     <div style={styles.wrapper}>
@@ -156,7 +124,7 @@ export default function IncidentsPage({
               name="employee"
               value={filters.employee}
               onChange={handleFilterChange}
-              placeholder="Nombre o ID"
+              placeholder="Nombre, código o ID"
               style={styles.input}
             />
           </div>
@@ -225,13 +193,12 @@ export default function IncidentsPage({
         </div>
 
         <div style={styles.resultInfo}>
-          Mostrando {filteredIncidents.length} de {incidentsWithContractData.length} incidencias
+          Mostrando {filteredIncidents.length} de {incidentsWithEmployeeData.length} incidencias
         </div>
 
         <IncidentTable
           loading={loading}
           incidents={filteredIncidents}
-          contracts={contracts}
           onUpdateIncident={onUpdateIncident}
           onDeleteIncident={onDeleteIncident}
           submitting={incidentSubmitting}
