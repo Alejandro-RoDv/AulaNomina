@@ -11,6 +11,7 @@ export default function ContractsPage({
   onContractChange,
   onContractSubmit,
   onUpdateContract,
+  onDeleteContract,
   contractError,
   contractSuccess,
   contractSubmitting,
@@ -37,6 +38,7 @@ export default function ContractsPage({
           employees={employees}
           companies={companies}
           onUpdateContract={onUpdateContract}
+          onDeleteContract={onDeleteContract}
           submitting={contractSubmitting}
         />
       </PageCard>
