@@ -39,9 +39,7 @@ def create_contract(db: Session, contract: ContractCreate):
     if contract.end_date and contract.end_date < contract.start_date:
         raise HTTPException(status_code=400, detail="end_date no puede ser menor que start_date")
 
-    status = contract.status
-    if contract.end_date:
-        status = "ended"
+    status = contract.status or "active"
 
     if status == "active":
         active_contract = db.query(Contract).filter(
@@ -104,9 +102,6 @@ def update_contract(db: Session, contract_id: int, contract_data: ContractUpdate
 
     if new_end_date and new_end_date < new_start_date:
         raise HTTPException(status_code=400, detail="end_date no puede ser menor que start_date")
-
-    if new_end_date:
-        new_status = "ended"
 
     if new_status == "active":
         active_contract = db.query(Contract).filter(
