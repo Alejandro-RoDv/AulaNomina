@@ -56,6 +56,16 @@ def init_database() -> None:
                         text(f"ALTER TABLE employees ADD COLUMN {column_name} {column_definition}")
                     )
 
+            connection.execute(
+                text(
+                    """
+                    UPDATE employees
+                    SET employee_code = CAST(CAST(SUBSTRING(employee_code FROM 4) AS INTEGER) AS VARCHAR)
+                    WHERE employee_code ~ '^EMP[0-9]+$'
+                    """
+                )
+            )
+
         if "contracts" in table_names:
             existing_contract_columns = {
                 column["name"] for column in inspector.get_columns("contracts")
