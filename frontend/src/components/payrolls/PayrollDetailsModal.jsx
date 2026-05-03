@@ -1,4 +1,4 @@
-import { PAYROLL_STATUS_OPTIONS, formatCurrency } from "./PayrollForm";
+import { PAYROLL_STATUS_OPTIONS, MONTH_OPTIONS, formatCurrency } from "./PayrollForm";
 
 function formatPeriod(payroll) {
   if (payroll.period_label) return payroll.period_label;
@@ -91,11 +91,11 @@ export default function PayrollDetailsModal({
           <div style={styles.detailSection}>
             <div style={styles.sectionHeader}>
               <h4 style={styles.sectionTitle}>Devengos</h4>
-              <span style={styles.sectionHint}>Importes que suman al bruto</span>
+              <span style={styles.sectionHint}>Importes calculados desde el contrato</span>
             </div>
-            <PayrollLine label="Salario base" amount={payroll.base_salary} />
+            <PayrollLine label="Salario base calculado" amount={payroll.base_salary} />
             <PayrollLine label="Complementos salariales" amount={payroll.salary_supplements} />
-            <PayrollLine label="Prorrata de pagas extra" amount={payroll.extra_pay_proration} />
+            <PayrollLine label="Prorrata de pagas extra calculada" amount={payroll.extra_pay_proration} />
             <PayrollLine label="Total devengado / bruto" amount={payroll.gross_salary} strong />
           </div>
 
@@ -104,16 +104,8 @@ export default function PayrollDetailsModal({
               <h4 style={styles.sectionTitle}>Deducciones</h4>
               <span style={styles.sectionHint}>Importes que restan al bruto</span>
             </div>
-            <PayrollLine
-              label="Seguridad Social trabajador"
-              amount={payroll.employee_social_security}
-              percentage={calculatePercentage(payroll.employee_social_security, payroll.gross_salary)}
-            />
-            <PayrollLine
-              label="IRPF"
-              amount={payroll.irpf}
-              percentage={calculatePercentage(payroll.irpf, payroll.gross_salary)}
-            />
+            <PayrollLine label="Seguridad Social trabajador" amount={payroll.employee_social_security} percentage={calculatePercentage(payroll.employee_social_security, payroll.gross_salary)} />
+            <PayrollLine label="IRPF" amount={payroll.irpf} percentage={calculatePercentage(payroll.irpf, payroll.gross_salary)} />
             <PayrollLine label="Total deducciones" amount={payroll.total_deductions} strong />
           </div>
         </section>
@@ -127,19 +119,19 @@ export default function PayrollDetailsModal({
           <div style={styles.editHeader}>
             <div>
               <h4 style={styles.editTitle}>Edición básica</h4>
-              <p style={styles.editSubtitle}>Permite ajustar periodo, estado e importes principales de la nómina simulada.</p>
+              <p style={styles.editSubtitle}>El salario base y la prorrata extra se recalculan automáticamente desde el contrato.</p>
             </div>
-            {!isEditing && (
-              <button type="button" onClick={onEnableEditing} style={styles.secondaryButton}>
-                Editar
-              </button>
-            )}
+            {!isEditing && <button type="button" onClick={onEnableEditing} style={styles.secondaryButton}>Editar</button>}
           </div>
 
           <div style={styles.formRow}>
             <div style={styles.formGroupSmall}>
-              <label>Mes</label>
-              <input type="number" name="period_month" min="1" max="12" value={editForm.period_month} onChange={onEditChange} disabled={!isEditing} style={{ ...styles.input, ...(!isEditing ? styles.readOnlyInput : {}) }} />
+              <label>Periodo</label>
+              <select name="period_month" value={editForm.period_month} onChange={onEditChange} disabled={!isEditing} style={{ ...styles.input, ...(!isEditing ? styles.readOnlyInput : {}) }}>
+                {MONTH_OPTIONS.map((month) => (
+                  <option key={month.value} value={month.value}>{month.label}</option>
+                ))}
+              </select>
             </div>
 
             <div style={styles.formGroupSmall}>
@@ -159,16 +151,8 @@ export default function PayrollDetailsModal({
 
           <div style={styles.formRow}>
             <div style={styles.formGroup}>
-              <label>Salario base</label>
-              <input type="number" step="0.01" name="base_salary" value={editForm.base_salary} onChange={onEditChange} disabled={!isEditing} style={{ ...styles.input, ...(!isEditing ? styles.readOnlyInput : {}) }} />
-            </div>
-            <div style={styles.formGroup}>
               <label>Complementos</label>
               <input type="number" step="0.01" name="salary_supplements" value={editForm.salary_supplements} onChange={onEditChange} disabled={!isEditing} style={{ ...styles.input, ...(!isEditing ? styles.readOnlyInput : {}) }} />
-            </div>
-            <div style={styles.formGroup}>
-              <label>Prorrata extra</label>
-              <input type="number" step="0.01" name="extra_pay_proration" value={editForm.extra_pay_proration} onChange={onEditChange} disabled={!isEditing} style={{ ...styles.input, ...(!isEditing ? styles.readOnlyInput : {}) }} />
             </div>
             <div style={styles.formGroupSmall}>
               <label>IRPF %</label>
@@ -179,16 +163,10 @@ export default function PayrollDetailsModal({
           {editError && <div style={styles.error}>{editError}</div>}
 
           <div style={styles.modalActionsSplit}>
-            <button type="button" onClick={onRequestDelete} style={styles.deleteButton}>
-              Eliminar nómina
-            </button>
+            <button type="button" onClick={onRequestDelete} style={styles.deleteButton}>Eliminar nómina</button>
             <div style={styles.modalActionsRight}>
               {isEditing && <button type="button" onClick={onCancelEditing} style={styles.cancelButton}>Cancelar</button>}
-              {isEditing && (
-                <button type="submit" disabled={submitting} style={styles.saveButton}>
-                  {submitting ? "Guardando..." : "Guardar cambios"}
-                </button>
-              )}
+              {isEditing && <button type="submit" disabled={submitting} style={styles.saveButton}>{submitting ? "Guardando..." : "Guardar cambios"}</button>}
             </div>
           </div>
         </form>
@@ -197,16 +175,12 @@ export default function PayrollDetailsModal({
           <div style={styles.confirmBox}>
             <div>
               <h4 style={styles.confirmTitle}>Confirmar eliminación</h4>
-              <p style={styles.confirmText}>
-                ¿Seguro que quieres eliminar la nómina de {payroll.employee_name || payroll.employee_id} del periodo {formatPeriod(payroll)}?
-              </p>
+              <p style={styles.confirmText}>¿Seguro que quieres eliminar la nómina de {payroll.employee_name || payroll.employee_id} del periodo {formatPeriod(payroll)}?</p>
               {deleteError && <div style={styles.error}>{deleteError}</div>}
             </div>
             <div style={styles.modalActionsRight}>
               <button type="button" onClick={onCancelDelete} style={styles.cancelButton}>Cancelar</button>
-              <button type="button" onClick={onConfirmDelete} disabled={submitting} style={styles.dangerButton}>
-                {submitting ? "Eliminando..." : "Confirmar eliminación"}
-              </button>
+              <button type="button" onClick={onConfirmDelete} disabled={submitting} style={styles.dangerButton}>{submitting ? "Eliminando..." : "Confirmar eliminación"}</button>
             </div>
           </div>
         )}
@@ -240,7 +214,7 @@ const styles = {
   editSubtitle: { margin: "4px 0 0", color: "#6b7280", fontSize: "13px", fontWeight: 700 },
   formRow: { display: "flex", gap: "16px", flexWrap: "wrap" },
   formGroup: { flex: 1, minWidth: "180px", display: "flex", flexDirection: "column", gap: "6px" },
-  formGroupSmall: { width: "140px", minWidth: "120px", display: "flex", flexDirection: "column", gap: "6px" },
+  formGroupSmall: { width: "180px", minWidth: "140px", display: "flex", flexDirection: "column", gap: "6px" },
   input: { padding: "10px 12px", border: "1px solid #ccc", borderRadius: "8px", fontSize: "14px" },
   readOnlyInput: { backgroundColor: "#f3f4f6", color: "#111827", cursor: "not-allowed", opacity: 1 },
   draftBadge: { backgroundColor: "#e5e7eb", color: "#374151", padding: "4px 8px", borderRadius: "999px", fontSize: "12px", fontWeight: 800 },
