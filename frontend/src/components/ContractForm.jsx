@@ -1,5 +1,14 @@
 import { useMemo, useState } from "react";
 
+export const PAY_SCHEDULE_OPTIONS = [
+  { value: "prorated_12", label: "Nómina prorrateada 12 pagas" },
+  { value: "not_prorated_14", label: "Nómina no prorrateada 14 pagas" },
+];
+
+export function formatPaySchedule(value) {
+  return PAY_SCHEDULE_OPTIONS.find((option) => option.value === value)?.label || "Nómina no prorrateada 14 pagas";
+}
+
 export default function ContractForm({
   form,
   employees,
@@ -62,11 +71,7 @@ export default function ContractForm({
                   </div>
                 )}
               </div>
-              <button
-                type="button"
-                onClick={() => setEmployeeModalOpen(true)}
-                style={styles.secondaryButton}
-              >
+              <button type="button" onClick={() => setEmployeeModalOpen(true)} style={styles.secondaryButton}>
                 Buscar
               </button>
             </div>
@@ -75,13 +80,7 @@ export default function ContractForm({
 
           <div style={styles.formGroup}>
             <label>Empresa / centro</label>
-            <select
-              name="company_id"
-              value={form.company_id}
-              onChange={onChange}
-              required
-              style={styles.input}
-            >
+            <select name="company_id" value={form.company_id} onChange={onChange} required style={styles.input}>
               <option value="">Selecciona una empresa o centro</option>
               {companies.map((company) => (
                 <option key={company.id} value={company.id}>
@@ -95,13 +94,7 @@ export default function ContractForm({
         <div style={styles.formRow}>
           <div style={styles.formGroup}>
             <label>Tipo de contrato</label>
-            <select
-              name="contract_type"
-              value={form.contract_type}
-              onChange={onChange}
-              required
-              style={styles.input}
-            >
+            <select name="contract_type" value={form.contract_type} onChange={onChange} required style={styles.input}>
               <option value="">Selecciona tipo</option>
               <option value="indefinido">Indefinido</option>
               <option value="temporal">Temporal</option>
@@ -111,52 +104,37 @@ export default function ContractForm({
           </div>
 
           <div style={styles.formGroup}>
-            <label>Fecha inicio</label>
-            <input
-              type="date"
-              name="start_date"
-              value={form.start_date}
-              onChange={onChange}
-              required
-              style={styles.input}
-            />
+            <label>Sistema de pagas</label>
+            <select name="pay_schedule" value={form.pay_schedule || "not_prorated_14"} onChange={onChange} required style={styles.input}>
+              {PAY_SCHEDULE_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
+            </select>
           </div>
         </div>
 
         <div style={styles.formRow}>
+          <div style={styles.formGroup}>
+            <label>Fecha inicio</label>
+            <input type="date" name="start_date" value={form.start_date} onChange={onChange} required style={styles.input} />
+          </div>
+
           <div style={styles.formGroup}>
             <label>Fecha fin</label>
-            <input
-              type="date"
-              name="end_date"
-              value={form.end_date}
-              onChange={onChange}
-              style={styles.input}
-            />
-          </div>
-
-          <div style={styles.formGroup}>
-            <label>Salario base</label>
-            <input
-              type="number"
-              name="salary_base"
-              value={form.salary_base}
-              onChange={onChange}
-              placeholder="Ej. 18000"
-              style={styles.input}
-            />
+            <input type="date" name="end_date" value={form.end_date} onChange={onChange} style={styles.input} />
           </div>
         </div>
 
         <div style={styles.formRow}>
           <div style={styles.formGroup}>
+            <label>Salario anual de referencia</label>
+            <input type="number" name="salary_base" value={form.salary_base} onChange={onChange} placeholder="Ej. 18000" style={styles.input} />
+            <small style={styles.helpText}>Se usará para calcular automáticamente salario mensual y pagas extra.</small>
+          </div>
+
+          <div style={styles.formGroup}>
             <label>Estado</label>
-            <select
-              name="status"
-              value={form.status}
-              onChange={onChange}
-              style={styles.input}
-            >
+            <select name="status" value={form.status} onChange={onChange} style={styles.input}>
               <option value="active">Activo</option>
               <option value="ended">Finalizado</option>
             </select>
@@ -179,82 +157,23 @@ export default function ContractForm({
                 <h3 style={styles.modalTitle}>Seleccionar trabajador</h3>
                 <p style={styles.modalSubtitle}>Filtra por ID, nombre o DNI.</p>
               </div>
-              <button
-                type="button"
-                onClick={() => setEmployeeModalOpen(false)}
-                style={styles.closeButton}
-              >
-                Cerrar
-              </button>
+              <button type="button" onClick={() => setEmployeeModalOpen(false)} style={styles.closeButton}>Cerrar</button>
             </div>
 
             <div style={styles.filterRow}>
-              <div style={styles.filterGroupId}>
-                <label>ID</label>
-                <input
-                  name="id"
-                  value={employeeFilters.id}
-                  onChange={handleEmployeeFilterChange}
-                  placeholder="ID"
-                  style={styles.input}
-                />
-              </div>
-
-              <div style={styles.filterGroupName}>
-                <label>Nombre y apellidos</label>
-                <input
-                  name="name"
-                  value={employeeFilters.name}
-                  onChange={handleEmployeeFilterChange}
-                  placeholder="Nombre o apellidos"
-                  style={styles.input}
-                />
-              </div>
-
-              <div style={styles.filterGroupDni}>
-                <label>DNI</label>
-                <input
-                  name="dni"
-                  value={employeeFilters.dni}
-                  onChange={handleEmployeeFilterChange}
-                  placeholder="DNI"
-                  style={styles.input}
-                />
-              </div>
+              <div style={styles.filterGroupId}><label>ID</label><input name="id" value={employeeFilters.id} onChange={handleEmployeeFilterChange} placeholder="ID" style={styles.input} /></div>
+              <div style={styles.filterGroupName}><label>Nombre y apellidos</label><input name="name" value={employeeFilters.name} onChange={handleEmployeeFilterChange} placeholder="Nombre o apellidos" style={styles.input} /></div>
+              <div style={styles.filterGroupDni}><label>DNI</label><input name="dni" value={employeeFilters.dni} onChange={handleEmployeeFilterChange} placeholder="DNI" style={styles.input} /></div>
             </div>
 
             <div style={styles.modalTableWrapper}>
               <table style={styles.table}>
-                <thead>
-                  <tr>
-                    <th style={styles.th}>ID</th>
-                    <th style={styles.th}>Trabajador</th>
-                    <th style={styles.th}>DNI</th>
-                    <th style={styles.th}></th>
-                  </tr>
-                </thead>
+                <thead><tr><th style={styles.th}>ID</th><th style={styles.th}>Trabajador</th><th style={styles.th}>DNI</th><th style={styles.th}></th></tr></thead>
                 <tbody>
                   {filteredEmployees.map((emp) => (
-                    <tr key={emp.id}>
-                      <td style={styles.td}>{emp.id}</td>
-                      <td style={styles.td}>{emp.first_name} {emp.last_name}</td>
-                      <td style={styles.td}>{emp.dni || "-"}</td>
-                      <td style={styles.tdRight}>
-                        <button
-                          type="button"
-                          onClick={() => selectEmployee(emp)}
-                          style={styles.smallButton}
-                        >
-                          Seleccionar
-                        </button>
-                      </td>
-                    </tr>
+                    <tr key={emp.id}><td style={styles.td}>{emp.id}</td><td style={styles.td}>{emp.first_name} {emp.last_name}</td><td style={styles.td}>{emp.dni || "-"}</td><td style={styles.tdRight}><button type="button" onClick={() => selectEmployee(emp)} style={styles.smallButton}>Seleccionar</button></td></tr>
                   ))}
-                  {filteredEmployees.length === 0 && (
-                    <tr>
-                      <td style={styles.td} colSpan="4">No hay trabajadores con esos filtros.</td>
-                    </tr>
-                  )}
+                  {filteredEmployees.length === 0 && <tr><td style={styles.td} colSpan="4">No hay trabajadores con esos filtros.</td></tr>}
                 </tbody>
               </table>
             </div>
@@ -266,179 +185,32 @@ export default function ContractForm({
 }
 
 const styles = {
-  form: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "16px",
-  },
-  formRow: {
-    display: "flex",
-    gap: "16px",
-    flexWrap: "wrap",
-  },
-  formGroup: {
-    flex: 1,
-    minWidth: "220px",
-    display: "flex",
-    flexDirection: "column",
-    gap: "6px",
-  },
-  input: {
-    padding: "10px 12px",
-    border: "1px solid #ccc",
-    borderRadius: "8px",
-    fontSize: "14px",
-  },
-  selectorBox: {
-    minHeight: "42px",
-    padding: "8px 10px",
-    border: "1px solid #ccc",
-    borderRadius: "8px",
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    gap: "12px",
-  },
-  selectorValue: {
-    fontSize: "14px",
-    color: "#111827",
-  },
-  selectorMeta: {
-    marginTop: "2px",
-    fontSize: "12px",
-    color: "#6b7280",
-  },
-  button: {
-    backgroundColor: "#111827",
-    color: "white",
-    border: "none",
-    borderRadius: "8px",
-    padding: "12px 18px",
-    fontSize: "14px",
-    cursor: "pointer",
-    width: "fit-content",
-  },
-  secondaryButton: {
-    backgroundColor: "#f3f4f6",
-    color: "#111827",
-    border: "1px solid #d1d5db",
-    borderRadius: "8px",
-    padding: "8px 12px",
-    cursor: "pointer",
-    fontWeight: 600,
-  },
-  smallButton: {
-    backgroundColor: "#111827",
-    color: "white",
-    border: "none",
-    borderRadius: "8px",
-    padding: "8px 10px",
-    cursor: "pointer",
-    fontSize: "12px",
-  },
-  closeButton: {
-    backgroundColor: "white",
-    border: "1px solid #d1d5db",
-    borderRadius: "8px",
-    padding: "8px 12px",
-    cursor: "pointer",
-  },
-  error: {
-    backgroundColor: "#fee2e2",
-    color: "#991b1b",
-    padding: "10px 12px",
-    borderRadius: "8px",
-  },
-  success: {
-    backgroundColor: "#dcfce7",
-    color: "#166534",
-    padding: "10px 12px",
-    borderRadius: "8px",
-  },
-  modalOverlay: {
-    position: "fixed",
-    inset: 0,
-    backgroundColor: "rgba(17, 24, 39, 0.45)",
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "center",
-    zIndex: 1000,
-    padding: "24px",
-  },
-  modal: {
-    width: "min(900px, 100%)",
-    maxHeight: "82vh",
-    backgroundColor: "white",
-    borderRadius: "12px",
-    border: "1px solid #111827",
-    padding: "20px",
-    overflow: "hidden",
-    display: "flex",
-    flexDirection: "column",
-    gap: "16px",
-  },
-  modalHeader: {
-    display: "flex",
-    justifyContent: "space-between",
-    gap: "16px",
-    alignItems: "flex-start",
-  },
-  modalTitle: {
-    margin: 0,
-    fontSize: "18px",
-  },
-  modalSubtitle: {
-    margin: "4px 0 0",
-    color: "#6b7280",
-    fontSize: "13px",
-  },
-  filterRow: {
-    display: "flex",
-    gap: "12px",
-    alignItems: "end",
-    flexWrap: "wrap",
-  },
-  filterGroupId: {
-    width: "120px",
-    flex: "0 0 120px",
-    display: "flex",
-    flexDirection: "column",
-    gap: "6px",
-  },
-  filterGroupName: {
-    width: "430px",
-    flex: "1 1 430px",
-    display: "flex",
-    flexDirection: "column",
-    gap: "6px",
-  },
-  filterGroupDni: {
-    width: "210px",
-    flex: "0 0 210px",
-    display: "flex",
-    flexDirection: "column",
-    gap: "6px",
-  },
-  modalTableWrapper: {
-    overflow: "auto",
-  },
-  table: {
-    width: "100%",
-    borderCollapse: "collapse",
-  },
-  th: {
-    textAlign: "left",
-    padding: "10px",
-    borderBottom: "1px solid #ddd",
-    backgroundColor: "#f9fafb",
-  },
-  td: {
-    padding: "10px",
-    borderBottom: "1px solid #eee",
-  },
-  tdRight: {
-    padding: "10px",
-    borderBottom: "1px solid #eee",
-    textAlign: "right",
-  },
+  form: { display: "flex", flexDirection: "column", gap: "16px" },
+  formRow: { display: "flex", gap: "16px", flexWrap: "wrap" },
+  formGroup: { flex: 1, minWidth: "220px", display: "flex", flexDirection: "column", gap: "6px" },
+  input: { padding: "10px 12px", border: "1px solid #ccc", borderRadius: "8px", fontSize: "14px" },
+  selectorBox: { minHeight: "42px", padding: "8px 10px", border: "1px solid #ccc", borderRadius: "8px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px" },
+  selectorValue: { fontSize: "14px", color: "#111827" },
+  selectorMeta: { marginTop: "2px", fontSize: "12px", color: "#6b7280" },
+  helpText: { color: "#6b7280", fontSize: "12px", fontWeight: 700 },
+  button: { backgroundColor: "#111827", color: "white", border: "none", borderRadius: "8px", padding: "12px 18px", fontSize: "14px", cursor: "pointer", width: "fit-content" },
+  secondaryButton: { backgroundColor: "#f3f4f6", color: "#111827", border: "1px solid #d1d5db", borderRadius: "8px", padding: "8px 12px", cursor: "pointer", fontWeight: 600 },
+  smallButton: { backgroundColor: "#111827", color: "white", border: "none", borderRadius: "8px", padding: "8px 10px", cursor: "pointer", fontSize: "12px" },
+  closeButton: { backgroundColor: "white", border: "1px solid #d1d5db", borderRadius: "8px", padding: "8px 12px", cursor: "pointer" },
+  error: { backgroundColor: "#fee2e2", color: "#991b1b", padding: "10px 12px", borderRadius: "8px" },
+  success: { backgroundColor: "#dcfce7", color: "#166534", padding: "10px 12px", borderRadius: "8px" },
+  modalOverlay: { position: "fixed", inset: 0, backgroundColor: "rgba(17, 24, 39, 0.45)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 1000, padding: "24px" },
+  modal: { width: "min(900px, 100%)", maxHeight: "82vh", backgroundColor: "white", borderRadius: "12px", border: "1px solid #111827", padding: "20px", overflow: "hidden", display: "flex", flexDirection: "column", gap: "16px" },
+  modalHeader: { display: "flex", justifyContent: "space-between", gap: "16px", alignItems: "flex-start" },
+  modalTitle: { margin: 0, fontSize: "18px" },
+  modalSubtitle: { margin: "4px 0 0", color: "#6b7280", fontSize: "13px" },
+  filterRow: { display: "flex", gap: "12px", alignItems: "end", flexWrap: "wrap" },
+  filterGroupId: { width: "120px", flex: "0 0 120px", display: "flex", flexDirection: "column", gap: "6px" },
+  filterGroupName: { width: "430px", flex: "1 1 430px", display: "flex", flexDirection: "column", gap: "6px" },
+  filterGroupDni: { width: "210px", flex: "0 0 210px", display: "flex", flexDirection: "column", gap: "6px" },
+  modalTableWrapper: { overflow: "auto" },
+  table: { width: "100%", borderCollapse: "collapse" },
+  th: { textAlign: "left", padding: "10px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb" },
+  td: { padding: "10px", borderBottom: "1px solid #eee" },
+  tdRight: { padding: "10px", borderBottom: "1px solid #eee", textAlign: "right" },
 };
