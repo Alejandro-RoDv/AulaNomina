@@ -1,7 +1,7 @@
 export default function EmployeeForm({ form, onChange, onSubmit, error, success, submitting }) {
   return (
     <form onSubmit={onSubmit} style={styles.form}>
-      <div style={styles.formRow}>
+      <div style={styles.formRowTop}>
         <div style={styles.formGroupCode}>
           <label>Código trabajador</label>
           <input
@@ -109,10 +109,11 @@ export default function EmployeeForm({ form, onChange, onSubmit, error, success,
 const styles = {
   form: { display: "flex", flexDirection: "column", gap: "16px" },
   formRow: { display: "flex", gap: "16px", flexWrap: "wrap" },
+  formRowTop: { display: "flex", gap: "16px", flexWrap: "wrap", alignItems: "flex-start" },
   formGroup: { flex: 1, minWidth: "220px", display: "flex", flexDirection: "column", gap: "6px" },
-  formGroupCode: { width: "150px", display: "flex", flexDirection: "column", gap: "6px" },
-  formGroupDni: { width: "190px", display: "flex", flexDirection: "column", gap: "6px" },
-  formGroupNaf: { width: "230px", display: "flex", flexDirection: "column", gap: "6px" },
+  formGroupCode: { width: "150px", flex: "0 0 150px", display: "flex", flexDirection: "column", gap: "6px" },
+  formGroupDni: { width: "220px", flex: "0 0 220px", display: "flex", flexDirection: "column", gap: "6px" },
+  formGroupNaf: { width: "260px", flex: "0 0 260px", display: "flex", flexDirection: "column", gap: "6px" },
   input: { padding: "10px 12px", border: "1px solid #ccc", borderRadius: "8px", fontSize: "14px" },
   readOnlyInput: { backgroundColor: "#f3f4f6", color: "#6b7280", cursor: "not-allowed", fontWeight: 800 },
   helpText: { color: "#6b7280", fontSize: "12px" },
