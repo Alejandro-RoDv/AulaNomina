@@ -281,6 +281,8 @@ export default function App() {
         <EmployeesPage
           loading={loading}
           employees={employees}
+          companies={companies.filter((company) => company.is_active)}
+          contracts={contracts}
           employeeForm={employeeForm}
           onEmployeeChange={handleEmployeeChange}
           onEmployeeSubmit={handleEmployeeSubmit}
