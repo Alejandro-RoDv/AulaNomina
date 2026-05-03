@@ -78,6 +78,7 @@ export default function ContractTable({
     setEditingContract(contract);
     setEditForm(toEditForm(contract));
     setEditError("");
+    setDeleteError("");
   };
 
   const closeEditModal = () => {
@@ -119,6 +120,7 @@ export default function ContractTable({
     try {
       await onDeleteContract(contractToDelete.id);
       closeDeleteModal();
+      closeEditModal();
     } catch (err) {
       setDeleteError(err.message || "Error al eliminar contrato");
     }
@@ -163,14 +165,9 @@ export default function ContractTable({
                 </td>
                 <td style={styles.td}>{formatSalary(contract.salary_base)}</td>
                 <td style={styles.td}>
-                  <div style={styles.actionGroup}>
-                    <button type="button" onClick={() => openEditModal(contract)} style={styles.editButton}>
-                      Editar
-                    </button>
-                    <button type="button" onClick={() => openDeleteModal(contract)} style={styles.deleteButton}>
-                      Eliminar
-                    </button>
-                  </div>
+                  <button type="button" onClick={() => openEditModal(contract)} style={styles.editButton}>
+                    Editar
+                  </button>
                 </td>
               </tr>
             ))}
@@ -253,6 +250,16 @@ export default function ContractTable({
                 </div>
               </div>
 
+              <div style={styles.dangerZone}>
+                <div>
+                  <strong>Zona de eliminación</strong>
+                  <p style={styles.dangerText}>Eliminar un contrato lo ocultará del listado operativo.</p>
+                </div>
+                <button type="button" onClick={() => openDeleteModal(editingContract)} style={styles.deleteButton}>
+                  Eliminar contrato
+                </button>
+              </div>
+
               {editError && <div style={styles.error}>{editError}</div>}
 
               <div style={styles.modalActions}>
@@ -316,11 +323,6 @@ const styles = {
     borderBottom: "1px solid #eee",
     whiteSpace: "nowrap",
   },
-  actionGroup: {
-    display: "flex",
-    gap: "8px",
-    alignItems: "center",
-  },
   activeBadge: {
     backgroundColor: "#dcfce7",
     color: "#166534",
@@ -351,7 +353,7 @@ const styles = {
     color: "#991b1b",
     border: "1px solid #fecaca",
     borderRadius: "8px",
-    padding: "7px 10px",
+    padding: "8px 12px",
     cursor: "pointer",
     fontWeight: 800,
   },
@@ -401,6 +403,8 @@ const styles = {
   input: { padding: "10px 12px", border: "1px solid #ccc", borderRadius: "8px", fontSize: "14px" },
   readOnlyInput: { backgroundColor: "#f3f4f6", color: "#6b7280", cursor: "not-allowed", fontWeight: 800 },
   helpText: { color: "#6b7280", fontSize: "12px", fontWeight: 700 },
+  dangerZone: { border: "1px solid #fecaca", backgroundColor: "#fef2f2", borderRadius: "10px", padding: "12px", display: "flex", justifyContent: "space-between", gap: "12px", alignItems: "center" },
+  dangerText: { margin: "4px 0 0", color: "#7f1d1d", fontSize: "13px" },
   confirmText: { margin: "0 0 16px", color: "#374151", lineHeight: 1.5 },
   error: { backgroundColor: "#fee2e2", color: "#991b1b", padding: "10px 12px", borderRadius: "8px" },
   modalActions: { display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "6px" },
