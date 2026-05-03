@@ -44,7 +44,6 @@ from app.schemas.incident import IncidentCreate, IncidentUpdate, IncidentRespons
 from app.crud.incident import (
     create_incident,
     get_incidents,
-    get_incident,
     update_incident,
     delete_incident,
 )
@@ -64,9 +63,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# MVP: create tables and ensure missing columns exist
 init_database()
 
 
+# dependencia DB
 def get_db():
     db = SessionLocal()
     try:
@@ -79,6 +80,163 @@ def get_db():
 def root():
     return {"message": "AulaNomina backend activo"}
 
+
+# EMPLOYEES
+@app.get("/employees/next-code")
+def get_next_employee_code_endpoint(db: Session = Depends(get_db)):
+    return {"employee_code": get_next_employee_code(db)}
+
+
+@app.post("/employees", response_model=EmployeeResponse)
+def create_employee_endpoint(employee: EmployeeCreate, db: Session = Depends(get_db)):
+    if get_employee_by_dni(db, employee.dni):
+        raise HTTPException(status_code=400, detail="Ya existe un trabajador con ese DNI")
+
+    if employee.naf and get_employee_by_naf(db, employee.naf):
+        raise HTTPException(status_code=400, detail="Ya existe un trabajador con ese NAF")
+
+    if employee.email and get_employee_by_email(db, employee.email):
+        raise HTTPException(status_code=400, detail="Ya existe un trabajador con ese email")
+
+    return create_employee(db, employee)
+
+
+@app.get("/employees", response_model=list[EmployeeResponse])
+def list_employees(db: Session = Depends(get_db)):
+    return get_employees(db)
+
+
+@app.get("/employees/all", response_model=list[EmployeeResponse])
+def list_all_employees(db: Session = Depends(get_db)):
+    return get_employees_all(db)
+
+
+@app.put("/employees/{employee_id}", response_model=EmployeeResponse)
+def update_employee_endpoint(
+    employee_id: int,
+    employee: EmployeeUpdate,
+    db: Session = Depends(get_db),
+):
+    current_employee = get_employee(db, employee_id)
+    if not current_employee:
+        raise HTTPException(status_code=404, detail="Trabajador no encontrado")
+
+    if employee.dni:
+        existing = get_employee_by_dni(db, employee.dni)
+        if existing and existing.id != employee_id:
+            raise HTTPException(status_code=400, detail="Ya existe un trabajador con ese DNI")
+
+    if employee.naf:
+        existing = get_employee_by_naf(db, employee.naf)
+        if existing and existing.id != employee_id:
+            raise HTTPException(status_code=400, detail="Ya existe un trabajador con ese NAF")
+
+    if employee.email:
+        existing = get_employee_by_email(db, employee.email)
+        if existing and existing.id != employee_id:
+            raise HTTPException(status_code=400, detail="Ya existe un trabajador con ese email")
+
+    return update_employee(db, employee_id, employee)
+
+
+@app.delete("/employees/{employee_id}", response_model=EmployeeResponse)
+def delete_employee_endpoint(employee_id: int, db: Session = Depends(get_db)):
+    deleted_employee = soft_delete_employee(db, employee_id)
+    if not deleted_employee:
+        raise HTTPException(status_code=404, detail="Trabajador no encontrado")
+
+    return deleted_employee
+
+
+# CONTRACTS
+@app.post("/contracts", response_model=ContractResponse)
+def create_contract_endpoint(contract: ContractCreate, db: Session = Depends(get_db)):
+    return create_contract(db, contract)
+
+
+@app.get("/contracts", response_model=list[ContractResponse])
+def get_contracts_endpoint(db: Session = Depends(get_db)):
+    return get_contracts(db)
+
+
+@app.put("/contracts/{contract_id}", response_model=ContractResponse)
+def update_contract_endpoint(
+    contract_id: int,
+    contract: ContractUpdate,
+    db: Session = Depends(get_db),
+):
+    updated_contract = update_contract(db, contract_id, contract)
+    if not updated_contract:
+        raise HTTPException(status_code=404, detail="Contrato no encontrado")
+
+    return updated_contract
+
+
+@app.delete("/contracts/{contract_id}", response_model=ContractResponse)
+def delete_contract_endpoint(contract_id: int, db: Session = Depends(get_db)):
+    deleted_contract = soft_delete_contract(db, contract_id)
+    if not deleted_contract:
+        raise HTTPException(status_code=404, detail="Contrato no encontrado")
+
+    return deleted_contract
+
+
+# COMPANIES
+@app.get("/companies", response_model=list[CompanyResponse])
+def get_companies_endpoint(db: Session = Depends(get_db)):
+    return get_companies(db)
+
+
+@app.get("/companies/all", response_model=list[CompanyResponse])
+def get_companies_all_endpoint(db: Session = Depends(get_db)):
+    return get_companies_all(db)
+
+
+@app.post("/companies", response_model=CompanyResponse)
+def create_company_endpoint(company: CompanyCreate, db: Session = Depends(get_db)):
+    if get_company_by_cif(db, company.cif):
+        raise HTTPException(status_code=400, detail="Ya existe una empresa con ese CIF")
+
+    if company.ccc:
+        existing_ccc = get_company_by_ccc(db, company.ccc)
+        if existing_ccc:
+            raise HTTPException(status_code=400, detail="Ya existe una empresa con ese CCC")
+
+    return create_company(db, company)
+
+
+@app.put("/companies/{company_id}", response_model=CompanyResponse)
+def update_company_endpoint(
+    company_id: int,
+    company: CompanyUpdate,
+    db: Session = Depends(get_db),
+):
+    current_company = get_company(db, company_id)
+    if not current_company:
+        raise HTTPException(status_code=404, detail="Empresa no encontrada")
+
+    if company.cif:
+        existing = get_company_by_cif(db, company.cif)
+        if existing and existing.id != company_id:
+            raise HTTPException(status_code=400, detail="Ya existe una empresa con ese CIF")
+
+    if company.ccc:
+        existing = get_company_by_ccc(db, company.ccc)
+        if existing and existing.id != company_id:
+            raise HTTPException(status_code=400, detail="Ya existe una empresa con ese CCC")
+
+    return update_company(db, company_id, company)
+
+
+@app.delete("/companies/{company_id}", response_model=CompanyResponse)
+def delete_company_endpoint(company_id: int, db: Session = Depends(get_db)):
+    deleted_company = soft_delete_company(db, company_id)
+    if not deleted_company:
+        raise HTTPException(status_code=404, detail="Empresa no encontrada")
+
+    return deleted_company
+
+
 # INCIDENTS
 @app.get("/incidents", response_model=list[IncidentResponse])
 def list_incidents(db: Session = Depends(get_db)):
@@ -86,23 +244,27 @@ def list_incidents(db: Session = Depends(get_db)):
 
 
 @app.post("/incidents", response_model=IncidentResponse)
-def create_incident_endpoint(data: IncidentCreate, db: Session = Depends(get_db)):
-    return create_incident(db, data)
+def create_incident_endpoint(incident: IncidentCreate, db: Session = Depends(get_db)):
+    return create_incident(db, incident)
 
 
 @app.put("/incidents/{incident_id}", response_model=IncidentResponse)
-def update_incident_endpoint(incident_id: int, data: IncidentUpdate, db: Session = Depends(get_db)):
-    updated = update_incident(db, incident_id, data)
-    if not updated:
+def update_incident_endpoint(
+    incident_id: int,
+    incident: IncidentUpdate,
+    db: Session = Depends(get_db),
+):
+    updated_incident = update_incident(db, incident_id, incident)
+    if not updated_incident:
         raise HTTPException(status_code=404, detail="Incidencia no encontrada")
-    return updated
+
+    return updated_incident
 
 
 @app.delete("/incidents/{incident_id}")
 def delete_incident_endpoint(incident_id: int, db: Session = Depends(get_db)):
-    deleted = delete_incident(db, incident_id)
-    if not deleted:
+    deleted_incident = delete_incident(db, incident_id)
+    if not deleted_incident:
         raise HTTPException(status_code=404, detail="Incidencia no encontrada")
-    return {"ok": True}
 
-# RESTO IGUAL (employees, contracts, companies)
+    return {"ok": True}
