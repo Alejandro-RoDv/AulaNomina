@@ -27,3 +27,4 @@ class Employee(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     contracts = relationship("Contract", back_populates="employee")
+    incidents = relationship("Incident", back_populates="employee")
