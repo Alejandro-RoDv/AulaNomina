@@ -28,3 +28,4 @@ class Employee(Base):
 
     contracts = relationship("Contract", back_populates="employee")
     incidents = relationship("Incident", back_populates="employee")
+    payrolls = relationship("Payroll", back_populates="employee")
