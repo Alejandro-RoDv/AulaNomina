@@ -131,7 +131,7 @@ export default function ContractsPage({
 
       <PageCard title="Listado de contratos" subtitle="Contratos creados en el sistema.">
         <div style={styles.filters}>
-          <div style={styles.filterGroupId}>
+          <div style={styles.filterGroupCode}>
             <label>Código</label>
             <input
               name="id"
@@ -164,7 +164,7 @@ export default function ContractsPage({
             />
           </div>
 
-          <div style={styles.filterGroupSelect}>
+          <div style={styles.filterGroupType}>
             <label>Tipo</label>
             <select
               name="contractType"
@@ -180,7 +180,7 @@ export default function ContractsPage({
             </select>
           </div>
 
-          <div style={styles.filterGroupSelect}>
+          <div style={styles.filterGroupStatus}>
             <label>Estado</label>
             <select
               name="status"
@@ -220,47 +220,53 @@ const styles = {
     gap: "20px",
   },
   filters: {
-    display: "flex",
-    gap: "14px",
+    display: "grid",
+    gridTemplateColumns: "86px 250px minmax(300px, 1fr) 150px 150px 124px",
+    columnGap: "14px",
+    rowGap: "10px",
     alignItems: "end",
-    flexWrap: "wrap",
     marginBottom: "18px",
   },
-  filterGroupId: {
-    width: "110px",
-    flex: "0 0 110px",
+  filterGroupCode: {
+    minWidth: 0,
     display: "flex",
     flexDirection: "column",
     gap: "6px",
   },
   filterGroupEmployee: {
-    width: "230px",
-    flex: "0 0 230px",
+    minWidth: 0,
     display: "flex",
     flexDirection: "column",
     gap: "6px",
   },
   filterGroupCompany: {
-    width: "310px",
-    flex: "1 1 310px",
+    minWidth: 0,
     display: "flex",
     flexDirection: "column",
     gap: "6px",
   },
-  filterGroupSelect: {
-    width: "150px",
-    flex: "0 0 150px",
+  filterGroupType: {
+    minWidth: 0,
+    display: "flex",
+    flexDirection: "column",
+    gap: "6px",
+  },
+  filterGroupStatus: {
+    minWidth: 0,
     display: "flex",
     flexDirection: "column",
     gap: "6px",
   },
   input: {
+    width: "100%",
+    boxSizing: "border-box",
     padding: "10px 12px",
     border: "1px solid #ccc",
     borderRadius: "8px",
     fontSize: "14px",
   },
   clearButton: {
+    width: "100%",
     backgroundColor: "#f3f4f6",
     color: "#111827",
     border: "1px solid #d1d5db",
