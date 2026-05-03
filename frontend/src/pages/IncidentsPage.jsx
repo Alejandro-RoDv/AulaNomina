@@ -102,8 +102,8 @@ export default function IncidentsPage({
 
       <PageCard title="Listado de incidencias" subtitle="Histórico de incidencias laborales registradas en el sistema.">
         <div style={styles.filters}>
-          <div style={styles.filterGroup}>
-            <label>Trabajador</label>
+          <div style={styles.filterGroupWide}>
+            <label style={styles.label}>Trabajador</label>
             <input
               name="employee"
               value={filters.employee}
@@ -113,8 +113,8 @@ export default function IncidentsPage({
             />
           </div>
 
-          <div style={styles.filterGroup}>
-            <label>Empresa</label>
+          <div style={styles.filterGroupWide}>
+            <label style={styles.label}>Empresa</label>
             <input
               name="company"
               value={filters.company}
@@ -124,8 +124,8 @@ export default function IncidentsPage({
             />
           </div>
 
-          <div style={styles.filterGroup}>
-            <label>Tipo</label>
+          <div style={styles.filterGroupType}>
+            <label style={styles.label}>Tipo</label>
             <select
               name="incidentType"
               value={filters.incidentType}
@@ -139,8 +139,8 @@ export default function IncidentsPage({
             </select>
           </div>
 
-          <div style={styles.filterGroup}>
-            <label>Estado</label>
+          <div style={styles.filterGroupSmall}>
+            <label style={styles.label}>Estado</label>
             <select name="status" value={filters.status} onChange={handleFilterChange} style={styles.input}>
               <option value="">Todos</option>
               {STATUS_OPTIONS.map((status) => (
@@ -149,8 +149,8 @@ export default function IncidentsPage({
             </select>
           </div>
 
-          <div style={styles.filterGroup}>
-            <label>Desde</label>
+          <div style={styles.filterGroupDate}>
+            <label style={styles.label}>Desde</label>
             <input
               type="date"
               name="dateFrom"
@@ -160,8 +160,8 @@ export default function IncidentsPage({
             />
           </div>
 
-          <div style={styles.filterGroup}>
-            <label>Hasta</label>
+          <div style={styles.filterGroupDate}>
+            <label style={styles.label}>Hasta</label>
             <input
               type="date"
               name="dateTo"
@@ -172,7 +172,7 @@ export default function IncidentsPage({
           </div>
 
           <button type="button" onClick={clearFilters} style={styles.clearButton}>
-            Limpiar filtros
+            Limpiar
           </button>
         </div>
 
@@ -200,35 +200,63 @@ const styles = {
   },
   filters: {
     display: "grid",
-    gridTemplateColumns: "minmax(220px, 1fr) minmax(220px, 1fr) 220px 160px 150px 150px 124px",
-    columnGap: "14px",
+    gridTemplateColumns: "minmax(170px, 1.1fr) minmax(170px, 1.1fr) minmax(150px, 0.8fr) 118px 132px 132px 86px",
+    columnGap: "10px",
     rowGap: "10px",
     alignItems: "end",
     marginBottom: "10px",
+    width: "100%",
   },
-  filterGroup: {
+  filterGroupWide: {
     minWidth: 0,
     display: "flex",
     flexDirection: "column",
-    gap: "6px",
+    gap: "5px",
+  },
+  filterGroupType: {
+    minWidth: 0,
+    display: "flex",
+    flexDirection: "column",
+    gap: "5px",
+  },
+  filterGroupSmall: {
+    minWidth: 0,
+    display: "flex",
+    flexDirection: "column",
+    gap: "5px",
+  },
+  filterGroupDate: {
+    minWidth: 0,
+    display: "flex",
+    flexDirection: "column",
+    gap: "5px",
+  },
+  label: {
+    fontSize: "13px",
+    fontWeight: 700,
+    color: "#374151",
   },
   input: {
     width: "100%",
+    height: "36px",
     boxSizing: "border-box",
-    padding: "10px 12px",
+    padding: "7px 9px",
     border: "1px solid #ccc",
-    borderRadius: "8px",
-    fontSize: "14px",
+    borderRadius: "7px",
+    fontSize: "13px",
   },
   clearButton: {
-    width: "100%",
+    width: "86px",
+    height: "36px",
     backgroundColor: "#f3f4f6",
     color: "#111827",
     border: "1px solid #d1d5db",
-    borderRadius: "8px",
-    padding: "10px 14px",
+    borderRadius: "7px",
+    padding: "7px 8px",
     cursor: "pointer",
-    fontWeight: 700,
+    fontWeight: 800,
+    fontSize: "12px",
+    whiteSpace: "nowrap",
   },
   resultInfo: {
     marginBottom: "16px",
