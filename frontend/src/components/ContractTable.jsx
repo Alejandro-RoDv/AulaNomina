@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { formatPaySchedule, PAY_SCHEDULE_OPTIONS } from "./ContractForm";
 
 function formatDate(value) {
   if (!value) return "-";
@@ -36,6 +37,7 @@ function toEditForm(contract) {
     start_date: contract.start_date || "",
     end_date: contract.end_date || "",
     salary_base: contract.salary_base || "",
+    pay_schedule: contract.pay_schedule || "not_prorated_14",
     status: contract.status || "active",
   };
 }
@@ -145,10 +147,11 @@ export default function ContractTable({
               <th style={styles.th}>Empresa / centro</th>
               <th style={styles.th}>CCC</th>
               <th style={styles.th}>Tipo</th>
+              <th style={styles.th}>Sistema pagas</th>
               <th style={styles.th}>Inicio</th>
               <th style={styles.th}>Fin</th>
               <th style={styles.th}>Estado</th>
-              <th style={styles.th}>Salario</th>
+              <th style={styles.th}>Salario anual</th>
               <th style={styles.th}>Acciones</th>
             </tr>
           </thead>
@@ -160,6 +163,7 @@ export default function ContractTable({
                 <td style={styles.td}>{getCompanyName(contract)}</td>
                 <td style={styles.td}>{getCompanyCcc(contract)}</td>
                 <td style={styles.td}>{contract.contract_type}</td>
+                <td style={styles.td}>{formatPaySchedule(contract.pay_schedule)}</td>
                 <td style={styles.td}>{formatDate(contract.start_date)}</td>
                 <td style={styles.td}>{formatDate(contract.end_date)}</td>
                 <td style={styles.td}>
@@ -224,10 +228,11 @@ export default function ContractTable({
                 </div>
 
                 <div style={styles.formGroup}>
-                  <label>Estado</label>
-                  <select name="status" value={editForm.status} onChange={handleEditChange} style={styles.input}>
-                    <option value="active">Activo</option>
-                    <option value="ended">Finalizado</option>
+                  <label>Sistema de pagas</label>
+                  <select name="pay_schedule" value={editForm.pay_schedule} onChange={handleEditChange} required style={styles.input}>
+                    {PAY_SCHEDULE_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>{option.label}</option>
+                    ))}
                   </select>
                 </div>
               </div>
@@ -242,10 +247,20 @@ export default function ContractTable({
                   <label>Fecha fin</label>
                   <input type="date" name="end_date" value={editForm.end_date} onChange={handleEditChange} style={styles.input} />
                 </div>
+              </div>
+
+              <div style={styles.formRow}>
+                <div style={styles.formGroup}>
+                  <label>Salario anual de referencia</label>
+                  <input type="number" name="salary_base" value={editForm.salary_base} onChange={handleEditChange} style={styles.input} />
+                </div>
 
                 <div style={styles.formGroup}>
-                  <label>Salario base</label>
-                  <input type="number" name="salary_base" value={editForm.salary_base} onChange={handleEditChange} style={styles.input} />
+                  <label>Estado</label>
+                  <select name="status" value={editForm.status} onChange={handleEditChange} style={styles.input}>
+                    <option value="active">Activo</option>
+                    <option value="ended">Finalizado</option>
+                  </select>
                 </div>
               </div>
 

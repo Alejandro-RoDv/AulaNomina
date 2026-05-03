@@ -12,9 +12,43 @@ from app.schemas.payroll import PayrollCreate, PayrollUpdate
 SOCIAL_SECURITY_PERCENTAGE = Decimal("6.47")
 DEFAULT_IRPF_PERCENTAGE = Decimal("10.00")
 
+MONTHLY_PERIODS = set(range(1, 13))
+EXTRA_JULY = 13
+EXTRA_DECEMBER = 14
+EXTRA_COMPLEMENTARY = 15
+
 
 def money(value: Decimal) -> Decimal:
     return Decimal(value).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+
+def calculate_contract_base_salary(contract: Contract, period_month: int) -> Decimal:
+    annual_salary = money(contract.salary_base or Decimal("0.00"))
+    pay_schedule = contract.pay_schedule or "not_prorated_14"
+
+    if period_month == EXTRA_COMPLEMENTARY:
+        return Decimal("0.00")
+
+    if period_month in {EXTRA_JULY, EXTRA_DECEMBER}:
+        return money(annual_salary / Decimal("14"))
+
+    if pay_schedule == "prorated_12":
+        return money(annual_salary / Decimal("12"))
+
+    return money(annual_salary / Decimal("14"))
+
+
+def calculate_extra_pay_proration(contract: Contract, period_month: int) -> Decimal:
+    annual_salary = money(contract.salary_base or Decimal("0.00"))
+    pay_schedule = contract.pay_schedule or "not_prorated_14"
+
+    if period_month not in MONTHLY_PERIODS:
+        return Decimal("0.00")
+
+    if pay_schedule != "prorated_12":
+        return Decimal("0.00")
+
+    return money(((annual_salary / Decimal("14")) * Decimal("2")) / Decimal("12"))
 
 
 def calculate_payroll_amounts(
@@ -102,9 +136,9 @@ def validate_payroll_relations(db: Session, payroll: PayrollCreate):
 def create_payroll(db: Session, payroll: PayrollCreate):
     _, contract, company = validate_payroll_relations(db, payroll)
 
-    base_salary = money(payroll.base_salary if payroll.base_salary is not None else contract.salary_base or Decimal("0.00"))
+    base_salary = calculate_contract_base_salary(contract, payroll.period_month)
     salary_supplements = money(payroll.salary_supplements or Decimal("0.00"))
-    extra_pay_proration = money(payroll.extra_pay_proration or Decimal("0.00"))
+    extra_pay_proration = calculate_extra_pay_proration(contract, payroll.period_month)
     irpf_percentage = payroll.irpf_percentage or DEFAULT_IRPF_PERCENTAGE
 
     calculated_amounts = calculate_payroll_amounts(
@@ -144,9 +178,16 @@ def update_payroll(db: Session, payroll_id: int, payroll_data: PayrollUpdate):
     for key, value in update_data.items():
         setattr(db_payroll, key, value)
 
-    base_salary = money(db_payroll.base_salary or Decimal("0.00"))
+    contract = db.query(Contract).filter(Contract.id == db_payroll.contract_id).first()
+    if not contract:
+        raise HTTPException(status_code=404, detail="Contrato no encontrado")
+
+    base_salary = calculate_contract_base_salary(contract, db_payroll.period_month)
     salary_supplements = money(db_payroll.salary_supplements or Decimal("0.00"))
-    extra_pay_proration = money(db_payroll.extra_pay_proration or Decimal("0.00"))
+    extra_pay_proration = calculate_extra_pay_proration(contract, db_payroll.period_month)
+
+    db_payroll.base_salary = base_salary
+    db_payroll.extra_pay_proration = extra_pay_proration
 
     calculated_amounts = calculate_payroll_amounts(
         base_salary=base_salary,

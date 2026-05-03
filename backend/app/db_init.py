@@ -73,6 +73,7 @@ def init_database() -> None:
 
             contract_columns = {
                 "company_id": "INTEGER REFERENCES companies(id)",
+                "pay_schedule": "VARCHAR DEFAULT 'not_prorated_14' NOT NULL",
             }
 
             for column_name, column_definition in contract_columns.items():

@@ -6,6 +6,13 @@ from sqlalchemy.orm import relationship
 from app.db import Base
 
 
+SPECIAL_PERIOD_LABELS = {
+    13: "Paga extra julio",
+    14: "Paga extra diciembre",
+    15: "Paga extra complementaria",
+}
+
+
 class Payroll(Base):
     __tablename__ = "payrolls"
 
@@ -44,4 +51,6 @@ class Payroll(Base):
 
     @property
     def period_label(self):
+        if self.period_month in SPECIAL_PERIOD_LABELS:
+            return f"{SPECIAL_PERIOD_LABELS[self.period_month]} {self.period_year}"
         return f"{self.period_month:02d}/{self.period_year}"

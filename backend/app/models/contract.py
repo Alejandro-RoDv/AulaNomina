@@ -16,6 +16,7 @@ class Contract(Base):
     end_date = Column(Date, nullable=True)
     status = Column(String, default="active", nullable=False)
     salary_base = Column(Numeric(10, 2), nullable=True)
+    pay_schedule = Column(String, default="not_prorated_14", nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     employee = relationship("Employee", back_populates="contracts")

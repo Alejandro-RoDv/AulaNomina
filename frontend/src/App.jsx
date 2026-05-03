@@ -26,6 +26,7 @@ const initialContractForm = {
   start_date: "",
   end_date: "",
   salary_base: "",
+  pay_schedule: "not_prorated_14",
   status: "active",
 };
 
@@ -70,9 +71,7 @@ const initialPayrollForm = {
   company_id: "",
   period_month: String(currentMonth),
   period_year: String(currentYear),
-  base_salary: "",
   salary_supplements: "0",
-  extra_pay_proration: "0",
   irpf_percentage: "10",
   status: "draft",
 };
@@ -110,6 +109,7 @@ function buildContractPayload(form) {
     start_date: form.start_date,
     end_date: form.end_date || null,
     salary_base: form.salary_base ? Number(form.salary_base) : null,
+    pay_schedule: form.pay_schedule || "not_prorated_14",
     status: form.status,
   };
 }
@@ -144,9 +144,7 @@ function buildPayrollPayload(form) {
     company_id: form.company_id ? Number(form.company_id) : null,
     period_month: Number(form.period_month),
     period_year: Number(form.period_year),
-    base_salary: form.base_salary ? Number(form.base_salary) : 0,
     salary_supplements: form.salary_supplements ? Number(form.salary_supplements) : 0,
-    extra_pay_proration: form.extra_pay_proration ? Number(form.extra_pay_proration) : 0,
     irpf_percentage: form.irpf_percentage ? Number(form.irpf_percentage) : 10,
     status: form.status,
   };
@@ -156,9 +154,7 @@ function buildPayrollUpdatePayload(form) {
   return {
     period_month: Number(form.period_month),
     period_year: Number(form.period_year),
-    base_salary: form.base_salary ? Number(form.base_salary) : 0,
     salary_supplements: form.salary_supplements ? Number(form.salary_supplements) : 0,
-    extra_pay_proration: form.extra_pay_proration ? Number(form.extra_pay_proration) : 0,
     irpf_percentage: form.irpf_percentage ? Number(form.irpf_percentage) : 10,
     status: form.status,
   };
@@ -292,7 +288,6 @@ export default function App() {
           employee_id: value,
           contract_id: "",
           company_id: "",
-          base_salary: "",
         };
       }
 
@@ -302,7 +297,6 @@ export default function App() {
           ...prev,
           contract_id: value,
           company_id: selectedContract?.company_id ? String(selectedContract.company_id) : "",
-          base_salary: selectedContract?.salary_base ? String(selectedContract.salary_base) : "",
         };
       }
 
