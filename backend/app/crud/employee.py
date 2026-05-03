@@ -2,6 +2,7 @@ import re
 
 from sqlalchemy.orm import Session
 
+from app.models.contract import Contract
 from app.models.employee import Employee
 from app.schemas.employee import EmployeeCreate, EmployeeUpdate
 
@@ -60,12 +61,7 @@ def get_employees_all(db: Session):
 
 
 def get_employees(db: Session):
-    return (
-        db.query(Employee)
-        .filter(Employee.is_active.is_(True))
-        .order_by(Employee.id.desc())
-        .all()
-    )
+    return db.query(Employee).order_by(Employee.id.desc()).all()
 
 
 def get_employee(db: Session, employee_id: int):
@@ -93,7 +89,7 @@ def soft_delete_employee(db: Session, employee_id: int):
     if not employee:
         return None
 
-    employee.is_active = False
+    db.query(Contract).filter(Contract.employee_id == employee_id).delete(synchronize_session=False)
+    db.delete(employee)
     db.commit()
-    db.refresh(employee)
     return employee
