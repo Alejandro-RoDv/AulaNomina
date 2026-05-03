@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 const emptyEditForm = {
   employee_code: "",
@@ -34,10 +34,18 @@ function toEditForm(employee) {
   };
 }
 
-export default function EmployeeTable({ loading, employees, onUpdateEmployee, submitting }) {
+export default function EmployeeTable({ loading, employees, companies, contracts, onUpdateEmployee, submitting }) {
   const [editingEmployee, setEditingEmployee] = useState(null);
+  const [selectedFileEmployee, setSelectedFileEmployee] = useState(null);
   const [editForm, setEditForm] = useState(emptyEditForm);
   const [editError, setEditError] = useState("");
+
+  const companyMap = useMemo(() => {
+    return companies.reduce((acc, company) => {
+      acc[company.id] = company;
+      return acc;
+    }, {});
+  }, [companies]);
 
   if (loading) return <p>Cargando...</p>;
 
@@ -51,6 +59,26 @@ export default function EmployeeTable({ loading, employees, onUpdateEmployee, su
     setEditingEmployee(null);
     setEditForm(emptyEditForm);
     setEditError("");
+  };
+
+  const openFileModal = (employee) => {
+    setSelectedFileEmployee(employee);
+  };
+
+  const closeFileModal = () => {
+    setSelectedFileEmployee(null);
+  };
+
+  const getEmployeeContracts = (employeeId) => {
+    return contracts
+      .filter((contract) => Number(contract.employee_id) === Number(employeeId))
+      .sort((a, b) => String(b.start_date || "").localeCompare(String(a.start_date || "")));
+  };
+
+  const getCompanyName = (contract) => {
+    if (contract.company_name) return contract.company_name;
+    const company = companyMap[contract.company_id];
+    return company ? company.name : "-";
   };
 
   const handleEditChange = (event) => {
@@ -72,6 +100,10 @@ export default function EmployeeTable({ loading, employees, onUpdateEmployee, su
       setEditError(err.message || "Error al actualizar trabajador");
     }
   };
+
+  const selectedEmployeeContracts = selectedFileEmployee
+    ? getEmployeeContracts(selectedFileEmployee.id)
+    : [];
 
   return (
     <>
@@ -107,18 +139,112 @@ export default function EmployeeTable({ loading, employees, onUpdateEmployee, su
                     </span>
                   </td>
                   <td style={styles.td}>
-                    <button
-                      type="button"
-                      style={styles.editButton}
-                      onClick={() => openEditModal(employee)}
-                    >
-                      Editar
-                    </button>
+                    <div style={styles.actionGroup}>
+                      <button
+                        type="button"
+                        style={styles.fileButton}
+                        onClick={() => openFileModal(employee)}
+                      >
+                        Ficha
+                      </button>
+                      <button
+                        type="button"
+                        style={styles.editButton}
+                        onClick={() => openEditModal(employee)}
+                      >
+                        Editar
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {selectedFileEmployee && (
+        <div style={styles.modalBackdrop}>
+          <div style={styles.modalLarge}>
+            <div style={styles.modalHeader}>
+              <div>
+                <h3 style={styles.modalTitle}>Ficha del trabajador</h3>
+                <p style={styles.modalSubtitle}>
+                  {selectedFileEmployee.first_name} {selectedFileEmployee.last_name}
+                </p>
+              </div>
+              <button type="button" onClick={closeFileModal} style={styles.closeButton}>×</button>
+            </div>
+
+            <div style={styles.summaryGrid}>
+              <div style={styles.summaryBox}>
+                <span style={styles.summaryLabel}>Código</span>
+                <strong>{selectedFileEmployee.employee_code || "-"}</strong>
+              </div>
+              <div style={styles.summaryBox}>
+                <span style={styles.summaryLabel}>ID interno</span>
+                <strong>{selectedFileEmployee.id}</strong>
+              </div>
+              <div style={styles.summaryBox}>
+                <span style={styles.summaryLabel}>DNI</span>
+                <strong>{selectedFileEmployee.dni || "-"}</strong>
+              </div>
+              <div style={styles.summaryBox}>
+                <span style={styles.summaryLabel}>NAF</span>
+                <strong>{selectedFileEmployee.naf || "-"}</strong>
+              </div>
+              <div style={styles.summaryBox}>
+                <span style={styles.summaryLabel}>Email</span>
+                <strong>{selectedFileEmployee.email || "-"}</strong>
+              </div>
+              <div style={styles.summaryBox}>
+                <span style={styles.summaryLabel}>Teléfono</span>
+                <strong>{selectedFileEmployee.phone || "-"}</strong>
+              </div>
+            </div>
+
+            <div style={styles.sectionHeader}>
+              <h4 style={styles.sectionTitle}>Histórico contractual</h4>
+              <span style={styles.contractCount}>{selectedEmployeeContracts.length} contratos</span>
+            </div>
+
+            {!selectedEmployeeContracts.length ? (
+              <p style={styles.empty}>Este trabajador todavía no tiene contratos registrados.</p>
+            ) : (
+              <div style={styles.tableWrapper}>
+                <table style={styles.table}>
+                  <thead>
+                    <tr>
+                      <th style={styles.th}>ID</th>
+                      <th style={styles.th}>Empresa / centro</th>
+                      <th style={styles.th}>Tipo</th>
+                      <th style={styles.th}>Inicio</th>
+                      <th style={styles.th}>Fin</th>
+                      <th style={styles.th}>Estado</th>
+                      <th style={styles.th}>Salario</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {selectedEmployeeContracts.map((contract) => (
+                      <tr key={contract.id}>
+                        <td style={styles.td}>{contract.id}</td>
+                        <td style={styles.td}>{getCompanyName(contract)}</td>
+                        <td style={styles.td}>{contract.contract_type}</td>
+                        <td style={styles.td}>{contract.start_date}</td>
+                        <td style={styles.td}>{contract.end_date || "-"}</td>
+                        <td style={styles.td}>
+                          <span style={contract.status === "active" ? styles.activeBadge : styles.inactiveBadge}>
+                            {contract.status === "active" ? "Activo" : "Finalizado"}
+                          </span>
+                        </td>
+                        <td style={styles.td}>{contract.salary_base || "-"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
@@ -226,15 +352,24 @@ const styles = {
   table: { width: "100%", borderCollapse: "collapse" },
   th: { textAlign: "left", padding: "12px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb", whiteSpace: "nowrap" },
   td: { padding: "12px", borderBottom: "1px solid #eee", whiteSpace: "nowrap" },
+  actionGroup: { display: "flex", gap: "8px", alignItems: "center" },
   activeBadge: { backgroundColor: "#dcfce7", color: "#166534", padding: "4px 8px", borderRadius: "999px", fontSize: "12px", fontWeight: 800 },
   inactiveBadge: { backgroundColor: "#fee2e2", color: "#991b1b", padding: "4px 8px", borderRadius: "999px", fontSize: "12px", fontWeight: 800 },
+  fileButton: { backgroundColor: "#f3f4f6", color: "#111827", border: "1px solid #d1d5db", borderRadius: "8px", padding: "7px 10px", cursor: "pointer", fontWeight: 700 },
   editButton: { backgroundColor: "#111827", color: "#ffffff", border: "1px solid #111827", borderRadius: "8px", padding: "7px 10px", cursor: "pointer", fontWeight: 700 },
   modalBackdrop: { position: "fixed", inset: 0, backgroundColor: "rgba(17, 24, 39, 0.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, padding: "24px" },
   modal: { width: "min(920px, 100%)", maxHeight: "90vh", overflowY: "auto", backgroundColor: "#ffffff", border: "3px solid #111111", borderRadius: "12px", boxShadow: "8px 8px 0 #e6d85c", padding: "22px" },
+  modalLarge: { width: "min(1060px, 100%)", maxHeight: "90vh", overflowY: "auto", backgroundColor: "#ffffff", border: "3px solid #111111", borderRadius: "12px", boxShadow: "8px 8px 0 #e6d85c", padding: "22px" },
   modalHeader: { display: "flex", justifyContent: "space-between", alignItems: "start", gap: "16px", marginBottom: "18px", borderBottom: "1px solid #e5e7eb", paddingBottom: "14px" },
   modalTitle: { margin: 0, fontSize: "20px", fontWeight: 900, color: "#111827" },
   modalSubtitle: { margin: "4px 0 0", color: "#6b7280", fontSize: "13px", fontWeight: 700 },
   closeButton: { border: "none", backgroundColor: "transparent", fontSize: "28px", lineHeight: 1, cursor: "pointer", color: "#111827" },
+  summaryGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "12px", marginBottom: "20px" },
+  summaryBox: { border: "1px solid #e5e7eb", borderRadius: "10px", padding: "12px", backgroundColor: "#f9fafb", display: "flex", flexDirection: "column", gap: "4px" },
+  summaryLabel: { fontSize: "12px", color: "#6b7280", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.04em" },
+  sectionHeader: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px", margin: "8px 0 12px", paddingTop: "12px", borderTop: "1px solid #e5e7eb" },
+  sectionTitle: { margin: 0, fontSize: "16px", fontWeight: 900, color: "#111827" },
+  contractCount: { backgroundColor: "#fef9c3", color: "#713f12", border: "1px solid #e6d85c", borderRadius: "999px", padding: "4px 10px", fontSize: "12px", fontWeight: 900 },
   form: { display: "flex", flexDirection: "column", gap: "16px" },
   formRow: { display: "flex", gap: "16px", flexWrap: "wrap" },
   formGroup: { flex: 1, minWidth: "200px", display: "flex", flexDirection: "column", gap: "6px" },
