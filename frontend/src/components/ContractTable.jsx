@@ -147,7 +147,6 @@ export default function ContractTable({
               <th style={styles.th}>Empresa / centro</th>
               <th style={styles.th}>CCC</th>
               <th style={styles.th}>Tipo</th>
-              <th style={styles.th}>Sistema pagas</th>
               <th style={styles.th}>Inicio</th>
               <th style={styles.th}>Fin</th>
               <th style={styles.th}>Estado</th>
@@ -163,7 +162,6 @@ export default function ContractTable({
                 <td style={styles.td}>{getCompanyName(contract)}</td>
                 <td style={styles.td}>{getCompanyCcc(contract)}</td>
                 <td style={styles.td}>{contract.contract_type}</td>
-                <td style={styles.td}>{formatPaySchedule(contract.pay_schedule)}</td>
                 <td style={styles.td}>{formatDate(contract.start_date)}</td>
                 <td style={styles.td}>{formatDate(contract.end_date)}</td>
                 <td style={styles.td}>
@@ -174,7 +172,7 @@ export default function ContractTable({
                 <td style={styles.td}>{formatSalary(contract.salary_base)}</td>
                 <td style={styles.td}>
                   <button type="button" onClick={() => openEditModal(contract)} style={styles.editButton}>
-                    Editar
+                    Detalles
                   </button>
                 </td>
               </tr>
@@ -188,8 +186,8 @@ export default function ContractTable({
           <div style={styles.modal}>
             <div style={styles.modalHeader}>
               <div>
-                <h3 style={styles.modalTitle}>Editar contrato</h3>
-                <p style={styles.modalSubtitle}>Contrato {getContractCode(editingContract)}</p>
+                <h3 style={styles.modalTitle}>Detalle y edición de contrato</h3>
+                <p style={styles.modalSubtitle}>Contrato {getContractCode(editingContract)} · {formatPaySchedule(editingContract.pay_schedule)}</p>
               </div>
               <button type="button" onClick={closeEditModal} style={styles.closeButton}>×</button>
             </div>
