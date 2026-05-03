@@ -30,6 +30,12 @@ const incidentStatusLabels = {
   closed: "Cerrada",
 };
 
+const payrollStatusLabels = {
+  draft: "Borrador",
+  calculated: "Calculada",
+  closed: "Cerrada",
+};
+
 function toEditForm(employee) {
   return {
     employee_code: employee.employee_code || "",
@@ -55,6 +61,17 @@ function formatDate(value) {
   return `${day}/${month}/${year}`;
 }
 
+function formatPeriod(payroll) {
+  if (!payroll) return "-";
+  if (payroll.period_label) return payroll.period_label;
+  const month = String(payroll.period_month || "").padStart(2, "0");
+  return `${month}/${payroll.period_year || ""}`;
+}
+
+function payrollPeriodSortValue(payroll) {
+  return Number(`${payroll.period_year || 0}${String(payroll.period_month || 0).padStart(2, "0")}`);
+}
+
 function formatStatus(status) {
   const labels = { active: "Activo", ended: "Finalizado", deleted: "Eliminado" };
   return labels[status] || status || "-";
@@ -68,6 +85,10 @@ function formatIncidentType(type) {
   return incidentTypeLabels[type] || type || "-";
 }
 
+function formatPayrollStatus(status) {
+  return payrollStatusLabels[status] || status || "-";
+}
+
 function formatSalary(value) {
   if (value === null || value === undefined || value === "") return "-";
   return new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" }).format(Number(value));
@@ -79,6 +100,7 @@ export default function EmployeeTable({
   companies,
   contracts,
   incidents = [],
+  payrolls = [],
   onUpdateEmployee,
   onDeleteEmployee,
   submitting,
@@ -102,9 +124,19 @@ export default function EmployeeTable({
     .filter((incident) => Number(incident.employee_id) === Number(employeeId))
     .sort((a, b) => String(b.start_date || "").localeCompare(String(a.start_date || "")));
 
+  const getEmployeePayrolls = (employeeId) => payrolls
+    .filter((payroll) => Number(payroll.employee_id) === Number(employeeId))
+    .sort((a, b) => payrollPeriodSortValue(b) - payrollPeriodSortValue(a));
+
   const getCompanyName = (contract) => contract.company_name || companyMap[contract.company_id]?.name || "-";
   const getCompanyCcc = (contract) => companyMap[contract.company_id]?.ccc || "-";
   const getIncidentCompanyName = (incident) => incident.company_name || companyMap[incident.company_id]?.name || "-";
+  const getPayrollCompanyName = (payroll) => payroll.company_name || companyMap[payroll.company_id]?.name || "-";
+  const getPayrollStatusStyle = (status) => {
+    if (status === "closed") return styles.closedPayrollBadge;
+    if (status === "calculated") return styles.calculatedPayrollBadge;
+    return styles.draftPayrollBadge;
+  };
 
   const openEditModal = (employee) => {
     setEditingEmployee(employee);
@@ -148,8 +180,11 @@ export default function EmployeeTable({
 
   const selectedEmployeeContracts = selectedFileEmployee ? getEmployeeContracts(selectedFileEmployee.id) : [];
   const selectedEmployeeIncidents = selectedFileEmployee ? getEmployeeIncidents(selectedFileEmployee.id) : [];
+  const selectedEmployeePayrolls = selectedFileEmployee ? getEmployeePayrolls(selectedFileEmployee.id) : [];
   const activeContract = selectedEmployeeContracts.find((contract) => contract.status === "active");
   const openIncidents = selectedEmployeeIncidents.filter((incident) => incident.status === "open");
+  const latestPayroll = selectedEmployeePayrolls[0];
+  const totalNetPayroll = selectedEmployeePayrolls.reduce((acc, payroll) => acc + Number(payroll.net_salary || 0), 0);
 
   return (
     <>
@@ -218,6 +253,8 @@ export default function EmployeeTable({
               <div style={styles.summaryBoxStrong}><span style={styles.summaryLabel}>Contrato activo</span><strong>{activeContract ? `ID ${activeContract.id} · ${activeContract.contract_type}` : "No"}</strong></div>
               <div style={styles.summaryBoxStrong}><span style={styles.summaryLabel}>Empresa actual</span><strong>{activeContract ? getCompanyName(activeContract) : "-"}</strong></div>
               <div style={styles.summaryBoxStrong}><span style={styles.summaryLabel}>Incidencias abiertas</span><strong>{openIncidents.length}</strong></div>
+              <div style={styles.summaryBoxStrong}><span style={styles.summaryLabel}>Nóminas generadas</span><strong>{selectedEmployeePayrolls.length}</strong></div>
+              <div style={styles.summaryBoxStrong}><span style={styles.summaryLabel}>Última nómina</span><strong>{latestPayroll ? `${formatPeriod(latestPayroll)} · ${formatSalary(latestPayroll.net_salary)}` : "-"}</strong></div>
             </div>
 
             <div style={styles.sectionHeader}>
@@ -237,6 +274,45 @@ export default function EmployeeTable({
                     {selectedEmployeeContracts.map((contract) => (
                       <tr key={contract.id}>
                         <td style={styles.td}>{contract.id}</td><td style={styles.td}>{getCompanyName(contract)}</td><td style={styles.td}>{getCompanyCcc(contract)}</td><td style={styles.td}>{contract.contract_type}</td><td style={styles.td}>{formatDate(contract.start_date)}</td><td style={styles.td}>{formatDate(contract.end_date)}</td><td style={styles.td}><span style={contract.status === "active" ? styles.activeBadge : styles.inactiveBadge}>{formatStatus(contract.status)}</span></td><td style={styles.td}>{formatSalary(contract.salary_base)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            <div style={styles.sectionHeaderPayrolls}>
+              <h4 style={styles.sectionTitle}>Histórico de nóminas</h4>
+              <div style={styles.headerBadges}>
+                <span style={styles.payrollCount}>{selectedEmployeePayrolls.length} nóminas</span>
+                <span style={styles.netTotalBadge}>Neto acumulado: {formatSalary(totalNetPayroll)}</span>
+              </div>
+            </div>
+
+            {!selectedEmployeePayrolls.length ? <p style={styles.empty}>Este trabajador todavía no tiene nóminas generadas.</p> : (
+              <div style={styles.tableWrapper}>
+                <table style={styles.table}>
+                  <thead>
+                    <tr>
+                      <th style={styles.th}>ID</th>
+                      <th style={styles.th}>Periodo</th>
+                      <th style={styles.th}>Empresa / centro</th>
+                      <th style={styles.th}>Bruto</th>
+                      <th style={styles.th}>Deducciones</th>
+                      <th style={styles.th}>Neto</th>
+                      <th style={styles.th}>Estado</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {selectedEmployeePayrolls.map((payroll) => (
+                      <tr key={payroll.id}>
+                        <td style={styles.td}>{payroll.id}</td>
+                        <td style={styles.td}>{formatPeriod(payroll)}</td>
+                        <td style={styles.td}>{getPayrollCompanyName(payroll)}</td>
+                        <td style={styles.td}>{formatSalary(payroll.gross_salary)}</td>
+                        <td style={styles.td}>{formatSalary(payroll.total_deductions)}</td>
+                        <td style={styles.tdStrong}>{formatSalary(payroll.net_salary)}</td>
+                        <td style={styles.td}><span style={getPayrollStatusStyle(payroll.status)}>{formatPayrollStatus(payroll.status)}</span></td>
                       </tr>
                     ))}
                   </tbody>
@@ -358,6 +434,7 @@ const styles = {
   table: { width: "100%", borderCollapse: "collapse" },
   th: { textAlign: "left", padding: "12px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb", whiteSpace: "nowrap" },
   td: { padding: "12px", borderBottom: "1px solid #eee", whiteSpace: "nowrap" },
+  tdStrong: { padding: "12px", borderBottom: "1px solid #eee", whiteSpace: "nowrap", fontWeight: 900 },
   descriptionTd: { padding: "12px", borderBottom: "1px solid #eee", minWidth: "220px", maxWidth: "360px", whiteSpace: "normal" },
   actionGroup: { display: "flex", gap: "8px", alignItems: "center" },
   activeBadge: { backgroundColor: "#dcfce7", color: "#166534", padding: "4px 8px", borderRadius: "999px", fontSize: "12px", fontWeight: 800 },
@@ -365,6 +442,9 @@ const styles = {
   incidentTypeBadge: { backgroundColor: "#fef3c7", color: "#92400e", padding: "4px 8px", borderRadius: "999px", fontSize: "12px", fontWeight: 800, whiteSpace: "nowrap" },
   openIncidentBadge: { backgroundColor: "#dcfce7", color: "#166534", padding: "4px 8px", borderRadius: "999px", fontSize: "12px", fontWeight: 800 },
   closedIncidentBadge: { backgroundColor: "#e5e7eb", color: "#374151", padding: "4px 8px", borderRadius: "999px", fontSize: "12px", fontWeight: 800 },
+  draftPayrollBadge: { backgroundColor: "#e5e7eb", color: "#374151", padding: "4px 8px", borderRadius: "999px", fontSize: "12px", fontWeight: 800 },
+  calculatedPayrollBadge: { backgroundColor: "#dbeafe", color: "#1e40af", padding: "4px 8px", borderRadius: "999px", fontSize: "12px", fontWeight: 800 },
+  closedPayrollBadge: { backgroundColor: "#dcfce7", color: "#166534", padding: "4px 8px", borderRadius: "999px", fontSize: "12px", fontWeight: 800 },
   fileButton: { backgroundColor: "#f3f4f6", color: "#111827", border: "1px solid #d1d5db", borderRadius: "8px", padding: "7px 10px", cursor: "pointer", fontWeight: 700 },
   editButton: { backgroundColor: "#111827", color: "#ffffff", border: "1px solid #111827", borderRadius: "8px", padding: "7px 10px", cursor: "pointer", fontWeight: 700 },
   deleteButton: { backgroundColor: "#fee2e2", color: "#991b1b", border: "1px solid #fecaca", borderRadius: "8px", padding: "10px 14px", cursor: "pointer", fontWeight: 800 },
@@ -382,9 +462,13 @@ const styles = {
   summaryBoxStrong: { border: "1px solid #e6d85c", borderRadius: "10px", padding: "12px", backgroundColor: "#fefce8", display: "flex", flexDirection: "column", gap: "4px" },
   summaryLabel: { fontSize: "12px", color: "#6b7280", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.04em" },
   sectionHeader: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px", margin: "8px 0 12px", paddingTop: "12px", borderTop: "1px solid #e5e7eb" },
+  sectionHeaderPayrolls: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px", margin: "22px 0 12px", paddingTop: "16px", borderTop: "2px solid #111827" },
   sectionHeaderIncidents: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px", margin: "22px 0 12px", paddingTop: "16px", borderTop: "2px solid #111827" },
   sectionTitle: { margin: 0, fontSize: "16px", fontWeight: 900, color: "#111827" },
+  headerBadges: { display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" },
   contractCount: { backgroundColor: "#fef9c3", color: "#713f12", border: "1px solid #e6d85c", borderRadius: "999px", padding: "4px 10px", fontSize: "12px", fontWeight: 900 },
+  payrollCount: { backgroundColor: "#dbeafe", color: "#1e40af", border: "1px solid #93c5fd", borderRadius: "999px", padding: "4px 10px", fontSize: "12px", fontWeight: 900 },
+  netTotalBadge: { backgroundColor: "#fef3c7", color: "#92400e", border: "1px solid #f59e0b", borderRadius: "999px", padding: "4px 10px", fontSize: "12px", fontWeight: 900 },
   incidentCount: { backgroundColor: "#f3f4f6", color: "#111827", border: "1px solid #d1d5db", borderRadius: "999px", padding: "4px 10px", fontSize: "12px", fontWeight: 900 },
   form: { display: "flex", flexDirection: "column", gap: "16px" },
   formRow: { display: "flex", gap: "16px", flexWrap: "wrap" },
