@@ -87,6 +87,15 @@ function calculatePreview(form, contract) {
   };
 }
 
+function AmountPreviewItem({ label, amount }) {
+  return (
+    <div style={styles.previewItem}>
+      <span>{label}</span>
+      <strong>{formatCurrency(amount)}</strong>
+    </div>
+  );
+}
+
 export default function PayrollForm({
   form,
   employees,
@@ -221,10 +230,10 @@ export default function PayrollForm({
       </div>
 
       <div style={styles.previewPanel}>
-        <div><span>Bruto</span><strong>{formatCurrency(preview.grossSalary)}</strong></div>
-        <div><span>Seg. Social</span><strong>{formatCurrency(preview.socialSecurity)}</strong></div>
-        <div><span>IRPF</span><strong>{formatCurrency(preview.irpf)}</strong></div>
-        <div><span>Neto</span><strong>{formatCurrency(preview.netSalary)}</strong></div>
+        <AmountPreviewItem label="Bruto" amount={preview.grossSalary} />
+        <AmountPreviewItem label="Seg. Social" amount={preview.socialSecurity} />
+        <AmountPreviewItem label="IRPF" amount={preview.irpf} />
+        <AmountPreviewItem label="Neto" amount={preview.netSalary} />
       </div>
 
       {form.employee_id && availableContracts.length === 0 && <div style={styles.warning}>Este trabajador no tiene contratos disponibles.</div>}
@@ -250,7 +259,8 @@ const styles = {
   input: { padding: "10px 12px", border: "1px solid #ccc", borderRadius: "8px", fontSize: "14px" },
   readOnlyInput: { backgroundColor: "#f3f4f6", color: "#6b7280", cursor: "not-allowed", fontWeight: 700 },
   calculationInfo: { display: "grid", gridTemplateColumns: "repeat(4, minmax(140px, 1fr))", gap: "10px", border: "1px solid #e6d85c", borderRadius: "10px", backgroundColor: "#fefce8", padding: "10px" },
-  previewPanel: { display: "grid", gridTemplateColumns: "repeat(4, minmax(110px, 1fr))", gap: "8px", border: "1px solid #e5e7eb", borderRadius: "10px", backgroundColor: "#f9fafb", padding: "10px" },
+  previewPanel: { display: "grid", gridTemplateColumns: "repeat(4, minmax(110px, 1fr))", gap: "14px", border: "1px solid #e5e7eb", borderRadius: "10px", backgroundColor: "#f9fafb", padding: "10px 14px" },
+  previewItem: { display: "flex", justifyContent: "center", alignItems: "baseline", gap: "8px", minWidth: 0 },
   totalSupplementsBox: { flex: 1, minWidth: "220px", border: "1px solid #e5e7eb", borderRadius: "10px", backgroundColor: "#f9fafb", padding: "10px 12px", display: "flex", justifyContent: "space-between", alignItems: "center", fontWeight: 800 },
   button: { backgroundColor: "#111827", color: "white", border: "none", borderRadius: "8px", padding: "12px 18px", fontSize: "14px", cursor: "pointer", width: "fit-content", fontWeight: 800 },
   error: { backgroundColor: "#fee2e2", color: "#991b1b", padding: "10px 12px", borderRadius: "8px" },
