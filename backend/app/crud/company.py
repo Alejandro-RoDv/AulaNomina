@@ -1,6 +1,7 @@
 from sqlalchemy.orm import Session
 
 from app.models.company import Company
+from app.models.contract import Contract
 from app.schemas.company import CompanyCreate, CompanyUpdate
 
 
@@ -52,7 +53,7 @@ def soft_delete_company(db: Session, company_id: int):
     if not db_company:
         return None
 
-    db_company.is_active = False
+    db.query(Contract).filter(Contract.company_id == company_id).delete(synchronize_session=False)
+    db.delete(db_company)
     db.commit()
-    db.refresh(db_company)
     return db_company
