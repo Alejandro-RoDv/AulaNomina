@@ -125,7 +125,7 @@ export default function IncidentTable({
         <table style={styles.table}>
           <thead>
             <tr>
-              <th style={styles.thEmployeeCode}>Código trabajador</th>
+              <th style={styles.thEmployeeCode}>Código trab.</th>
               <th style={styles.th}>Trabajador</th>
               <th style={styles.th}>Empresa</th>
               <th style={styles.th}>Contrato</th>
@@ -319,7 +319,7 @@ const styles = {
   tableWrapper: { overflowX: "hidden", width: "100%" },
   table: { width: "100%", borderCollapse: "collapse", tableLayout: "fixed" },
   th: { textAlign: "left", padding: "12px 10px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" },
-  thEmployeeCode: { width: "132px", textAlign: "left", padding: "12px 10px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb" },
+  thEmployeeCode: { width: "82px", textAlign: "left", padding: "12px 10px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb" },
   thDate: { width: "96px", textAlign: "left", padding: "12px 10px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb" },
   thStatus: { width: "88px", textAlign: "left", padding: "12px 10px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb" },
   thActions: { width: "92px", textAlign: "left", padding: "12px 10px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb" },
