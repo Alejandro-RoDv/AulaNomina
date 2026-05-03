@@ -25,7 +25,8 @@ export default function Sidebar({ activePage, setActivePage }) {
     {
       title: "Seg. Social",
       items: [
-        { id: "incidents", label: "Altas y bajas", enabled: false },
+        { id: "incidents", label: "Incidencias", enabled: true },
+        { id: "affiliations", label: "Altas y bajas", enabled: false },
         { id: "variations", label: "Variaciones", enabled: false },
         { id: "communications", label: "Comunicados", enabled: false },
       ],
