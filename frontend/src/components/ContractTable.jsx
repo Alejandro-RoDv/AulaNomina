@@ -190,12 +190,7 @@ export default function ContractTable({
               <div style={styles.formRow}>
                 <div style={styles.formGroup}>
                   <label>Empleado</label>
-                  <input
-                    value={getEmployeeName(editingContract)}
-                    readOnly
-                    disabled
-                    style={{ ...styles.input, ...styles.readOnlyInput }}
-                  />
+                  <input value={getEmployeeName(editingContract)} readOnly disabled style={{ ...styles.input, ...styles.readOnlyInput }} />
                   <small style={styles.helpText}>El trabajador no se puede modificar desde la edición del contrato.</small>
                 </div>
 
@@ -250,23 +245,18 @@ export default function ContractTable({
                 </div>
               </div>
 
-              <div style={styles.dangerZone}>
-                <div>
-                  <strong>Zona de eliminación</strong>
-                  <p style={styles.dangerText}>Eliminar un contrato lo ocultará del listado operativo.</p>
-                </div>
+              {editError && <div style={styles.error}>{editError}</div>}
+
+              <div style={styles.modalActionsSplit}>
                 <button type="button" onClick={() => openDeleteModal(editingContract)} style={styles.deleteButton}>
                   Eliminar contrato
                 </button>
-              </div>
-
-              {editError && <div style={styles.error}>{editError}</div>}
-
-              <div style={styles.modalActions}>
-                <button type="button" onClick={closeEditModal} style={styles.cancelButton}>Cancelar</button>
-                <button type="submit" disabled={submitting} style={styles.saveButton}>
-                  {submitting ? "Guardando..." : "Guardar cambios"}
-                </button>
+                <div style={styles.modalActionsRight}>
+                  <button type="button" onClick={closeEditModal} style={styles.cancelButton}>Cancelar</button>
+                  <button type="submit" disabled={submitting} style={styles.saveButton}>
+                    {submitting ? "Guardando..." : "Guardar cambios"}
+                  </button>
+                </div>
               </div>
             </form>
           </div>
@@ -279,7 +269,7 @@ export default function ContractTable({
             <div style={styles.modalHeader}>
               <div>
                 <h3 style={styles.modalTitle}>Eliminar contrato</h3>
-                <p style={styles.modalSubtitle}>Esta acción marcará el contrato como eliminado.</p>
+                <p style={styles.modalSubtitle}>Esta acción eliminará definitivamente el contrato.</p>
               </div>
               <button type="button" onClick={closeDeleteModal} style={styles.closeButton}>×</button>
             </div>
@@ -304,96 +294,18 @@ export default function ContractTable({
 }
 
 const styles = {
-  tableWrapper: {
-    overflowX: "auto",
-  },
-  table: {
-    width: "100%",
-    borderCollapse: "collapse",
-  },
-  th: {
-    textAlign: "left",
-    padding: "12px",
-    borderBottom: "1px solid #ddd",
-    backgroundColor: "#f9fafb",
-    whiteSpace: "nowrap",
-  },
-  td: {
-    padding: "12px",
-    borderBottom: "1px solid #eee",
-    whiteSpace: "nowrap",
-  },
-  activeBadge: {
-    backgroundColor: "#dcfce7",
-    color: "#166534",
-    padding: "4px 8px",
-    borderRadius: "999px",
-    fontSize: "12px",
-    fontWeight: 800,
-  },
-  inactiveBadge: {
-    backgroundColor: "#fee2e2",
-    color: "#991b1b",
-    padding: "4px 8px",
-    borderRadius: "999px",
-    fontSize: "12px",
-    fontWeight: 800,
-  },
-  editButton: {
-    backgroundColor: "#111827",
-    color: "#ffffff",
-    border: "1px solid #111827",
-    borderRadius: "8px",
-    padding: "7px 10px",
-    cursor: "pointer",
-    fontWeight: 700,
-  },
-  deleteButton: {
-    backgroundColor: "#fee2e2",
-    color: "#991b1b",
-    border: "1px solid #fecaca",
-    borderRadius: "8px",
-    padding: "8px 12px",
-    cursor: "pointer",
-    fontWeight: 800,
-  },
-  modalBackdrop: {
-    position: "fixed",
-    inset: 0,
-    backgroundColor: "rgba(17, 24, 39, 0.55)",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    zIndex: 50,
-    padding: "24px",
-  },
-  modal: {
-    width: "min(920px, 100%)",
-    maxHeight: "90vh",
-    overflowY: "auto",
-    backgroundColor: "#ffffff",
-    border: "3px solid #111111",
-    borderRadius: "12px",
-    boxShadow: "8px 8px 0 #e6d85c",
-    padding: "22px",
-  },
-  confirmModal: {
-    width: "min(560px, 100%)",
-    backgroundColor: "#ffffff",
-    border: "3px solid #111111",
-    borderRadius: "12px",
-    boxShadow: "8px 8px 0 #e6d85c",
-    padding: "22px",
-  },
-  modalHeader: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "start",
-    gap: "16px",
-    marginBottom: "18px",
-    borderBottom: "1px solid #e5e7eb",
-    paddingBottom: "14px",
-  },
+  tableWrapper: { overflowX: "auto" },
+  table: { width: "100%", borderCollapse: "collapse" },
+  th: { textAlign: "left", padding: "12px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb", whiteSpace: "nowrap" },
+  td: { padding: "12px", borderBottom: "1px solid #eee", whiteSpace: "nowrap" },
+  activeBadge: { backgroundColor: "#dcfce7", color: "#166534", padding: "4px 8px", borderRadius: "999px", fontSize: "12px", fontWeight: 800 },
+  inactiveBadge: { backgroundColor: "#fee2e2", color: "#991b1b", padding: "4px 8px", borderRadius: "999px", fontSize: "12px", fontWeight: 800 },
+  editButton: { backgroundColor: "#111827", color: "#ffffff", border: "1px solid #111827", borderRadius: "8px", padding: "7px 10px", cursor: "pointer", fontWeight: 700 },
+  deleteButton: { backgroundColor: "#fee2e2", color: "#991b1b", border: "1px solid #fecaca", borderRadius: "8px", padding: "10px 14px", cursor: "pointer", fontWeight: 800 },
+  modalBackdrop: { position: "fixed", inset: 0, backgroundColor: "rgba(17, 24, 39, 0.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, padding: "24px" },
+  modal: { width: "min(920px, 100%)", maxHeight: "90vh", overflowY: "auto", backgroundColor: "#ffffff", border: "3px solid #111111", borderRadius: "12px", boxShadow: "8px 8px 0 #e6d85c", padding: "22px" },
+  confirmModal: { width: "min(560px, 100%)", backgroundColor: "#ffffff", border: "3px solid #111111", borderRadius: "12px", boxShadow: "8px 8px 0 #e6d85c", padding: "22px" },
+  modalHeader: { display: "flex", justifyContent: "space-between", alignItems: "start", gap: "16px", marginBottom: "18px", borderBottom: "1px solid #e5e7eb", paddingBottom: "14px" },
   modalTitle: { margin: 0, fontSize: "20px", fontWeight: 900, color: "#111827" },
   modalSubtitle: { margin: "4px 0 0", color: "#6b7280", fontSize: "13px", fontWeight: 700 },
   closeButton: { border: "none", backgroundColor: "transparent", fontSize: "28px", lineHeight: 1, cursor: "pointer", color: "#111827" },
@@ -403,11 +315,11 @@ const styles = {
   input: { padding: "10px 12px", border: "1px solid #ccc", borderRadius: "8px", fontSize: "14px" },
   readOnlyInput: { backgroundColor: "#f3f4f6", color: "#6b7280", cursor: "not-allowed", fontWeight: 800 },
   helpText: { color: "#6b7280", fontSize: "12px", fontWeight: 700 },
-  dangerZone: { border: "1px solid #fecaca", backgroundColor: "#fef2f2", borderRadius: "10px", padding: "12px", display: "flex", justifyContent: "space-between", gap: "12px", alignItems: "center" },
-  dangerText: { margin: "4px 0 0", color: "#7f1d1d", fontSize: "13px" },
   confirmText: { margin: "0 0 16px", color: "#374151", lineHeight: 1.5 },
   error: { backgroundColor: "#fee2e2", color: "#991b1b", padding: "10px 12px", borderRadius: "8px" },
   modalActions: { display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "6px" },
+  modalActionsSplit: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: "10px", marginTop: "6px" },
+  modalActionsRight: { display: "flex", justifyContent: "flex-end", gap: "10px" },
   cancelButton: { backgroundColor: "#f3f4f6", color: "#111827", border: "1px solid #d1d5db", borderRadius: "8px", padding: "10px 14px", cursor: "pointer", fontWeight: 800 },
   saveButton: { backgroundColor: "#111827", color: "#ffffff", border: "1px solid #111827", borderRadius: "8px", padding: "10px 14px", cursor: "pointer", fontWeight: 800 },
   dangerButton: { backgroundColor: "#991b1b", color: "#ffffff", border: "1px solid #991b1b", borderRadius: "8px", padding: "10px 14px", cursor: "pointer", fontWeight: 900 },
