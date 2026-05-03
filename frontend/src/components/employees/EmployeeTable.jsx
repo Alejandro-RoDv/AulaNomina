@@ -58,11 +58,21 @@ function formatSalary(value) {
   }).format(Number(value));
 }
 
-export default function EmployeeTable({ loading, employees, companies, contracts, onUpdateEmployee, submitting }) {
+export default function EmployeeTable({
+  loading,
+  employees,
+  companies,
+  contracts,
+  onUpdateEmployee,
+  onDeleteEmployee,
+  submitting,
+}) {
   const [editingEmployee, setEditingEmployee] = useState(null);
   const [selectedFileEmployee, setSelectedFileEmployee] = useState(null);
+  const [employeeToDelete, setEmployeeToDelete] = useState(null);
   const [editForm, setEditForm] = useState(emptyEditForm);
   const [editError, setEditError] = useState("");
+  const [deleteError, setDeleteError] = useState("");
 
   const companyMap = useMemo(() => {
     return companies.reduce((acc, company) => {
@@ -91,6 +101,16 @@ export default function EmployeeTable({ loading, employees, companies, contracts
 
   const closeFileModal = () => {
     setSelectedFileEmployee(null);
+  };
+
+  const openDeleteModal = (employee) => {
+    setEmployeeToDelete(employee);
+    setDeleteError("");
+  };
+
+  const closeDeleteModal = () => {
+    setEmployeeToDelete(null);
+    setDeleteError("");
   };
 
   const getEmployeeContracts = (employeeId) => {
@@ -131,6 +151,17 @@ export default function EmployeeTable({ loading, employees, companies, contracts
       closeEditModal();
     } catch (err) {
       setEditError(err.message || "Error al actualizar trabajador");
+    }
+  };
+
+  const handleConfirmDelete = async () => {
+    setDeleteError("");
+
+    try {
+      await onDeleteEmployee(employeeToDelete.id);
+      closeDeleteModal();
+    } catch (err) {
+      setDeleteError(err.message || "Error al desactivar trabajador");
     }
   };
 
@@ -190,6 +221,13 @@ export default function EmployeeTable({ loading, employees, companies, contracts
                         onClick={() => openEditModal(employee)}
                       >
                         Editar
+                      </button>
+                      <button
+                        type="button"
+                        style={styles.deleteButton}
+                        onClick={() => openDeleteModal(employee)}
+                      >
+                        Eliminar
                       </button>
                     </div>
                   </td>
@@ -400,6 +438,35 @@ export default function EmployeeTable({ loading, employees, companies, contracts
           </div>
         </div>
       )}
+
+      {employeeToDelete && (
+        <div style={styles.modalBackdrop}>
+          <div style={styles.confirmModal}>
+            <div style={styles.modalHeader}>
+              <div>
+                <h3 style={styles.modalTitle}>Eliminar trabajador</h3>
+                <p style={styles.modalSubtitle}>Esta acción desactivará al trabajador.</p>
+              </div>
+              <button type="button" onClick={closeDeleteModal} style={styles.closeButton}>×</button>
+            </div>
+
+            <p style={styles.confirmText}>
+              ¿Seguro que quieres eliminar/desactivar a {employeeToDelete.first_name} {employeeToDelete.last_name}?
+            </p>
+
+            {deleteError && <div style={styles.error}>{deleteError}</div>}
+
+            <div style={styles.modalActions}>
+              <button type="button" onClick={closeDeleteModal} style={styles.cancelButton}>
+                Cancelar
+              </button>
+              <button type="button" onClick={handleConfirmDelete} disabled={submitting} style={styles.dangerButton}>
+                {submitting ? "Eliminando..." : "Confirmar eliminación"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
@@ -415,9 +482,11 @@ const styles = {
   inactiveBadge: { backgroundColor: "#fee2e2", color: "#991b1b", padding: "4px 8px", borderRadius: "999px", fontSize: "12px", fontWeight: 800 },
   fileButton: { backgroundColor: "#f3f4f6", color: "#111827", border: "1px solid #d1d5db", borderRadius: "8px", padding: "7px 10px", cursor: "pointer", fontWeight: 700 },
   editButton: { backgroundColor: "#111827", color: "#ffffff", border: "1px solid #111827", borderRadius: "8px", padding: "7px 10px", cursor: "pointer", fontWeight: 700 },
+  deleteButton: { backgroundColor: "#fee2e2", color: "#991b1b", border: "1px solid #fecaca", borderRadius: "8px", padding: "7px 10px", cursor: "pointer", fontWeight: 800 },
   modalBackdrop: { position: "fixed", inset: 0, backgroundColor: "rgba(17, 24, 39, 0.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, padding: "24px" },
   modal: { width: "min(920px, 100%)", maxHeight: "90vh", overflowY: "auto", backgroundColor: "#ffffff", border: "3px solid #111111", borderRadius: "12px", boxShadow: "8px 8px 0 #e6d85c", padding: "22px" },
   modalLarge: { width: "min(1060px, 100%)", maxHeight: "90vh", overflowY: "auto", backgroundColor: "#ffffff", border: "3px solid #111111", borderRadius: "12px", boxShadow: "8px 8px 0 #e6d85c", padding: "22px" },
+  confirmModal: { width: "min(560px, 100%)", backgroundColor: "#ffffff", border: "3px solid #111111", borderRadius: "12px", boxShadow: "8px 8px 0 #e6d85c", padding: "22px" },
   modalHeader: { display: "flex", justifyContent: "space-between", alignItems: "start", gap: "16px", marginBottom: "18px", borderBottom: "1px solid #e5e7eb", paddingBottom: "14px" },
   modalTitle: { margin: 0, fontSize: "20px", fontWeight: 900, color: "#111827" },
   modalSubtitle: { margin: "4px 0 0", color: "#6b7280", fontSize: "13px", fontWeight: 700 },
@@ -440,8 +509,10 @@ const styles = {
   input: { padding: "10px 12px", border: "1px solid #ccc", borderRadius: "8px", fontSize: "14px" },
   readOnlyInput: { backgroundColor: "#f3f4f6", color: "#6b7280", cursor: "not-allowed", fontWeight: 800 },
   checkboxLabel: { display: "flex", alignItems: "center", gap: "8px", fontWeight: 700 },
+  confirmText: { margin: "0 0 16px", color: "#374151", lineHeight: 1.5 },
   error: { backgroundColor: "#fee2e2", color: "#991b1b", padding: "10px 12px", borderRadius: "8px" },
   modalActions: { display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "6px" },
   cancelButton: { backgroundColor: "#f3f4f6", color: "#111827", border: "1px solid #d1d5db", borderRadius: "8px", padding: "10px 14px", cursor: "pointer", fontWeight: 800 },
   saveButton: { backgroundColor: "#111827", color: "#ffffff", border: "1px solid #111827", borderRadius: "8px", padding: "10px 14px", cursor: "pointer", fontWeight: 800 },
+  dangerButton: { backgroundColor: "#991b1b", color: "#ffffff", border: "1px solid #991b1b", borderRadius: "8px", padding: "10px 14px", cursor: "pointer", fontWeight: 900 },
 };
