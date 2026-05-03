@@ -17,6 +17,11 @@ function dateToNumber(value) {
   return Number(String(value).replaceAll("-", ""));
 }
 
+function buildContractDisplayCode(contract) {
+  if (!contract) return "-";
+  return contract.contract_display_code || contract.display_code || contract.code || String(contract.id);
+}
+
 export default function IncidentsPage({
   loading,
   incidents,
@@ -40,6 +45,23 @@ export default function IncidentsPage({
     dateFrom: "",
     dateTo: "",
   });
+
+  const incidentsWithContractData = useMemo(() => {
+    const contractMap = contracts.reduce((acc, contract) => {
+      acc[String(contract.id)] = contract;
+      return acc;
+    }, {});
+
+    return incidents.map((incident) => {
+      const linkedContract = contractMap[String(incident.contract_id)];
+
+      return {
+        ...incident,
+        contract_display_code: buildContractDisplayCode(linkedContract),
+        contract_type: incident.contract_type || linkedContract?.contract_type || "-",
+      };
+    });
+  }, [incidents, contracts]);
 
   const handleFilterChange = (event) => {
     const { name, value } = event.target;
@@ -65,7 +87,7 @@ export default function IncidentsPage({
     const fromDate = dateToNumber(filters.dateFrom);
     const toDate = dateToNumber(filters.dateTo);
 
-    return incidents.filter((incident) => {
+    return incidentsWithContractData.filter((incident) => {
       const employeeText = normalizeText(`${incident.employee_name || ""} ${incident.employee_id || ""}`);
       const companyText = normalizeText(`${incident.company_name || ""} ${incident.company_id || ""}`);
       const typeText = normalizeText(incident.incident_type);
@@ -82,7 +104,7 @@ export default function IncidentsPage({
 
       return matchesEmployee && matchesCompany && matchesType && matchesStatus && matchesFromDate && matchesToDate;
     });
-  }, [incidents, filters]);
+  }, [incidentsWithContractData, filters]);
 
   return (
     <div style={styles.wrapper}>
@@ -177,7 +199,7 @@ export default function IncidentsPage({
         </div>
 
         <div style={styles.resultInfo}>
-          Mostrando {filteredIncidents.length} de {incidents.length} incidencias
+          Mostrando {filteredIncidents.length} de {incidentsWithContractData.length} incidencias
         </div>
 
         <IncidentTable
