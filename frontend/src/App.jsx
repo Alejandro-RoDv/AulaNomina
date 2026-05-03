@@ -621,6 +621,7 @@ export default function App() {
           companies={companies.filter((company) => company.is_active)}
           contracts={contracts}
           incidents={incidents}
+          payrolls={payrolls}
           employeeForm={employeeForm}
           onEmployeeChange={handleEmployeeChange}
           onEmployeeSubmit={handleEmployeeSubmit}
