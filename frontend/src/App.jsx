@@ -7,10 +7,12 @@ import Dashboard from "./pages/Dashboard";
 import CompaniesPage from "./pages/CompaniesPage";
 import ContractsPage from "./pages/ContractsPage";
 import EmployeesPage from "./pages/EmployeesPage";
+import IncidentsPage from "./pages/IncidentsPage";
 
 import { createContract, deleteContract, fetchContracts, updateContract } from "./services/api";
 import { createCompany, deleteCompany, fetchCompanies, updateCompany } from "./services/companyApi";
 import { createEmployee, deleteEmployee, fetchAllEmployees, fetchNextEmployeeCode, updateEmployee } from "./services/employeeApi";
+import { createIncident, deleteIncident, fetchIncidents, updateIncident } from "./services/incidentApi";
 
 const initialContractForm = {
   employee_id: "",
@@ -44,6 +46,17 @@ const initialEmployeeForm = {
   city: "",
   province: "",
   postal_code: "",
+};
+
+const initialIncidentForm = {
+  employee_id: "",
+  contract_id: "",
+  company_id: "",
+  incident_type: "",
+  start_date: "",
+  end_date: "",
+  description: "",
+  status: "open",
 };
 
 function buildEmployeePayload(form) {
@@ -83,18 +96,43 @@ function buildContractPayload(form) {
   };
 }
 
+function buildIncidentPayload(form) {
+  return {
+    employee_id: Number(form.employee_id),
+    contract_id: Number(form.contract_id),
+    company_id: Number(form.company_id),
+    incident_type: form.incident_type,
+    start_date: form.start_date,
+    end_date: form.end_date || null,
+    description: form.description || null,
+    status: form.status,
+  };
+}
+
+function buildIncidentUpdatePayload(form) {
+  return {
+    incident_type: form.incident_type,
+    start_date: form.start_date,
+    end_date: form.end_date || null,
+    description: form.description || null,
+    status: form.status,
+  };
+}
+
 export default function App() {
   const [activePage, setActivePage] = useState("dashboard");
 
   const [contracts, setContracts] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [companies, setCompanies] = useState([]);
+  const [incidents, setIncidents] = useState([]);
 
   const [loading, setLoading] = useState(true);
 
   const [contractSubmitting, setContractSubmitting] = useState(false);
   const [companySubmitting, setCompanySubmitting] = useState(false);
   const [employeeSubmitting, setEmployeeSubmitting] = useState(false);
+  const [incidentSubmitting, setIncidentSubmitting] = useState(false);
 
   const [contractError, setContractError] = useState("");
   const [contractSuccess, setContractSuccess] = useState("");
@@ -105,9 +143,13 @@ export default function App() {
   const [employeeError, setEmployeeError] = useState("");
   const [employeeSuccess, setEmployeeSuccess] = useState("");
 
+  const [incidentError, setIncidentError] = useState("");
+  const [incidentSuccess, setIncidentSuccess] = useState("");
+
   const [contractForm, setContractForm] = useState(initialContractForm);
   const [companyForm, setCompanyForm] = useState(initialCompanyForm);
   const [employeeForm, setEmployeeForm] = useState(initialEmployeeForm);
+  const [incidentForm, setIncidentForm] = useState(initialIncidentForm);
 
   const loadNextEmployeeCode = async () => {
     const data = await fetchNextEmployeeCode();
@@ -118,21 +160,24 @@ export default function App() {
     try {
       setLoading(true);
 
-      const [contractsData, employeesData, companiesData, nextEmployeeCodeData] = await Promise.all([
+      const [contractsData, employeesData, companiesData, incidentsData, nextEmployeeCodeData] = await Promise.all([
         fetchContracts(),
         fetchAllEmployees(),
         fetchCompanies(),
+        fetchIncidents(),
         fetchNextEmployeeCode(),
       ]);
 
       setContracts(contractsData);
       setEmployees(employeesData);
       setCompanies(companiesData);
+      setIncidents(incidentsData);
       setEmployeeForm((prev) => ({ ...prev, employee_code: nextEmployeeCodeData.employee_code }));
     } catch {
       setContractError("Error cargando datos");
       setCompanyError("Error cargando datos");
       setEmployeeError("Error cargando datos");
+      setIncidentError("Error cargando datos");
     } finally {
       setLoading(false);
     }
@@ -155,6 +200,32 @@ export default function App() {
   const handleEmployeeChange = (event) => {
     const { name, value } = event.target;
     setEmployeeForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleIncidentChange = (event) => {
+    const { name, value } = event.target;
+
+    setIncidentForm((prev) => {
+      if (name === "employee_id") {
+        return {
+          ...prev,
+          employee_id: value,
+          contract_id: "",
+          company_id: "",
+        };
+      }
+
+      if (name === "contract_id") {
+        const selectedContract = contracts.find((contract) => String(contract.id) === String(value));
+        return {
+          ...prev,
+          contract_id: value,
+          company_id: selectedContract?.company_id ? String(selectedContract.company_id) : "",
+        };
+      }
+
+      return { ...prev, [name]: value };
+    });
   };
 
   const handleContractSubmit = async (event) => {
@@ -314,11 +385,64 @@ export default function App() {
     }
   };
 
+  const handleIncidentSubmit = async (event) => {
+    event.preventDefault();
+    setIncidentError("");
+    setIncidentSuccess("");
+
+    try {
+      setIncidentSubmitting(true);
+      await createIncident(buildIncidentPayload(incidentForm));
+      setIncidentSuccess("Incidencia creada correctamente");
+      setIncidentForm(initialIncidentForm);
+      await loadData();
+    } catch (err) {
+      setIncidentError(err.message || "Error al crear incidencia");
+    } finally {
+      setIncidentSubmitting(false);
+    }
+  };
+
+  const handleUpdateIncident = async (incidentId, form) => {
+    setIncidentError("");
+    setIncidentSuccess("");
+
+    try {
+      setIncidentSubmitting(true);
+      await updateIncident(incidentId, buildIncidentUpdatePayload(form));
+      setIncidentSuccess("Incidencia actualizada correctamente");
+      await loadData();
+    } catch (err) {
+      setIncidentError(err.message || "Error al actualizar incidencia");
+      throw err;
+    } finally {
+      setIncidentSubmitting(false);
+    }
+  };
+
+  const handleDeleteIncident = async (incidentId) => {
+    setIncidentError("");
+    setIncidentSuccess("");
+
+    try {
+      setIncidentSubmitting(true);
+      await deleteIncident(incidentId);
+      setIncidentSuccess("Incidencia eliminada correctamente");
+      await loadData();
+    } catch (err) {
+      setIncidentError(err.message || "Error al eliminar incidencia");
+      throw err;
+    } finally {
+      setIncidentSubmitting(false);
+    }
+  };
+
   function getTitle() {
     if (activePage === "dashboard") return "Dashboard";
     if (activePage === "companies") return "Empresas / Centros";
     if (activePage === "employees") return "Trabajadores";
     if (activePage === "contracts") return "Contratos";
+    if (activePage === "incidents") return "Incidencias laborales";
     return "AulaNomina";
   }
 
@@ -327,6 +451,7 @@ export default function App() {
     if (activePage === "companies") return "Gestión de empresas y centros";
     if (activePage === "employees") return "Gestión de trabajadores";
     if (activePage === "contracts") return "Gestión de contratos laborales";
+    if (activePage === "incidents") return "Gestión de IT, recaídas, vacaciones, ausencias y permisos";
     return "";
   }
 
@@ -386,6 +511,26 @@ export default function App() {
           contractError={contractError}
           contractSuccess={contractSuccess}
           contractSubmitting={contractSubmitting}
+        />
+      );
+    }
+
+    if (activePage === "incidents") {
+      return (
+        <IncidentsPage
+          loading={loading}
+          incidents={incidents}
+          employees={employees.filter((employee) => employee.is_active)}
+          contracts={contracts}
+          companies={companies.filter((company) => company.is_active)}
+          incidentForm={incidentForm}
+          onIncidentChange={handleIncidentChange}
+          onIncidentSubmit={handleIncidentSubmit}
+          onUpdateIncident={handleUpdateIncident}
+          onDeleteIncident={handleDeleteIncident}
+          incidentError={incidentError}
+          incidentSuccess={incidentSuccess}
+          incidentSubmitting={incidentSubmitting}
         />
       );
     }
