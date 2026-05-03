@@ -8,11 +8,16 @@ import CompaniesPage from "./pages/CompaniesPage";
 import ContractsPage from "./pages/ContractsPage";
 import EmployeesPage from "./pages/EmployeesPage";
 import IncidentsPage from "./pages/IncidentsPage";
+import PayrollsPage from "./pages/PayrollsPage";
 
 import { createContract, deleteContract, fetchContracts, updateContract } from "./services/api";
 import { createCompany, deleteCompany, fetchCompanies, updateCompany } from "./services/companyApi";
 import { createEmployee, deleteEmployee, fetchAllEmployees, fetchNextEmployeeCode, updateEmployee } from "./services/employeeApi";
 import { createIncident, deleteIncident, fetchIncidents, updateIncident } from "./services/incidentApi";
+import { createPayroll, deletePayroll, fetchPayrolls, updatePayroll } from "./services/payrollApi";
+
+const currentYear = new Date().getFullYear();
+const currentMonth = new Date().getMonth() + 1;
 
 const initialContractForm = {
   employee_id: "",
@@ -57,6 +62,19 @@ const initialIncidentForm = {
   end_date: "",
   description: "",
   status: "open",
+};
+
+const initialPayrollForm = {
+  employee_id: "",
+  contract_id: "",
+  company_id: "",
+  period_month: String(currentMonth),
+  period_year: String(currentYear),
+  base_salary: "",
+  salary_supplements: "0",
+  extra_pay_proration: "0",
+  irpf_percentage: "10",
+  status: "draft",
 };
 
 function buildEmployeePayload(form) {
@@ -119,6 +137,33 @@ function buildIncidentUpdatePayload(form) {
   };
 }
 
+function buildPayrollPayload(form) {
+  return {
+    employee_id: Number(form.employee_id),
+    contract_id: Number(form.contract_id),
+    company_id: form.company_id ? Number(form.company_id) : null,
+    period_month: Number(form.period_month),
+    period_year: Number(form.period_year),
+    base_salary: form.base_salary ? Number(form.base_salary) : 0,
+    salary_supplements: form.salary_supplements ? Number(form.salary_supplements) : 0,
+    extra_pay_proration: form.extra_pay_proration ? Number(form.extra_pay_proration) : 0,
+    irpf_percentage: form.irpf_percentage ? Number(form.irpf_percentage) : 10,
+    status: form.status,
+  };
+}
+
+function buildPayrollUpdatePayload(form) {
+  return {
+    period_month: Number(form.period_month),
+    period_year: Number(form.period_year),
+    base_salary: form.base_salary ? Number(form.base_salary) : 0,
+    salary_supplements: form.salary_supplements ? Number(form.salary_supplements) : 0,
+    extra_pay_proration: form.extra_pay_proration ? Number(form.extra_pay_proration) : 0,
+    irpf_percentage: form.irpf_percentage ? Number(form.irpf_percentage) : 10,
+    status: form.status,
+  };
+}
+
 export default function App() {
   const [activePage, setActivePage] = useState("dashboard");
 
@@ -126,6 +171,7 @@ export default function App() {
   const [employees, setEmployees] = useState([]);
   const [companies, setCompanies] = useState([]);
   const [incidents, setIncidents] = useState([]);
+  const [payrolls, setPayrolls] = useState([]);
 
   const [loading, setLoading] = useState(true);
 
@@ -133,6 +179,7 @@ export default function App() {
   const [companySubmitting, setCompanySubmitting] = useState(false);
   const [employeeSubmitting, setEmployeeSubmitting] = useState(false);
   const [incidentSubmitting, setIncidentSubmitting] = useState(false);
+  const [payrollSubmitting, setPayrollSubmitting] = useState(false);
 
   const [contractError, setContractError] = useState("");
   const [contractSuccess, setContractSuccess] = useState("");
@@ -146,10 +193,14 @@ export default function App() {
   const [incidentError, setIncidentError] = useState("");
   const [incidentSuccess, setIncidentSuccess] = useState("");
 
+  const [payrollError, setPayrollError] = useState("");
+  const [payrollSuccess, setPayrollSuccess] = useState("");
+
   const [contractForm, setContractForm] = useState(initialContractForm);
   const [companyForm, setCompanyForm] = useState(initialCompanyForm);
   const [employeeForm, setEmployeeForm] = useState(initialEmployeeForm);
   const [incidentForm, setIncidentForm] = useState(initialIncidentForm);
+  const [payrollForm, setPayrollForm] = useState(initialPayrollForm);
 
   const loadNextEmployeeCode = async () => {
     const data = await fetchNextEmployeeCode();
@@ -160,11 +211,12 @@ export default function App() {
     try {
       setLoading(true);
 
-      const [contractsData, employeesData, companiesData, incidentsData, nextEmployeeCodeData] = await Promise.all([
+      const [contractsData, employeesData, companiesData, incidentsData, payrollsData, nextEmployeeCodeData] = await Promise.all([
         fetchContracts(),
         fetchAllEmployees(),
         fetchCompanies(),
         fetchIncidents(),
+        fetchPayrolls(),
         fetchNextEmployeeCode(),
       ]);
 
@@ -172,12 +224,14 @@ export default function App() {
       setEmployees(employeesData);
       setCompanies(companiesData);
       setIncidents(incidentsData);
+      setPayrolls(payrollsData);
       setEmployeeForm((prev) => ({ ...prev, employee_code: nextEmployeeCodeData.employee_code }));
     } catch {
       setContractError("Error cargando datos");
       setCompanyError("Error cargando datos");
       setEmployeeError("Error cargando datos");
       setIncidentError("Error cargando datos");
+      setPayrollError("Error cargando datos");
     } finally {
       setLoading(false);
     }
@@ -221,6 +275,34 @@ export default function App() {
           ...prev,
           contract_id: value,
           company_id: selectedContract?.company_id ? String(selectedContract.company_id) : "",
+        };
+      }
+
+      return { ...prev, [name]: value };
+    });
+  };
+
+  const handlePayrollChange = (event) => {
+    const { name, value } = event.target;
+
+    setPayrollForm((prev) => {
+      if (name === "employee_id") {
+        return {
+          ...prev,
+          employee_id: value,
+          contract_id: "",
+          company_id: "",
+          base_salary: "",
+        };
+      }
+
+      if (name === "contract_id") {
+        const selectedContract = contracts.find((contract) => String(contract.id) === String(value));
+        return {
+          ...prev,
+          contract_id: value,
+          company_id: selectedContract?.company_id ? String(selectedContract.company_id) : "",
+          base_salary: selectedContract?.salary_base ? String(selectedContract.salary_base) : "",
         };
       }
 
@@ -437,11 +519,64 @@ export default function App() {
     }
   };
 
+  const handlePayrollSubmit = async (event) => {
+    event.preventDefault();
+    setPayrollError("");
+    setPayrollSuccess("");
+
+    try {
+      setPayrollSubmitting(true);
+      await createPayroll(buildPayrollPayload(payrollForm));
+      setPayrollSuccess("Nómina generada correctamente");
+      setPayrollForm(initialPayrollForm);
+      await loadData();
+    } catch (err) {
+      setPayrollError(err.message || "Error al generar nómina");
+    } finally {
+      setPayrollSubmitting(false);
+    }
+  };
+
+  const handleUpdatePayroll = async (payrollId, form) => {
+    setPayrollError("");
+    setPayrollSuccess("");
+
+    try {
+      setPayrollSubmitting(true);
+      await updatePayroll(payrollId, buildPayrollUpdatePayload(form));
+      setPayrollSuccess("Nómina actualizada correctamente");
+      await loadData();
+    } catch (err) {
+      setPayrollError(err.message || "Error al actualizar nómina");
+      throw err;
+    } finally {
+      setPayrollSubmitting(false);
+    }
+  };
+
+  const handleDeletePayroll = async (payrollId) => {
+    setPayrollError("");
+    setPayrollSuccess("");
+
+    try {
+      setPayrollSubmitting(true);
+      await deletePayroll(payrollId);
+      setPayrollSuccess("Nómina eliminada correctamente");
+      await loadData();
+    } catch (err) {
+      setPayrollError(err.message || "Error al eliminar nómina");
+      throw err;
+    } finally {
+      setPayrollSubmitting(false);
+    }
+  };
+
   function getTitle() {
     if (activePage === "dashboard") return "Dashboard";
     if (activePage === "companies") return "Empresas / Centros";
     if (activePage === "employees") return "Trabajadores";
     if (activePage === "contracts") return "Contratos";
+    if (activePage === "payrolls") return "Nóminas";
     if (activePage === "incidents") return "Incidencias laborales";
     return "AulaNomina";
   }
@@ -451,6 +586,7 @@ export default function App() {
     if (activePage === "companies") return "Gestión de empresas y centros";
     if (activePage === "employees") return "Gestión de trabajadores";
     if (activePage === "contracts") return "Gestión de contratos laborales";
+    if (activePage === "payrolls") return "Generación y consulta de nóminas simuladas";
     if (activePage === "incidents") return "Gestión de IT, recaídas, vacaciones, ausencias y permisos";
     return "";
   }
@@ -512,6 +648,26 @@ export default function App() {
           contractError={contractError}
           contractSuccess={contractSuccess}
           contractSubmitting={contractSubmitting}
+        />
+      );
+    }
+
+    if (activePage === "payrolls") {
+      return (
+        <PayrollsPage
+          loading={loading}
+          payrolls={payrolls}
+          employees={employees.filter((employee) => employee.is_active)}
+          contracts={contracts}
+          companies={companies.filter((company) => company.is_active)}
+          payrollForm={payrollForm}
+          onPayrollChange={handlePayrollChange}
+          onPayrollSubmit={handlePayrollSubmit}
+          onUpdatePayroll={handleUpdatePayroll}
+          onDeletePayroll={handleDeletePayroll}
+          payrollError={payrollError}
+          payrollSuccess={payrollSuccess}
+          payrollSubmitting={payrollSubmitting}
         />
       );
     }
