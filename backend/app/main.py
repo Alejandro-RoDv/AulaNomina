@@ -29,12 +29,16 @@ from app.crud.contract import (
     soft_delete_contract,
     get_contracts_by_employee,
 )
-from app.schemas.company import CompanyCreate, CompanyResponse
+from app.schemas.company import CompanyCreate, CompanyUpdate, CompanyResponse
 from app.crud.company import (
     create_company,
     get_companies,
     get_companies_all,
+    get_company,
     get_company_by_cif,
+    get_company_by_ccc,
+    update_company,
+    soft_delete_company,
 )
 
 app = FastAPI(title="AulaNomina API")
@@ -186,4 +190,41 @@ def create_company_endpoint(company: CompanyCreate, db: Session = Depends(get_db
     if get_company_by_cif(db, company.cif):
         raise HTTPException(status_code=400, detail="Ya existe una empresa con ese CIF")
 
+    if company.ccc:
+        existing_ccc = get_company_by_ccc(db, company.ccc)
+        if existing_ccc:
+            raise HTTPException(status_code=400, detail="Ya existe una empresa con ese CCC")
+
     return create_company(db, company)
+
+
+@app.put("/companies/{company_id}", response_model=CompanyResponse)
+def update_company_endpoint(
+    company_id: int,
+    company: CompanyUpdate,
+    db: Session = Depends(get_db),
+):
+    current_company = get_company(db, company_id)
+    if not current_company:
+        raise HTTPException(status_code=404, detail="Empresa no encontrada")
+
+    if company.cif:
+        existing = get_company_by_cif(db, company.cif)
+        if existing and existing.id != company_id:
+            raise HTTPException(status_code=400, detail="Ya existe una empresa con ese CIF")
+
+    if company.ccc:
+        existing = get_company_by_ccc(db, company.ccc)
+        if existing and existing.id != company_id:
+            raise HTTPException(status_code=400, detail="Ya existe una empresa con ese CCC")
+
+    return update_company(db, company_id, company)
+
+
+@app.delete("/companies/{company_id}", response_model=CompanyResponse)
+def delete_company_endpoint(company_id: int, db: Session = Depends(get_db)):
+    deleted_company = soft_delete_company(db, company_id)
+    if not deleted_company:
+        raise HTTPException(status_code=404, detail="Empresa no encontrada")
+
+    return deleted_company
