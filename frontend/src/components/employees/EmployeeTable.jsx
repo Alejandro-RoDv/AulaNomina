@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { getEmployeeVisibleCode } from "../../utils/visibleCodes";
 
 const emptyEditForm = {
   employee_code: "",
@@ -116,6 +117,9 @@ export default function EmployeeTable({
 
   if (loading) return <p>Cargando...</p>;
 
+  const getEmployeeCode = (employee) =>
+  getEmployeeVisibleCode(employee, employees, contracts);
+
   const getEmployeeContracts = (employeeId) => contracts
     .filter((contract) => Number(contract.employee_id) === Number(employeeId))
     .sort((a, b) => String(b.start_date || "").localeCompare(String(a.start_date || "")));
@@ -208,7 +212,7 @@ export default function EmployeeTable({
             <tbody>
               {employees.map((employee) => (
                 <tr key={employee.id}>
-                  <td style={styles.td}>{employee.employee_code}</td>
+                  <td style={styles.tdStrong}>{getEmployeeCode(employee)}</td>
                   <td style={styles.td}>{employee.dni}</td>
                   <td style={styles.td}>{employee.naf || "-"}</td>
                   <td style={styles.td}>{employee.first_name} {employee.last_name}</td>
@@ -240,7 +244,7 @@ export default function EmployeeTable({
             </div>
 
             <div style={styles.summaryGrid}>
-              <div style={styles.summaryBox}><span style={styles.summaryLabel}>Código</span><strong>{selectedFileEmployee.employee_code || "-"}</strong></div>
+              <div style={styles.summaryBox}><span style={styles.summaryLabel}>Código</span><strong>{getEmployeeCode(selectedFileEmployee)}</strong></div>
               <div style={styles.summaryBox}><span style={styles.summaryLabel}>ID interno</span><strong>{selectedFileEmployee.id}</strong></div>
               <div style={styles.summaryBox}><span style={styles.summaryLabel}>DNI</span><strong>{selectedFileEmployee.dni || "-"}</strong></div>
               <div style={styles.summaryBox}><span style={styles.summaryLabel}>NAF</span><strong>{selectedFileEmployee.naf || "-"}</strong></div>
