@@ -1,67 +1,37 @@
 import PageCard from "../components/layout/PageCard";
-import CompanyForm from "../components/CompanyForm";
 import CompanyTable from "../components/CompanyTable";
-import WorkCenterForm from "../components/workCenters/WorkCenterForm";
 import WorkCenterTable from "../components/workCenters/WorkCenterTable";
+import CompanyCenterForm from "../components/companyCenters/CompanyCenterForm";
 
 export default function CompaniesPage({
   loading,
   companies,
   workCenters,
-  companyForm,
-  workCenterForm,
-  onCompanyChange,
-  onCompanySubmit,
   onUpdateCompany,
   onDeleteCompany,
-  onWorkCenterChange,
-  onWorkCenterSubmit,
   onUpdateWorkCenter,
   onDeleteWorkCenter,
-  companyError,
-  companySuccess,
-  workCenterError,
-  workCenterSuccess,
   companySubmitting,
   workCenterSubmitting,
 }) {
-  const activeCompanies = companies.filter((company) => company.is_active);
   const activeWorkCenters = workCenters.filter((center) => center.is_active);
+
+  const reloadPageData = async () => {
+    window.location.reload();
+  };
 
   return (
     <div style={styles.wrapper}>
       <PageCard
-        title="Nueva empresa madre"
-        subtitle="Crea la entidad principal. Su CCC funcionará como CCC general para los centros dependientes."
+        title="Empresa y centro"
+        subtitle="Alta rápida: crea una empresa con su primer centro o añade un centro a una empresa ya existente usando su CCC."
       >
-        <CompanyForm
-          form={companyForm}
-          onChange={onCompanyChange}
-          onSubmit={onCompanySubmit}
-          error={companyError}
-          success={companySuccess}
-          submitting={companySubmitting}
-        />
+        <CompanyCenterForm companies={companies} onReloadData={reloadPageData} />
       </PageCard>
 
       <PageCard
-        title="Nuevo centro de trabajo"
-        subtitle="Crea un centro dependiente de una empresa madre, con CCC general y CCC principal propia del centro."
-      >
-        <WorkCenterForm
-          form={workCenterForm}
-          companies={activeCompanies}
-          onChange={onWorkCenterChange}
-          onSubmit={onWorkCenterSubmit}
-          error={workCenterError}
-          success={workCenterSuccess}
-          submitting={workCenterSubmitting}
-        />
-      </PageCard>
-
-      <PageCard
-        title="Empresas madre"
-        subtitle="Empresas principales registradas actualmente en AulaNomina."
+        title="Empresas"
+        subtitle="Empresas registradas actualmente en AulaNomina."
       >
         <CompanyTable
           loading={loading}
@@ -73,8 +43,8 @@ export default function CompaniesPage({
       </PageCard>
 
       <PageCard
-        title="Centros de trabajo"
-        subtitle="Centros vinculados a empresas madre. Aquí se controla la CCC general y la CCC principal del centro."
+        title="Centros"
+        subtitle="Centros vinculados a empresas. Cada centro puede tener una CCC de empresa y una CCC propia."
       >
         <WorkCenterTable
           loading={loading}
