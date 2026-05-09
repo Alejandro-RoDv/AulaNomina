@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import PageCard from "../components/layout/PageCard";
 import PayrollForm, { PAYROLL_STATUS_OPTIONS } from "../components/payrolls/PayrollForm";
 import PayrollTable from "../components/payrolls/PayrollTable";
+import MonthlyPayrollPreparation from "../components/payrolls/MonthlyPayrollPreparation";
 
 function normalizeText(value) {
   return String(value || "")
@@ -22,6 +23,7 @@ export default function PayrollsPage({
   employees,
   contracts,
   companies,
+  workCenters,
   payrollForm,
   onPayrollChange,
   onPayrollSubmit,
@@ -79,19 +81,29 @@ export default function PayrollsPage({
 
   return (
     <div style={styles.wrapper}>
-      <PageCard title="Nueva nómina simulada" subtitle="Genera una nómina mensual básica vinculada a trabajador, contrato y empresa.">
-        <PayrollForm
-          form={payrollForm}
-          employees={employees}
-          contracts={contracts}
-          companies={companies}
-          onChange={onPayrollChange}
-          onSubmit={onPayrollSubmit}
-          error={payrollError}
-          success={payrollSuccess}
-          submitting={payrollSubmitting}
-        />
+      <PageCard
+        title="Preparar nóminas mensuales"
+        subtitle="Selecciona una o varias empresas, opcionalmente un centro, y prepara todas las nóminas del periodo."
+      >
+        <MonthlyPayrollPreparation companies={companies} workCenters={workCenters} />
       </PageCard>
+
+      <details style={styles.details}>
+        <summary style={styles.summary}>Crear nómina individual manual</summary>
+        <PageCard title="Nueva nómina simulada" subtitle="Uso manual para pruebas puntuales fuera del proceso mensual.">
+          <PayrollForm
+            form={payrollForm}
+            employees={employees}
+            contracts={contracts}
+            companies={companies}
+            onChange={onPayrollChange}
+            onSubmit={onPayrollSubmit}
+            error={payrollError}
+            success={payrollSuccess}
+            submitting={payrollSubmitting}
+          />
+        </PageCard>
+      </details>
 
       <PageCard title="Listado de nóminas" subtitle="Nóminas simuladas generadas en el sistema.">
         <div style={styles.filters}>
@@ -160,6 +172,8 @@ export default function PayrollsPage({
 
 const styles = {
   wrapper: { display: "flex", flexDirection: "column", gap: "20px" },
+  details: { display: "flex", flexDirection: "column", gap: "12px" },
+  summary: { cursor: "pointer", fontWeight: 900, color: "#111827", padding: "10px 0" },
   filters: { display: "grid", gridTemplateColumns: "minmax(190px, 1.2fr) minmax(190px, 1.2fr) 130px 132px 132px 86px", columnGap: "10px", rowGap: "10px", alignItems: "end", marginBottom: "10px", width: "100%" },
   filterGroupWide: { minWidth: 0, display: "flex", flexDirection: "column", gap: "5px" },
   filterGroupSmall: { minWidth: 0, display: "flex", flexDirection: "column", gap: "5px" },
