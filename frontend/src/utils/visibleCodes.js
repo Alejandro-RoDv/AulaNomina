@@ -1,12 +1,12 @@
-export function getEmployeeVisibleCode(employee) {
+export function getEmployeeVisibleCode(employee, fallbackCompanyId = null) {
   if (!employee) return "-";
 
   if (employee.employee_code && String(employee.employee_code).includes(".")) {
     return employee.employee_code;
   }
 
-  const companyId = employee.company_id || "-";
-  const employeePart = employee.employee_code || employee.id || "-";
+  const companyId = employee.company_id || fallbackCompanyId || "?";
+  const employeePart = employee.employee_code || employee.id || "?";
 
   return `${companyId}.${employeePart}`;
 }
@@ -23,10 +23,28 @@ export function getContractVisibleCode(contract, employees = []) {
   );
 
   const employeeCode = employee
-    ? getEmployeeVisibleCode(employee)
-    : contract.employee_code || contract.employee_id || "-";
+    ? getEmployeeVisibleCode(employee, contract.company_id)
+    : `${contract.company_id || "?"}.${contract.employee_id || "?"}`;
 
   return `${employeeCode}.${contract.id}`;
+}
+
+export function getIncidentContractVisibleCode(incident, contracts = [], employees = []) {
+  if (!incident) return "-";
+
+  const contract = contracts.find(
+    (item) => String(item.id) === String(incident.contract_id)
+  );
+
+  if (contract) {
+    return getContractVisibleCode(contract, employees);
+  }
+
+  const companyId = incident.company_id || "?";
+  const employeeId = incident.employee_id || "?";
+  const contractId = incident.contract_id || "?";
+
+  return `${companyId}.${employeeId}.${contractId}`;
 }
 
 export function getPayrollVisibleCode(payroll, contracts = [], employees = []) {
@@ -42,7 +60,7 @@ export function getPayrollVisibleCode(payroll, contracts = [], employees = []) {
 
   const contractCode = contract
     ? getContractVisibleCode(contract, employees)
-    : payroll.contract_code || payroll.contract_id || "-";
+    : `${payroll.company_id || "?"}.${payroll.employee_id || "?"}.${payroll.contract_id || "?"}`;
 
   const month = String(payroll.period_month || "").padStart(2, "0");
   const year = payroll.period_year || "";
