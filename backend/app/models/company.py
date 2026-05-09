@@ -19,6 +19,7 @@ class Company(Base):
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
+    work_centers = relationship("WorkCenter", back_populates="company")
     contracts = relationship("Contract", back_populates="company")
     incidents = relationship("Incident", back_populates="company")
     payrolls = relationship("Payroll", back_populates="company")
