@@ -33,6 +33,22 @@ def init_database() -> None:
                         text(f"ALTER TABLE companies ADD COLUMN {column_name} {column_definition}")
                     )
 
+        if "work_centers" in table_names:
+            existing_work_center_columns = {
+                column["name"] for column in inspector.get_columns("work_centers")
+            }
+
+            work_center_columns = {
+                "general_ccc": "VARCHAR",
+                "main_ccc": "VARCHAR",
+            }
+
+            for column_name, column_definition in work_center_columns.items():
+                if column_name not in existing_work_center_columns:
+                    connection.execute(
+                        text(f"ALTER TABLE work_centers ADD COLUMN {column_name} {column_definition}")
+                    )
+
         if "employees" in table_names:
             existing_employee_columns = {
                 column["name"] for column in inspector.get_columns("employees")
