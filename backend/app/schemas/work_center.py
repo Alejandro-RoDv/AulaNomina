@@ -7,6 +7,8 @@ class WorkCenterBase(BaseModel):
     company_id: int
     center_code: str
     name: str
+    general_ccc: str | None = None
+    main_ccc: str | None = None
     address: str | None = None
     city: str | None = None
     province: str | None = None
@@ -35,6 +37,8 @@ class WorkCenterUpdate(BaseModel):
     company_id: int | None = None
     center_code: str | None = None
     name: str | None = None
+    general_ccc: str | None = None
+    main_ccc: str | None = None
     address: str | None = None
     city: str | None = None
     province: str | None = None
