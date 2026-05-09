@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { PAYROLL_STATUS_OPTIONS, formatCurrency } from "./PayrollForm";
 import PayrollDetailsModal from "./PayrollDetailsModal";
+import { getPayrollVisibleCode } from "../../utils/visibleCodes";
 
 function formatPeriod(payroll) {
   if (payroll.period_label) return payroll.period_label;
@@ -15,28 +16,40 @@ function getStatusLabel(value) {
 function getStatusStyle(value) {
   if (value === "closed") return styles.closedBadge;
   if (value === "calculated") return styles.calculatedBadge;
+  if (value === "reviewed") return styles.reviewedBadge;
   return styles.draftBadge;
 }
 
 function toEditForm(payroll) {
   return {
+    center_id: payroll.center_id || "",
     period_month: String(payroll.period_month || ""),
     period_year: String(payroll.period_year || ""),
     salary_supplement_1: String(payroll.salary_supplements ?? "0"),
     salary_supplement_2: "0",
     salary_supplement_3: "0",
     irpf_percentage: "10",
-    status: payroll.status || "draft",
+    status: payroll.status || "pending",
   };
 }
 
-export default function PayrollTable({ loading, payrolls, onUpdatePayroll, onDeletePayroll, submitting }) {
+export default function PayrollTable({
+  loading,
+  payrolls,
+  contracts = [],
+  employees = [],
+  onUpdatePayroll,
+  onDeletePayroll,
+  submitting,
+}) {
   const [selectedPayroll, setSelectedPayroll] = useState(null);
   const [editForm, setEditForm] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [editError, setEditError] = useState("");
   const [deleteError, setDeleteError] = useState("");
+
+  const getPayrollCode = (payroll) => getPayrollVisibleCode(payroll, contracts, employees);
 
   const openDetailsModal = (payroll) => {
     setSelectedPayroll(payroll);
@@ -117,6 +130,7 @@ export default function PayrollTable({ loading, payrolls, onUpdatePayroll, onDel
         <table style={styles.table}>
           <thead>
             <tr>
+              <th style={styles.thCode}>Código</th>
               <th style={styles.th}>Trabajador</th>
               <th style={styles.th}>Empresa</th>
               <th style={styles.thPeriod}>Periodo</th>
@@ -130,6 +144,7 @@ export default function PayrollTable({ loading, payrolls, onUpdatePayroll, onDel
           <tbody>
             {payrolls.map((payroll) => (
               <tr key={payroll.id}>
+                <td style={styles.tdCode}>{getPayrollCode(payroll)}</td>
                 <td style={styles.td}>{payroll.employee_name || payroll.employee_id}</td>
                 <td style={styles.td}>{payroll.company_name || payroll.company_id}</td>
                 <td style={styles.td}>{formatPeriod(payroll)}</td>
@@ -148,7 +163,7 @@ export default function PayrollTable({ loading, payrolls, onUpdatePayroll, onDel
             ))}
             {payrolls.length === 0 && (
               <tr>
-                <td style={styles.td} colSpan="8">No hay nóminas generadas.</td>
+                <td style={styles.td} colSpan="9">No hay nóminas generadas.</td>
               </tr>
             )}
           </tbody>
@@ -157,6 +172,7 @@ export default function PayrollTable({ loading, payrolls, onUpdatePayroll, onDel
 
       <PayrollDetailsModal
         payroll={selectedPayroll}
+        payrollCode={selectedPayroll ? getPayrollCode(selectedPayroll) : ""}
         editForm={editForm}
         isEditing={isEditing}
         submitting={submitting}
@@ -177,18 +193,21 @@ export default function PayrollTable({ loading, payrolls, onUpdatePayroll, onDel
 }
 
 const styles = {
-  tableWrapper: { overflowX: "hidden", width: "100%" },
-  table: { width: "100%", borderCollapse: "collapse", tableLayout: "fixed" },
+  tableWrapper: { overflowX: "auto", width: "100%" },
+  table: { width: "100%", minWidth: "1100px", borderCollapse: "collapse", tableLayout: "fixed" },
   th: { textAlign: "left", padding: "12px 10px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" },
+  thCode: { width: "150px", textAlign: "left", padding: "12px 10px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb" },
   thPeriod: { width: "96px", textAlign: "left", padding: "12px 10px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb" },
   thAmount: { width: "118px", textAlign: "right", padding: "12px 10px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb" },
   thStatus: { width: "96px", textAlign: "left", padding: "12px 10px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb" },
   thActions: { width: "96px", textAlign: "left", padding: "12px 10px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb" },
   td: { padding: "12px 10px", borderBottom: "1px solid #eee", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" },
+  tdCode: { padding: "12px 10px", borderBottom: "1px solid #eee", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", fontWeight: 900 },
   tdAmount: { padding: "12px 10px", borderBottom: "1px solid #eee", textAlign: "right", whiteSpace: "nowrap" },
   tdAmountStrong: { padding: "12px 10px", borderBottom: "1px solid #eee", textAlign: "right", whiteSpace: "nowrap", fontWeight: 900 },
   draftBadge: { backgroundColor: "#e5e7eb", color: "#374151", padding: "4px 8px", borderRadius: "999px", fontSize: "12px", fontWeight: 800 },
   calculatedBadge: { backgroundColor: "#dbeafe", color: "#1e40af", padding: "4px 8px", borderRadius: "999px", fontSize: "12px", fontWeight: 800 },
+  reviewedBadge: { backgroundColor: "#fef3c7", color: "#92400e", padding: "4px 8px", borderRadius: "999px", fontSize: "12px", fontWeight: 800 },
   closedBadge: { backgroundColor: "#dcfce7", color: "#166534", padding: "4px 8px", borderRadius: "999px", fontSize: "12px", fontWeight: 800 },
   detailsButton: { backgroundColor: "#111827", color: "#ffffff", border: "1px solid #111827", borderRadius: "8px", padding: "7px 10px", cursor: "pointer", fontWeight: 700 },
 };
