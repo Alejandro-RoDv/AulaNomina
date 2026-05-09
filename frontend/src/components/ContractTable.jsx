@@ -67,11 +67,11 @@ export default function ContractTable({
 
   const getEmployeeLabel = (contract) => {
     const emp = getEmployee(contract);
-    const code = emp ? getEmployeeVisibleCode(emp) : contract.employee_id;
+    const code = emp ? getEmployeeVisibleCode(emp, employees, contracts, contract.company_id) : contract.employee_id;
     return `${code} - ${getEmployeeName(contract)}`;
   };
 
-  const getContractCode = (contract) => getContractVisibleCode(contract, employees);
+  const getContractCode = (contract) => getContractVisibleCode(contract, employees, contracts);
 
   const getCompany = (contract) => {
     return companies.find((item) => Number(item.id) === Number(contract.company_id));
