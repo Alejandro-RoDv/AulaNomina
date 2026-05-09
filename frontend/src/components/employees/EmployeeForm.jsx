@@ -1,4 +1,17 @@
-export default function EmployeeForm({ form, onChange, onSubmit, error, success, submitting }) {
+export default function EmployeeForm({
+  form,
+  companies,
+  workCenters,
+  onChange,
+  onSubmit,
+  error,
+  success,
+  submitting,
+}) {
+  const filteredCenters = workCenters.filter(
+    (center) => String(center.company_id) === String(form.company_id)
+  );
+
   return (
     <form onSubmit={onSubmit} style={styles.form}>
       <div style={styles.formRowTop}>
@@ -22,6 +35,48 @@ export default function EmployeeForm({ form, onChange, onSubmit, error, success,
         <div style={styles.formGroupNaf}>
           <label>NAF</label>
           <input name="naf" value={form.naf} onChange={onChange} style={styles.input} />
+        </div>
+      </div>
+
+      <div style={styles.formRow}>
+        <div style={styles.formGroup}>
+          <label>Empresa</label>
+          <select
+            name="company_id"
+            value={form.company_id}
+            onChange={onChange}
+            required
+            style={styles.input}
+          >
+            <option value="">Seleccionar empresa</option>
+            {companies.map((company) => (
+              <option key={company.id} value={company.id}>
+                {company.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div style={styles.formGroup}>
+          <label>Centro</label>
+          <select
+            name="center_id"
+            value={form.center_id}
+            onChange={onChange}
+            required
+            disabled={!form.company_id}
+            style={styles.input}
+          >
+            <option value="">
+              {form.company_id ? "Seleccionar centro" : "Selecciona empresa primero"}
+            </option>
+
+            {filteredCenters.map((center) => (
+              <option key={center.id} value={center.id}>
+                {center.name}
+              </option>
+            ))}
+          </select>
         </div>
       </div>
 
