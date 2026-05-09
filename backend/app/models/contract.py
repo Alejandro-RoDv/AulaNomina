@@ -11,6 +11,7 @@ class Contract(Base):
     id = Column(Integer, primary_key=True, index=True)
     employee_id = Column(Integer, ForeignKey("employees.id"), nullable=False)
     company_id = Column(Integer, ForeignKey("companies.id"), nullable=True)
+    center_id = Column(Integer, ForeignKey("work_centers.id"), nullable=True)
     contract_type = Column(String, nullable=False)
     start_date = Column(Date, nullable=False)
     end_date = Column(Date, nullable=True)
@@ -21,6 +22,7 @@ class Contract(Base):
 
     employee = relationship("Employee", back_populates="contracts")
     company = relationship("Company", back_populates="contracts")
+    work_center = relationship("WorkCenter", back_populates="contracts")
     incidents = relationship("Incident", back_populates="contract")
     payrolls = relationship("Payroll", back_populates="contract")
 
