@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { formatPaySchedule, PAY_SCHEDULE_OPTIONS } from "./ContractForm";
-import { getContractVisibleCode, getEmployeeVisibleCode } from "../utils/visibleCodes";
+import { getContractVisibleCode } from "../utils/visibleCodes";
 
 function formatDate(value) {
   if (!value) return "-";
@@ -63,12 +63,6 @@ export default function ContractTable({
     const emp = getEmployee(contract);
     if (!emp) return contract.employee_id;
     return `${emp.first_name} ${emp.last_name}`;
-  };
-
-  const getEmployeeLabel = (contract) => {
-    const emp = getEmployee(contract);
-    const code = emp ? getEmployeeVisibleCode(emp, employees, contracts, contract.company_id) : contract.employee_id;
-    return `${code} - ${getEmployeeName(contract)}`;
   };
 
   const getContractCode = (contract) => getContractVisibleCode(contract, employees, contracts);
@@ -167,7 +161,7 @@ export default function ContractTable({
             {contracts.map((contract) => (
               <tr key={contract.id}>
                 <td style={styles.tdCode}>{getContractCode(contract)}</td>
-                <td style={styles.td}>{getEmployeeLabel(contract)}</td>
+                <td style={styles.td}>{getEmployeeName(contract)}</td>
                 <td style={styles.td}>{getCompanyName(contract)}</td>
                 <td style={styles.tdCcc}>{getCompanyCcc(contract)}</td>
                 <td style={styles.tdType}>{contract.contract_type}</td>
@@ -196,7 +190,7 @@ export default function ContractTable({
             <div style={styles.modalHeader}>
               <div>
                 <h3 style={styles.modalTitle}>Detalle y edición de contrato</h3>
-                <p style={styles.modalSubtitle}>Contrato {getContractCode(editingContract)} · {formatPaySchedule(editingContract.pay_schedule)}</p>
+                <p style={styles.modalSubtitle}>Contrato {getContractCode(editingContract)} · {getEmployeeName(editingContract)} · {formatPaySchedule(editingContract.pay_schedule)}</p>
               </div>
               <button type="button" onClick={closeEditModal} style={styles.closeButton}>×</button>
             </div>
@@ -205,7 +199,7 @@ export default function ContractTable({
               <div style={styles.formRow}>
                 <div style={styles.formGroup}>
                   <label>Trabajador</label>
-                  <input value={getEmployeeLabel(editingContract)} readOnly disabled style={{ ...styles.input, ...styles.readOnlyInput }} />
+                  <input value={getEmployeeName(editingContract)} readOnly disabled style={{ ...styles.input, ...styles.readOnlyInput }} />
                   <small style={styles.helpText}>El trabajador no se puede modificar desde la edición del contrato.</small>
                 </div>
 
@@ -301,7 +295,7 @@ export default function ContractTable({
             </div>
 
             <p style={styles.confirmText}>
-              ¿Seguro que quieres eliminar el contrato {getContractCode(contractToDelete)} de {getEmployeeLabel(contractToDelete)}?
+              ¿Seguro que quieres eliminar el contrato {getContractCode(contractToDelete)} de {getEmployeeName(contractToDelete)}?
             </p>
 
             {deleteError && <div style={styles.error}>{deleteError}</div>}
