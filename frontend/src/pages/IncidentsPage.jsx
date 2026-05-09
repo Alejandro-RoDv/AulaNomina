@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import PageCard from "../components/layout/PageCard";
 import IncidentForm, { INCIDENT_TYPES, STATUS_OPTIONS } from "../components/incidents/IncidentForm";
 import IncidentTable from "../components/incidents/IncidentTable";
+import { getEmployeeVisibleCode } from "../utils/visibleCodes";
 
 function normalizeText(value) {
   return String(value || "")
@@ -52,7 +53,7 @@ export default function IncidentsPage({
 
       return {
         ...incident,
-        employee_code: linkedEmployee?.employee_code || String(incident.employee_id || "-"),
+        employee_code: linkedEmployee ? getEmployeeVisibleCode(linkedEmployee, incident.company_id) : `${incident.company_id || "?"}.${incident.employee_id || "?"}`,
       };
     });
   }, [incidents, employees]);
@@ -199,6 +200,8 @@ export default function IncidentsPage({
         <IncidentTable
           loading={loading}
           incidents={filteredIncidents}
+          contracts={contracts}
+          employees={employees}
           onUpdateIncident={onUpdateIncident}
           onDeleteIncident={onDeleteIncident}
           submitting={incidentSubmitting}
