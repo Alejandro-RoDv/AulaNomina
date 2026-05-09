@@ -13,6 +13,8 @@ class WorkCenter(Base):
     company_id = Column(Integer, ForeignKey("companies.id"), nullable=False)
     center_code = Column(String, unique=True, index=True, nullable=False)
     name = Column(String, nullable=False)
+    general_ccc = Column(String, nullable=True)
+    main_ccc = Column(String, unique=True, index=True, nullable=True)
     address = Column(String, nullable=True)
     city = Column(String, nullable=True)
     province = Column(String, nullable=True)
