@@ -113,7 +113,7 @@ export default function PayrollsPage({
               name="employee"
               value={filters.employee}
               onChange={handleFilterChange}
-              placeholder="Nombre o ID"
+              placeholder="Nombre o código"
               style={styles.input}
             />
           </div>
@@ -161,6 +161,8 @@ export default function PayrollsPage({
         <PayrollTable
           loading={loading}
           payrolls={filteredPayrolls}
+          contracts={contracts}
+          employees={employees}
           onUpdatePayroll={onUpdatePayroll}
           onDeletePayroll={onDeletePayroll}
           submitting={payrollSubmitting}
