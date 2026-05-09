@@ -13,6 +13,7 @@ function getStatusLabel(value) {
 function getStatusStyle(value) {
   if (value === "closed") return styles.closedBadge;
   if (value === "calculated") return styles.calculatedBadge;
+  if (value === "reviewed") return styles.reviewedBadge;
   return styles.draftBadge;
 }
 
@@ -55,6 +56,7 @@ function PayrollLine({ label, amount, percentage, strong }) {
 
 export default function PayrollDetailsModal({
   payroll,
+  payrollCode,
   editForm,
   isEditing,
   submitting,
@@ -84,16 +86,16 @@ export default function PayrollDetailsModal({
               <span style={getStatusStyle(payroll.status)}>{getStatusLabel(payroll.status)}</span>
             </div>
             <p style={styles.modalSubtitle}>
-              Nómina #{payroll.id} · {payroll.employee_name || payroll.employee_id} · {formatPeriod(payroll)}
+              Nómina {payrollCode || payroll.id} · {payroll.employee_name || payroll.employee_id} · {formatPeriod(payroll)}
             </p>
           </div>
           <button type="button" onClick={onClose} style={styles.closeButton}>×</button>
         </div>
 
         <section style={styles.receiptHeader}>
+          <InfoBox label="Código nómina" value={payrollCode || payroll.id} />
           <InfoBox label="Trabajador" value={payroll.employee_name || payroll.employee_id} />
           <InfoBox label="Empresa / centro" value={payroll.company_name || payroll.company_id} />
-          <InfoBox label="Contrato" value={`#${payroll.contract_id}`} />
           <InfoBox label="Periodo" value={formatPeriod(payroll)} />
         </section>
 
@@ -200,7 +202,7 @@ export default function PayrollDetailsModal({
           <div style={styles.confirmBox}>
             <div>
               <h4 style={styles.confirmTitle}>Confirmar eliminación</h4>
-              <p style={styles.confirmText}>¿Seguro que quieres eliminar la nómina de {payroll.employee_name || payroll.employee_id} del periodo {formatPeriod(payroll)}?</p>
+              <p style={styles.confirmText}>¿Seguro que quieres eliminar la nómina {payrollCode || payroll.id} del periodo {formatPeriod(payroll)}?</p>
               {deleteError && <div style={styles.error}>{deleteError}</div>}
             </div>
             <div style={styles.modalActionsRight}>
@@ -246,6 +248,7 @@ const styles = {
   totalSupplementsBox: { flex: 1, minWidth: "220px", border: "1px solid #e5e7eb", borderRadius: "10px", backgroundColor: "#f9fafb", padding: "10px 12px", display: "flex", justifyContent: "space-between", alignItems: "center", fontWeight: 800 },
   draftBadge: { backgroundColor: "#e5e7eb", color: "#374151", padding: "4px 8px", borderRadius: "999px", fontSize: "12px", fontWeight: 800 },
   calculatedBadge: { backgroundColor: "#dbeafe", color: "#1e40af", padding: "4px 8px", borderRadius: "999px", fontSize: "12px", fontWeight: 800 },
+  reviewedBadge: { backgroundColor: "#fef3c7", color: "#92400e", padding: "4px 8px", borderRadius: "999px", fontSize: "12px", fontWeight: 800 },
   closedBadge: { backgroundColor: "#dcfce7", color: "#166534", padding: "4px 8px", borderRadius: "999px", fontSize: "12px", fontWeight: 800 },
   error: { backgroundColor: "#fee2e2", color: "#991b1b", padding: "10px 12px", borderRadius: "8px" },
   modalActionsSplit: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: "10px", marginTop: "6px" },
