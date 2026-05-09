@@ -40,6 +40,16 @@ from app.crud.company import (
     update_company,
     soft_delete_company,
 )
+from app.schemas.work_center import WorkCenterCreate, WorkCenterUpdate, WorkCenterResponse
+from app.crud.work_center import (
+    create_work_center,
+    get_work_centers,
+    get_work_centers_by_company,
+    get_work_center,
+    get_work_center_by_code,
+    update_work_center,
+    soft_delete_work_center,
+)
 from app.schemas.incident import IncidentCreate, IncidentUpdate, IncidentResponse
 from app.crud.incident import (
     create_incident,
@@ -243,6 +253,65 @@ def delete_company_endpoint(company_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Empresa no encontrada")
 
     return deleted_company
+
+
+# WORK CENTERS
+@app.get("/work-centers", response_model=list[WorkCenterResponse])
+def get_work_centers_endpoint(db: Session = Depends(get_db)):
+    return get_work_centers(db)
+
+
+@app.get("/work-centers/company/{company_id}", response_model=list[WorkCenterResponse])
+def get_work_centers_by_company_endpoint(company_id: int, db: Session = Depends(get_db)):
+    if not get_company(db, company_id):
+        raise HTTPException(status_code=404, detail="Empresa no encontrada")
+
+    return get_work_centers_by_company(db, company_id)
+
+
+@app.post("/work-centers", response_model=WorkCenterResponse)
+def create_work_center_endpoint(
+    work_center: WorkCenterCreate,
+    db: Session = Depends(get_db),
+):
+    if not get_company(db, work_center.company_id):
+        raise HTTPException(status_code=404, detail="Empresa no encontrada")
+
+    existing = get_work_center_by_code(db, work_center.center_code)
+    if existing:
+        raise HTTPException(status_code=400, detail="Ya existe un centro con ese código")
+
+    return create_work_center(db, work_center)
+
+
+@app.put("/work-centers/{work_center_id}", response_model=WorkCenterResponse)
+def update_work_center_endpoint(
+    work_center_id: int,
+    work_center: WorkCenterUpdate,
+    db: Session = Depends(get_db),
+):
+    current_work_center = get_work_center(db, work_center_id)
+    if not current_work_center:
+        raise HTTPException(status_code=404, detail="Centro no encontrado")
+
+    if work_center.company_id and not get_company(db, work_center.company_id):
+        raise HTTPException(status_code=404, detail="Empresa no encontrada")
+
+    if work_center.center_code:
+        existing = get_work_center_by_code(db, work_center.center_code)
+        if existing and existing.id != work_center_id:
+            raise HTTPException(status_code=400, detail="Ya existe un centro con ese código")
+
+    return update_work_center(db, work_center_id, work_center)
+
+
+@app.delete("/work-centers/{work_center_id}", response_model=WorkCenterResponse)
+def delete_work_center_endpoint(work_center_id: int, db: Session = Depends(get_db)):
+    deleted_work_center = soft_delete_work_center(db, work_center_id)
+    if not deleted_work_center:
+        raise HTTPException(status_code=404, detail="Centro no encontrado")
+
+    return deleted_work_center
 
 
 # INCIDENTS
