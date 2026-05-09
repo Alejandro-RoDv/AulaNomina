@@ -15,7 +15,12 @@ import { createCompany, deleteCompany, fetchCompanies, updateCompany } from "./s
 import { createEmployee, deleteEmployee, fetchAllEmployees, fetchNextEmployeeCode, updateEmployee } from "./services/employeeApi";
 import { createIncident, deleteIncident, fetchIncidents, updateIncident } from "./services/incidentApi";
 import { createPayroll, deletePayroll, fetchPayrolls, updatePayroll } from "./services/payrollApi";
-import { fetchWorkCenters } from "./services/workCenterApi";
+import {
+  createWorkCenter,
+  deleteWorkCenter,
+  fetchWorkCenters,
+  updateWorkCenter,
+} from "./services/workCenterApi";
 
 const currentYear = new Date().getFullYear();
 const currentMonth = new Date().getMonth() + 1;
@@ -36,6 +41,17 @@ const initialCompanyForm = {
   name: "",
   cif: "",
   ccc: "",
+  address: "",
+  city: "",
+  province: "",
+};
+
+const initialWorkCenterForm = {
+  company_id: "",
+  center_code: "",
+  name: "",
+  general_ccc: "",
+  main_ccc: "",
   address: "",
   city: "",
   province: "",
@@ -105,6 +121,19 @@ function buildCompanyPayload(form) {
   return {
     ...form,
     ccc: form.ccc || null,
+    address: form.address || null,
+    city: form.city || null,
+    province: form.province || null,
+  };
+}
+
+function buildWorkCenterPayload(form) {
+  return {
+    company_id: Number(form.company_id),
+    center_code: form.center_code,
+    name: form.name,
+    general_ccc: form.general_ccc || null,
+    main_ccc: form.main_ccc || null,
     address: form.address || null,
     city: form.city || null,
     province: form.province || null,
@@ -197,6 +226,7 @@ export default function App() {
 
   const [contractSubmitting, setContractSubmitting] = useState(false);
   const [companySubmitting, setCompanySubmitting] = useState(false);
+  const [workCenterSubmitting, setWorkCenterSubmitting] = useState(false);
   const [employeeSubmitting, setEmployeeSubmitting] = useState(false);
   const [incidentSubmitting, setIncidentSubmitting] = useState(false);
   const [payrollSubmitting, setPayrollSubmitting] = useState(false);
@@ -206,6 +236,9 @@ export default function App() {
 
   const [companyError, setCompanyError] = useState("");
   const [companySuccess, setCompanySuccess] = useState("");
+
+  const [workCenterError, setWorkCenterError] = useState("");
+  const [workCenterSuccess, setWorkCenterSuccess] = useState("");
 
   const [employeeError, setEmployeeError] = useState("");
   const [employeeSuccess, setEmployeeSuccess] = useState("");
@@ -218,6 +251,7 @@ export default function App() {
 
   const [contractForm, setContractForm] = useState(initialContractForm);
   const [companyForm, setCompanyForm] = useState(initialCompanyForm);
+  const [workCenterForm, setWorkCenterForm] = useState(initialWorkCenterForm);
   const [employeeForm, setEmployeeForm] = useState(initialEmployeeForm);
   const [incidentForm, setIncidentForm] = useState(initialIncidentForm);
   const [payrollForm, setPayrollForm] = useState(initialPayrollForm);
@@ -251,6 +285,7 @@ export default function App() {
     } catch {
       setContractError("Error cargando datos");
       setCompanyError("Error cargando datos");
+      setWorkCenterError("Error cargando datos");
       setEmployeeError("Error cargando datos");
       setIncidentError("Error cargando datos");
       setPayrollError("Error cargando datos");
@@ -271,6 +306,23 @@ export default function App() {
   const handleCompanyChange = (event) => {
     const { name, value } = event.target;
     setCompanyForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleWorkCenterChange = (event) => {
+    const { name, value } = event.target;
+
+    setWorkCenterForm((prev) => {
+      if (name === "company_id") {
+        const selectedCompany = companies.find((company) => String(company.id) === String(value));
+        return {
+          ...prev,
+          company_id: value,
+          general_ccc: selectedCompany?.ccc || "",
+        };
+      }
+
+      return { ...prev, [name]: value };
+    });
   };
 
   const handleEmployeeChange = (event) => {
@@ -444,6 +496,58 @@ export default function App() {
     }
   };
 
+  const handleWorkCenterSubmit = async (event) => {
+    event.preventDefault();
+    setWorkCenterError("");
+    setWorkCenterSuccess("");
+
+    try {
+      setWorkCenterSubmitting(true);
+      await createWorkCenter(buildWorkCenterPayload(workCenterForm));
+      setWorkCenterSuccess("Centro creado correctamente");
+      setWorkCenterForm(initialWorkCenterForm);
+      await loadData();
+    } catch (err) {
+      setWorkCenterError(err.message || "Error al crear centro");
+    } finally {
+      setWorkCenterSubmitting(false);
+    }
+  };
+
+  const handleUpdateWorkCenter = async (workCenterId, form) => {
+    setWorkCenterError("");
+    setWorkCenterSuccess("");
+
+    try {
+      setWorkCenterSubmitting(true);
+      await updateWorkCenter(workCenterId, buildWorkCenterPayload(form));
+      setWorkCenterSuccess("Centro actualizado correctamente");
+      await loadData();
+    } catch (err) {
+      setWorkCenterError(err.message || "Error al actualizar centro");
+      throw err;
+    } finally {
+      setWorkCenterSubmitting(false);
+    }
+  };
+
+  const handleDeleteWorkCenter = async (workCenterId) => {
+    setWorkCenterError("");
+    setWorkCenterSuccess("");
+
+    try {
+      setWorkCenterSubmitting(true);
+      await deleteWorkCenter(workCenterId);
+      setWorkCenterSuccess("Centro desactivado correctamente");
+      await loadData();
+    } catch (err) {
+      setWorkCenterError(err.message || "Error al desactivar centro");
+      throw err;
+    } finally {
+      setWorkCenterSubmitting(false);
+    }
+  };
+
   const handleEmployeeSubmit = async (event) => {
     event.preventDefault();
     setEmployeeError("");
@@ -613,7 +717,7 @@ export default function App() {
 
   function getSubtitle() {
     if (activePage === "dashboard") return "Resumen del entorno de simulación";
-    if (activePage === "companies") return "Gestión de empresas y centros";
+    if (activePage === "companies") return "Gestión de empresas madre y centros de trabajo";
     if (activePage === "employees") return "Gestión de trabajadores";
     if (activePage === "contracts") return "Gestión de contratos laborales";
     if (activePage === "payrolls") return "Generación y consulta de nóminas simuladas";
@@ -633,13 +737,21 @@ export default function App() {
           companies={companies}
           workCenters={workCenters}
           companyForm={companyForm}
+          workCenterForm={workCenterForm}
           onCompanyChange={handleCompanyChange}
           onCompanySubmit={handleCompanySubmit}
           onUpdateCompany={handleUpdateCompany}
           onDeleteCompany={handleDeleteCompany}
+          onWorkCenterChange={handleWorkCenterChange}
+          onWorkCenterSubmit={handleWorkCenterSubmit}
+          onUpdateWorkCenter={handleUpdateWorkCenter}
+          onDeleteWorkCenter={handleDeleteWorkCenter}
           companyError={companyError}
           companySuccess={companySuccess}
+          workCenterError={workCenterError}
+          workCenterSuccess={workCenterSuccess}
           companySubmitting={companySubmitting}
+          workCenterSubmitting={workCenterSubmitting}
         />
       );
     }
