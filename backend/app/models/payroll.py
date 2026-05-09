@@ -20,6 +20,7 @@ class Payroll(Base):
     employee_id = Column(Integer, ForeignKey("employees.id"), nullable=False)
     contract_id = Column(Integer, ForeignKey("contracts.id"), nullable=False)
     company_id = Column(Integer, ForeignKey("companies.id"), nullable=False)
+    center_id = Column(Integer, ForeignKey("work_centers.id"), nullable=True)
     period_month = Column(Integer, nullable=False)
     period_year = Column(Integer, nullable=False)
     base_salary = Column(Numeric(10, 2), default=0, nullable=False)
@@ -36,6 +37,7 @@ class Payroll(Base):
     employee = relationship("Employee", back_populates="payrolls")
     contract = relationship("Contract", back_populates="payrolls")
     company = relationship("Company", back_populates="payrolls")
+    work_center = relationship("WorkCenter", back_populates="payrolls")
 
     @property
     def employee_name(self):
