@@ -23,6 +23,24 @@ export async function createPayroll(payload) {
   return data;
 }
 
+export async function prepareMonthlyPayrolls(payload) {
+  const response = await fetch(`${API_BASE_URL}/payrolls/prepare-monthly`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.detail || "Error al preparar nóminas mensuales");
+  }
+
+  return data;
+}
+
 export async function updatePayroll(payrollId, payload) {
   const response = await fetch(`${API_BASE_URL}/payrolls/${payrollId}`, {
     method: "PUT",
