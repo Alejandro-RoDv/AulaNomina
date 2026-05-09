@@ -13,6 +13,7 @@ class Incident(Base):
     employee_id = Column(Integer, ForeignKey("employees.id"), nullable=False)
     contract_id = Column(Integer, ForeignKey("contracts.id"), nullable=False)
     company_id = Column(Integer, ForeignKey("companies.id"), nullable=False)
+    center_id = Column(Integer, ForeignKey("work_centers.id"), nullable=True)
     incident_type = Column(String, nullable=False)
     start_date = Column(Date, nullable=False)
     end_date = Column(Date, nullable=True)
@@ -23,6 +24,7 @@ class Incident(Base):
     employee = relationship("Employee", back_populates="incidents")
     contract = relationship("Contract", back_populates="incidents")
     company = relationship("Company", back_populates="incidents")
+    work_center = relationship("WorkCenter", back_populates="incidents")
 
     @property
     def employee_name(self):
