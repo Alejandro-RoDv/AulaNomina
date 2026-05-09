@@ -83,12 +83,7 @@ export function getPayrollVisibleCode(payroll, contracts = [], employees = []) {
     (item) => sameId(item.id, payroll.contract_id)
   );
 
-  const contractCode = contract
+  return contract
     ? getContractVisibleCode(contract, employees, contracts)
     : `${payroll.company_id || "?"}.${payroll.employee_id || "?"}.${payroll.contract_id || "?"}`;
-
-  const month = String(payroll.period_month || "").padStart(2, "0");
-  const year = payroll.period_year || "";
-
-  return `${contractCode}-${year}-${month}`;
 }
