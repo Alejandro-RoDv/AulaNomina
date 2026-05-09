@@ -15,6 +15,7 @@ import { createCompany, deleteCompany, fetchCompanies, updateCompany } from "./s
 import { createEmployee, deleteEmployee, fetchAllEmployees, fetchNextEmployeeCode, updateEmployee } from "./services/employeeApi";
 import { createIncident, deleteIncident, fetchIncidents, updateIncident } from "./services/incidentApi";
 import { createPayroll, deletePayroll, fetchPayrolls, updatePayroll } from "./services/payrollApi";
+import { fetchWorkCenters } from "./services/workCenterApi";
 
 const currentYear = new Date().getFullYear();
 const currentMonth = new Date().getMonth() + 1;
@@ -22,6 +23,7 @@ const currentMonth = new Date().getMonth() + 1;
 const initialContractForm = {
   employee_id: "",
   company_id: "",
+  center_id: "",
   contract_type: "",
   start_date: "",
   end_date: "",
@@ -41,6 +43,8 @@ const initialCompanyForm = {
 
 const initialEmployeeForm = {
   employee_code: "",
+  company_id: "",
+  center_id: "",
   dni: "",
   naf: "",
   first_name: "",
@@ -58,6 +62,7 @@ const initialIncidentForm = {
   employee_id: "",
   contract_id: "",
   company_id: "",
+  center_id: "",
   incident_type: "",
   start_date: "",
   end_date: "",
@@ -69,18 +74,21 @@ const initialPayrollForm = {
   employee_id: "",
   contract_id: "",
   company_id: "",
+  center_id: "",
   period_month: String(currentMonth),
   period_year: String(currentYear),
   salary_supplement_1: "0",
   salary_supplement_2: "0",
   salary_supplement_3: "0",
   irpf_percentage: "10",
-  status: "draft",
+  status: "pending",
 };
 
 function buildEmployeePayload(form) {
   return {
     ...form,
+    company_id: form.company_id ? Number(form.company_id) : null,
+    center_id: form.center_id ? Number(form.center_id) : null,
     naf: form.naf || null,
     email: form.email || null,
     phone: form.phone || null,
@@ -106,7 +114,8 @@ function buildCompanyPayload(form) {
 function buildContractPayload(form) {
   return {
     employee_id: Number(form.employee_id),
-    company_id: Number(form.company_id),
+    company_id: form.company_id ? Number(form.company_id) : null,
+    center_id: form.center_id ? Number(form.center_id) : null,
     contract_type: form.contract_type,
     start_date: form.start_date,
     end_date: form.end_date || null,
@@ -121,6 +130,7 @@ function buildIncidentPayload(form) {
     employee_id: Number(form.employee_id),
     contract_id: Number(form.contract_id),
     company_id: Number(form.company_id),
+    center_id: form.center_id ? Number(form.center_id) : null,
     incident_type: form.incident_type,
     start_date: form.start_date,
     end_date: form.end_date || null,
@@ -131,6 +141,7 @@ function buildIncidentPayload(form) {
 
 function buildIncidentUpdatePayload(form) {
   return {
+    center_id: form.center_id ? Number(form.center_id) : null,
     incident_type: form.incident_type,
     start_date: form.start_date,
     end_date: form.end_date || null,
@@ -152,6 +163,7 @@ function buildPayrollPayload(form) {
     employee_id: Number(form.employee_id),
     contract_id: Number(form.contract_id),
     company_id: form.company_id ? Number(form.company_id) : null,
+    center_id: form.center_id ? Number(form.center_id) : null,
     period_month: Number(form.period_month),
     period_year: Number(form.period_year),
     salary_supplements: getSalarySupplementsTotal(form),
@@ -162,6 +174,7 @@ function buildPayrollPayload(form) {
 
 function buildPayrollUpdatePayload(form) {
   return {
+    center_id: form.center_id ? Number(form.center_id) : null,
     period_month: Number(form.period_month),
     period_year: Number(form.period_year),
     salary_supplements: getSalarySupplementsTotal(form),
@@ -176,6 +189,7 @@ export default function App() {
   const [contracts, setContracts] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [companies, setCompanies] = useState([]);
+  const [workCenters, setWorkCenters] = useState([]);
   const [incidents, setIncidents] = useState([]);
   const [payrolls, setPayrolls] = useState([]);
 
@@ -217,10 +231,11 @@ export default function App() {
     try {
       setLoading(true);
 
-      const [contractsData, employeesData, companiesData, incidentsData, payrollsData, nextEmployeeCodeData] = await Promise.all([
+      const [contractsData, employeesData, companiesData, workCentersData, incidentsData, payrollsData, nextEmployeeCodeData] = await Promise.all([
         fetchContracts(),
         fetchAllEmployees(),
         fetchCompanies(),
+        fetchWorkCenters(),
         fetchIncidents(),
         fetchPayrolls(),
         fetchNextEmployeeCode(),
@@ -229,6 +244,7 @@ export default function App() {
       setContracts(contractsData);
       setEmployees(employeesData);
       setCompanies(companiesData);
+      setWorkCenters(workCentersData);
       setIncidents(incidentsData);
       setPayrolls(payrollsData);
       setEmployeeForm((prev) => ({ ...prev, employee_code: nextEmployeeCodeData.employee_code }));
@@ -259,7 +275,13 @@ export default function App() {
 
   const handleEmployeeChange = (event) => {
     const { name, value } = event.target;
-    setEmployeeForm((prev) => ({ ...prev, [name]: value }));
+    setEmployeeForm((prev) => {
+      if (name === "company_id") {
+        return { ...prev, company_id: value, center_id: "" };
+      }
+
+      return { ...prev, [name]: value };
+    });
   };
 
   const handleIncidentChange = (event) => {
@@ -272,6 +294,7 @@ export default function App() {
           employee_id: value,
           contract_id: "",
           company_id: "",
+          center_id: "",
         };
       }
 
@@ -281,6 +304,7 @@ export default function App() {
           ...prev,
           contract_id: value,
           company_id: selectedContract?.company_id ? String(selectedContract.company_id) : "",
+          center_id: selectedContract?.center_id ? String(selectedContract.center_id) : "",
         };
       }
 
@@ -298,6 +322,7 @@ export default function App() {
           employee_id: value,
           contract_id: "",
           company_id: "",
+          center_id: "",
         };
       }
 
@@ -307,6 +332,7 @@ export default function App() {
           ...prev,
           contract_id: value,
           company_id: selectedContract?.company_id ? String(selectedContract.company_id) : "",
+          center_id: selectedContract?.center_id ? String(selectedContract.center_id) : "",
         };
       }
 
@@ -605,6 +631,7 @@ export default function App() {
         <CompaniesPage
           loading={loading}
           companies={companies}
+          workCenters={workCenters}
           companyForm={companyForm}
           onCompanyChange={handleCompanyChange}
           onCompanySubmit={handleCompanySubmit}
@@ -623,6 +650,7 @@ export default function App() {
           loading={loading}
           employees={employees}
           companies={companies.filter((company) => company.is_active)}
+          workCenters={workCenters.filter((center) => center.is_active)}
           contracts={contracts}
           incidents={incidents}
           payrolls={payrolls}
@@ -645,6 +673,7 @@ export default function App() {
           contracts={contracts}
           employees={employees.filter((employee) => employee.is_active)}
           companies={companies.filter((company) => company.is_active)}
+          workCenters={workCenters.filter((center) => center.is_active)}
           contractForm={contractForm}
           onContractChange={handleContractChange}
           onContractSubmit={handleContractSubmit}
@@ -665,6 +694,7 @@ export default function App() {
           employees={employees.filter((employee) => employee.is_active)}
           contracts={contracts}
           companies={companies.filter((company) => company.is_active)}
+          workCenters={workCenters.filter((center) => center.is_active)}
           payrollForm={payrollForm}
           onPayrollChange={handlePayrollChange}
           onPayrollSubmit={handlePayrollSubmit}
@@ -685,6 +715,7 @@ export default function App() {
           employees={employees.filter((employee) => employee.is_active)}
           contracts={contracts}
           companies={companies.filter((company) => company.is_active)}
+          workCenters={workCenters.filter((center) => center.is_active)}
           incidentForm={incidentForm}
           onIncidentChange={handleIncidentChange}
           onIncidentSubmit={handleIncidentSubmit}
