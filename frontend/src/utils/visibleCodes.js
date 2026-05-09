@@ -1,43 +1,72 @@
-export function getEmployeeVisibleCode(employee, fallbackCompanyId = null) {
-  if (!employee) return "-";
-
-  if (employee.employee_code && String(employee.employee_code).includes(".")) {
-    return employee.employee_code;
-  }
-
-  const companyId = employee.company_id || fallbackCompanyId || "?";
-  const employeePart = employee.employee_code || employee.id || "?";
-
-  return `${companyId}.${employeePart}`;
+function sameId(a, b) {
+  return String(a) === String(b);
 }
 
-export function getContractVisibleCode(contract, employees = []) {
-  if (!contract) return "-";
+function sortByIdAsc(a, b) {
+  return Number(a.id || 0) - Number(b.id || 0);
+}
 
-  if (contract.contract_code) {
-    return contract.contract_code;
+function inferEmployeeCompanyId(employee, contracts = [], fallbackCompanyId = null) {
+  if (!employee) return fallbackCompanyId || null;
+
+  if (employee.company_id) return employee.company_id;
+
+  const relatedContract = contracts.find(
+    (contract) => sameId(contract.employee_id, employee.id) && contract.company_id
+  );
+
+  return relatedContract?.company_id || fallbackCompanyId || null;
+}
+
+export function getEmployeeVisibleCode(employee, employees = [], contracts = [], fallbackCompanyId = null) {
+  if (!employee) return "-";
+
+  const companyId = inferEmployeeCompanyId(employee, contracts, fallbackCompanyId);
+
+  if (!companyId) {
+    return `?.${employee.id || employee.employee_code || "?"}`;
   }
 
+  const employeesInCompany = employees
+    .filter((item) => sameId(inferEmployeeCompanyId(item, contracts), companyId))
+    .sort(sortByIdAsc);
+
+  const employeeIndex = employeesInCompany.findIndex((item) => sameId(item.id, employee.id));
+  const employeeSequence = employeeIndex >= 0 ? employeeIndex + 1 : employee.employee_code || employee.id || "?";
+
+  return `${companyId}.${employeeSequence}`;
+}
+
+export function getContractVisibleCode(contract, employees = [], contracts = []) {
+  if (!contract) return "-";
+
   const employee = employees.find(
-    (item) => String(item.id) === String(contract.employee_id)
+    (item) => sameId(item.id, contract.employee_id)
   );
 
   const employeeCode = employee
-    ? getEmployeeVisibleCode(employee, contract.company_id)
+    ? getEmployeeVisibleCode(employee, employees, contracts, contract.company_id)
     : `${contract.company_id || "?"}.${contract.employee_id || "?"}`;
 
-  return `${employeeCode}.${contract.id}`;
+  const employeeContracts = contracts
+    .filter((item) => sameId(item.employee_id, contract.employee_id))
+    .sort(sortByIdAsc);
+
+  const contractIndex = employeeContracts.findIndex((item) => sameId(item.id, contract.id));
+  const contractSequence = contractIndex >= 0 ? contractIndex + 1 : contract.id || "?";
+
+  return `${employeeCode}.${contractSequence}`;
 }
 
 export function getIncidentContractVisibleCode(incident, contracts = [], employees = []) {
   if (!incident) return "-";
 
   const contract = contracts.find(
-    (item) => String(item.id) === String(incident.contract_id)
+    (item) => sameId(item.id, incident.contract_id)
   );
 
   if (contract) {
-    return getContractVisibleCode(contract, employees);
+    return getContractVisibleCode(contract, employees, contracts);
   }
 
   const companyId = incident.company_id || "?";
@@ -50,16 +79,12 @@ export function getIncidentContractVisibleCode(incident, contracts = [], employe
 export function getPayrollVisibleCode(payroll, contracts = [], employees = []) {
   if (!payroll) return "-";
 
-  if (payroll.payroll_code) {
-    return payroll.payroll_code;
-  }
-
   const contract = contracts.find(
-    (item) => String(item.id) === String(payroll.contract_id)
+    (item) => sameId(item.id, payroll.contract_id)
   );
 
   const contractCode = contract
-    ? getContractVisibleCode(contract, employees)
+    ? getContractVisibleCode(contract, employees, contracts)
     : `${payroll.company_id || "?"}.${payroll.employee_id || "?"}.${payroll.contract_id || "?"}`;
 
   const month = String(payroll.period_month || "").padStart(2, "0");
