@@ -7,6 +7,7 @@ class IncidentBase(BaseModel):
     employee_id: int
     contract_id: int
     company_id: int
+    center_id: int | None = None
     incident_type: str
     start_date: date
     end_date: Optional[date] = None
@@ -34,6 +35,7 @@ class IncidentCreate(IncidentBase):
 
 
 class IncidentUpdate(BaseModel):
+    center_id: int | None = None
     incident_type: Optional[str] = None
     start_date: Optional[date] = None
     end_date: Optional[date] = None
@@ -46,6 +48,7 @@ class IncidentResponse(BaseModel):
     employee_id: int
     contract_id: int
     company_id: int
+    center_id: int | None = None
     employee_name: Optional[str]
     company_name: Optional[str]
     contract_type: Optional[str]
