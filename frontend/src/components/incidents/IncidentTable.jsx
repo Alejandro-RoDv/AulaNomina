@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { INCIDENT_TYPES, STATUS_OPTIONS } from "./IncidentForm";
+import { getIncidentContractVisibleCode } from "../../utils/visibleCodes";
 
 function formatDate(value) {
   if (!value) return "-";
@@ -17,11 +18,12 @@ function getStatusLabel(value) {
 }
 
 function getEmployeeCode(incident) {
-  return incident.employee_code || incident.employee_id || "-";
+  return incident.employee_code || `${incident.company_id || "?"}.${incident.employee_id || "?"}`;
 }
 
 function toEditForm(incident) {
   return {
+    center_id: incident.center_id || "",
     incident_type: incident.incident_type || "",
     start_date: incident.start_date || "",
     end_date: incident.end_date || "",
@@ -33,6 +35,8 @@ function toEditForm(incident) {
 export default function IncidentTable({
   loading,
   incidents,
+  contracts = [],
+  employees = [],
   onUpdateIncident,
   onDeleteIncident,
   submitting,
@@ -43,6 +47,8 @@ export default function IncidentTable({
   const [isEditing, setIsEditing] = useState(false);
   const [editError, setEditError] = useState("");
   const [deleteError, setDeleteError] = useState("");
+
+  const getContractCode = (incident) => getIncidentContractVisibleCode(incident, contracts, employees);
 
   const openDetailsModal = (incident) => {
     setSelectedIncident(incident);
@@ -125,10 +131,10 @@ export default function IncidentTable({
         <table style={styles.table}>
           <thead>
             <tr>
-              <th style={styles.thEmployeeCode}>Código trab.</th>
-              <th style={styles.th}>Trabajador</th>
+              <th style={styles.thEmployeeCode}>Trabajador</th>
+              <th style={styles.th}>Nombre</th>
               <th style={styles.th}>Empresa</th>
-              <th style={styles.th}>Contrato</th>
+              <th style={styles.thContract}>Contrato</th>
               <th style={styles.th}>Tipo</th>
               <th style={styles.thDate}>Inicio</th>
               <th style={styles.thDate}>Fin</th>
@@ -139,10 +145,10 @@ export default function IncidentTable({
           <tbody>
             {incidents.map((incident) => (
               <tr key={incident.id}>
-                <td style={styles.td}>{getEmployeeCode(incident)}</td>
+                <td style={styles.tdStrong}>{getEmployeeCode(incident)}</td>
                 <td style={styles.td}>{incident.employee_name || incident.employee_id}</td>
                 <td style={styles.td}>{incident.company_name || incident.company_id}</td>
-                <td style={styles.td}>{incident.contract_type || "-"}</td>
+                <td style={styles.tdStrong}>{getContractCode(incident)}</td>
                 <td style={styles.td}>
                   <span style={styles.typeBadge}>{getTypeLabel(incident.incident_type)}</span>
                 </td>
@@ -175,18 +181,17 @@ export default function IncidentTable({
             <div style={styles.modalHeader}>
               <div>
                 <h3 style={styles.modalTitle}>Detalle de incidencia</h3>
-                <p style={styles.modalSubtitle}>Incidencia #{selectedIncident.id} · {getEmployeeCode(selectedIncident)} · {selectedIncident.employee_name || selectedIncident.employee_id}</p>
+                <p style={styles.modalSubtitle}>Contrato {getContractCode(selectedIncident)} · {getEmployeeCode(selectedIncident)} · {selectedIncident.employee_name || selectedIncident.employee_id}</p>
               </div>
               <button type="button" onClick={closeDetailsModal} style={styles.closeButton}>×</button>
             </div>
 
             <div style={styles.detailsGrid}>
               <div style={styles.detailBox}><span>Código trabajador</span><strong>{getEmployeeCode(selectedIncident)}</strong></div>
-              <div style={styles.detailBox}><span>ID técnico trabajador</span><strong>{selectedIncident.employee_id || "-"}</strong></div>
+              <div style={styles.detailBox}><span>Contrato</span><strong>{getContractCode(selectedIncident)}</strong></div>
               <div style={styles.detailBox}><span>Trabajador</span><strong>{selectedIncident.employee_name || selectedIncident.employee_id}</strong></div>
               <div style={styles.detailBox}><span>Empresa</span><strong>{selectedIncident.company_name || selectedIncident.company_id}</strong></div>
-              <div style={styles.detailBox}><span>ID técnico contrato</span><strong>{selectedIncident.contract_id || "-"}</strong></div>
-              <div style={styles.detailBox}><span>Contrato</span><strong>{selectedIncident.contract_type || "-"}</strong></div>
+              <div style={styles.detailBox}><span>Tipo</span><strong>{getTypeLabel(selectedIncident.incident_type)}</strong></div>
               <div style={styles.detailBox}><span>Fecha creación</span><strong>{formatDate(selectedIncident.created_at?.slice(0, 10))}</strong></div>
             </div>
 
@@ -297,7 +302,7 @@ export default function IncidentTable({
             </div>
 
             <p style={styles.confirmText}>
-              ¿Seguro que quieres eliminar la incidencia de {incidentToDelete.employee_name || incidentToDelete.employee_id}?
+              ¿Seguro que quieres eliminar la incidencia de {incidentToDelete.employee_name || incidentToDelete.employee_id} asociada al contrato {getContractCode(incidentToDelete)}?
             </p>
 
             {deleteError && <div style={styles.error}>{deleteError}</div>}
@@ -319,11 +324,13 @@ const styles = {
   tableWrapper: { overflowX: "hidden", width: "100%" },
   table: { width: "100%", borderCollapse: "collapse", tableLayout: "fixed" },
   th: { textAlign: "left", padding: "12px 10px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" },
-  thEmployeeCode: { width: "82px", textAlign: "left", padding: "12px 10px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb" },
+  thEmployeeCode: { width: "96px", textAlign: "left", padding: "12px 10px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb" },
+  thContract: { width: "110px", textAlign: "left", padding: "12px 10px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb" },
   thDate: { width: "96px", textAlign: "left", padding: "12px 10px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb" },
   thStatus: { width: "88px", textAlign: "left", padding: "12px 10px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb" },
   thActions: { width: "92px", textAlign: "left", padding: "12px 10px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb" },
   td: { padding: "12px 10px", borderBottom: "1px solid #eee", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" },
+  tdStrong: { padding: "12px 10px", borderBottom: "1px solid #eee", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", fontWeight: 900 },
   typeBadge: { backgroundColor: "#fef3c7", color: "#92400e", padding: "4px 8px", borderRadius: "999px", fontSize: "12px", fontWeight: 800, whiteSpace: "nowrap" },
   openBadge: { backgroundColor: "#dcfce7", color: "#166534", padding: "4px 8px", borderRadius: "999px", fontSize: "12px", fontWeight: 800 },
   closedBadge: { backgroundColor: "#e5e7eb", color: "#374151", padding: "4px 8px", borderRadius: "999px", fontSize: "12px", fontWeight: 800 },
