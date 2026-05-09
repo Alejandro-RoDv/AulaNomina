@@ -5,6 +5,8 @@ from pydantic import BaseModel
 
 class EmployeeBase(BaseModel):
     employee_code: str
+    company_id: int | None = None
+    center_id: int | None = None
     dni: str
     naf: str | None = None
     first_name: str
@@ -25,6 +27,8 @@ class EmployeeCreate(EmployeeBase):
 
 class EmployeeUpdate(BaseModel):
     employee_code: str | None = None
+    company_id: int | None = None
+    center_id: int | None = None
     dni: str | None = None
     naf: str | None = None
     first_name: str | None = None
