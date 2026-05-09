@@ -16,6 +16,7 @@ export default function EmployeesPage({
   loading,
   employees,
   companies,
+  workCenters,
   contracts,
   incidents,
   payrolls,
@@ -65,11 +66,12 @@ export default function EmployeesPage({
     <div style={styles.wrapper}>
       <PageCard
         title="Nuevo trabajador"
-        subtitle="Crea un trabajador para vincularlo después a contratos, nóminas e incidencias."
+        subtitle="Crea un trabajador dentro de una empresa y centro para vincularlo después a contratos, nóminas e incidencias."
       >
         <EmployeeForm
           form={employeeForm}
           companies={companies}
+          workCenters={workCenters}
           onChange={onEmployeeChange}
           onSubmit={onEmployeeSubmit}
           error={employeeError}
@@ -125,6 +127,7 @@ export default function EmployeesPage({
           loading={loading}
           employees={filteredEmployees}
           companies={companies}
+          workCenters={workCenters}
           contracts={contracts}
           incidents={incidents}
           payrolls={payrolls}
