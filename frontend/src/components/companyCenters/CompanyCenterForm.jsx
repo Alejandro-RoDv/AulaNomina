@@ -1,5 +1,8 @@
 import { useMemo, useState } from "react";
 
+import { createCompany } from "../../services/companyApi";
+import { createWorkCenter } from "../../services/workCenterApi";
+
 const initialCompany = {
   name: "",
   cif: "",
@@ -44,12 +47,7 @@ function buildCenterPayload(center, company, companyId) {
   };
 }
 
-export default function CompanyCenterForm({
-  companies,
-  onCreateCompanyRecord,
-  onCreateWorkCenterRecord,
-  onReloadData,
-}) {
+export default function CompanyCenterForm({ companies, onReloadData }) {
   const [mode, setMode] = useState("new");
   const [company, setCompany] = useState(initialCompany);
   const [center, setCenter] = useState(initialCenter);
@@ -118,13 +116,16 @@ export default function CompanyCenterForm({
       let companyForDefaults = selectedCompany || company;
 
       if (mode === "new") {
-        const createdCompany = await onCreateCompanyRecord(buildCompanyPayload(company));
+        const createdCompany = await createCompany(buildCompanyPayload(company));
         companyId = createdCompany.id;
         companyForDefaults = createdCompany;
       }
 
-      await onCreateWorkCenterRecord(buildCenterPayload(center, companyForDefaults, companyId));
-      await onReloadData();
+      await createWorkCenter(buildCenterPayload(center, companyForDefaults, companyId));
+
+      if (onReloadData) {
+        await onReloadData();
+      }
 
       setCompany(initialCompany);
       setCenter(initialCenter);
@@ -141,17 +142,17 @@ export default function CompanyCenterForm({
       <div style={styles.modeBox}>
         <label style={styles.radioLabel}>
           <input type="radio" name="mode" value="new" checked={mode === "new"} onChange={handleModeChange} />
-          Nueva empresa + centro
+          Nueva empresa + primer centro
         </label>
         <label style={styles.radioLabel}>
           <input type="radio" name="mode" value="existing" checked={mode === "existing"} onChange={handleModeChange} />
-          Añadir centro a empresa existente
+          Añadir centro a empresa ya creada
         </label>
       </div>
 
       {mode === "new" && (
         <section style={styles.section}>
-          <h3 style={styles.sectionTitle}>Datos de empresa</h3>
+          <h3 style={styles.sectionTitle}>Empresa</h3>
           <div style={styles.formRow}>
             <div style={styles.formGroup}>
               <label>Nombre empresa</label>
@@ -192,7 +193,7 @@ export default function CompanyCenterForm({
           <h3 style={styles.sectionTitle}>Empresa existente</h3>
           <div style={styles.formRow}>
             <div style={styles.formGroupWide}>
-              <label>Buscar por empresa / CCC</label>
+              <label>Seleccionar por CCC / empresa</label>
               <select name="company_id" value={center.company_id} onChange={handleCenterChange} required style={styles.input}>
                 <option value="">Seleccionar empresa existente</option>
                 {activeCompanies.map((item) => (
@@ -207,7 +208,7 @@ export default function CompanyCenterForm({
       )}
 
       <section style={styles.section}>
-        <h3 style={styles.sectionTitle}>Datos del centro</h3>
+        <h3 style={styles.sectionTitle}>Centro</h3>
         <div style={styles.formRow}>
           <div style={styles.formGroupSmall}>
             <label>Código centro</label>
