@@ -53,10 +53,12 @@ export default function IncidentsPage({
 
       return {
         ...incident,
-        employee_code: linkedEmployee ? getEmployeeVisibleCode(linkedEmployee, incident.company_id) : `${incident.company_id || "?"}.${incident.employee_id || "?"}`,
+        employee_code: linkedEmployee
+          ? getEmployeeVisibleCode(linkedEmployee, employees, contracts, incident.company_id)
+          : `${incident.company_id || "?"}.${incident.employee_id || "?"}`,
       };
     });
-  }, [incidents, employees]);
+  }, [incidents, employees, contracts]);
 
   const handleFilterChange = (event) => {
     const { name, value } = event.target;
