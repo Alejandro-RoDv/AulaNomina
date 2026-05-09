@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { formatPaySchedule, PAY_SCHEDULE_OPTIONS } from "./ContractForm";
+import { getContractVisibleCode, getEmployeeVisibleCode } from "../utils/visibleCodes";
 
 function formatDate(value) {
   if (!value) return "-";
@@ -26,14 +27,11 @@ function formatSalary(value) {
   }).format(Number(value));
 }
 
-function getContractCode(contract) {
-  return contract.contract_display_code || String(contract.id);
-}
-
 function toEditForm(contract) {
   return {
     employee_id: contract.employee_id ? String(contract.employee_id) : "",
     company_id: contract.company_id ? String(contract.company_id) : "",
+    center_id: contract.center_id ? String(contract.center_id) : "",
     contract_type: contract.contract_type || "",
     start_date: contract.start_date || "",
     end_date: contract.end_date || "",
@@ -58,12 +56,22 @@ export default function ContractTable({
   const [editError, setEditError] = useState("");
   const [deleteError, setDeleteError] = useState("");
 
+  const getEmployee = (contract) => employees.find((employee) => Number(employee.id) === Number(contract.employee_id));
+
   const getEmployeeName = (contract) => {
     if (contract.employee_name) return contract.employee_name;
-    const emp = employees.find((employee) => employee.id === contract.employee_id);
+    const emp = getEmployee(contract);
     if (!emp) return contract.employee_id;
     return `${emp.first_name} ${emp.last_name}`;
   };
+
+  const getEmployeeLabel = (contract) => {
+    const emp = getEmployee(contract);
+    const code = emp ? getEmployeeVisibleCode(emp) : contract.employee_id;
+    return `${code} - ${getEmployeeName(contract)}`;
+  };
+
+  const getContractCode = (contract) => getContractVisibleCode(contract, employees);
 
   const getCompany = (contract) => {
     return companies.find((item) => Number(item.id) === Number(contract.company_id));
@@ -143,8 +151,8 @@ export default function ContractTable({
         <table style={styles.table}>
           <thead>
             <tr>
-              <th style={styles.thCode}>Cód.</th>
-              <th style={styles.thEmployee}>Empleado</th>
+              <th style={styles.thCode}>Código</th>
+              <th style={styles.thEmployee}>Trabajador</th>
               <th style={styles.thCompany}>Empresa / centro</th>
               <th style={styles.thCcc}>CCC</th>
               <th style={styles.thType}>Tipo</th>
@@ -159,7 +167,7 @@ export default function ContractTable({
             {contracts.map((contract) => (
               <tr key={contract.id}>
                 <td style={styles.tdCode}>{getContractCode(contract)}</td>
-                <td style={styles.td}>{getEmployeeName(contract)}</td>
+                <td style={styles.td}>{getEmployeeLabel(contract)}</td>
                 <td style={styles.td}>{getCompanyName(contract)}</td>
                 <td style={styles.tdCcc}>{getCompanyCcc(contract)}</td>
                 <td style={styles.tdType}>{contract.contract_type}</td>
@@ -196,8 +204,8 @@ export default function ContractTable({
             <form onSubmit={handleEditSubmit} style={styles.form}>
               <div style={styles.formRow}>
                 <div style={styles.formGroup}>
-                  <label>Empleado</label>
-                  <input value={getEmployeeName(editingContract)} readOnly disabled style={{ ...styles.input, ...styles.readOnlyInput }} />
+                  <label>Trabajador</label>
+                  <input value={getEmployeeLabel(editingContract)} readOnly disabled style={{ ...styles.input, ...styles.readOnlyInput }} />
                   <small style={styles.helpText}>El trabajador no se puede modificar desde la edición del contrato.</small>
                 </div>
 
@@ -207,7 +215,7 @@ export default function ContractTable({
                     <option value="">Selecciona una empresa o centro</option>
                     {companies.map((company) => (
                       <option key={company.id} value={company.id}>
-                        {company.name} {company.ccc ? `· CCC ${company.ccc}` : ""}
+                        {company.id} · {company.name} {company.ccc ? `· CCC ${company.ccc}` : ""}
                       </option>
                     ))}
                   </select>
@@ -293,7 +301,7 @@ export default function ContractTable({
             </div>
 
             <p style={styles.confirmText}>
-              ¿Seguro que quieres eliminar el contrato {getContractCode(contractToDelete)} de {getEmployeeName(contractToDelete)}?
+              ¿Seguro que quieres eliminar el contrato {getContractCode(contractToDelete)} de {getEmployeeLabel(contractToDelete)}?
             </p>
 
             {deleteError && <div style={styles.error}>{deleteError}</div>}
@@ -316,7 +324,7 @@ const styles = {
   table: { width: "100%", minWidth: "1120px", borderCollapse: "collapse", tableLayout: "fixed" },
   thEmployee: { width: "230px", textAlign: "left", padding: "12px 10px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb", whiteSpace: "nowrap" },
   thCompany: { width: "210px", textAlign: "left", padding: "12px 10px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb", whiteSpace: "nowrap" },
-  thCode: { width: "62px", textAlign: "left", padding: "12px 8px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb", whiteSpace: "nowrap" },
+  thCode: { width: "90px", textAlign: "left", padding: "12px 8px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb", whiteSpace: "nowrap" },
   thCcc: { width: "110px", textAlign: "left", padding: "12px 10px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb", whiteSpace: "nowrap" },
   thType: { width: "92px", textAlign: "left", padding: "12px 10px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb", whiteSpace: "nowrap" },
   thDate: { width: "104px", textAlign: "left", padding: "12px 10px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb", whiteSpace: "nowrap" },
@@ -324,7 +332,7 @@ const styles = {
   thSalary: { width: "98px", textAlign: "right", padding: "12px 10px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb", whiteSpace: "nowrap" },
   thActions: { width: "86px", textAlign: "left", padding: "12px 10px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb", whiteSpace: "nowrap" },
   td: { padding: "12px 10px", borderBottom: "1px solid #eee", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" },
-  tdCode: { width: "62px", padding: "12px 8px", borderBottom: "1px solid #eee", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" },
+  tdCode: { width: "90px", padding: "12px 8px", borderBottom: "1px solid #eee", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", fontWeight: 900 },
   tdCcc: { width: "110px", padding: "12px 10px", borderBottom: "1px solid #eee", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" },
   tdType: { width: "92px", padding: "12px 10px", borderBottom: "1px solid #eee", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" },
   tdDate: { width: "104px", padding: "12px 10px", borderBottom: "1px solid #eee", whiteSpace: "nowrap" },
