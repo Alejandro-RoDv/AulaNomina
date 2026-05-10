@@ -10,6 +10,20 @@ export async function fetchEmployees() {
   return response.json();
 }
 
+export async function resetDemo() {
+  const response = await fetch(`${API_BASE_URL}/demo/reset`, {
+    method: "POST",
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.detail || "Error al reiniciar la demo");
+  }
+
+  return data;
+}
+
 export async function createContract(payload) {
   const response = await fetch(`${API_BASE_URL}/contracts`, {
     method: "POST",
