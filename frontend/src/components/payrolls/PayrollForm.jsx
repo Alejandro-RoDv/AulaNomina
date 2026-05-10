@@ -4,6 +4,7 @@ const PAYROLL_STATUS_OPTIONS = [
   { value: "calculated", label: "Calculada" },
   { value: "reviewed", label: "Revisada" },
   { value: "closed", label: "Cerrada" },
+  { value: "cancelled", label: "Anulada" },
 ];
 
 const MONTH_OPTIONS = [
@@ -89,6 +90,14 @@ function calculatePreview(form, contract) {
   };
 }
 
+function getActiveContractForEmployee(contracts, employeeId) {
+  return contracts.find(
+    (contract) =>
+      String(contract.employee_id) === String(employeeId) &&
+      contract.status === "active"
+  );
+}
+
 function AmountPreviewItem({ label, amount }) {
   return (
     <div style={styles.previewItem}>
@@ -103,32 +112,39 @@ export default function PayrollForm({
   employees,
   contracts,
   companies,
+  workCenters = [],
   onChange,
   onSubmit,
   error,
   success,
   submitting,
 }) {
-  const availableContracts = contracts.filter(
-    (contract) => String(contract.employee_id) === String(form.employee_id)
-  );
-
-  const selectedContract = contracts.find(
-    (contract) => String(contract.id) === String(form.contract_id)
-  );
-
-  const selectedCompany = companies.find(
-    (company) => String(company.id) === String(form.company_id)
-  );
+  const selectedEmployee = employees.find((employee) => String(employee.id) === String(form.employee_id));
+  const selectedContract = contracts.find((contract) => String(contract.id) === String(form.contract_id));
+  const selectedCompany = companies.find((company) => String(company.id) === String(form.company_id));
+  const selectedCenter = workCenters.find((center) => String(center.id) === String(form.center_id));
+  const hasEmployeeWithoutActiveContract = Boolean(form.employee_id && !selectedContract);
 
   const preview = calculatePreview(form, selectedContract);
+
+  const handleEmployeeChange = (event) => {
+    const employeeId = event.target.value;
+    const activeContract = getActiveContractForEmployee(contracts, employeeId);
+
+    onChange({ target: { name: "employee_id", value: employeeId } });
+    onChange({ target: { name: "contract_id", value: activeContract ? String(activeContract.id) : "" } });
+    onChange({ target: { name: "company_id", value: activeContract?.company_id ? String(activeContract.company_id) : "" } });
+    onChange({ target: { name: "center_id", value: activeContract?.center_id ? String(activeContract.center_id) : "" } });
+  };
+
+  const isSubmitDisabled = submitting || hasEmployeeWithoutActiveContract;
 
   return (
     <form onSubmit={onSubmit} style={styles.form}>
       <div style={styles.formRow}>
         <div style={styles.formGroup}>
           <label>Trabajador</label>
-          <select name="employee_id" value={form.employee_id} onChange={onChange} required style={styles.input}>
+          <select name="employee_id" value={form.employee_id} onChange={handleEmployeeChange} required style={styles.input}>
             <option value="">Selecciona trabajador</option>
             {employees.map((employee) => (
               <option key={employee.id} value={employee.id}>
@@ -139,35 +155,37 @@ export default function PayrollForm({
         </div>
 
         <div style={styles.formGroup}>
-          <label>Contrato del trabajador</label>
-          <select
-            name="contract_id"
-            value={form.contract_id}
-            onChange={onChange}
-            required
-            disabled={!form.employee_id}
-            style={styles.input}
-          >
-            <option value="">Selecciona contrato</option>
-            {availableContracts.map((contract) => (
-              <option key={contract.id} value={contract.id}>
-                #{contract.id} · {contract.contract_type} · {contract.start_date} · {formatCurrency(contract.salary_base || 0)} · {getPayScheduleLabel(contract.pay_schedule)}
-              </option>
-            ))}
-          </select>
+          <label>Contrato activo</label>
+          <div style={styles.readOnlyBox}>
+            <div style={styles.readOnlyMain}>
+              {selectedContract
+                ? `${selectedContract.contract_type} · ${selectedContract.start_date}${selectedContract.end_date ? ` a ${selectedContract.end_date}` : ""}`
+                : "Se completará al seleccionar trabajador"}
+            </div>
+            <div style={styles.readOnlyMeta}>
+              {selectedContract
+                ? `${formatCurrency(selectedContract.salary_base || 0)} · ${getPayScheduleLabel(selectedContract.pay_schedule)}`
+                : "Solo se permite contrato activo"}
+            </div>
+          </div>
+          <input type="hidden" name="contract_id" value={form.contract_id} required />
         </div>
       </div>
 
       <div style={styles.formRow}>
         <div style={styles.formGroup}>
-          <label>Empresa / centro</label>
-          <input
-            value={selectedCompany?.name || "Se autocompleta según el contrato"}
-            readOnly
-            disabled
-            style={{ ...styles.input, ...styles.readOnlyInput }}
-          />
+          <label>Empresa y centro</label>
+          <div style={styles.readOnlyBox}>
+            <div style={styles.readOnlyMain}>
+              {selectedCompany?.name || "Se completará según el contrato activo"}
+            </div>
+            <div style={styles.readOnlyMeta}>
+              {selectedCenter?.name || "Centro pendiente"}
+              {selectedCompany?.ccc ? ` · CCC ${selectedCompany.ccc}` : ""}
+            </div>
+          </div>
           <input type="hidden" name="company_id" value={form.company_id} />
+          <input type="hidden" name="center_id" value={form.center_id || ""} />
         </div>
 
         <div style={styles.formGroupSmall}>
@@ -219,7 +237,7 @@ export default function PayrollForm({
         <div style={styles.formGroupSmall}>
           <label>Estado</label>
           <select name="status" value={form.status} onChange={onChange} style={styles.input}>
-            {PAYROLL_STATUS_OPTIONS.map((status) => (
+            {PAYROLL_STATUS_OPTIONS.filter((status) => status.value !== "cancelled").map((status) => (
               <option key={status.value} value={status.value}>{status.label}</option>
             ))}
           </select>
@@ -238,12 +256,12 @@ export default function PayrollForm({
         <AmountPreviewItem label="Neto" amount={preview.netSalary} />
       </div>
 
-      {form.employee_id && availableContracts.length === 0 && <div style={styles.warning}>Este trabajador no tiene contratos disponibles.</div>}
-      {selectedContract && !selectedContract.company_id && <div style={styles.warning}>El contrato seleccionado no tiene empresa vinculada.</div>}
+      {selectedEmployee && hasEmployeeWithoutActiveContract && <div style={styles.warning}>Este trabajador no tiene contrato activo. No se puede generar nómina.</div>}
+      {selectedContract && !selectedContract.company_id && <div style={styles.warning}>El contrato activo no tiene empresa vinculada.</div>}
       {error && <div style={styles.error}>{error}</div>}
       {success && <div style={styles.success}>{success}</div>}
 
-      <button type="submit" disabled={submitting} style={styles.button}>
+      <button type="submit" disabled={isSubmitDisabled} style={{ ...styles.button, opacity: isSubmitDisabled ? 0.65 : 1 }}>
         {submitting ? "Generando..." : "Generar nómina"}
       </button>
     </form>
@@ -259,7 +277,9 @@ const styles = {
   formGroup: { flex: 1, minWidth: "220px", display: "flex", flexDirection: "column", gap: "6px" },
   formGroupSmall: { width: "160px", minWidth: "140px", display: "flex", flexDirection: "column", gap: "6px" },
   input: { padding: "10px 12px", border: "1px solid #ccc", borderRadius: "8px", fontSize: "14px" },
-  readOnlyInput: { backgroundColor: "#f3f4f6", color: "#6b7280", cursor: "not-allowed", fontWeight: 700 },
+  readOnlyBox: { minHeight: "42px", padding: "8px 10px", border: "1px solid #d1d5db", borderRadius: "8px", backgroundColor: "#f9fafb" },
+  readOnlyMain: { color: "#111827", fontWeight: 800, fontSize: "14px" },
+  readOnlyMeta: { marginTop: "2px", color: "#6b7280", fontWeight: 600, fontSize: "12px" },
   calculationInfo: { display: "grid", gridTemplateColumns: "repeat(4, minmax(140px, 1fr))", gap: "10px", border: "1px solid #e6d85c", borderRadius: "10px", backgroundColor: "#fefce8", padding: "10px" },
   previewPanel: { display: "grid", gridTemplateColumns: "repeat(4, minmax(110px, 1fr))", gap: "14px", border: "1px solid #e5e7eb", borderRadius: "10px", backgroundColor: "#f9fafb", padding: "10px 14px" },
   previewItem: { display: "flex", justifyContent: "center", alignItems: "baseline", gap: "8px", minWidth: 0 },
