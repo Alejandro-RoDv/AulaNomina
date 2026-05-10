@@ -14,6 +14,7 @@ function getStatusStyle(value) {
   if (value === "closed") return styles.closedBadge;
   if (value === "calculated") return styles.calculatedBadge;
   if (value === "reviewed") return styles.reviewedBadge;
+  if (value === "cancelled") return styles.cancelledBadge;
   return styles.draftBadge;
 }
 
@@ -75,6 +76,7 @@ export default function PayrollDetailsModal({
   if (!payroll || !editForm) return null;
 
   const editSupplementsTotal = getEditSupplementsTotal(editForm);
+  const isCancelled = payroll.status === "cancelled";
 
   return (
     <div style={styles.modalBackdrop}>
@@ -133,7 +135,7 @@ export default function PayrollDetailsModal({
               <h4 style={styles.editTitle}>Edición básica</h4>
               <p style={styles.editSubtitle}>El salario base y la prorrata extra se recalculan automáticamente desde el contrato.</p>
             </div>
-            {!isEditing && <button type="button" onClick={onEnableEditing} style={styles.secondaryButton}>Editar</button>}
+            {!isEditing && !isCancelled && <button type="button" onClick={onEnableEditing} style={styles.secondaryButton}>Editar</button>}
           </div>
 
           <div style={styles.formRow}>
@@ -190,7 +192,11 @@ export default function PayrollDetailsModal({
           {editError && <div style={styles.error}>{editError}</div>}
 
           <div style={styles.modalActionsSplit}>
-            <button type="button" onClick={onRequestDelete} style={styles.deleteButton}>Eliminar nómina</button>
+            {!isCancelled ? (
+              <button type="button" onClick={onRequestDelete} style={styles.deleteButton}>Anular nómina</button>
+            ) : (
+              <span style={styles.cancelledNotice}>Nómina anulada. Se conserva en el histórico.</span>
+            )}
             <div style={styles.modalActionsRight}>
               {isEditing && <button type="button" onClick={onCancelEditing} style={styles.cancelButton}>Cancelar</button>}
               {isEditing && <button type="submit" disabled={submitting} style={styles.saveButton}>{submitting ? "Guardando..." : "Guardar cambios"}</button>}
@@ -201,13 +207,13 @@ export default function PayrollDetailsModal({
         {showDeleteConfirm && (
           <div style={styles.confirmBox}>
             <div>
-              <h4 style={styles.confirmTitle}>Confirmar eliminación</h4>
-              <p style={styles.confirmText}>¿Seguro que quieres eliminar la nómina {payrollCode || payroll.id} del periodo {formatPeriod(payroll)}?</p>
+              <h4 style={styles.confirmTitle}>Confirmar anulación</h4>
+              <p style={styles.confirmText}>La nómina {payrollCode || payroll.id} del periodo {formatPeriod(payroll)} quedará marcada como anulada y se conservará en el histórico.</p>
               {deleteError && <div style={styles.error}>{deleteError}</div>}
             </div>
             <div style={styles.modalActionsRight}>
               <button type="button" onClick={onCancelDelete} style={styles.cancelButton}>Cancelar</button>
-              <button type="button" onClick={onConfirmDelete} disabled={submitting} style={styles.dangerButton}>{submitting ? "Eliminando..." : "Confirmar eliminación"}</button>
+              <button type="button" onClick={onConfirmDelete} disabled={submitting} style={styles.dangerButton}>{submitting ? "Anulando..." : "Confirmar anulación"}</button>
             </div>
           </div>
         )}
@@ -250,6 +256,7 @@ const styles = {
   calculatedBadge: { backgroundColor: "#dbeafe", color: "#1e40af", padding: "4px 8px", borderRadius: "999px", fontSize: "12px", fontWeight: 800 },
   reviewedBadge: { backgroundColor: "#fef3c7", color: "#92400e", padding: "4px 8px", borderRadius: "999px", fontSize: "12px", fontWeight: 800 },
   closedBadge: { backgroundColor: "#dcfce7", color: "#166534", padding: "4px 8px", borderRadius: "999px", fontSize: "12px", fontWeight: 800 },
+  cancelledBadge: { backgroundColor: "#fee2e2", color: "#991b1b", padding: "4px 8px", borderRadius: "999px", fontSize: "12px", fontWeight: 800 },
   error: { backgroundColor: "#fee2e2", color: "#991b1b", padding: "10px 12px", borderRadius: "8px" },
   modalActionsSplit: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: "10px", marginTop: "6px" },
   modalActionsRight: { display: "flex", justifyContent: "flex-end", gap: "10px", flexWrap: "wrap" },
@@ -258,6 +265,7 @@ const styles = {
   cancelButton: { backgroundColor: "#f3f4f6", color: "#111827", border: "1px solid #d1d5db", borderRadius: "8px", padding: "10px 14px", cursor: "pointer", fontWeight: 800 },
   saveButton: { backgroundColor: "#111827", color: "#ffffff", border: "1px solid #111827", borderRadius: "8px", padding: "10px 14px", cursor: "pointer", fontWeight: 800 },
   dangerButton: { backgroundColor: "#991b1b", color: "#ffffff", border: "1px solid #991b1b", borderRadius: "8px", padding: "10px 14px", cursor: "pointer", fontWeight: 900 },
+  cancelledNotice: { color: "#991b1b", fontWeight: 900, fontSize: "13px" },
   confirmBox: { marginTop: "16px", border: "2px solid #991b1b", backgroundColor: "#fff1f2", borderRadius: "12px", padding: "14px", display: "flex", justifyContent: "space-between", gap: "16px", alignItems: "center", flexWrap: "wrap" },
   confirmTitle: { margin: "0 0 4px", color: "#991b1b", fontWeight: 900 },
   confirmText: { margin: 0, color: "#374151", lineHeight: 1.5 },
