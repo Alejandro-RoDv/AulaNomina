@@ -1,9 +1,10 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import PageCard from "../components/layout/PageCard";
 import PayrollForm, { PAYROLL_STATUS_OPTIONS } from "../components/payrolls/PayrollForm";
 import PayrollTable from "../components/payrolls/PayrollTable";
 import MonthlyPayrollPreparation from "../components/payrolls/MonthlyPayrollPreparation";
+import { fetchPayrolls } from "../services/payrollApi";
 
 function normalizeText(value) {
   return String(value || "")
@@ -40,6 +41,27 @@ export default function PayrollsPage({
     periodFrom: "",
     periodTo: "",
   });
+  const [localPayrolls, setLocalPayrolls] = useState(payrolls);
+  const [refreshingPayrolls, setRefreshingPayrolls] = useState(false);
+  const [refreshMessage, setRefreshMessage] = useState("");
+
+  useEffect(() => {
+    setLocalPayrolls(payrolls);
+  }, [payrolls]);
+
+  const refreshPayrollList = async () => {
+    try {
+      setRefreshingPayrolls(true);
+      setRefreshMessage("");
+      const data = await fetchPayrolls();
+      setLocalPayrolls(data);
+      setRefreshMessage("Listado de nóminas actualizado");
+    } catch {
+      setRefreshMessage("Las nóminas se han preparado, pero no se pudo refrescar el listado automáticamente");
+    } finally {
+      setRefreshingPayrolls(false);
+    }
+  };
 
   const handleFilterChange = (event) => {
     const { name, value } = event.target;
@@ -63,7 +85,7 @@ export default function PayrollsPage({
     const fromPeriod = filters.periodFrom ? Number(filters.periodFrom.replace("-", "")) : null;
     const toPeriod = filters.periodTo ? Number(filters.periodTo.replace("-", "")) : null;
 
-    return payrolls.filter((payroll) => {
+    return localPayrolls.filter((payroll) => {
       const employeeText = normalizeText(`${payroll.employee_name || ""} ${payroll.employee_id || ""}`);
       const companyText = normalizeText(`${payroll.company_name || ""} ${payroll.company_id || ""}`);
       const statusText = normalizeText(payroll.status);
@@ -77,7 +99,7 @@ export default function PayrollsPage({
 
       return matchesEmployee && matchesCompany && matchesStatus && matchesFromPeriod && matchesToPeriod;
     });
-  }, [payrolls, filters]);
+  }, [localPayrolls, filters]);
 
   return (
     <div style={styles.wrapper}>
@@ -85,7 +107,11 @@ export default function PayrollsPage({
         title="Preparar nóminas mensuales"
         subtitle="Selecciona una o varias empresas, opcionalmente un centro, y prepara todas las nóminas del periodo."
       >
-        <MonthlyPayrollPreparation companies={companies} workCenters={workCenters} />
+        <MonthlyPayrollPreparation
+          companies={companies}
+          workCenters={workCenters}
+          onPrepared={refreshPayrollList}
+        />
       </PageCard>
 
       <details style={styles.details}>
@@ -106,6 +132,12 @@ export default function PayrollsPage({
       </details>
 
       <PageCard title="Listado de nóminas" subtitle="Nóminas simuladas generadas en el sistema.">
+        {refreshMessage && (
+          <div style={refreshMessage.includes("no se pudo") ? styles.warning : styles.success}>
+            {refreshMessage}
+          </div>
+        )}
+
         <div style={styles.filters}>
           <div style={styles.filterGroupWide}>
             <label style={styles.label}>Trabajador</label>
@@ -155,11 +187,11 @@ export default function PayrollsPage({
         </div>
 
         <div style={styles.resultInfo}>
-          Mostrando {filteredPayrolls.length} de {payrolls.length} nóminas
+          {refreshingPayrolls ? "Actualizando listado..." : `Mostrando ${filteredPayrolls.length} de ${localPayrolls.length} nóminas`}
         </div>
 
         <PayrollTable
-          loading={loading}
+          loading={loading || refreshingPayrolls}
           payrolls={filteredPayrolls}
           contracts={contracts}
           employees={employees}
@@ -184,4 +216,6 @@ const styles = {
   input: { width: "100%", height: "36px", boxSizing: "border-box", padding: "7px 9px", border: "1px solid #ccc", borderRadius: "7px", fontSize: "13px" },
   clearButton: { width: "86px", height: "36px", backgroundColor: "#f3f4f6", color: "#111827", border: "1px solid #d1d5db", borderRadius: "7px", padding: "7px 8px", cursor: "pointer", fontWeight: 800, fontSize: "12px", whiteSpace: "nowrap" },
   resultInfo: { marginBottom: "16px", color: "#6b7280", fontSize: "13px", fontWeight: 700 },
+  success: { marginBottom: "12px", backgroundColor: "#dcfce7", color: "#166534", padding: "10px 12px", borderRadius: "8px", fontWeight: 800 },
+  warning: { marginBottom: "12px", backgroundColor: "#fef3c7", color: "#92400e", padding: "10px 12px", borderRadius: "8px", fontWeight: 800 },
 };
