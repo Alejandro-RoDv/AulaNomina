@@ -132,3 +132,19 @@ def init_database() -> None:
                     connection.execute(
                         text(f"ALTER TABLE payrolls ADD COLUMN {column_name} {column_definition}")
                     )
+
+        if "documents" in table_names:
+            existing_document_columns = {
+                column["name"] for column in inspector.get_columns("documents")
+            }
+
+            document_columns = {
+                "center_id": "INTEGER REFERENCES work_centers(id)",
+                "notes": "TEXT",
+            }
+
+            for column_name, column_definition in document_columns.items():
+                if column_name not in existing_document_columns:
+                    connection.execute(
+                        text(f"ALTER TABLE documents ADD COLUMN {column_name} {column_definition}")
+                    )
