@@ -55,16 +55,19 @@ def seed_demo_documents():
         laura = employees.get("10000001A")
         javier = employees.get("10000002B")
         carmen = employees.get("10000003C")
+        manuel = employees.get("10000004D")
         ana = employees.get("10000005E")
 
         if laura:
             get_or_create_document(db, laura, "DNI_NIE", document_name="DNI / NIE", status="received", issue_date=date(2024, 9, 1), expiry_date=date(2030, 9, 1), notes="Documento identificativo revisado.")
+            get_or_create_document(db, laura, "NAF", document_name="NAF", status="received", issue_date=date(2024, 9, 1), expiry_date=None, notes="Número de afiliación informado.")
             get_or_create_document(db, laura, "SIGNED_CONTRACT", document_name="Contrato firmado", status="received", issue_date=date(2025, 9, 1), expiry_date=None, notes="Contrato indefinido firmado.")
             get_or_create_document(db, laura, "MODEL_145", document_name="Modelo 145", status="pending", issue_date=None, expiry_date=None, notes="Pendiente de entrega para regularizar datos fiscales.")
             get_or_create_document(db, laura, "SEXUAL_OFFENCES_CERTIFICATE", document_name="Certificado delitos sexuales", status="expired", issue_date=date(2024, 1, 10), expiry_date=date(2025, 1, 10), notes="Caducado. Solicitar certificado actualizado.")
 
         if javier:
             get_or_create_document(db, javier, "DNI_NIE", document_name="DNI / NIE", status="received", issue_date=date(2026, 1, 8), expiry_date=date(2031, 1, 8), notes="Documento identificativo revisado.")
+            get_or_create_document(db, javier, "NAF", document_name="NAF", status="received", issue_date=date(2026, 1, 8), expiry_date=None, notes="Número de afiliación informado.")
             get_or_create_document(db, javier, "SIGNED_CONTRACT", document_name="Contrato firmado", status="received", issue_date=date(2026, 1, 8), expiry_date=None, notes="Contrato temporal firmado.")
             get_or_create_document(db, javier, "CONFIDENTIALITY_COMMITMENT", document_name="Compromiso confidencialidad", status="pending", issue_date=None, expiry_date=None, notes="Pendiente de firma.")
             get_or_create_document(db, javier, "DATA_CONSENT", document_name="Consentimiento datos", status="pending", issue_date=None, expiry_date=None, notes="Pendiente de entrega.")
@@ -72,10 +75,19 @@ def seed_demo_documents():
         if carmen:
             get_or_create_document(db, carmen, "DNI_NIE", document_name="DNI / NIE", status="received", issue_date=date(2023, 9, 1), expiry_date=date(2030, 9, 1), notes="Documento identificativo revisado.")
             get_or_create_document(db, carmen, "NAF", document_name="NAF", status="received", issue_date=date(2023, 9, 1), expiry_date=None, notes="Número de afiliación informado.")
+            get_or_create_document(db, carmen, "SIGNED_CONTRACT", document_name="Contrato firmado", status="received", issue_date=date(2023, 9, 1), expiry_date=None, notes="Contrato indefinido firmado.")
+            get_or_create_document(db, carmen, "MODEL_145", document_name="Modelo 145", status="received", issue_date=date(2023, 9, 1), expiry_date=None, notes="Modelo fiscal informado.")
             get_or_create_document(db, carmen, "DEGREE_CERTIFICATE", document_name="Titulación", status="received", issue_date=date(2023, 9, 1), expiry_date=None, notes="Titulación revisada.")
+
+        if manuel:
+            get_or_create_document(db, manuel, "DNI_NIE", document_name="DNI / NIE", status="received", issue_date=date(2025, 9, 15), expiry_date=date(2030, 9, 15), notes="Documento identificativo revisado.")
+            get_or_create_document(db, manuel, "SIGNED_CONTRACT", document_name="Contrato firmado", status="received", issue_date=date(2025, 9, 15), expiry_date=None, notes="Contrato temporal finalizado.")
+            get_or_create_document(db, manuel, "DATA_CONSENT", document_name="Consentimiento datos", status="expired", issue_date=date(2025, 9, 15), expiry_date=date(2026, 4, 30), notes="Revisar conservación documental tras baja.")
 
         if ana:
             get_or_create_document(db, ana, "DNI_NIE", document_name="DNI / NIE", status="received", issue_date=date(2026, 3, 10), expiry_date=date(2031, 3, 10), notes="Documento identificativo revisado.")
+            get_or_create_document(db, ana, "NAF", document_name="NAF", status="received", issue_date=date(2026, 3, 10), expiry_date=None, notes="Número de afiliación informado.")
+            get_or_create_document(db, ana, "SIGNED_CONTRACT", document_name="Contrato firmado", status="pending", issue_date=None, expiry_date=None, notes="Pendiente de firma por sustitución.")
             get_or_create_document(db, ana, "MODEL_145", document_name="Modelo 145", status="received", issue_date=date(2026, 3, 10), expiry_date=None, notes="Modelo fiscal informado.")
             get_or_create_document(db, ana, "DEGREE_CERTIFICATE", document_name="Titulación", status="not_applicable", issue_date=None, expiry_date=None, notes="No aplica para este caso práctico.")
 
