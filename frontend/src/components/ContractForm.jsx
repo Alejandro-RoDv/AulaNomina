@@ -13,6 +13,7 @@ export default function ContractForm({
   form,
   employees,
   companies,
+  workCenters,
   onChange,
   onSubmit,
   error,
@@ -23,6 +24,8 @@ export default function ContractForm({
   const [employeeFilters, setEmployeeFilters] = useState({ name: "", dni: "", id: "" });
 
   const selectedEmployee = employees.find((emp) => String(emp.id) === String(form.employee_id));
+  const selectedCompany = companies.find((company) => String(company.id) === String(form.company_id));
+  const selectedCenter = workCenters.find((center) => String(center.id) === String(form.center_id));
 
   const filteredEmployees = useMemo(() => {
     const nameFilter = employeeFilters.name.trim().toLowerCase();
@@ -48,7 +51,16 @@ export default function ContractForm({
   };
 
   const selectEmployee = (employee) => {
-    onChange({ target: { name: "employee_id", value: String(employee.id) } });
+    onChange({
+      target: {
+        name: "employee_id",
+        value: String(employee.id),
+        dataset: {
+          companyId: employee.company_id ? String(employee.company_id) : "",
+          centerId: employee.center_id ? String(employee.center_id) : "",
+        },
+      },
+    });
     setEmployeeModalOpen(false);
   };
 
@@ -57,17 +69,17 @@ export default function ContractForm({
       <form onSubmit={onSubmit} style={styles.form}>
         <div style={styles.formRow}>
           <div style={styles.formGroup}>
-            <label>Empleado</label>
+            <label>Trabajador</label>
             <div style={styles.selectorBox}>
               <div>
                 <div style={styles.selectorValue}>
                   {selectedEmployee
                     ? `${selectedEmployee.first_name} ${selectedEmployee.last_name}`
-                    : "Selecciona un empleado"}
+                    : "Selecciona un trabajador"}
                 </div>
                 {selectedEmployee && (
                   <div style={styles.selectorMeta}>
-                    ID {selectedEmployee.id} · DNI {selectedEmployee.dni || "-"}
+                    Código {selectedEmployee.employee_code || selectedEmployee.id} · DNI {selectedEmployee.dni || "-"}
                   </div>
                 )}
               </div>
@@ -79,15 +91,19 @@ export default function ContractForm({
           </div>
 
           <div style={styles.formGroup}>
-            <label>Empresa / centro</label>
-            <select name="company_id" value={form.company_id} onChange={onChange} required style={styles.input}>
-              <option value="">Selecciona una empresa o centro</option>
-              {companies.map((company) => (
-                <option key={company.id} value={company.id}>
-                  {company.name} {company.ccc ? `· CCC ${company.ccc}` : ""}
-                </option>
-              ))}
-            </select>
+            <label>Empresa y centro asignados</label>
+            <div style={styles.readOnlyBox}>
+              <div style={styles.readOnlyMain}>
+                {selectedCompany?.name || "Se completará al seleccionar trabajador"}
+              </div>
+              <div style={styles.readOnlyMeta}>
+                {selectedCenter?.name || "Centro pendiente"}
+                {selectedCompany?.ccc ? ` · CCC ${selectedCompany.ccc}` : ""}
+              </div>
+            </div>
+            <input type="hidden" name="company_id" value={form.company_id} required />
+            <input type="hidden" name="center_id" value={form.center_id || ""} />
+            <small style={styles.helpText}>La empresa y el centro se heredan del trabajador seleccionado.</small>
           </div>
         </div>
 
@@ -100,6 +116,7 @@ export default function ContractForm({
               <option value="temporal">Temporal</option>
               <option value="practicas">Prácticas</option>
               <option value="formacion">Formación</option>
+              <option value="sustitucion">Sustitución</option>
             </select>
           </div>
 
@@ -127,9 +144,9 @@ export default function ContractForm({
 
         <div style={styles.formRow}>
           <div style={styles.formGroup}>
-            <label>Salario anual de referencia</label>
-            <input type="number" name="salary_base" value={form.salary_base} onChange={onChange} placeholder="Ej. 18000" style={styles.input} />
-            <small style={styles.helpText}>Se usará para calcular automáticamente salario mensual y pagas extra.</small>
+            <label>Salario mensual de referencia</label>
+            <input type="number" name="salary_base" value={form.salary_base} onChange={onChange} placeholder="Ej. 1680" style={styles.input} />
+            <small style={styles.helpText}>Se usa como base para la nómina simulada.</small>
           </div>
 
           <div style={styles.formGroup}>
@@ -155,25 +172,35 @@ export default function ContractForm({
             <div style={styles.modalHeader}>
               <div>
                 <h3 style={styles.modalTitle}>Seleccionar trabajador</h3>
-                <p style={styles.modalSubtitle}>Filtra por ID, nombre o DNI.</p>
+                <p style={styles.modalSubtitle}>Filtra por código, nombre o DNI.</p>
               </div>
               <button type="button" onClick={() => setEmployeeModalOpen(false)} style={styles.closeButton}>Cerrar</button>
             </div>
 
             <div style={styles.filterRow}>
-              <div style={styles.filterGroupId}><label>ID</label><input name="id" value={employeeFilters.id} onChange={handleEmployeeFilterChange} placeholder="ID" style={styles.input} /></div>
+              <div style={styles.filterGroupId}><label>Código / ID</label><input name="id" value={employeeFilters.id} onChange={handleEmployeeFilterChange} placeholder="Código" style={styles.input} /></div>
               <div style={styles.filterGroupName}><label>Nombre y apellidos</label><input name="name" value={employeeFilters.name} onChange={handleEmployeeFilterChange} placeholder="Nombre o apellidos" style={styles.input} /></div>
               <div style={styles.filterGroupDni}><label>DNI</label><input name="dni" value={employeeFilters.dni} onChange={handleEmployeeFilterChange} placeholder="DNI" style={styles.input} /></div>
             </div>
 
             <div style={styles.modalTableWrapper}>
               <table style={styles.table}>
-                <thead><tr><th style={styles.th}>ID</th><th style={styles.th}>Trabajador</th><th style={styles.th}>DNI</th><th style={styles.th}></th></tr></thead>
+                <thead><tr><th style={styles.th}>Código</th><th style={styles.th}>Trabajador</th><th style={styles.th}>DNI</th><th style={styles.th}>Empresa / centro</th><th style={styles.th}></th></tr></thead>
                 <tbody>
-                  {filteredEmployees.map((emp) => (
-                    <tr key={emp.id}><td style={styles.td}>{emp.id}</td><td style={styles.td}>{emp.first_name} {emp.last_name}</td><td style={styles.td}>{emp.dni || "-"}</td><td style={styles.tdRight}><button type="button" onClick={() => selectEmployee(emp)} style={styles.smallButton}>Seleccionar</button></td></tr>
-                  ))}
-                  {filteredEmployees.length === 0 && <tr><td style={styles.td} colSpan="4">No hay trabajadores con esos filtros.</td></tr>}
+                  {filteredEmployees.map((emp) => {
+                    const employeeCompany = companies.find((company) => Number(company.id) === Number(emp.company_id));
+                    const employeeCenter = workCenters.find((center) => Number(center.id) === Number(emp.center_id));
+                    return (
+                      <tr key={emp.id}>
+                        <td style={styles.td}>{emp.employee_code || emp.id}</td>
+                        <td style={styles.td}>{emp.first_name} {emp.last_name}</td>
+                        <td style={styles.td}>{emp.dni || "-"}</td>
+                        <td style={styles.td}>{employeeCompany?.name || "-"}{employeeCenter?.name ? ` · ${employeeCenter.name}` : ""}</td>
+                        <td style={styles.tdRight}><button type="button" onClick={() => selectEmployee(emp)} style={styles.smallButton}>Seleccionar</button></td>
+                      </tr>
+                    );
+                  })}
+                  {filteredEmployees.length === 0 && <tr><td style={styles.td} colSpan="5">No hay trabajadores con esos filtros.</td></tr>}
                 </tbody>
               </table>
             </div>
@@ -190,8 +217,11 @@ const styles = {
   formGroup: { flex: 1, minWidth: "220px", display: "flex", flexDirection: "column", gap: "6px" },
   input: { padding: "10px 12px", border: "1px solid #ccc", borderRadius: "8px", fontSize: "14px" },
   selectorBox: { minHeight: "42px", padding: "8px 10px", border: "1px solid #ccc", borderRadius: "8px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px" },
-  selectorValue: { fontSize: "14px", color: "#111827" },
+  selectorValue: { fontSize: "14px", color: "#111827", fontWeight: 700 },
   selectorMeta: { marginTop: "2px", fontSize: "12px", color: "#6b7280" },
+  readOnlyBox: { minHeight: "42px", padding: "8px 10px", border: "1px solid #d1d5db", borderRadius: "8px", backgroundColor: "#f9fafb" },
+  readOnlyMain: { fontSize: "14px", color: "#111827", fontWeight: 800 },
+  readOnlyMeta: { marginTop: "2px", fontSize: "12px", color: "#6b7280", fontWeight: 600 },
   helpText: { color: "#6b7280", fontSize: "12px", fontWeight: 700 },
   button: { backgroundColor: "#111827", color: "white", border: "none", borderRadius: "8px", padding: "12px 18px", fontSize: "14px", cursor: "pointer", width: "fit-content" },
   secondaryButton: { backgroundColor: "#f3f4f6", color: "#111827", border: "1px solid #d1d5db", borderRadius: "8px", padding: "8px 12px", cursor: "pointer", fontWeight: 600 },
@@ -200,12 +230,12 @@ const styles = {
   error: { backgroundColor: "#fee2e2", color: "#991b1b", padding: "10px 12px", borderRadius: "8px" },
   success: { backgroundColor: "#dcfce7", color: "#166534", padding: "10px 12px", borderRadius: "8px" },
   modalOverlay: { position: "fixed", inset: 0, backgroundColor: "rgba(17, 24, 39, 0.45)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 1000, padding: "24px" },
-  modal: { width: "min(900px, 100%)", maxHeight: "82vh", backgroundColor: "white", borderRadius: "12px", border: "1px solid #111827", padding: "20px", overflow: "hidden", display: "flex", flexDirection: "column", gap: "16px" },
+  modal: { width: "min(980px, 100%)", maxHeight: "82vh", backgroundColor: "white", borderRadius: "12px", border: "1px solid #111827", padding: "20px", overflow: "hidden", display: "flex", flexDirection: "column", gap: "16px" },
   modalHeader: { display: "flex", justifyContent: "space-between", gap: "16px", alignItems: "flex-start" },
   modalTitle: { margin: 0, fontSize: "18px" },
   modalSubtitle: { margin: "4px 0 0", color: "#6b7280", fontSize: "13px" },
   filterRow: { display: "flex", gap: "12px", alignItems: "end", flexWrap: "wrap" },
-  filterGroupId: { width: "120px", flex: "0 0 120px", display: "flex", flexDirection: "column", gap: "6px" },
+  filterGroupId: { width: "140px", flex: "0 0 140px", display: "flex", flexDirection: "column", gap: "6px" },
   filterGroupName: { width: "430px", flex: "1 1 430px", display: "flex", flexDirection: "column", gap: "6px" },
   filterGroupDni: { width: "210px", flex: "0 0 210px", display: "flex", flexDirection: "column", gap: "6px" },
   modalTableWrapper: { overflow: "auto" },
