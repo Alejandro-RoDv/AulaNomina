@@ -4,6 +4,7 @@ from fastapi import HTTPException
 from app.models.contract import Contract
 from app.models.employee import Employee
 from app.models.company import Company
+from app.models.work_center import WorkCenter
 from app.schemas.contract import ContractCreate, ContractUpdate
 
 
@@ -12,6 +13,7 @@ def contract_to_response(contract: Contract):
         "id": contract.id,
         "employee_id": contract.employee_id,
         "company_id": contract.company_id,
+        "center_id": contract.center_id,
         "employee_name": contract.employee_name,
         "company_name": contract.company_name,
         "contract_type": contract.contract_type,
@@ -19,8 +21,39 @@ def contract_to_response(contract: Contract):
         "end_date": contract.end_date,
         "status": contract.status,
         "salary_base": contract.salary_base,
+        "pay_schedule": contract.pay_schedule,
         "created_at": contract.created_at,
     }
+
+
+def _resolve_company_and_center(db: Session, employee: Employee, company_id: int | None, center_id: int | None):
+    resolved_company_id = company_id if company_id is not None else employee.company_id
+    resolved_center_id = center_id if center_id is not None else employee.center_id
+
+    if resolved_company_id is None:
+        raise HTTPException(
+            status_code=400,
+            detail="El trabajador no tiene empresa asociada. Asigna una empresa antes de crear el contrato.",
+        )
+
+    company = db.query(Company).filter(
+        Company.id == resolved_company_id,
+        Company.is_active == True,
+    ).first()
+    if not company:
+        raise HTTPException(status_code=404, detail="Empresa no encontrada")
+
+    if resolved_center_id is not None:
+        center = db.query(WorkCenter).filter(
+            WorkCenter.id == resolved_center_id,
+            WorkCenter.is_active == True,
+        ).first()
+        if not center:
+            raise HTTPException(status_code=404, detail="Centro no encontrado")
+        if center.company_id != resolved_company_id:
+            raise HTTPException(status_code=400, detail="El centro no pertenece a la empresa indicada")
+
+    return resolved_company_id, resolved_center_id
 
 
 def create_contract(db: Session, contract: ContractCreate):
@@ -28,13 +61,12 @@ def create_contract(db: Session, contract: ContractCreate):
     if not employee:
         raise HTTPException(status_code=404, detail="Empleado no encontrado")
 
-    if contract.company_id is not None:
-        company = db.query(Company).filter(
-            Company.id == contract.company_id,
-            Company.is_active == True,
-        ).first()
-        if not company:
-            raise HTTPException(status_code=404, detail="Empresa no encontrada")
+    company_id, center_id = _resolve_company_and_center(
+        db,
+        employee,
+        contract.company_id,
+        contract.center_id,
+    )
 
     if contract.end_date and contract.end_date < contract.start_date:
         raise HTTPException(status_code=400, detail="end_date no puede ser menor que start_date")
@@ -51,12 +83,14 @@ def create_contract(db: Session, contract: ContractCreate):
 
     db_contract = Contract(
         employee_id=contract.employee_id,
-        company_id=contract.company_id,
+        company_id=company_id,
+        center_id=center_id,
         contract_type=contract.contract_type,
         start_date=contract.start_date,
         end_date=contract.end_date,
         status=status,
         salary_base=contract.salary_base,
+        pay_schedule=contract.pay_schedule,
     )
 
     db.add(db_contract)
@@ -69,6 +103,7 @@ def get_contracts(db: Session):
     return db.query(Contract).options(
         joinedload(Contract.employee),
         joinedload(Contract.company),
+        joinedload(Contract.work_center),
     ).all()
 
 
@@ -76,6 +111,7 @@ def get_contract(db: Session, contract_id: int):
     return db.query(Contract).options(
         joinedload(Contract.employee),
         joinedload(Contract.company),
+        joinedload(Contract.work_center),
     ).filter(Contract.id == contract_id).first()
 
 
@@ -83,6 +119,7 @@ def get_contracts_by_employee(db: Session, employee_id: int):
     return db.query(Contract).options(
         joinedload(Contract.employee),
         joinedload(Contract.company),
+        joinedload(Contract.work_center),
     ).filter(Contract.employee_id == employee_id).all()
 
 
@@ -91,10 +128,13 @@ def update_contract(db: Session, contract_id: int, contract_data: ContractUpdate
     if not db_contract:
         return None
 
-    if contract_data.company_id is not None:
-        company = db.query(Company).filter(Company.id == contract_data.company_id, Company.is_active == True).first()
-        if not company:
-            raise HTTPException(status_code=404, detail="Empresa no encontrada")
+    employee = db.query(Employee).filter(Employee.id == db_contract.employee_id).first()
+    if not employee:
+        raise HTTPException(status_code=404, detail="Empleado no encontrado")
+
+    company_id = contract_data.company_id if contract_data.company_id is not None else db_contract.company_id
+    center_id = contract_data.center_id if contract_data.center_id is not None else db_contract.center_id
+    _resolve_company_and_center(db, employee, company_id, center_id)
 
     new_start_date = contract_data.start_date if contract_data.start_date is not None else db_contract.start_date
     new_end_date = contract_data.end_date if contract_data.end_date is not None else db_contract.end_date
@@ -128,6 +168,7 @@ def soft_delete_contract(db: Session, contract_id: int):
     db_contract = db.query(Contract).options(
         joinedload(Contract.employee),
         joinedload(Contract.company),
+        joinedload(Contract.work_center),
     ).filter(Contract.id == contract_id).first()
 
     if not db_contract:
