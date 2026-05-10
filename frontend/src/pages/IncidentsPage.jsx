@@ -24,6 +24,7 @@ export default function IncidentsPage({
   employees,
   contracts,
   companies,
+  workCenters,
   incidentForm,
   onIncidentChange,
   onIncidentSubmit,
@@ -85,8 +86,9 @@ export default function IncidentsPage({
     const toDate = dateToNumber(filters.dateTo);
 
     return incidentsWithEmployeeData.filter((incident) => {
+      const center = workCenters.find((item) => Number(item.id) === Number(incident.center_id));
       const employeeText = normalizeText(`${incident.employee_code || ""} ${incident.employee_name || ""} ${incident.employee_id || ""}`);
-      const companyText = normalizeText(`${incident.company_name || ""} ${incident.company_id || ""}`);
+      const companyText = normalizeText(`${incident.company_name || ""} ${center?.name || ""} ${incident.company_id || ""} ${incident.center_id || ""}`);
       const typeText = normalizeText(incident.incident_type);
       const statusText = normalizeText(incident.status);
       const incidentStartDate = dateToNumber(incident.start_date);
@@ -101,16 +103,17 @@ export default function IncidentsPage({
 
       return matchesEmployee && matchesCompany && matchesType && matchesStatus && matchesFromDate && matchesToDate;
     });
-  }, [incidentsWithEmployeeData, filters]);
+  }, [incidentsWithEmployeeData, filters, workCenters]);
 
   return (
     <div style={styles.wrapper}>
-      <PageCard title="Nueva incidencia" subtitle="Registra una incidencia laboral vinculada a trabajador, contrato y empresa.">
+      <PageCard title="Nueva incidencia" subtitle="Registra una incidencia laboral vinculada automáticamente al contrato activo.">
         <IncidentForm
           form={incidentForm}
           employees={employees}
           contracts={contracts}
           companies={companies}
+          workCenters={workCenters}
           onChange={onIncidentChange}
           onSubmit={onIncidentSubmit}
           error={incidentError}
@@ -133,12 +136,12 @@ export default function IncidentsPage({
           </div>
 
           <div style={styles.filterGroupWide}>
-            <label style={styles.label}>Empresa</label>
+            <label style={styles.label}>Empresa / centro</label>
             <input
               name="company"
               value={filters.company}
               onChange={handleFilterChange}
-              placeholder="Empresa o ID"
+              placeholder="Empresa, centro o ID"
               style={styles.input}
             />
           </div>
