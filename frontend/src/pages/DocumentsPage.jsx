@@ -44,18 +44,21 @@ export default function DocumentsPage({
   documentSuccess,
 }) {
   const [filters, setFilters] = useState(initialFilters);
+  const [localDocuments, setLocalDocuments] = useState(null);
   const [checklistEmployeeId, setChecklistEmployeeId] = useState("");
   const [checklistMessage, setChecklistMessage] = useState("");
   const [checklistError, setChecklistError] = useState("");
   const [checklistLoading, setChecklistLoading] = useState(false);
 
+  const visibleDocuments = localDocuments || documents;
+
   const sortedDocuments = useMemo(() => {
-    return [...documents].sort((a, b) => {
+    return [...visibleDocuments].sort((a, b) => {
       const statusDiff = (statusPriority[a.status] ?? 9) - (statusPriority[b.status] ?? 9);
       if (statusDiff !== 0) return statusDiff;
       return String(a.expiry_date || "9999-12-31").localeCompare(String(b.expiry_date || "9999-12-31"));
     });
-  }, [documents]);
+  }, [visibleDocuments]);
 
   const filteredDocuments = useMemo(() => {
     return sortedDocuments.filter((document) => {
@@ -68,11 +71,11 @@ export default function DocumentsPage({
   }, [sortedDocuments, filters]);
 
   const totals = useMemo(() => ({
-    total: documents.length,
-    pending: documents.filter((document) => document.status === "pending").length,
-    expired: documents.filter((document) => document.status === "expired").length,
-    received: documents.filter((document) => document.status === "received").length,
-  }), [documents]);
+    total: visibleDocuments.length,
+    pending: visibleDocuments.filter((document) => document.status === "pending").length,
+    expired: visibleDocuments.filter((document) => document.status === "expired").length,
+    received: visibleDocuments.filter((document) => document.status === "received").length,
+  }), [visibleDocuments]);
 
   const criticalDocuments = sortedDocuments
     .filter((document) => ["pending", "expired"].includes(document.status))
@@ -111,8 +114,9 @@ export default function DocumentsPage({
 
     try {
       setChecklistLoading(true);
+      const currentDocuments = localDocuments || documents;
       const existingTypes = new Set(
-        documents
+        currentDocuments
           .filter((document) => Number(document.employee_id) === Number(employee.id))
           .map((document) => document.document_type)
       );
@@ -124,7 +128,7 @@ export default function DocumentsPage({
         return;
       }
 
-      await Promise.all(
+      const createdDocuments = await Promise.all(
         missingTemplates.map(([documentType, documentName]) =>
           createDocument({
             employee_id: Number(employee.id),
@@ -140,8 +144,8 @@ export default function DocumentsPage({
         )
       );
 
+      setLocalDocuments([...currentDocuments, ...createdDocuments]);
       setChecklistMessage(`Checklist creado: ${missingTemplates.length} documentos pendientes añadidos.`);
-      window.location.reload();
     } catch (err) {
       setChecklistError(err.message || "Error al generar checklist documental.");
     } finally {
