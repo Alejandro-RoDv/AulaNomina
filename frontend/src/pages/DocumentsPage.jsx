@@ -1,0 +1,173 @@
+import { useMemo, useState } from "react";
+
+import DocumentForm from "../components/documents/DocumentForm";
+import DocumentTable from "../components/documents/DocumentTable";
+
+const initialFilters = {
+  employee_id: "",
+  document_type: "",
+  status: "",
+};
+
+export default function DocumentsPage({
+  loading,
+  documents,
+  employees,
+  companies,
+  workCenters,
+  documentForm,
+  onDocumentChange,
+  onDocumentSubmit,
+  onUpdateDocument,
+  onDeleteDocument,
+  documentSubmitting,
+  documentError,
+  documentSuccess,
+}) {
+  const [filters, setFilters] = useState(initialFilters);
+
+  const filteredDocuments = useMemo(() => {
+    return documents.filter((document) => {
+      if (filters.employee_id && String(document.employee_id) !== String(filters.employee_id)) return false;
+      if (filters.document_type && document.document_type !== filters.document_type) return false;
+      if (filters.status && document.status !== filters.status) return false;
+      return true;
+    });
+  }, [documents, filters]);
+
+  const totals = useMemo(() => ({
+    total: documents.length,
+    pending: documents.filter((document) => document.status === "pending").length,
+    expired: documents.filter((document) => document.status === "expired").length,
+    received: documents.filter((document) => document.status === "received").length,
+  }), [documents]);
+
+  const criticalDocuments = documents.filter((document) => ["pending", "expired"].includes(document.status)).slice(0, 6);
+
+  const handleFilterChange = (event) => {
+    const { name, value } = event.target;
+    setFilters((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleStatusChange = async (document, status) => {
+    await onUpdateDocument(document.id, {
+      center_id: document.center_id || null,
+      document_type: document.document_type,
+      document_name: document.document_name,
+      status,
+      issue_date: document.issue_date || null,
+      expiry_date: document.expiry_date || null,
+      notes: document.notes || null,
+    });
+  };
+
+  return (
+    <div style={styles.page}>
+      <section style={styles.cardsGrid}>
+        <SummaryCard title="Documentos totales" value={totals.total} />
+        <SummaryCard title="Pendientes" value={totals.pending} />
+        <SummaryCard title="Caducados" value={totals.expired} />
+        <SummaryCard title="Entregados" value={totals.received} />
+      </section>
+
+      <section style={styles.criticalCard}>
+        <h2 style={styles.title}>Pendientes críticos</h2>
+        {criticalDocuments.length === 0 ? (
+          <p style={styles.muted}>No hay pendientes críticos.</p>
+        ) : (
+          <ul style={styles.criticalList}>
+            {criticalDocuments.map((document) => (
+              <li key={document.id} style={styles.criticalItem}>
+                <strong>{document.document_name}</strong> — {document.employee_name || document.employee_id}
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <section style={styles.filtersCard}>
+        <label style={styles.label}>
+          Trabajador
+          <select name="employee_id" value={filters.employee_id} onChange={handleFilterChange} style={styles.input}>
+            <option value="">Todos</option>
+            {employees.map((employee) => (
+              <option key={employee.id} value={employee.id}>{employee.first_name} {employee.last_name}</option>
+            ))}
+          </select>
+        </label>
+
+        <label style={styles.label}>
+          Tipo
+          <select name="document_type" value={filters.document_type} onChange={handleFilterChange} style={styles.input}>
+            <option value="">Todos</option>
+            <option value="DNI_NIE">DNI / NIE</option>
+            <option value="NAF">NAF</option>
+            <option value="SIGNED_CONTRACT">Contrato firmado</option>
+            <option value="MODEL_145">Modelo 145</option>
+            <option value="SEXUAL_OFFENCES_CERTIFICATE">Certificado delitos sexuales</option>
+            <option value="CONFIDENTIALITY_COMMITMENT">Compromiso confidencialidad</option>
+            <option value="DATA_CONSENT">Consentimiento datos</option>
+            <option value="DEGREE_CERTIFICATE">Titulación</option>
+            <option value="OTHER">Otros</option>
+          </select>
+        </label>
+
+        <label style={styles.label}>
+          Estado
+          <select name="status" value={filters.status} onChange={handleFilterChange} style={styles.input}>
+            <option value="">Todos</option>
+            <option value="pending">Pendiente</option>
+            <option value="received">Entregado</option>
+            <option value="expired">Caducado</option>
+            <option value="not_applicable">No aplica</option>
+          </select>
+        </label>
+      </section>
+
+      <DocumentForm
+        form={documentForm}
+        employees={employees}
+        companies={companies}
+        workCenters={workCenters}
+        onChange={onDocumentChange}
+        onSubmit={onDocumentSubmit}
+        submitting={documentSubmitting}
+        error={documentError}
+        success={documentSuccess}
+      />
+
+      <DocumentTable
+        loading={loading}
+        documents={filteredDocuments}
+        onMarkReceived={(document) => handleStatusChange(document, "received")}
+        onMarkPending={(document) => handleStatusChange(document, "pending")}
+        onMarkNotApplicable={(document) => onDeleteDocument(document.id)}
+      />
+    </div>
+  );
+}
+
+function SummaryCard({ title, value }) {
+  return (
+    <article style={styles.summaryCard}>
+      <p style={styles.summaryTitle}>{title}</p>
+      <p style={styles.summaryValue}>{value}</p>
+    </article>
+  );
+}
+
+const styles = {
+  page: { display: "flex", flexDirection: "column", gap: "18px" },
+  cardsGrid: { display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: "14px" },
+  summaryCard: { border: "3px solid #111", background: "#fff", padding: "16px", boxShadow: "4px 4px 0 #f0df62" },
+  summaryTitle: { margin: 0, fontSize: "12px", fontWeight: 900, textTransform: "uppercase", color: "#4b5563" },
+  summaryValue: { margin: "8px 0 0", fontSize: "32px", fontWeight: 900, color: "#111" },
+  criticalCard: { border: "2px solid #111", background: "#fff7c2", padding: "16px", boxShadow: "4px 4px 0 #111" },
+  title: { margin: "0 0 10px", fontSize: "20px", fontWeight: 900, color: "#111" },
+  muted: { margin: 0, color: "#6b7280", fontWeight: 700 },
+  criticalList: { margin: 0, paddingLeft: "20px", display: "grid", gap: "6px" },
+  criticalItem: { fontWeight: 800, color: "#111" },
+  filtersCard: { border: "2px solid #111", background: "#fff", padding: "14px", display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: "12px" },
+  label: { display: "flex", flexDirection: "column", gap: "6px", fontSize: "12px", fontWeight: 900, textTransform: "uppercase", color: "#111" },
+  input: { border: "2px solid #111", padding: "9px 10px", fontSize: "14px", fontWeight: 700, background: "#fff", color: "#111" },
+};
