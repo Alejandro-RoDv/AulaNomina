@@ -10,6 +10,13 @@ const initialFilters = {
   only_critical: false,
 };
 
+const initialEmployeeFilters = {
+  code: "",
+  name: "",
+  dni: "",
+  company_id: "",
+};
+
 const checklistTemplates = [
   ["DNI_NIE", "DNI / NIE"],
   ["NAF", "NAF"],
@@ -27,6 +34,14 @@ const statusPriority = {
   not_applicable: 3,
 };
 
+function normalizeText(value) {
+  return String(value || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim();
+}
+
 export default function DocumentsPage({
   loading,
   documents,
@@ -43,6 +58,7 @@ export default function DocumentsPage({
   documentSuccess,
 }) {
   const [filters, setFilters] = useState(initialFilters);
+  const [employeeFilters, setEmployeeFilters] = useState(initialEmployeeFilters);
   const [localDocuments, setLocalDocuments] = useState(null);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState(null);
   const [checklistEmployeeId, setChecklistEmployeeId] = useState("");
@@ -53,6 +69,14 @@ export default function DocumentsPage({
   const visibleDocuments = localDocuments || documents;
   const selectedEmployee = employees.find((employee) => Number(employee.id) === Number(selectedEmployeeId));
 
+  const companyMap = useMemo(() => {
+    return companies.reduce((acc, company) => ({ ...acc, [company.id]: company }), {});
+  }, [companies]);
+
+  const centerMap = useMemo(() => {
+    return workCenters.reduce((acc, center) => ({ ...acc, [center.id]: center }), {});
+  }, [workCenters]);
+
   const sortedDocuments = useMemo(() => {
     return [...visibleDocuments].sort((a, b) => {
       const statusDiff = (statusPriority[a.status] ?? 9) - (statusPriority[b.status] ?? 9);
@@ -61,18 +85,42 @@ export default function DocumentsPage({
     });
   }, [visibleDocuments]);
 
-  const employeeCards = useMemo(() => {
-    return employees.map((employee) => {
-      const employeeDocuments = visibleDocuments.filter((document) => Number(document.employee_id) === Number(employee.id));
-      return {
-        employee,
-        total: employeeDocuments.length,
-        pending: employeeDocuments.filter((document) => document.status === "pending").length,
-        expired: employeeDocuments.filter((document) => document.status === "expired").length,
-        received: employeeDocuments.filter((document) => document.status === "received").length,
-      };
-    });
-  }, [employees, visibleDocuments]);
+  const employeeRows = useMemo(() => {
+    const codeFilter = normalizeText(employeeFilters.code);
+    const nameFilter = normalizeText(employeeFilters.name);
+    const dniFilter = normalizeText(employeeFilters.dni);
+    const companyFilter = employeeFilters.company_id;
+
+    return employees
+      .map((employee) => {
+        const employeeDocuments = visibleDocuments.filter((document) => Number(document.employee_id) === Number(employee.id));
+        const companyName = employee.company_id ? companyMap[employee.company_id]?.name || "-" : "Sin empresa";
+        const centerName = employee.center_id ? centerMap[employee.center_id]?.name || "-" : "Sin centro";
+
+        return {
+          employee,
+          companyName,
+          centerName,
+          total: employeeDocuments.length,
+          pending: employeeDocuments.filter((document) => document.status === "pending").length,
+          expired: employeeDocuments.filter((document) => document.status === "expired").length,
+          received: employeeDocuments.filter((document) => document.status === "received").length,
+        };
+      })
+      .filter(({ employee, companyName }) => {
+        const visibleCode = normalizeText(employee.employee_code || employee.id);
+        const fullName = normalizeText(`${employee.first_name} ${employee.last_name}`);
+        const dni = normalizeText(employee.dni);
+        const normalizedCompany = normalizeText(companyName);
+
+        return (
+          (!codeFilter || visibleCode.includes(codeFilter) || String(employee.id).includes(codeFilter)) &&
+          (!nameFilter || fullName.includes(nameFilter)) &&
+          (!dniFilter || dni.includes(dniFilter)) &&
+          (!companyFilter || String(employee.company_id || "") === String(companyFilter) || normalizedCompany.includes(normalizeText(companyFilter)))
+        );
+      });
+  }, [employees, visibleDocuments, employeeFilters, companyMap, centerMap]);
 
   const filteredDocuments = useMemo(() => {
     return sortedDocuments.filter((document) => {
@@ -83,6 +131,18 @@ export default function DocumentsPage({
       return true;
     });
   }, [sortedDocuments, selectedEmployeeId, filters]);
+
+  const selectedEmployeeDocuments = useMemo(() => {
+    if (!selectedEmployee) return [];
+    return visibleDocuments.filter((document) => Number(document.employee_id) === Number(selectedEmployee.id));
+  }, [visibleDocuments, selectedEmployee]);
+
+  const selectedTotals = useMemo(() => ({
+    total: selectedEmployeeDocuments.length,
+    pending: selectedEmployeeDocuments.filter((document) => document.status === "pending").length,
+    expired: selectedEmployeeDocuments.filter((document) => document.status === "expired").length,
+    received: selectedEmployeeDocuments.filter((document) => document.status === "received").length,
+  }), [selectedEmployeeDocuments]);
 
   const totals = useMemo(() => ({
     total: visibleDocuments.length,
@@ -99,6 +159,13 @@ export default function DocumentsPage({
     const { name, value, type, checked } = event.target;
     setFilters((prev) => ({ ...prev, [name]: type === "checkbox" ? checked : value }));
   };
+
+  const handleEmployeeFilterChange = (event) => {
+    const { name, value } = event.target;
+    setEmployeeFilters((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const clearEmployeeFilters = () => setEmployeeFilters(initialEmployeeFilters);
 
   const handleStatusChange = async (document, status) => {
     await onUpdateDocument(document.id, {
@@ -217,75 +284,125 @@ export default function DocumentsPage({
         {checklistError ? <p style={styles.error}>{checklistError}</p> : null}
       </section>
 
-      {!selectedEmployee ? (
-        <section style={styles.employeeListCard}>
-          <h2 style={styles.title}>Expedientes documentales por trabajador</h2>
-          <p style={styles.muted}>Selecciona un trabajador para ver su documentación.</p>
-          <div style={styles.employeeGrid}>
-            {employeeCards.map(({ employee, total, pending, expired, received }) => (
-              <button key={employee.id} type="button" style={styles.employeeCard} onClick={() => setSelectedEmployeeId(employee.id)}>
-                <strong>{employee.first_name} {employee.last_name}</strong>
-                <span>{employee.employee_code || employee.id} · {employee.dni}</span>
-                <span>Total: {total} · Pendientes: {pending} · Caducados: {expired} · Entregados: {received}</span>
-              </button>
-            ))}
-          </div>
-        </section>
-      ) : (
-        <>
-          <section style={styles.detailHeader}>
-            <button type="button" style={styles.secondaryButton} onClick={() => setSelectedEmployeeId(null)}>← Volver al listado de trabajadores</button>
-            <div>
-              <h2 style={styles.title}>{selectedEmployee.first_name} {selectedEmployee.last_name}</h2>
-              <p style={styles.muted}>Expediente documental del trabajador seleccionado.</p>
+      <section style={styles.browserCard}>
+        {!selectedEmployee ? (
+          <>
+            <div style={styles.browserHeader}>
+              <div>
+                <h2 style={styles.title}>Expedientes documentales por trabajador</h2>
+                <p style={styles.muted}>Selecciona un trabajador para ver su documentación.</p>
+              </div>
             </div>
-          </section>
 
-          <section style={styles.filtersCard}>
-            <label style={styles.label}>
-              Tipo
-              <select name="document_type" value={filters.document_type} onChange={handleFilterChange} style={styles.input}>
-                <option value="">Todos</option>
-                <option value="DNI_NIE">DNI / NIE</option>
-                <option value="NAF">NAF</option>
-                <option value="SIGNED_CONTRACT">Contrato firmado</option>
-                <option value="MODEL_145">Modelo 145</option>
-                <option value="SEXUAL_OFFENCES_CERTIFICATE">Certificado delitos sexuales</option>
-                <option value="CONFIDENTIALITY_COMMITMENT">Compromiso confidencialidad</option>
-                <option value="DATA_CONSENT">Consentimiento datos</option>
-                <option value="DEGREE_CERTIFICATE">Titulación</option>
-                <option value="OTHER">Otros</option>
-              </select>
-            </label>
+            <div style={styles.employeeFiltersCard}>
+              <label style={styles.label}>
+                Código
+                <input name="code" value={employeeFilters.code} onChange={handleEmployeeFilterChange} style={styles.input} />
+              </label>
+              <label style={styles.label}>
+                Nombre
+                <input name="name" value={employeeFilters.name} onChange={handleEmployeeFilterChange} style={styles.input} />
+              </label>
+              <label style={styles.label}>
+                DNI
+                <input name="dni" value={employeeFilters.dni} onChange={handleEmployeeFilterChange} style={styles.input} />
+              </label>
+              <label style={styles.label}>
+                Empresa
+                <select name="company_id" value={employeeFilters.company_id} onChange={handleEmployeeFilterChange} style={styles.input}>
+                  <option value="">Todas</option>
+                  {companies.map((company) => (
+                    <option key={company.id} value={company.id}>{company.name}</option>
+                  ))}
+                </select>
+              </label>
+              <button type="button" onClick={clearEmployeeFilters} style={styles.secondaryButton}>Limpiar filtros</button>
+            </div>
 
-            <label style={styles.label}>
-              Estado
-              <select name="status" value={filters.status} onChange={handleFilterChange} style={styles.input}>
-                <option value="">Todos</option>
-                <option value="pending">Pendiente</option>
-                <option value="received">Entregado</option>
-                <option value="expired">Caducado</option>
-                <option value="not_applicable">No aplica</option>
-              </select>
-            </label>
+            <div style={styles.employeeList}>
+              <div style={styles.employeeListHeader}>
+                <span>Trabajador</span>
+                <span>Empresa / centro</span>
+                <span>Documentos</span>
+                <span>Acción</span>
+              </div>
+              {employeeRows.length === 0 ? (
+                <p style={styles.emptyList}>No hay trabajadores que coincidan con los filtros.</p>
+              ) : employeeRows.map(({ employee, companyName, centerName, total, pending, expired, received }) => (
+                <button key={employee.id} type="button" style={styles.employeeRow} onClick={() => setSelectedEmployeeId(employee.id)}>
+                  <span style={styles.employeeMainCell}>
+                    <strong>{employee.first_name} {employee.last_name}</strong>
+                    <small>{employee.employee_code || employee.id} · {employee.dni}</small>
+                  </span>
+                  <span style={styles.employeeSecondaryCell}>{companyName}<small>{centerName}</small></span>
+                  <span style={styles.employeeStatsCell}>Total: {total} · Pendientes: {pending} · Caducados: {expired} · Entregados: {received}</span>
+                  <span style={styles.openBadge}>Abrir expediente</span>
+                </button>
+              ))}
+            </div>
+          </>
+        ) : (
+          <>
+            <div style={styles.browserHeaderSelected}>
+              <button type="button" style={styles.secondaryButton} onClick={() => setSelectedEmployeeId(null)}>← Volver al listado</button>
+              <div style={styles.selectedInfo}>
+                <h2 style={styles.title}>{selectedEmployee.first_name} {selectedEmployee.last_name}</h2>
+                <p style={styles.muted}>{selectedEmployee.employee_code || selectedEmployee.id} · {selectedEmployee.dni} · {companyMap[selectedEmployee.company_id]?.name || "Sin empresa"}</p>
+              </div>
+              <div style={styles.selectedStats}>
+                <strong>Total: {selectedTotals.total}</strong>
+                <span>Pendientes: {selectedTotals.pending}</span>
+                <span>Caducados: {selectedTotals.expired}</span>
+                <span>Entregados: {selectedTotals.received}</span>
+              </div>
+            </div>
 
-            <label style={styles.checkboxLabel}>
-              <input type="checkbox" name="only_critical" checked={filters.only_critical} onChange={handleFilterChange} />
-              Ver solo pendientes/caducados
-            </label>
-          </section>
+            <section style={styles.filtersCard}>
+              <label style={styles.label}>
+                Tipo
+                <select name="document_type" value={filters.document_type} onChange={handleFilterChange} style={styles.input}>
+                  <option value="">Todos</option>
+                  <option value="DNI_NIE">DNI / NIE</option>
+                  <option value="NAF">NAF</option>
+                  <option value="SIGNED_CONTRACT">Contrato firmado</option>
+                  <option value="MODEL_145">Modelo 145</option>
+                  <option value="SEXUAL_OFFENCES_CERTIFICATE">Certificado delitos sexuales</option>
+                  <option value="CONFIDENTIALITY_COMMITMENT">Compromiso confidencialidad</option>
+                  <option value="DATA_CONSENT">Consentimiento datos</option>
+                  <option value="DEGREE_CERTIFICATE">Titulación</option>
+                  <option value="OTHER">Otros</option>
+                </select>
+              </label>
 
-          <DocumentTable
-            loading={loading}
-            documents={filteredDocuments}
-            onMarkReceived={(document) => handleStatusChange(document, "received")}
-            onMarkPending={(document) => handleStatusChange(document, "pending")}
-            onMarkExpired={(document) => handleStatusChange(document, "expired")}
-            onMarkNotApplicable={(document) => onDeleteDocument(document.id)}
-            onSaveDocument={handleSaveDocument}
-          />
-        </>
-      )}
+              <label style={styles.label}>
+                Estado
+                <select name="status" value={filters.status} onChange={handleFilterChange} style={styles.input}>
+                  <option value="">Todos</option>
+                  <option value="pending">Pendiente</option>
+                  <option value="received">Entregado</option>
+                  <option value="expired">Caducado</option>
+                  <option value="not_applicable">No aplica</option>
+                </select>
+              </label>
+
+              <label style={styles.checkboxLabel}>
+                <input type="checkbox" name="only_critical" checked={filters.only_critical} onChange={handleFilterChange} />
+                Ver solo pendientes/caducados
+              </label>
+            </section>
+
+            <DocumentTable
+              loading={loading}
+              documents={filteredDocuments}
+              onMarkReceived={(document) => handleStatusChange(document, "received")}
+              onMarkPending={(document) => handleStatusChange(document, "pending")}
+              onMarkExpired={(document) => handleStatusChange(document, "expired")}
+              onMarkNotApplicable={(document) => onDeleteDocument(document.id)}
+              onSaveDocument={handleSaveDocument}
+            />
+          </>
+        )}
+      </section>
 
       <DocumentForm
         form={documentForm}
@@ -320,16 +437,26 @@ const styles = {
   criticalCard: { border: "2px solid #111", background: "#fff7c2", padding: "16px", boxShadow: "4px 4px 0 #111" },
   checklistCard: { border: "2px solid #111", background: "#fff", padding: "16px", boxShadow: "4px 4px 0 #f0df62", display: "grid", gap: "12px" },
   checklistActions: { display: "grid", gridTemplateColumns: "1fr auto", gap: "12px", alignItems: "center" },
-  employeeListCard: { border: "2px solid #111", background: "#fff", padding: "18px", boxShadow: "5px 5px 0 #f0df62" },
-  employeeGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: "12px", marginTop: "14px" },
-  employeeCard: { border: "2px solid #111", background: "#fff", padding: "14px", display: "grid", gap: "6px", textAlign: "left", fontWeight: 800, cursor: "pointer" },
-  detailHeader: { border: "2px solid #111", background: "#fff", padding: "16px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: "16px" },
+  browserCard: { border: "2px solid #111", background: "#fff", padding: "18px", boxShadow: "5px 5px 0 #f0df62" },
+  browserHeader: { display: "flex", justifyContent: "space-between", gap: "16px", marginBottom: "14px" },
+  browserHeaderSelected: { display: "grid", gridTemplateColumns: "auto 1fr auto", gap: "16px", alignItems: "center", borderBottom: "3px solid #111", paddingBottom: "14px", marginBottom: "14px" },
+  selectedInfo: { display: "grid", gap: "2px" },
+  selectedStats: { display: "flex", flexWrap: "wrap", gap: "8px", justifyContent: "flex-end", fontWeight: 900 },
+  employeeFiltersCard: { border: "2px solid #111", background: "#fff", padding: "14px", display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr)) auto", gap: "12px", alignItems: "end", marginBottom: "14px" },
+  employeeList: { border: "2px solid #111" },
+  employeeListHeader: { display: "grid", gridTemplateColumns: "1.4fr 1.2fr 1.4fr auto", gap: "14px", padding: "10px 14px", borderBottom: "3px solid #111", fontSize: "12px", fontWeight: 900, textTransform: "uppercase", background: "#f9fafb" },
+  employeeRow: { width: "100%", display: "grid", gridTemplateColumns: "1.4fr 1.2fr 1.4fr auto", gap: "14px", alignItems: "center", border: "none", borderBottom: "1px solid #d1d5db", background: "#fff", padding: "12px 14px", textAlign: "left", cursor: "pointer", fontWeight: 800 },
+  employeeMainCell: { display: "grid", gap: "4px" },
+  employeeSecondaryCell: { display: "grid", gap: "4px" },
+  employeeStatsCell: { fontWeight: 800 },
+  openBadge: { border: "2px solid #111", background: "#f0df62", padding: "7px 10px", fontWeight: 900, whiteSpace: "nowrap" },
+  emptyList: { margin: 0, padding: "16px", fontWeight: 800, color: "#6b7280" },
   secondaryButton: { border: "2px solid #111", background: "#fff", padding: "9px 12px", fontWeight: 900, cursor: "pointer" },
   title: { margin: "0 0 10px", fontSize: "20px", fontWeight: 900, color: "#111" },
   muted: { margin: 0, color: "#6b7280", fontWeight: 700 },
   criticalList: { margin: 0, paddingLeft: "20px", display: "grid", gap: "6px" },
   criticalItem: { fontWeight: 800, color: "#111" },
-  filtersCard: { border: "2px solid #111", background: "#fff", padding: "14px", display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: "12px", alignItems: "end" },
+  filtersCard: { border: "2px solid #111", background: "#fff", padding: "14px", display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: "12px", alignItems: "end", marginBottom: "14px" },
   label: { display: "flex", flexDirection: "column", gap: "6px", fontSize: "12px", fontWeight: 900, textTransform: "uppercase", color: "#111" },
   checkboxLabel: { display: "flex", gap: "8px", alignItems: "center", fontSize: "12px", fontWeight: 900, textTransform: "uppercase", color: "#111", border: "2px solid #111", padding: "9px 10px", background: "#fff" },
   input: { border: "2px solid #111", padding: "9px 10px", fontSize: "14px", fontWeight: 700, background: "#fff", color: "#111" },
