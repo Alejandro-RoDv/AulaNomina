@@ -753,8 +753,17 @@ export default function App() {
 
   function renderPage() {
     if (activePage === "dashboard") {
-      return <Dashboard companies={companies} employees={employees} contracts={contracts} />;
-    }
+      return (
+    <Dashboard
+      companies={companies}
+      workCenters={workCenters}
+      employees={employees}
+      contracts={contracts}
+      incidents={incidents}
+      payrolls={payrolls}
+      />
+    );
+  }
 
     if (activePage === "companies") {
       return (
