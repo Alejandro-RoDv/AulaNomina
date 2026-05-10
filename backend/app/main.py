@@ -7,6 +7,7 @@ from app.db_init import init_database
 from app.models import User, Employee, Company, Incident, Payroll, Document
 from app.models.contract import Contract
 from app.seed_demo import seed_demo_data
+from app.seed_demo_documents import seed_demo_documents
 from app.schemas.employee import EmployeeCreate, EmployeeUpdate, EmployeeResponse
 from app.crud.employee import (
     create_employee,
@@ -114,12 +115,13 @@ def root():
 def reset_demo_endpoint():
     try:
         seed_demo_data(reset=True)
+        seed_demo_documents()
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Error al reiniciar la demo: {exc}") from exc
 
     return {
         "ok": True,
-        "message": "Demo reiniciada correctamente",
+        "message": "Demo reiniciada correctamente, incluida documentación laboral",
         "mode": "controlled_demo_reset",
     }
 
