@@ -23,3 +23,4 @@ class Company(Base):
     contracts = relationship("Contract", back_populates="company")
     incidents = relationship("Incident", back_populates="company")
     payrolls = relationship("Payroll", back_populates="company")
+    documents = relationship("Document", back_populates="company")

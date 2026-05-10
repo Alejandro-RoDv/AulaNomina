@@ -26,6 +26,7 @@ class WorkCenter(Base):
     contracts = relationship("Contract", back_populates="work_center")
     incidents = relationship("Incident", back_populates="work_center")
     payrolls = relationship("Payroll", back_populates="work_center")
+    documents = relationship("Document", back_populates="work_center")
 
     @property
     def company_name(self):

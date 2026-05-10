@@ -2,9 +2,9 @@ from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 
-from app.db import Base, engine, SessionLocal
+from app.db import SessionLocal
 from app.db_init import init_database
-from app.models import User, Employee, Company, Incident, Payroll
+from app.models import User, Employee, Company, Incident, Payroll, Document
 from app.models.contract import Contract
 from app.seed_demo import seed_demo_data
 from app.schemas.employee import EmployeeCreate, EmployeeUpdate, EmployeeResponse
@@ -15,7 +15,6 @@ from app.crud.employee import (
     get_employee,
     update_employee,
     soft_delete_employee,
-    get_employee_by_code,
     get_employee_by_dni,
     get_employee_by_email,
     get_employee_by_naf,
@@ -25,10 +24,8 @@ from app.schemas.contract import ContractCreate, ContractUpdate, ContractRespons
 from app.crud.contract import (
     create_contract,
     get_contracts,
-    get_contract,
     update_contract,
     soft_delete_contract,
-    get_contracts_by_employee,
 )
 from app.schemas.company import CompanyCreate, CompanyUpdate, CompanyResponse
 from app.crud.company import (
@@ -73,6 +70,14 @@ from app.crud.payroll import (
     update_payroll,
     delete_payroll,
 )
+from app.schemas.document import DocumentCreate, DocumentUpdate, DocumentResponse
+from app.crud.document import (
+    create_document,
+    get_documents,
+    get_documents_by_employee,
+    update_document,
+    mark_document_not_applicable,
+)
 
 app = FastAPI(title="AulaNomina API")
 
@@ -89,11 +94,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# MVP: create tables and ensure missing columns exist
 init_database()
 
 
-# dependencia DB
 def get_db():
     db = SessionLocal()
     try:
@@ -107,7 +110,6 @@ def root():
     return {"message": "AulaNomina backend activo"}
 
 
-# DEMO
 @app.post("/demo/reset")
 def reset_demo_endpoint():
     try:
@@ -153,11 +155,7 @@ def list_all_employees(db: Session = Depends(get_db)):
 
 
 @app.put("/employees/{employee_id}", response_model=EmployeeResponse)
-def update_employee_endpoint(
-    employee_id: int,
-    employee: EmployeeUpdate,
-    db: Session = Depends(get_db),
-):
+def update_employee_endpoint(employee_id: int, employee: EmployeeUpdate, db: Session = Depends(get_db)):
     current_employee = get_employee(db, employee_id)
     if not current_employee:
         raise HTTPException(status_code=404, detail="Trabajador no encontrado")
@@ -185,7 +183,6 @@ def delete_employee_endpoint(employee_id: int, db: Session = Depends(get_db)):
     deleted_employee = soft_delete_employee(db, employee_id)
     if not deleted_employee:
         raise HTTPException(status_code=404, detail="Trabajador no encontrado")
-
     return deleted_employee
 
 
@@ -201,15 +198,10 @@ def get_contracts_endpoint(db: Session = Depends(get_db)):
 
 
 @app.put("/contracts/{contract_id}", response_model=ContractResponse)
-def update_contract_endpoint(
-    contract_id: int,
-    contract: ContractUpdate,
-    db: Session = Depends(get_db),
-):
+def update_contract_endpoint(contract_id: int, contract: ContractUpdate, db: Session = Depends(get_db)):
     updated_contract = update_contract(db, contract_id, contract)
     if not updated_contract:
         raise HTTPException(status_code=404, detail="Contrato no encontrado")
-
     return updated_contract
 
 
@@ -218,7 +210,6 @@ def delete_contract_endpoint(contract_id: int, db: Session = Depends(get_db)):
     deleted_contract = soft_delete_contract(db, contract_id)
     if not deleted_contract:
         raise HTTPException(status_code=404, detail="Contrato no encontrado")
-
     return deleted_contract
 
 
@@ -238,20 +229,14 @@ def create_company_endpoint(company: CompanyCreate, db: Session = Depends(get_db
     if get_company_by_cif(db, company.cif):
         raise HTTPException(status_code=400, detail="Ya existe una empresa con ese CIF")
 
-    if company.ccc:
-        existing_ccc = get_company_by_ccc(db, company.ccc)
-        if existing_ccc:
-            raise HTTPException(status_code=400, detail="Ya existe una empresa con ese CCC")
+    if company.ccc and get_company_by_ccc(db, company.ccc):
+        raise HTTPException(status_code=400, detail="Ya existe una empresa con ese CCC")
 
     return create_company(db, company)
 
 
 @app.put("/companies/{company_id}", response_model=CompanyResponse)
-def update_company_endpoint(
-    company_id: int,
-    company: CompanyUpdate,
-    db: Session = Depends(get_db),
-):
+def update_company_endpoint(company_id: int, company: CompanyUpdate, db: Session = Depends(get_db)):
     current_company = get_company(db, company_id)
     if not current_company:
         raise HTTPException(status_code=404, detail="Empresa no encontrada")
@@ -274,7 +259,6 @@ def delete_company_endpoint(company_id: int, db: Session = Depends(get_db)):
     deleted_company = soft_delete_company(db, company_id)
     if not deleted_company:
         raise HTTPException(status_code=404, detail="Empresa no encontrada")
-
     return deleted_company
 
 
@@ -288,31 +272,22 @@ def get_work_centers_endpoint(db: Session = Depends(get_db)):
 def get_work_centers_by_company_endpoint(company_id: int, db: Session = Depends(get_db)):
     if not get_company(db, company_id):
         raise HTTPException(status_code=404, detail="Empresa no encontrada")
-
     return get_work_centers_by_company(db, company_id)
 
 
 @app.post("/work-centers", response_model=WorkCenterResponse)
-def create_work_center_endpoint(
-    work_center: WorkCenterCreate,
-    db: Session = Depends(get_db),
-):
+def create_work_center_endpoint(work_center: WorkCenterCreate, db: Session = Depends(get_db)):
     if not get_company(db, work_center.company_id):
         raise HTTPException(status_code=404, detail="Empresa no encontrada")
 
-    existing = get_work_center_by_code(db, work_center.center_code)
-    if existing:
+    if get_work_center_by_code(db, work_center.center_code):
         raise HTTPException(status_code=400, detail="Ya existe un centro con ese código")
 
     return create_work_center(db, work_center)
 
 
 @app.put("/work-centers/{work_center_id}", response_model=WorkCenterResponse)
-def update_work_center_endpoint(
-    work_center_id: int,
-    work_center: WorkCenterUpdate,
-    db: Session = Depends(get_db),
-):
+def update_work_center_endpoint(work_center_id: int, work_center: WorkCenterUpdate, db: Session = Depends(get_db)):
     current_work_center = get_work_center(db, work_center_id)
     if not current_work_center:
         raise HTTPException(status_code=404, detail="Centro no encontrado")
@@ -333,7 +308,6 @@ def delete_work_center_endpoint(work_center_id: int, db: Session = Depends(get_d
     deleted_work_center = soft_delete_work_center(db, work_center_id)
     if not deleted_work_center:
         raise HTTPException(status_code=404, detail="Centro no encontrado")
-
     return deleted_work_center
 
 
@@ -349,15 +323,10 @@ def create_incident_endpoint(incident: IncidentCreate, db: Session = Depends(get
 
 
 @app.put("/incidents/{incident_id}", response_model=IncidentResponse)
-def update_incident_endpoint(
-    incident_id: int,
-    incident: IncidentUpdate,
-    db: Session = Depends(get_db),
-):
+def update_incident_endpoint(incident_id: int, incident: IncidentUpdate, db: Session = Depends(get_db)):
     updated_incident = update_incident(db, incident_id, incident)
     if not updated_incident:
         raise HTTPException(status_code=404, detail="Incidencia no encontrada")
-
     return updated_incident
 
 
@@ -366,8 +335,41 @@ def delete_incident_endpoint(incident_id: int, db: Session = Depends(get_db)):
     deleted_incident = delete_incident(db, incident_id)
     if not deleted_incident:
         raise HTTPException(status_code=404, detail="Incidencia no encontrada")
-
     return {"ok": True}
+
+
+# DOCUMENTS
+@app.get("/documents", response_model=list[DocumentResponse])
+def get_documents_endpoint(db: Session = Depends(get_db)):
+    return get_documents(db)
+
+
+@app.get("/documents/employee/{employee_id}", response_model=list[DocumentResponse])
+def get_documents_by_employee_endpoint(employee_id: int, db: Session = Depends(get_db)):
+    if not get_employee(db, employee_id):
+        raise HTTPException(status_code=404, detail="Trabajador no encontrado")
+    return get_documents_by_employee(db, employee_id)
+
+
+@app.post("/documents", response_model=DocumentResponse)
+def create_document_endpoint(document: DocumentCreate, db: Session = Depends(get_db)):
+    return create_document(db, document)
+
+
+@app.put("/documents/{document_id}", response_model=DocumentResponse)
+def update_document_endpoint(document_id: int, document: DocumentUpdate, db: Session = Depends(get_db)):
+    updated_document = update_document(db, document_id, document)
+    if not updated_document:
+        raise HTTPException(status_code=404, detail="Documento no encontrado")
+    return updated_document
+
+
+@app.delete("/documents/{document_id}", response_model=DocumentResponse)
+def delete_document_endpoint(document_id: int, db: Session = Depends(get_db)):
+    document = mark_document_not_applicable(db, document_id)
+    if not document:
+        raise HTTPException(status_code=404, detail="Documento no encontrado")
+    return document
 
 
 # PAYROLLS
@@ -382,10 +384,7 @@ def create_payroll_endpoint(payroll: PayrollCreate, db: Session = Depends(get_db
 
 
 @app.post("/payrolls/prepare-monthly", response_model=PayrollPrepareResponse)
-def prepare_monthly_payrolls_endpoint(
-    request: PayrollPrepareRequest,
-    db: Session = Depends(get_db),
-):
+def prepare_monthly_payrolls_endpoint(request: PayrollPrepareRequest, db: Session = Depends(get_db)):
     return prepare_monthly_payrolls(db, request)
 
 
@@ -394,20 +393,14 @@ def get_payroll_endpoint(payroll_id: int, db: Session = Depends(get_db)):
     payroll = get_payroll(db, payroll_id)
     if not payroll:
         raise HTTPException(status_code=404, detail="Nómina no encontrada")
-
     return payroll
 
 
 @app.put("/payrolls/{payroll_id}", response_model=PayrollResponse)
-def update_payroll_endpoint(
-    payroll_id: int,
-    payroll: PayrollUpdate,
-    db: Session = Depends(get_db),
-):
+def update_payroll_endpoint(payroll_id: int, payroll: PayrollUpdate, db: Session = Depends(get_db)):
     updated_payroll = update_payroll(db, payroll_id, payroll)
     if not updated_payroll:
         raise HTTPException(status_code=404, detail="Nómina no encontrada")
-
     return updated_payroll
 
 
@@ -416,5 +409,4 @@ def delete_payroll_endpoint(payroll_id: int, db: Session = Depends(get_db)):
     deleted_payroll = delete_payroll(db, payroll_id)
     if not deleted_payroll:
         raise HTTPException(status_code=404, detail="Nómina no encontrada")
-
     return {"ok": True, "deleted_id": deleted_payroll["id"]}
