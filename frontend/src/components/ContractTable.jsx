@@ -13,7 +13,7 @@ function formatStatus(status) {
   const labels = {
     active: "Activo",
     ended: "Finalizado",
-    deleted: "Eliminado",
+    deleted: "Baja administrativa",
   };
   return labels[status] || status || "-";
 }
@@ -82,13 +82,9 @@ export default function ContractTable({
 
   const getContractCode = (contract) => getContractVisibleCode(contract, employees, contracts);
 
-  const getCompany = (contract) => {
-    return companies.find((item) => Number(item.id) === Number(contract.company_id));
-  };
+  const getCompany = (contract) => companies.find((item) => Number(item.id) === Number(contract.company_id));
 
-  const getCenter = (contract) => {
-    return workCenters.find((item) => Number(item.id) === Number(contract.center_id));
-  };
+  const getCenter = (contract) => workCenters.find((item) => Number(item.id) === Number(contract.center_id));
 
   const getCompanyName = (contract) => {
     if (contract.company_name) return contract.company_name;
@@ -157,7 +153,7 @@ export default function ContractTable({
       closeDeleteModal();
       closeEditModal();
     } catch (err) {
-      setDeleteError(err.message || "Error al eliminar contrato");
+      setDeleteError(err.message || "Error al tramitar la baja administrativa del contrato");
     }
   };
 
@@ -295,7 +291,7 @@ export default function ContractTable({
 
               <div style={styles.modalActionsSplit}>
                 <button type="button" onClick={() => openDeleteModal(editingContract)} style={styles.deleteButton}>
-                  Eliminar contrato
+                  Tramitar baja administrativa
                 </button>
                 <div style={styles.modalActionsRight}>
                   <button type="button" onClick={closeEditModal} style={styles.cancelButton}>Cancelar</button>
@@ -314,14 +310,14 @@ export default function ContractTable({
           <div style={styles.confirmModal}>
             <div style={styles.modalHeader}>
               <div>
-                <h3 style={styles.modalTitle}>Eliminar contrato</h3>
-                <p style={styles.modalSubtitle}>Esta acción eliminará definitivamente el contrato.</p>
+                <h3 style={styles.modalTitle}>Baja administrativa del contrato</h3>
+                <p style={styles.modalSubtitle}>El contrato dejará de mostrarse como vigente en el flujo operativo.</p>
               </div>
               <button type="button" onClick={closeDeleteModal} style={styles.closeButton}>×</button>
             </div>
 
             <p style={styles.confirmText}>
-              ¿Seguro que quieres eliminar el contrato {getContractCode(contractToDelete)} de {getEmployeeName(contractToDelete)}?
+              ¿Quieres tramitar la baja administrativa del contrato {getContractCode(contractToDelete)} de {getEmployeeName(contractToDelete)}?
             </p>
 
             {deleteError && <div style={styles.error}>{deleteError}</div>}
@@ -329,7 +325,7 @@ export default function ContractTable({
             <div style={styles.modalActions}>
               <button type="button" onClick={closeDeleteModal} style={styles.cancelButton}>Cancelar</button>
               <button type="button" onClick={handleConfirmDelete} disabled={submitting} style={styles.dangerButton}>
-                {submitting ? "Eliminando..." : "Confirmar eliminación"}
+                {submitting ? "Tramitando..." : "Confirmar baja"}
               </button>
             </div>
           </div>
