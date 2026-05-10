@@ -10,7 +10,7 @@ import EmployeesPage from "./pages/EmployeesPage";
 import IncidentsPage from "./pages/IncidentsPage";
 import PayrollsPage from "./pages/PayrollsPage";
 
-import { createContract, deleteContract, fetchContracts, updateContract } from "./services/api";
+import { createContract, deleteContract, fetchContracts, resetDemo, updateContract } from "./services/api";
 import { createCompany, deleteCompany, fetchCompanies, updateCompany } from "./services/companyApi";
 import { createEmployee, deleteEmployee, fetchAllEmployees, fetchNextEmployeeCode, updateEmployee } from "./services/employeeApi";
 import { createIncident, deleteIncident, fetchIncidents, updateIncident } from "./services/incidentApi";
@@ -223,6 +223,10 @@ export default function App() {
   const [payrolls, setPayrolls] = useState([]);
 
   const [loading, setLoading] = useState(true);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [resetDemoLoading, setResetDemoLoading] = useState(false);
+  const [resetDemoMessage, setResetDemoMessage] = useState("");
+  const [resetDemoError, setResetDemoError] = useState("");
 
   const [contractSubmitting, setContractSubmitting] = useState(false);
   const [companySubmitting, setCompanySubmitting] = useState(false);
@@ -297,6 +301,28 @@ export default function App() {
   useEffect(() => {
     loadData();
   }, []);
+
+  const handleResetDemo = async () => {
+    const confirmed = window.confirm(
+      "Esto reiniciará únicamente los datos demo de Fundación AulaNomina. Los demás datos no deberían tocarse. ¿Continuar?"
+    );
+
+    if (!confirmed) return;
+
+    setResetDemoError("");
+    setResetDemoMessage("");
+
+    try {
+      setResetDemoLoading(true);
+      const data = await resetDemo();
+      setResetDemoMessage(data.message || "Demo reiniciada correctamente");
+      await loadData();
+    } catch (err) {
+      setResetDemoError(err.message || "Error al reiniciar la demo");
+    } finally {
+      setResetDemoLoading(false);
+    }
+  };
 
   const handleContractChange = (event) => {
     const { name, value } = event.target;
@@ -848,7 +874,21 @@ export default function App() {
       <Sidebar activePage={activePage} setActivePage={setActivePage} />
 
       <div style={styles.mainWrapper}>
-        <Header title={getTitle()} subtitle={getSubtitle()} />
+        <Header
+          title={getTitle()}
+          subtitle={getSubtitle()}
+          settingsOpen={settingsOpen}
+          onOpenSettings={() => {
+            setResetDemoError("");
+            setResetDemoMessage("");
+            setSettingsOpen(true);
+          }}
+          onCloseSettings={() => setSettingsOpen(false)}
+          onResetDemo={handleResetDemo}
+          resetDemoLoading={resetDemoLoading}
+          resetDemoMessage={resetDemoMessage}
+          resetDemoError={resetDemoError}
+        />
 
         <main style={styles.main}>{renderPage()}</main>
 
