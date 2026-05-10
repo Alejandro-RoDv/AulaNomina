@@ -86,8 +86,9 @@ export default function PayrollsPage({
     const toPeriod = filters.periodTo ? Number(filters.periodTo.replace("-", "")) : null;
 
     return localPayrolls.filter((payroll) => {
+      const center = workCenters.find((item) => Number(item.id) === Number(payroll.center_id));
       const employeeText = normalizeText(`${payroll.employee_name || ""} ${payroll.employee_id || ""}`);
-      const companyText = normalizeText(`${payroll.company_name || ""} ${payroll.company_id || ""}`);
+      const companyText = normalizeText(`${payroll.company_name || ""} ${center?.name || ""} ${payroll.company_id || ""} ${payroll.center_id || ""}`);
       const statusText = normalizeText(payroll.status);
       const payrollPeriod = getPeriodValue(payroll);
 
@@ -99,7 +100,7 @@ export default function PayrollsPage({
 
       return matchesEmployee && matchesCompany && matchesStatus && matchesFromPeriod && matchesToPeriod;
     });
-  }, [localPayrolls, filters]);
+  }, [localPayrolls, filters, workCenters]);
 
   return (
     <div style={styles.wrapper}>
@@ -122,6 +123,7 @@ export default function PayrollsPage({
             employees={employees}
             contracts={contracts}
             companies={companies}
+            workCenters={workCenters}
             onChange={onPayrollChange}
             onSubmit={onPayrollSubmit}
             error={payrollError}
@@ -151,12 +153,12 @@ export default function PayrollsPage({
           </div>
 
           <div style={styles.filterGroupWide}>
-            <label style={styles.label}>Empresa</label>
+            <label style={styles.label}>Empresa / centro</label>
             <input
               name="company"
               value={filters.company}
               onChange={handleFilterChange}
-              placeholder="Empresa o ID"
+              placeholder="Empresa, centro o ID"
               style={styles.input}
             />
           </div>
