@@ -9,7 +9,7 @@ export default function Sidebar({ activePage, setActivePage }) {
         { id: "companies", label: "Empresa", enabled: true },
         { id: "employees", label: "Trabajador", enabled: true },
         { id: "contracts", label: "Contratos", enabled: true },
-        { id: "documents", label: "Documentos", enabled: false },
+        { id: "documents", label: "Documentos", enabled: true },
         { id: "reports", label: "Informes", enabled: false },
       ],
     },
