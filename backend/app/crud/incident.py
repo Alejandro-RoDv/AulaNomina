@@ -5,6 +5,7 @@ from app.models.incident import Incident
 from app.models.employee import Employee
 from app.models.contract import Contract
 from app.models.company import Company
+from app.models.work_center import WorkCenter
 from app.schemas.incident import IncidentCreate, IncidentUpdate
 
 
@@ -17,14 +18,40 @@ def create_incident(db: Session, incident: IncidentCreate):
     if not contract:
         raise HTTPException(status_code=404, detail="Contrato no encontrado")
 
-    company = db.query(Company).filter(Company.id == incident.company_id).first()
+    if contract.employee_id != employee.id:
+        raise HTTPException(status_code=400, detail="El contrato seleccionado no pertenece al trabajador")
+
+    if contract.status != "active":
+        raise HTTPException(status_code=400, detail="La incidencia debe vincularse a un contrato activo")
+
+    company_id = incident.company_id or contract.company_id or employee.company_id
+    center_id = incident.center_id if incident.center_id is not None else contract.center_id or employee.center_id
+
+    if company_id is None:
+        raise HTTPException(status_code=400, detail="No se puede crear la incidencia sin empresa vinculada")
+
+    company = db.query(Company).filter(Company.id == company_id).first()
     if not company:
         raise HTTPException(status_code=404, detail="Empresa no encontrada")
+
+    if contract.company_id and contract.company_id != company_id:
+        raise HTTPException(status_code=400, detail="La empresa no coincide con la del contrato")
+
+    if center_id is not None:
+        center = db.query(WorkCenter).filter(WorkCenter.id == center_id).first()
+        if not center:
+            raise HTTPException(status_code=404, detail="Centro no encontrado")
+        if center.company_id != company_id:
+            raise HTTPException(status_code=400, detail="El centro no pertenece a la empresa indicada")
 
     if incident.end_date and incident.end_date < incident.start_date:
         raise HTTPException(status_code=400, detail="end_date no puede ser menor que start_date")
 
-    db_incident = Incident(**incident.model_dump())
+    incident_data = incident.model_dump()
+    incident_data["company_id"] = company_id
+    incident_data["center_id"] = center_id
+
+    db_incident = Incident(**incident_data)
     db.add(db_incident)
     db.commit()
     db.refresh(db_incident)
@@ -36,6 +63,7 @@ def get_incidents(db: Session):
         joinedload(Incident.employee),
         joinedload(Incident.contract),
         joinedload(Incident.company),
+        joinedload(Incident.work_center),
     ).all()
 
 
@@ -44,6 +72,7 @@ def get_incident(db: Session, incident_id: int):
         joinedload(Incident.employee),
         joinedload(Incident.contract),
         joinedload(Incident.company),
+        joinedload(Incident.work_center),
     ).filter(Incident.id == incident_id).first()
 
 
@@ -59,6 +88,13 @@ def update_incident(db: Session, incident_id: int, data: IncidentUpdate):
 
     if new_end and new_end < new_start:
         raise HTTPException(status_code=400, detail="end_date no puede ser menor que start_date")
+
+    if "center_id" in update_data and update_data["center_id"] is not None:
+        center = db.query(WorkCenter).filter(WorkCenter.id == update_data["center_id"]).first()
+        if not center:
+            raise HTTPException(status_code=404, detail="Centro no encontrado")
+        if center.company_id != db_incident.company_id:
+            raise HTTPException(status_code=400, detail="El centro no pertenece a la empresa de la incidencia")
 
     for key, value in update_data.items():
         setattr(db_incident, key, value)
