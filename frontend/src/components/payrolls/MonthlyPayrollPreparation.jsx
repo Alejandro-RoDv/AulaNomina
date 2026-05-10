@@ -11,6 +11,7 @@ const STATUS_LABELS = {
   calculated: "Calculada",
   reviewed: "Revisada",
   closed: "Cerrada",
+  cancelled: "Anulada",
 };
 
 function formatMoney(value) {
@@ -229,6 +230,32 @@ export default function MonthlyPayrollPreparation({ companies, workCenters, onPr
               </tbody>
             </table>
           </div>
+
+          {result.skipped?.length > 0 && (
+            <section style={styles.skippedBox}>
+              <h3 style={styles.sectionTitle}>Omitidas con motivo</h3>
+              <div style={styles.tableWrapper}>
+                <table style={styles.table}>
+                  <thead>
+                    <tr>
+                      <th style={styles.th}>Trabajador</th>
+                      <th style={styles.th}>Contrato</th>
+                      <th style={styles.th}>Motivo</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {result.skipped.map((item, index) => (
+                      <tr key={`${item.contract_id || "sin-contrato"}-${index}`}>
+                        <td style={styles.tdStrong}>{item.employee_code ? `${item.employee_code} - ` : ""}{item.employee_name || "-"}</td>
+                        <td style={styles.td}>{item.contract_code || item.contract_id || "-"}</td>
+                        <td style={styles.td}>{item.reason}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          )}
         </section>
       )}
     </div>
@@ -253,6 +280,7 @@ const styles = {
   secondaryButton: { backgroundColor: "#f3f4f6", color: "#111827", border: "1px solid #d1d5db", borderRadius: "8px", padding: "8px 10px", cursor: "pointer", fontWeight: 800 },
   error: { backgroundColor: "#fee2e2", color: "#991b1b", padding: "10px 12px", borderRadius: "8px" },
   resultBox: { border: "1px solid #e5e7eb", borderRadius: "10px", padding: "14px", display: "flex", flexDirection: "column", gap: "14px" },
+  skippedBox: { border: "1px solid #facc15", borderRadius: "10px", backgroundColor: "#fefce8", padding: "14px", display: "flex", flexDirection: "column", gap: "10px" },
   summaryGrid: { display: "flex", gap: "12px", flexWrap: "wrap" },
   summaryItem: { border: "1px solid #e5e7eb", borderRadius: "8px", padding: "10px 14px", minWidth: "120px", display: "flex", flexDirection: "column", gap: "4px" },
   tableWrapper: { overflowX: "auto" },
