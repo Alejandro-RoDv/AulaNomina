@@ -20,7 +20,7 @@ function formatMoney(value) {
   });
 }
 
-export default function MonthlyPayrollPreparation({ companies, workCenters }) {
+export default function MonthlyPayrollPreparation({ companies, workCenters, onPrepared }) {
   const [form, setForm] = useState({
     company_ids: [],
     center_id: "",
@@ -92,6 +92,9 @@ export default function MonthlyPayrollPreparation({ companies, workCenters }) {
       });
 
       setResult(data);
+      if (onPrepared) {
+        await onPrepared(data);
+      }
     } catch (err) {
       setError(err.message || "Error al preparar nóminas");
     } finally {
