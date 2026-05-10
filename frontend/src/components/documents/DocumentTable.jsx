@@ -92,6 +92,16 @@ export default function DocumentTable({
     }
   };
 
+  const handleStatusAction = async (event, document) => {
+    const action = event.target.value;
+    event.target.value = "";
+
+    if (action === "received") await onMarkReceived(document);
+    if (action === "pending") await onMarkPending(document);
+    if (action === "expired") await onMarkExpired(document);
+    if (action === "not_applicable") await onMarkNotApplicable(document);
+  };
+
   return (
     <section style={styles.card}>
       <div style={styles.headerRow}>
@@ -132,10 +142,13 @@ export default function DocumentTable({
                   <td style={styles.td}>{formatDate(document.expiry_date)}</td>
                   <td style={styles.tdActions}>
                     <button type="button" style={styles.smallButton} onClick={() => openEdit(document)}>Editar</button>
-                    <button type="button" style={styles.smallButton} onClick={() => onMarkReceived(document)}>Entregado</button>
-                    <button type="button" style={styles.smallButton} onClick={() => onMarkPending(document)}>Pendiente</button>
-                    <button type="button" style={styles.smallButtonDanger} onClick={() => onMarkExpired(document)}>Caducado</button>
-                    <button type="button" style={styles.smallButtonMuted} onClick={() => onMarkNotApplicable(document)}>Marcar no aplica</button>
+                    <select defaultValue="" style={styles.actionSelect} onChange={(event) => handleStatusAction(event, document)}>
+                      <option value="" disabled>Cambiar estado</option>
+                      <option value="received">Entregado</option>
+                      <option value="pending">Pendiente</option>
+                      <option value="expired">Caducado</option>
+                      <option value="not_applicable">No aplica</option>
+                    </select>
                   </td>
                 </tr>
               ))
@@ -225,10 +238,9 @@ const styles = {
   table: { width: "100%", borderCollapse: "collapse", fontSize: "13px" },
   th: { borderBottom: "3px solid #111", textAlign: "left", padding: "10px", fontSize: "12px", textTransform: "uppercase", fontWeight: 900, color: "#111" },
   td: { borderBottom: "1px solid #d1d5db", padding: "10px", fontWeight: 700, verticalAlign: "top" },
-  tdActions: { borderBottom: "1px solid #d1d5db", padding: "10px", display: "flex", flexWrap: "wrap", gap: "6px" },
-  smallButton: { border: "2px solid #111", background: "#fff", padding: "6px 8px", fontWeight: 900, cursor: "pointer" },
-  smallButtonDanger: { border: "2px solid #111", background: "#fee2e2", padding: "6px 8px", fontWeight: 900, cursor: "pointer" },
-  smallButtonMuted: { border: "2px solid #111", background: "#e5e7eb", padding: "6px 8px", fontWeight: 900, cursor: "pointer" },
+  tdActions: { borderBottom: "1px solid #d1d5db", padding: "10px", display: "flex", flexWrap: "wrap", gap: "8px", alignItems: "center" },
+  smallButton: { border: "2px solid #111", background: "#fff", padding: "7px 10px", fontWeight: 900, cursor: "pointer" },
+  actionSelect: { border: "2px solid #111", background: "#fff", padding: "7px 10px", fontWeight: 900, cursor: "pointer", minWidth: "150px" },
   empty: { padding: "18px", textAlign: "center", fontWeight: 800, color: "#6b7280" },
   modalBackdrop: { position: "fixed", inset: 0, backgroundColor: "rgba(17, 24, 39, 0.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, padding: "24px" },
   modal: { width: "min(860px, 100%)", backgroundColor: "#fff", border: "3px solid #111", boxShadow: "8px 8px 0 #f0df62", padding: "22px" },
