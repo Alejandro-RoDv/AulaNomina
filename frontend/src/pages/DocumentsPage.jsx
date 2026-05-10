@@ -9,6 +9,13 @@ const initialFilters = {
   status: "",
 };
 
+const statusPriority = {
+  expired: 0,
+  pending: 1,
+  received: 2,
+  not_applicable: 3,
+};
+
 export default function DocumentsPage({
   loading,
   documents,
@@ -26,14 +33,22 @@ export default function DocumentsPage({
 }) {
   const [filters, setFilters] = useState(initialFilters);
 
+  const sortedDocuments = useMemo(() => {
+    return [...documents].sort((a, b) => {
+      const statusDiff = (statusPriority[a.status] ?? 9) - (statusPriority[b.status] ?? 9);
+      if (statusDiff !== 0) return statusDiff;
+      return String(a.expiry_date || "9999-12-31").localeCompare(String(b.expiry_date || "9999-12-31"));
+    });
+  }, [documents]);
+
   const filteredDocuments = useMemo(() => {
-    return documents.filter((document) => {
+    return sortedDocuments.filter((document) => {
       if (filters.employee_id && String(document.employee_id) !== String(filters.employee_id)) return false;
       if (filters.document_type && document.document_type !== filters.document_type) return false;
       if (filters.status && document.status !== filters.status) return false;
       return true;
     });
-  }, [documents, filters]);
+  }, [sortedDocuments, filters]);
 
   const totals = useMemo(() => ({
     total: documents.length,
@@ -42,7 +57,9 @@ export default function DocumentsPage({
     received: documents.filter((document) => document.status === "received").length,
   }), [documents]);
 
-  const criticalDocuments = documents.filter((document) => ["pending", "expired"].includes(document.status)).slice(0, 6);
+  const criticalDocuments = sortedDocuments
+    .filter((document) => ["pending", "expired"].includes(document.status))
+    .slice(0, 6);
 
   const handleFilterChange = (event) => {
     const { name, value } = event.target;
@@ -78,7 +95,7 @@ export default function DocumentsPage({
           <ul style={styles.criticalList}>
             {criticalDocuments.map((document) => (
               <li key={document.id} style={styles.criticalItem}>
-                <strong>{document.document_name}</strong> — {document.employee_name || document.employee_id}
+                <strong>{document.status === "expired" ? "Caducado" : "Pendiente"}:</strong> {document.document_name} — {document.employee_name || document.employee_id}
               </li>
             ))}
           </ul>
@@ -141,6 +158,7 @@ export default function DocumentsPage({
         documents={filteredDocuments}
         onMarkReceived={(document) => handleStatusChange(document, "received")}
         onMarkPending={(document) => handleStatusChange(document, "pending")}
+        onMarkExpired={(document) => handleStatusChange(document, "expired")}
         onMarkNotApplicable={(document) => onDeleteDocument(document.id)}
       />
     </div>
