@@ -2,6 +2,15 @@ import { useState } from "react";
 import { formatPaySchedule, PAY_SCHEDULE_OPTIONS } from "./ContractForm";
 import { getContractVisibleCode } from "../utils/visibleCodes";
 
+const TERMINATION_REASONS = [
+  { value: "fin_contrato_temporal", label: "Fin de contrato temporal" },
+  { value: "baja_voluntaria", label: "Baja voluntaria" },
+  { value: "despido", label: "Despido" },
+  { value: "no_supera_periodo_prueba", label: "No supera periodo de prueba" },
+  { value: "fin_sustitucion", label: "Fin de sustitución" },
+  { value: "otras_causas", label: "Otras causas" },
+];
+
 function formatDate(value) {
   if (!value) return "-";
   const [year, month, day] = String(value).split("-");
@@ -55,6 +64,16 @@ function toEditForm(contract) {
   };
 }
 
+function toTerminationForm(contract) {
+  return {
+    end_date: contract.end_date || "",
+    reason: "fin_contrato_temporal",
+    severance_ready: false,
+    settlement_ready: false,
+    observations: "",
+  };
+}
+
 export default function ContractTable({
   loading,
   contracts,
@@ -62,14 +81,14 @@ export default function ContractTable({
   companies,
   workCenters = [],
   onUpdateContract,
-  onDeleteContract,
   submitting,
 }) {
   const [editingContract, setEditingContract] = useState(null);
-  const [contractToDelete, setContractToDelete] = useState(null);
+  const [contractToTerminate, setContractToTerminate] = useState(null);
   const [editForm, setEditForm] = useState(null);
+  const [terminationForm, setTerminationForm] = useState(null);
   const [editError, setEditError] = useState("");
-  const [deleteError, setDeleteError] = useState("");
+  const [terminationError, setTerminationError] = useState("");
 
   const getEmployee = (contract) => employees.find((employee) => Number(employee.id) === Number(contract.employee_id));
 
@@ -109,7 +128,7 @@ export default function ContractTable({
     setEditingContract(contract);
     setEditForm(toEditForm(contract));
     setEditError("");
-    setDeleteError("");
+    setTerminationError("");
   };
 
   const closeEditModal = () => {
@@ -118,19 +137,29 @@ export default function ContractTable({
     setEditError("");
   };
 
-  const openDeleteModal = (contract) => {
-    setContractToDelete(contract);
-    setDeleteError("");
+  const openTerminationModal = (contract) => {
+    setContractToTerminate(contract);
+    setTerminationForm(toTerminationForm(contract));
+    setTerminationError("");
   };
 
-  const closeDeleteModal = () => {
-    setContractToDelete(null);
-    setDeleteError("");
+  const closeTerminationModal = () => {
+    setContractToTerminate(null);
+    setTerminationForm(null);
+    setTerminationError("");
   };
 
   const handleEditChange = (event) => {
     const { name, value } = event.target;
     setEditForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleTerminationChange = (event) => {
+    const { name, value, type, checked } = event.target;
+    setTerminationForm((prev) => ({
+      ...prev,
+      [name]: type === "checkbox" ? checked : value,
+    }));
   };
 
   const handleEditSubmit = async (event) => {
@@ -145,15 +174,34 @@ export default function ContractTable({
     }
   };
 
-  const handleConfirmDelete = async () => {
-    setDeleteError("");
+  const handleConfirmTermination = async () => {
+    setTerminationError("");
+
+    if (!terminationForm.end_date) {
+      setTerminationError("Debes indicar la fecha fin de la baja.");
+      return;
+    }
+
+    if (contractToTerminate.end_date && terminationForm.end_date !== contractToTerminate.end_date) {
+      setTerminationError("La fecha de baja debe coincidir con la fecha fin indicada en el contrato.");
+      return;
+    }
+
+    if (terminationForm.end_date < contractToTerminate.start_date) {
+      setTerminationError("La fecha fin no puede ser anterior a la fecha de inicio del contrato.");
+      return;
+    }
 
     try {
-      await onDeleteContract(contractToDelete.id);
-      closeDeleteModal();
+      await onUpdateContract(contractToTerminate.id, {
+        ...toEditForm(contractToTerminate),
+        end_date: terminationForm.end_date,
+        status: "ended",
+      });
+      closeTerminationModal();
       closeEditModal();
     } catch (err) {
-      setDeleteError(err.message || "Error al tramitar la baja administrativa del contrato");
+      setTerminationError(err.message || "Error al tramitar la baja del contrato");
     }
   };
 
@@ -290,8 +338,8 @@ export default function ContractTable({
               {editError && <div style={styles.error}>{editError}</div>}
 
               <div style={styles.modalActionsSplit}>
-                <button type="button" onClick={() => openDeleteModal(editingContract)} style={styles.deleteButton}>
-                  Tramitar baja administrativa
+                <button type="button" onClick={() => openTerminationModal(editingContract)} style={styles.deleteButton}>
+                  Tramitar baja
                 </button>
                 <div style={styles.modalActionsRight}>
                   <button type="button" onClick={closeEditModal} style={styles.cancelButton}>Cancelar</button>
@@ -305,26 +353,87 @@ export default function ContractTable({
         </div>
       )}
 
-      {contractToDelete && (
+      {contractToTerminate && terminationForm && (
         <div style={styles.modalBackdrop}>
-          <div style={styles.confirmModal}>
+          <div style={styles.confirmModalWide}>
             <div style={styles.modalHeader}>
               <div>
-                <h3 style={styles.modalTitle}>Baja administrativa del contrato</h3>
-                <p style={styles.modalSubtitle}>El contrato dejará de mostrarse como vigente en el flujo operativo.</p>
+                <h3 style={styles.modalTitle}>Tramitar baja</h3>
+                <p style={styles.modalSubtitle}>Contrato {getContractCode(contractToTerminate)} · {getEmployeeName(contractToTerminate)}</p>
               </div>
-              <button type="button" onClick={closeDeleteModal} style={styles.closeButton}>×</button>
+              <button type="button" onClick={closeTerminationModal} style={styles.closeButton}>×</button>
             </div>
 
-            <p style={styles.confirmText}>
-              ¿Quieres tramitar la baja administrativa del contrato {getContractCode(contractToDelete)} de {getEmployeeName(contractToDelete)}?
-            </p>
+            <div style={styles.terminationSummary}>
+              <div><span>Inicio</span><strong>{formatDate(contractToTerminate.start_date)}</strong></div>
+              <div><span>Fecha fin actual</span><strong>{formatDate(contractToTerminate.end_date)}</strong></div>
+              <div><span>Estado actual</span><strong>{formatStatus(contractToTerminate.status)}</strong></div>
+            </div>
 
-            {deleteError && <div style={styles.error}>{deleteError}</div>}
+            <div style={styles.form}>
+              <div style={styles.formRow}>
+                <div style={styles.formGroup}>
+                  <label>Fecha fin / fecha de baja</label>
+                  <input
+                    type="date"
+                    name="end_date"
+                    value={terminationForm.end_date}
+                    onChange={handleTerminationChange}
+                    style={styles.input}
+                    required
+                  />
+                  <small style={styles.helpText}>Debe coincidir con la fecha fin indicada en el contrato si ya existe.</small>
+                </div>
+
+                <div style={styles.formGroup}>
+                  <label>Motivo de la baja</label>
+                  <select name="reason" value={terminationForm.reason} onChange={handleTerminationChange} style={styles.input}>
+                    {TERMINATION_REASONS.map((reason) => (
+                      <option key={reason.value} value={reason.value}>{reason.label}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div style={styles.checkRow}>
+                <label style={styles.checkboxLabel}>
+                  <input
+                    type="checkbox"
+                    name="settlement_ready"
+                    checked={terminationForm.settlement_ready}
+                    onChange={handleTerminationChange}
+                  />
+                  Finiquito preparado
+                </label>
+                <label style={styles.checkboxLabel}>
+                  <input
+                    type="checkbox"
+                    name="severance_ready"
+                    checked={terminationForm.severance_ready}
+                    onChange={handleTerminationChange}
+                  />
+                  Indemnización revisada si procede
+                </label>
+              </div>
+
+              <div style={styles.formGroupFull}>
+                <label>Observaciones internas</label>
+                <textarea
+                  name="observations"
+                  value={terminationForm.observations}
+                  onChange={handleTerminationChange}
+                  rows="3"
+                  placeholder="Ej. pendiente carta de baja, documentación de finiquito o revisión docente del caso."
+                  style={styles.textarea}
+                />
+              </div>
+            </div>
+
+            {terminationError && <div style={styles.error}>{terminationError}</div>}
 
             <div style={styles.modalActions}>
-              <button type="button" onClick={closeDeleteModal} style={styles.cancelButton}>Cancelar</button>
-              <button type="button" onClick={handleConfirmDelete} disabled={submitting} style={styles.dangerButton}>
+              <button type="button" onClick={closeTerminationModal} style={styles.cancelButton}>Cancelar</button>
+              <button type="button" onClick={handleConfirmTermination} disabled={submitting} style={styles.dangerButton}>
                 {submitting ? "Tramitando..." : "Confirmar baja"}
               </button>
             </div>
@@ -361,7 +470,7 @@ const styles = {
   deleteButton: { backgroundColor: "#fee2e2", color: "#991b1b", border: "1px solid #fecaca", borderRadius: "8px", padding: "10px 14px", cursor: "pointer", fontWeight: 800 },
   modalBackdrop: { position: "fixed", inset: 0, backgroundColor: "rgba(17, 24, 39, 0.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, padding: "24px" },
   modal: { width: "min(920px, 100%)", maxHeight: "90vh", overflowY: "auto", backgroundColor: "#ffffff", border: "3px solid #111111", borderRadius: "12px", boxShadow: "8px 8px 0 #e6d85c", padding: "22px" },
-  confirmModal: { width: "min(560px, 100%)", backgroundColor: "#ffffff", border: "3px solid #111111", borderRadius: "12px", boxShadow: "8px 8px 0 #e6d85c", padding: "22px" },
+  confirmModalWide: { width: "min(760px, 100%)", backgroundColor: "#ffffff", border: "3px solid #111111", borderRadius: "12px", boxShadow: "8px 8px 0 #e6d85c", padding: "22px" },
   modalHeader: { display: "flex", justifyContent: "space-between", alignItems: "start", gap: "16px", marginBottom: "18px", borderBottom: "1px solid #e5e7eb", paddingBottom: "14px" },
   modalTitle: { margin: 0, fontSize: "20px", fontWeight: 900, color: "#111827" },
   modalSubtitle: { margin: "4px 0 0", color: "#6b7280", fontSize: "13px", fontWeight: 700 },
@@ -369,12 +478,16 @@ const styles = {
   form: { display: "flex", flexDirection: "column", gap: "16px" },
   formRow: { display: "flex", gap: "16px", flexWrap: "wrap" },
   formGroup: { flex: 1, minWidth: "220px", display: "flex", flexDirection: "column", gap: "6px" },
+  formGroupFull: { display: "flex", flexDirection: "column", gap: "6px" },
   input: { padding: "10px 12px", border: "1px solid #ccc", borderRadius: "8px", fontSize: "14px" },
+  textarea: { padding: "10px 12px", border: "1px solid #ccc", borderRadius: "8px", fontSize: "14px", resize: "vertical", fontFamily: "inherit" },
   readOnlyInput: { backgroundColor: "#f3f4f6", color: "#6b7280", cursor: "not-allowed", fontWeight: 800 },
   helpText: { color: "#6b7280", fontSize: "12px", fontWeight: 700 },
-  confirmText: { margin: "0 0 16px", color: "#374151", lineHeight: 1.5 },
+  terminationSummary: { display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: "10px", marginBottom: "16px" },
+  checkRow: { display: "flex", gap: "16px", flexWrap: "wrap" },
+  checkboxLabel: { display: "flex", alignItems: "center", gap: "8px", fontWeight: 800, color: "#374151" },
   error: { backgroundColor: "#fee2e2", color: "#991b1b", padding: "10px 12px", borderRadius: "8px" },
-  modalActions: { display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "6px" },
+  modalActions: { display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "16px" },
   modalActionsSplit: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: "10px", marginTop: "6px" },
   modalActionsRight: { display: "flex", justifyContent: "flex-end", gap: "10px" },
   cancelButton: { backgroundColor: "#f3f4f6", color: "#111827", border: "1px solid #d1d5db", borderRadius: "8px", padding: "10px 14px", cursor: "pointer", fontWeight: 800 },
