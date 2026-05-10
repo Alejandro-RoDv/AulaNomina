@@ -18,6 +18,20 @@ function formatStatus(status) {
   return labels[status] || status || "-";
 }
 
+function formatContractType(value) {
+  const labels = {
+    indefinido: "Indefinido",
+    temporal: "Temporal",
+    practicas: "Prácticas",
+    formacion: "Formación",
+    sustitucion: "Sustitución",
+    Sustitución: "Sustitución",
+    Temporal: "Temporal",
+    Indefinido: "Indefinido",
+  };
+  return labels[value] || value || "-";
+}
+
 function formatSalary(value) {
   if (value === null || value === undefined || value === "") return "-";
   return new Intl.NumberFormat("es-ES", {
@@ -46,6 +60,7 @@ export default function ContractTable({
   contracts,
   employees,
   companies,
+  workCenters = [],
   onUpdateContract,
   onDeleteContract,
   submitting,
@@ -71,11 +86,22 @@ export default function ContractTable({
     return companies.find((item) => Number(item.id) === Number(contract.company_id));
   };
 
+  const getCenter = (contract) => {
+    return workCenters.find((item) => Number(item.id) === Number(contract.center_id));
+  };
+
   const getCompanyName = (contract) => {
     if (contract.company_name) return contract.company_name;
     const company = getCompany(contract);
-    if (!company) return contract.company_id || "-";
+    if (!company) return "-";
     return company.name;
+  };
+
+  const getCompanyAndCenterName = (contract) => {
+    const companyName = getCompanyName(contract);
+    const center = getCenter(contract);
+    if (!center?.name) return companyName;
+    return `${companyName} · ${center.name}`;
   };
 
   const getCompanyCcc = (contract) => {
@@ -162,9 +188,9 @@ export default function ContractTable({
               <tr key={contract.id}>
                 <td style={styles.tdCode}>{getContractCode(contract)}</td>
                 <td style={styles.td}>{getEmployeeName(contract)}</td>
-                <td style={styles.td}>{getCompanyName(contract)}</td>
+                <td style={styles.td}>{getCompanyAndCenterName(contract)}</td>
                 <td style={styles.tdCcc}>{getCompanyCcc(contract)}</td>
-                <td style={styles.tdType}>{contract.contract_type}</td>
+                <td style={styles.tdType}>{formatContractType(contract.contract_type)}</td>
                 <td style={styles.tdDate}>{formatDate(contract.start_date)}</td>
                 <td style={styles.tdDate}>{formatDate(contract.end_date)}</td>
                 <td style={styles.tdStatus}>
@@ -180,6 +206,11 @@ export default function ContractTable({
                 </td>
               </tr>
             ))}
+            {contracts.length === 0 && (
+              <tr>
+                <td style={styles.td} colSpan="10">No hay contratos registrados.</td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
@@ -205,14 +236,8 @@ export default function ContractTable({
 
                 <div style={styles.formGroup}>
                   <label>Empresa / centro</label>
-                  <select name="company_id" value={editForm.company_id} onChange={handleEditChange} required style={styles.input}>
-                    <option value="">Selecciona una empresa o centro</option>
-                    {companies.map((company) => (
-                      <option key={company.id} value={company.id}>
-                        {company.id} · {company.name} {company.ccc ? `· CCC ${company.ccc}` : ""}
-                      </option>
-                    ))}
-                  </select>
+                  <input value={getCompanyAndCenterName(editingContract)} readOnly disabled style={{ ...styles.input, ...styles.readOnlyInput }} />
+                  <small style={styles.helpText}>La empresa y el centro se gestionan desde el trabajador.</small>
                 </div>
               </div>
 
@@ -225,6 +250,7 @@ export default function ContractTable({
                     <option value="temporal">Temporal</option>
                     <option value="practicas">Prácticas</option>
                     <option value="formacion">Formación</option>
+                    <option value="sustitucion">Sustitución</option>
                   </select>
                 </div>
 
@@ -252,7 +278,7 @@ export default function ContractTable({
 
               <div style={styles.formRow}>
                 <div style={styles.formGroup}>
-                  <label>Salario anual de referencia</label>
+                  <label>Salario mensual de referencia</label>
                   <input type="number" name="salary_base" value={editForm.salary_base} onChange={handleEditChange} style={styles.input} />
                 </div>
 
@@ -317,10 +343,10 @@ const styles = {
   tableWrapper: { overflowX: "auto", width: "100%" },
   table: { width: "100%", minWidth: "1120px", borderCollapse: "collapse", tableLayout: "fixed" },
   thEmployee: { width: "230px", textAlign: "left", padding: "12px 10px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb", whiteSpace: "nowrap" },
-  thCompany: { width: "210px", textAlign: "left", padding: "12px 10px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb", whiteSpace: "nowrap" },
+  thCompany: { width: "260px", textAlign: "left", padding: "12px 10px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb", whiteSpace: "nowrap" },
   thCode: { width: "90px", textAlign: "left", padding: "12px 8px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb", whiteSpace: "nowrap" },
   thCcc: { width: "110px", textAlign: "left", padding: "12px 10px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb", whiteSpace: "nowrap" },
-  thType: { width: "92px", textAlign: "left", padding: "12px 10px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb", whiteSpace: "nowrap" },
+  thType: { width: "104px", textAlign: "left", padding: "12px 10px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb", whiteSpace: "nowrap" },
   thDate: { width: "104px", textAlign: "left", padding: "12px 10px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb", whiteSpace: "nowrap" },
   thStatus: { width: "104px", textAlign: "left", padding: "12px 10px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb", whiteSpace: "nowrap" },
   thSalary: { width: "98px", textAlign: "right", padding: "12px 10px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb", whiteSpace: "nowrap" },
@@ -328,7 +354,7 @@ const styles = {
   td: { padding: "12px 10px", borderBottom: "1px solid #eee", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" },
   tdCode: { width: "90px", padding: "12px 8px", borderBottom: "1px solid #eee", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", fontWeight: 900 },
   tdCcc: { width: "110px", padding: "12px 10px", borderBottom: "1px solid #eee", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" },
-  tdType: { width: "92px", padding: "12px 10px", borderBottom: "1px solid #eee", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" },
+  tdType: { width: "104px", padding: "12px 10px", borderBottom: "1px solid #eee", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" },
   tdDate: { width: "104px", padding: "12px 10px", borderBottom: "1px solid #eee", whiteSpace: "nowrap" },
   tdStatus: { width: "104px", padding: "12px 10px", borderBottom: "1px solid #eee", whiteSpace: "nowrap" },
   tdSalary: { width: "98px", padding: "12px 10px", borderBottom: "1px solid #eee", whiteSpace: "nowrap", textAlign: "right" },
