@@ -9,11 +9,13 @@ from app.models.contract import Contract
 from app.seed_demo import seed_demo_data
 from app.seed_demo_documents import seed_demo_documents
 from app.schemas.employee import EmployeeCreate, EmployeeUpdate, EmployeeResponse
+from app.schemas.employee_assignment_history import EmployeeAssignmentHistoryResponse
 from app.crud.employee import (
     create_employee,
     get_employees,
     get_employees_all,
     get_employee,
+    get_employee_assignment_history,
     update_employee,
     soft_delete_employee,
     get_employee_by_dni,
@@ -154,6 +156,13 @@ def list_employees(db: Session = Depends(get_db)):
 @app.get("/employees/all", response_model=list[EmployeeResponse])
 def list_all_employees(db: Session = Depends(get_db)):
     return get_employees_all(db)
+
+
+@app.get("/employees/{employee_id}/assignment-history", response_model=list[EmployeeAssignmentHistoryResponse])
+def get_employee_assignment_history_endpoint(employee_id: int, db: Session = Depends(get_db)):
+    if not get_employee(db, employee_id):
+        raise HTTPException(status_code=404, detail="Trabajador no encontrado")
+    return get_employee_assignment_history(db, employee_id)
 
 
 @app.put("/employees/{employee_id}", response_model=EmployeeResponse)
