@@ -17,6 +17,7 @@ function getStatusStyle(value) {
   if (value === "closed") return styles.closedBadge;
   if (value === "calculated") return styles.calculatedBadge;
   if (value === "reviewed") return styles.reviewedBadge;
+  if (value === "cancelled") return styles.cancelledBadge;
   return styles.draftBadge;
 }
 
@@ -209,5 +210,6 @@ const styles = {
   calculatedBadge: { backgroundColor: "#dbeafe", color: "#1e40af", padding: "4px 8px", borderRadius: "999px", fontSize: "12px", fontWeight: 800 },
   reviewedBadge: { backgroundColor: "#fef3c7", color: "#92400e", padding: "4px 8px", borderRadius: "999px", fontSize: "12px", fontWeight: 800 },
   closedBadge: { backgroundColor: "#dcfce7", color: "#166534", padding: "4px 8px", borderRadius: "999px", fontSize: "12px", fontWeight: 800 },
+  cancelledBadge: { backgroundColor: "#fee2e2", color: "#991b1b", padding: "4px 8px", borderRadius: "999px", fontSize: "12px", fontWeight: 800 },
   detailsButton: { backgroundColor: "#111827", color: "#ffffff", border: "1px solid #111827", borderRadius: "8px", padding: "7px 10px", cursor: "pointer", fontWeight: 700 },
 };
