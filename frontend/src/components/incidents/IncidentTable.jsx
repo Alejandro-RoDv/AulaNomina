@@ -117,7 +117,7 @@ export default function IncidentTable({
       closeDeleteModal();
       closeDetailsModal();
     } catch (err) {
-      setDeleteError(err.message || "Error al eliminar incidencia");
+      setDeleteError(err.message || "Error al anular incidencia");
     }
   };
 
@@ -272,7 +272,7 @@ export default function IncidentTable({
 
               <div style={styles.modalActionsSplit}>
                 <button type="button" onClick={() => openDeleteModal(selectedIncident)} style={styles.deleteButton}>
-                  Eliminar incidencia
+                  Anular incidencia
                 </button>
                 <div style={styles.modalActionsRight}>
                   {isEditing && (
@@ -295,14 +295,14 @@ export default function IncidentTable({
           <div style={styles.confirmModal}>
             <div style={styles.modalHeader}>
               <div>
-                <h3 style={styles.modalTitle}>Eliminar incidencia</h3>
-                <p style={styles.modalSubtitle}>Esta acción eliminará definitivamente la incidencia.</p>
+                <h3 style={styles.modalTitle}>Anular incidencia</h3>
+                <p style={styles.modalSubtitle}>La incidencia dejará de estar disponible en el flujo operativo, conservando la trazabilidad del caso.</p>
               </div>
               <button type="button" onClick={closeDeleteModal} style={styles.closeButton}>×</button>
             </div>
 
             <p style={styles.confirmText}>
-              ¿Seguro que quieres eliminar la incidencia de {incidentToDelete.employee_name || incidentToDelete.employee_id} asociada al contrato {getContractCode(incidentToDelete)}?
+              ¿Quieres anular la incidencia de {incidentToDelete.employee_name || incidentToDelete.employee_id} asociada al contrato {getContractCode(incidentToDelete)}?
             </p>
 
             {deleteError && <div style={styles.error}>{deleteError}</div>}
@@ -310,7 +310,7 @@ export default function IncidentTable({
             <div style={styles.modalActions}>
               <button type="button" onClick={closeDeleteModal} style={styles.cancelButton}>Cancelar</button>
               <button type="button" onClick={handleConfirmDelete} disabled={submitting} style={styles.dangerButton}>
-                {submitting ? "Eliminando..." : "Confirmar eliminación"}
+                {submitting ? "Anulando..." : "Confirmar anulación"}
               </button>
             </div>
           </div>
