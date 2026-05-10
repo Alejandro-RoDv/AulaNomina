@@ -1,6 +1,8 @@
 const PAYROLL_STATUS_OPTIONS = [
   { value: "draft", label: "Borrador" },
+  { value: "pending", label: "Pendiente" },
   { value: "calculated", label: "Calculada" },
+  { value: "reviewed", label: "Revisada" },
   { value: "closed", label: "Cerrada" },
 ];
 
@@ -186,7 +188,7 @@ export default function PayrollForm({
 
       {selectedContract && (
         <div style={styles.calculationInfo}>
-          <div><span>Salario anual</span><strong>{formatCurrency(selectedContract.salary_base || 0)}</strong></div>
+          <div><span>Salario de referencia</span><strong>{formatCurrency(selectedContract.salary_base || 0)}</strong></div>
           <div><span>Sistema de pagas</span><strong>{getPayScheduleLabel(selectedContract.pay_schedule)}</strong></div>
           <div><span>Salario base calculado</span><strong>{formatCurrency(preview.baseSalary)}</strong></div>
           <div><span>Prorrata extra calculada</span><strong>{formatCurrency(preview.extraPay)}</strong></div>
