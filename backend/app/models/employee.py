@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import Boolean, Column, Date, DateTime, Integer, String, ForeignKey
+from sqlalchemy import Boolean, Column, Date, DateTime, ForeignKey, Integer, String
 from sqlalchemy.orm import relationship
 
 from app.db import Base
@@ -33,3 +33,4 @@ class Employee(Base):
     contracts = relationship("Contract", back_populates="employee")
     incidents = relationship("Incident", back_populates="employee")
     payrolls = relationship("Payroll", back_populates="employee")
+    documents = relationship("Document", back_populates="employee")
