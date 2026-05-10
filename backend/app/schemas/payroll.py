@@ -5,6 +5,16 @@ from typing import Optional
 from pydantic import BaseModel, field_validator
 
 
+PAYROLL_STATUS_VALUES = {
+    "draft",
+    "pending",
+    "calculated",
+    "reviewed",
+    "closed",
+    "cancelled",
+}
+
+
 class PayrollBase(BaseModel):
     employee_id: int
     contract_id: int
@@ -33,14 +43,7 @@ class PayrollBase(BaseModel):
     @field_validator("status")
     @classmethod
     def validate_status(cls, value):
-        allowed_status = {
-            "draft",
-            "pending",
-            "calculated",
-            "reviewed",
-            "closed",
-        }
-        if value not in allowed_status:
+        if value not in PAYROLL_STATUS_VALUES:
             raise ValueError("Estado de nómina no válido")
         return value
 
@@ -63,6 +66,15 @@ class PayrollUpdate(BaseModel):
     salary_supplements: Optional[Decimal] = None
     irpf_percentage: Optional[Decimal] = None
     status: Optional[str] = None
+
+    @field_validator("status")
+    @classmethod
+    def validate_status(cls, value):
+        if value is None:
+            return value
+        if value not in PAYROLL_STATUS_VALUES:
+            raise ValueError("Estado de nómina no válido")
+        return value
 
 
 class PayrollPrepareRequest(BaseModel):
@@ -119,6 +131,15 @@ class PayrollPrepareResponseItem(BaseModel):
     already_existing: bool = False
 
 
+class PayrollSkippedItem(BaseModel):
+    employee_id: Optional[int] = None
+    employee_code: Optional[str] = None
+    employee_name: Optional[str] = None
+    contract_id: Optional[int] = None
+    contract_code: Optional[str] = None
+    reason: str
+
+
 class PayrollPrepareResponse(BaseModel):
     period_month: int
     period_year: int
@@ -126,6 +147,7 @@ class PayrollPrepareResponse(BaseModel):
     existing_count: int
     skipped_count: int
     payrolls: list[PayrollPrepareResponseItem]
+    skipped: list[PayrollSkippedItem] = []
 
 
 class PayrollResponse(BaseModel):
