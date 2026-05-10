@@ -12,11 +12,20 @@ const STATUS_OPTIONS = [
   { value: "closed", label: "Cerrada" },
 ];
 
+function getActiveContractForEmployee(contracts, employeeId) {
+  return contracts.find(
+    (contract) =>
+      String(contract.employee_id) === String(employeeId) &&
+      contract.status === "active"
+  );
+}
+
 export default function IncidentForm({
   form,
   employees,
   contracts,
   companies,
+  workCenters,
   onChange,
   onSubmit,
   error,
@@ -25,8 +34,8 @@ export default function IncidentForm({
 }) {
   const selectedEmployeeId = form.employee_id;
 
-  const availableContracts = contracts.filter(
-    (contract) => String(contract.employee_id) === String(selectedEmployeeId)
+  const selectedEmployee = employees.find(
+    (employee) => String(employee.id) === String(selectedEmployeeId)
   );
 
   const selectedContract = contracts.find(
@@ -37,6 +46,24 @@ export default function IncidentForm({
     (company) => String(company.id) === String(form.company_id)
   );
 
+  const selectedCenter = workCenters.find(
+    (center) => String(center.id) === String(form.center_id)
+  );
+
+  const hasEmployeeWithoutActiveContract = Boolean(selectedEmployeeId && !selectedContract);
+
+  const handleEmployeeChange = (event) => {
+    const employeeId = event.target.value;
+    const activeContract = getActiveContractForEmployee(contracts, employeeId);
+
+    onChange({ target: { name: "employee_id", value: employeeId } });
+    onChange({ target: { name: "contract_id", value: activeContract ? String(activeContract.id) : "" } });
+    onChange({ target: { name: "company_id", value: activeContract?.company_id ? String(activeContract.company_id) : "" } });
+    onChange({ target: { name: "center_id", value: activeContract?.center_id ? String(activeContract.center_id) : "" } });
+  };
+
+  const isSubmitDisabled = submitting || hasEmployeeWithoutActiveContract;
+
   return (
     <form onSubmit={onSubmit} style={styles.form}>
       <div style={styles.formRow}>
@@ -45,7 +72,7 @@ export default function IncidentForm({
           <select
             name="employee_id"
             value={form.employee_id}
-            onChange={onChange}
+            onChange={handleEmployeeChange}
             required
             style={styles.input}
           >
@@ -59,35 +86,35 @@ export default function IncidentForm({
         </div>
 
         <div style={styles.formGroup}>
-          <label>Contrato del trabajador</label>
-          <select
-            name="contract_id"
-            value={form.contract_id}
-            onChange={onChange}
-            required
-            disabled={!form.employee_id}
-            style={styles.input}
-          >
-            <option value="">Selecciona contrato</option>
-            {availableContracts.map((contract) => (
-              <option key={contract.id} value={contract.id}>
-                #{contract.id} · {contract.contract_type} · {contract.start_date} {contract.end_date ? `a ${contract.end_date}` : ""}
-              </option>
-            ))}
-          </select>
+          <label>Contrato activo</label>
+          <div style={styles.readOnlyBox}>
+            <div style={styles.readOnlyMain}>
+              {selectedContract
+                ? `${selectedContract.contract_type} · ${selectedContract.start_date}${selectedContract.end_date ? ` a ${selectedContract.end_date}` : ""}`
+                : "Se completará al seleccionar trabajador"}
+            </div>
+            <div style={styles.readOnlyMeta}>
+              {selectedContract ? `Contrato #${selectedContract.id}` : "Solo se permite contrato activo"}
+            </div>
+          </div>
+          <input type="hidden" name="contract_id" value={form.contract_id} required />
         </div>
       </div>
 
       <div style={styles.formRow}>
         <div style={styles.formGroup}>
-          <label>Empresa / centro</label>
-          <input
-            value={selectedCompany?.name || "Se autocompleta según el contrato"}
-            readOnly
-            disabled
-            style={{ ...styles.input, ...styles.readOnlyInput }}
-          />
-          <input type="hidden" name="company_id" value={form.company_id} />
+          <label>Empresa y centro</label>
+          <div style={styles.readOnlyBox}>
+            <div style={styles.readOnlyMain}>
+              {selectedCompany?.name || "Se completará según el contrato activo"}
+            </div>
+            <div style={styles.readOnlyMeta}>
+              {selectedCenter?.name || "Centro pendiente"}
+              {selectedCompany?.ccc ? ` · CCC ${selectedCompany.ccc}` : ""}
+            </div>
+          </div>
+          <input type="hidden" name="company_id" value={form.company_id} required />
+          <input type="hidden" name="center_id" value={form.center_id || ""} />
         </div>
 
         <div style={styles.formGroup}>
@@ -157,18 +184,16 @@ export default function IncidentForm({
         />
       </div>
 
-      {selectedEmployeeId && availableContracts.length === 0 && (
-        <div style={styles.warning}>Este trabajador no tiene contratos disponibles.</div>
-      )}
-
-      {selectedContract && !selectedContract.company_id && (
-        <div style={styles.warning}>El contrato seleccionado no tiene empresa vinculada.</div>
+      {selectedEmployee && hasEmployeeWithoutActiveContract && (
+        <div style={styles.warning}>
+          Este trabajador no tiene contrato activo. No se puede crear la incidencia.
+        </div>
       )}
 
       {error && <div style={styles.error}>{error}</div>}
       {success && <div style={styles.success}>{success}</div>}
 
-      <button type="submit" disabled={submitting} style={styles.button}>
+      <button type="submit" disabled={isSubmitDisabled} style={{ ...styles.button, opacity: isSubmitDisabled ? 0.65 : 1 }}>
         {submitting ? "Guardando..." : "Crear incidencia"}
       </button>
     </form>
@@ -214,11 +239,23 @@ const styles = {
     resize: "vertical",
     fontFamily: "inherit",
   },
-  readOnlyInput: {
-    backgroundColor: "#f3f4f6",
+  readOnlyBox: {
+    minHeight: "42px",
+    padding: "8px 10px",
+    border: "1px solid #d1d5db",
+    borderRadius: "8px",
+    backgroundColor: "#f9fafb",
+  },
+  readOnlyMain: {
+    color: "#111827",
+    fontWeight: 800,
+    fontSize: "14px",
+  },
+  readOnlyMeta: {
+    marginTop: "2px",
     color: "#6b7280",
-    cursor: "not-allowed",
-    fontWeight: 700,
+    fontWeight: 600,
+    fontSize: "12px",
   },
   button: {
     backgroundColor: "#111827",
