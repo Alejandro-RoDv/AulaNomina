@@ -1,75 +1,49 @@
-const API_BASE_URL = "http://127.0.0.1:8000";
+import { apiRequest } from "./httpClient";
 
 export async function fetchContracts() {
-  const response = await fetch(`${API_BASE_URL}/contracts`);
-  return response.json();
+  return apiRequest("/contracts", {}, "Error al cargar contratos");
 }
 
 export async function fetchEmployees() {
-  const response = await fetch(`${API_BASE_URL}/employees/all`);
-  return response.json();
+  return apiRequest("/employees/all", {}, "Error al cargar trabajadores");
 }
 
 export async function resetDemo() {
-  const response = await fetch(`${API_BASE_URL}/demo/reset`, {
-    method: "POST",
-  });
-
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(data.detail || "Error al reiniciar la demo");
-  }
-
-  return data;
+  return apiRequest(
+    "/demo/reset",
+    { method: "POST" },
+    "Error al reiniciar la demo"
+  );
 }
 
 export async function createContract(payload) {
-  const response = await fetch(`${API_BASE_URL}/contracts`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
+  return apiRequest(
+    "/contracts",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
     },
-    body: JSON.stringify(payload),
-  });
-
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(data.detail || "Error al crear contrato");
-  }
-
-  return data;
+    "Error al crear contrato"
+  );
 }
 
 export async function updateContract(contractId, payload) {
-  const response = await fetch(`${API_BASE_URL}/contracts/${contractId}`, {
-    method: "PUT",
-    headers: {
-      "Content-Type": "application/json",
+  return apiRequest(
+    `/contracts/${contractId}`,
+    {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
     },
-    body: JSON.stringify(payload),
-  });
-
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(data.detail || "Error al actualizar contrato");
-  }
-
-  return data;
+    "Error al actualizar contrato"
+  );
 }
 
 export async function deleteContract(contractId) {
-  const response = await fetch(`${API_BASE_URL}/contracts/${contractId}`, {
-    method: "DELETE",
-  });
-
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(data.detail || "Error al eliminar contrato");
-  }
-
-  return data;
+  return apiRequest(
+    `/contracts/${contractId}`,
+    { method: "DELETE" },
+    "Error al eliminar contrato"
+  );
 }
