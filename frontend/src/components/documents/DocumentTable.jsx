@@ -17,7 +17,21 @@ const statusLabels = {
   not_applicable: "No aplica",
 };
 
-export default function DocumentTable({ documents, loading, onMarkReceived, onMarkPending, onMarkNotApplicable }) {
+function formatDate(value) {
+  if (!value) return "-";
+  const [year, month, day] = String(value).split("-");
+  if (!year || !month || !day) return value;
+  return `${day}/${month}/${year}`;
+}
+
+export default function DocumentTable({
+  documents,
+  loading,
+  onMarkReceived,
+  onMarkPending,
+  onMarkExpired,
+  onMarkNotApplicable,
+}) {
   if (loading) {
     return <section style={styles.card}>Cargando documentos...</section>;
   }
@@ -56,14 +70,15 @@ export default function DocumentTable({ documents, loading, onMarkReceived, onMa
                   <td style={styles.td}>{document.employee_name || document.employee_id}</td>
                   <td style={styles.td}>{document.company_name || document.company_id}</td>
                   <td style={styles.td}>{document.center_name || "-"}</td>
-                  <td style={styles.td}>{typeLabels[document.document_type] || document.document_type}</td>
+                  <td style={styles.td}>{typeLabels[document.document_type] || document.document_name || document.document_type}</td>
                   <td style={styles.td}><span style={getStatusStyle(document.status)}>{statusLabels[document.status] || document.status}</span></td>
-                  <td style={styles.td}>{document.issue_date || "-"}</td>
-                  <td style={styles.td}>{document.expiry_date || "-"}</td>
+                  <td style={styles.td}>{formatDate(document.issue_date)}</td>
+                  <td style={styles.td}>{formatDate(document.expiry_date)}</td>
                   <td style={styles.tdActions}>
                     <button type="button" style={styles.smallButton} onClick={() => onMarkReceived(document)}>Entregado</button>
                     <button type="button" style={styles.smallButton} onClick={() => onMarkPending(document)}>Pendiente</button>
-                    <button type="button" style={styles.smallButton} onClick={() => onMarkNotApplicable(document)}>No aplica</button>
+                    <button type="button" style={styles.smallButtonDanger} onClick={() => onMarkExpired(document)}>Caducado</button>
+                    <button type="button" style={styles.smallButtonMuted} onClick={() => onMarkNotApplicable(document)}>No aplica</button>
                   </td>
                 </tr>
               ))
@@ -94,5 +109,7 @@ const styles = {
   td: { borderBottom: "1px solid #d1d5db", padding: "10px", fontWeight: 700, verticalAlign: "top" },
   tdActions: { borderBottom: "1px solid #d1d5db", padding: "10px", display: "flex", flexWrap: "wrap", gap: "6px" },
   smallButton: { border: "2px solid #111", background: "#fff", padding: "6px 8px", fontWeight: 900, cursor: "pointer" },
+  smallButtonDanger: { border: "2px solid #111", background: "#fee2e2", padding: "6px 8px", fontWeight: 900, cursor: "pointer" },
+  smallButtonMuted: { border: "2px solid #111", background: "#e5e7eb", padding: "6px 8px", fontWeight: 900, cursor: "pointer" },
   empty: { padding: "18px", textAlign: "center", fontWeight: 800, color: "#6b7280" },
 };
