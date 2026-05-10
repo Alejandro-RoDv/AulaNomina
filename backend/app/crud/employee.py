@@ -1,9 +1,11 @@
 import re
+from datetime import date, timedelta
 
 from sqlalchemy.orm import Session
 
 from app.models.contract import Contract
 from app.models.employee import Employee
+from app.models.employee_assignment_history import EmployeeAssignmentHistory
 from app.schemas.employee import EmployeeCreate, EmployeeUpdate
 
 
@@ -55,12 +57,51 @@ def get_next_employee_code(db: Session):
     return str(next_number)
 
 
+def close_current_assignment(db: Session, employee_id: int, movement_date: date):
+    current_assignment = (
+        db.query(EmployeeAssignmentHistory)
+        .filter(
+            EmployeeAssignmentHistory.employee_id == employee_id,
+            EmployeeAssignmentHistory.end_date.is_(None),
+        )
+        .order_by(EmployeeAssignmentHistory.start_date.desc())
+        .first()
+    )
+
+    if current_assignment:
+        current_assignment.end_date = movement_date - timedelta(days=1)
+
+
+def create_assignment_history(db: Session, employee: Employee, movement_date: date, notes: str):
+    if employee.company_id is None:
+        return
+
+    assignment = EmployeeAssignmentHistory(
+        employee_id=employee.id,
+        company_id=employee.company_id,
+        center_id=employee.center_id,
+        start_date=movement_date,
+        notes=notes,
+    )
+    db.add(assignment)
+
+
 def create_employee(db: Session, employee: EmployeeCreate):
     employee_data = employee.model_dump()
     employee_data["employee_code"] = get_next_employee_code(db)
 
     db_employee = Employee(**employee_data)
     db.add(db_employee)
+    db.flush()
+
+    if db_employee.company_id is not None:
+        create_assignment_history(
+            db,
+            db_employee,
+            date.today(),
+            "Alta inicial del trabajador en empresa/centro.",
+        )
+
     db.commit()
     db.refresh(db_employee)
     return db_employee
@@ -78,16 +119,41 @@ def get_employee(db: Session, employee_id: int):
     return db.query(Employee).filter(Employee.id == employee_id).first()
 
 
+def get_employee_assignment_history(db: Session, employee_id: int):
+    return (
+        db.query(EmployeeAssignmentHistory)
+        .filter(EmployeeAssignmentHistory.employee_id == employee_id)
+        .order_by(EmployeeAssignmentHistory.start_date.desc(), EmployeeAssignmentHistory.id.desc())
+        .all()
+    )
+
+
 def update_employee(db: Session, employee_id: int, employee_data: EmployeeUpdate):
     employee = db.query(Employee).filter(Employee.id == employee_id).first()
     if not employee:
         return None
+
+    old_company_id = employee.company_id
+    old_center_id = employee.center_id
 
     update_data = employee_data.model_dump(exclude_unset=True)
     update_data.pop("employee_code", None)
 
     for field, value in update_data.items():
         setattr(employee, field, value)
+
+    company_changed = "company_id" in update_data and employee.company_id != old_company_id
+    center_changed = "center_id" in update_data and employee.center_id != old_center_id
+
+    if company_changed or center_changed:
+        movement_date = date.today()
+        close_current_assignment(db, employee.id, movement_date)
+        create_assignment_history(
+            db,
+            employee,
+            movement_date,
+            "Cambio de empresa/centro registrado desde edición del trabajador.",
+        )
 
     db.commit()
     db.refresh(employee)
