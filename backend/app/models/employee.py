@@ -34,3 +34,4 @@ class Employee(Base):
     incidents = relationship("Incident", back_populates="employee")
     payrolls = relationship("Payroll", back_populates="employee")
     documents = relationship("Document", back_populates="employee")
+    assignment_history = relationship("EmployeeAssignmentHistory", back_populates="employee", order_by="EmployeeAssignmentHistory.start_date.desc()")

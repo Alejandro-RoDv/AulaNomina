@@ -12,6 +12,14 @@ export async function fetchNextEmployeeCode() {
   return apiRequest("/employees/next-code", {}, "Error al cargar el siguiente código de trabajador");
 }
 
+export async function fetchEmployeeAssignmentHistory(employeeId) {
+  return apiRequest(
+    `/employees/${employeeId}/assignment-history`,
+    {},
+    "Error al cargar histórico de empresa/centro"
+  );
+}
+
 export async function createEmployee(payload) {
   return apiRequest(
     "/employees",
