@@ -4,6 +4,7 @@ import PageCard from "../components/layout/PageCard";
 import EmployeeForm from "../components/employees/EmployeeForm";
 import EmployeeTable from "../components/employees/EmployeeTable";
 import EmployeeDocumentSummary from "../components/employees/EmployeeDocumentSummary";
+import EmployeeAssignmentPanel from "../components/employees/EmployeeAssignmentPanel";
 import { fetchDocuments } from "../services/documentApi";
 
 function normalizeText(value) {
@@ -112,6 +113,13 @@ export default function EmployeesPage({
           onUpdateEmployee={onUpdateEmployee}
           onDeleteEmployee={onDeleteEmployee}
           submitting={employeeSubmitting}
+        />
+
+        <EmployeeAssignmentPanel
+          employees={filteredEmployees}
+          companies={companies}
+          workCenters={workCenters}
+          onUpdateEmployee={onUpdateEmployee}
         />
 
         <EmployeeDocumentSummary employees={filteredEmployees} documents={documents} />
