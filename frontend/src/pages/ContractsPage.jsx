@@ -38,6 +38,7 @@ export default function ContractsPage({
   contracts,
   employees,
   companies,
+  workCenters,
   contractForm,
   onContractChange,
   onContractSubmit,
@@ -84,10 +85,12 @@ export default function ContractsPage({
 
   const getCompanyText = (contract) => {
     const company = companies.find((item) => Number(item.id) === Number(contract.company_id));
+    const center = workCenters.find((item) => Number(item.id) === Number(contract.center_id));
     const companyName = contract.company_name || company?.name || "";
+    const centerName = center?.name || "";
     const companyCcc = company?.ccc || "";
     const companyCif = company?.cif || "";
-    return `${companyName} ${companyCcc} ${companyCif} ${contract.company_id || ""}`;
+    return `${companyName} ${centerName} ${companyCcc} ${companyCif} ${contract.company_id || ""} ${contract.center_id || ""}`;
   };
 
   const filteredContracts = useMemo(() => {
@@ -112,7 +115,7 @@ export default function ContractsPage({
 
       return matchesId && matchesEmployee && matchesCompany && matchesContractType && matchesStatus;
     });
-  }, [contractsWithDisplayCodes, employees, companies, filters]);
+  }, [contractsWithDisplayCodes, employees, companies, workCenters, filters]);
 
   return (
     <div style={styles.wrapper}>
@@ -121,6 +124,7 @@ export default function ContractsPage({
           form={contractForm}
           employees={employees}
           companies={companies}
+          workCenters={workCenters}
           onChange={onContractChange}
           onSubmit={onContractSubmit}
           error={contractError}
@@ -204,6 +208,7 @@ export default function ContractsPage({
           contracts={filteredContracts}
           employees={employees}
           companies={companies}
+          workCenters={workCenters}
           onUpdateContract={onUpdateContract}
           onDeleteContract={onDeleteContract}
           submitting={contractSubmitting}
