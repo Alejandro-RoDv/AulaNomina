@@ -36,11 +36,12 @@ export default function ContractForm({
       const fullName = `${emp.first_name || ""} ${emp.last_name || ""}`.toLowerCase();
       const dni = `${emp.dni || ""}`.toLowerCase();
       const id = String(emp.id);
+      const employeeCode = `${emp.employee_code || ""}`.toLowerCase();
 
       return (
         (!nameFilter || fullName.includes(nameFilter)) &&
         (!dniFilter || dni.includes(dniFilter)) &&
-        (!idFilter || id.includes(idFilter))
+        (!idFilter || id.includes(idFilter) || employeeCode.includes(idFilter.toLowerCase()))
       );
     });
   }, [employees, employeeFilters]);
@@ -51,16 +52,9 @@ export default function ContractForm({
   };
 
   const selectEmployee = (employee) => {
-    onChange({
-      target: {
-        name: "employee_id",
-        value: String(employee.id),
-        dataset: {
-          companyId: employee.company_id ? String(employee.company_id) : "",
-          centerId: employee.center_id ? String(employee.center_id) : "",
-        },
-      },
-    });
+    onChange({ target: { name: "employee_id", value: String(employee.id) } });
+    onChange({ target: { name: "company_id", value: employee.company_id ? String(employee.company_id) : "" } });
+    onChange({ target: { name: "center_id", value: employee.center_id ? String(employee.center_id) : "" } });
     setEmployeeModalOpen(false);
   };
 
