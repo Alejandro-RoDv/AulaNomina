@@ -21,6 +21,8 @@ EXTRA_JULY = 13
 EXTRA_DECEMBER = 14
 EXTRA_COMPLEMENTARY = 15
 
+ACTIVE_PAYROLL_STATUSES = {"draft", "pending", "calculated", "reviewed", "closed"}
+
 
 def money(value: Decimal) -> Decimal:
     return Decimal(value).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
@@ -97,6 +99,54 @@ def get_payroll(db: Session, payroll_id: int):
     return get_payroll_query(db).filter(Payroll.id == payroll_id).first()
 
 
+def get_period_dates(period_month: int, period_year: int):
+    if period_month not in MONTHLY_PERIODS:
+        return None, None
+
+    last_day = monthrange(period_year, period_month)[1]
+    return date(period_year, period_month, 1), date(period_year, period_month, last_day)
+
+
+def get_effective_period_dates(period_month: int, period_year: int):
+    if period_month in MONTHLY_PERIODS:
+        return get_period_dates(period_month, period_year)
+    if period_month == EXTRA_JULY:
+        return date(period_year, 7, 1), date(period_year, 7, 31)
+    if period_month == EXTRA_DECEMBER:
+        return date(period_year, 12, 1), date(period_year, 12, 31)
+    if period_month == EXTRA_COMPLEMENTARY:
+        return date(period_year, 12, 1), date(period_year, 12, 31)
+    return None, None
+
+
+def contract_is_valid_for_period(contract: Contract, period_month: int, period_year: int) -> bool:
+    period_start, period_end = get_effective_period_dates(period_month, period_year)
+    if not period_start or not period_end:
+        return False
+
+    if contract.start_date > period_end:
+        return False
+
+    if contract.end_date and contract.end_date < period_start:
+        return False
+
+    return True
+
+
+def get_contract_period_skip_reason(contract: Contract, period_month: int, period_year: int):
+    period_start, period_end = get_effective_period_dates(period_month, period_year)
+    if not period_start or not period_end:
+        return "Periodo no válido para generar nómina"
+
+    if contract.start_date > period_end:
+        return f"Contrato inicia el {contract.start_date.isoformat()}, fuera del periodo seleccionado"
+
+    if contract.end_date and contract.end_date < period_start:
+        return f"Contrato finalizado el {contract.end_date.isoformat()}, fuera del periodo seleccionado"
+
+    return None
+
+
 def validate_payroll_relations(db: Session, payroll: PayrollCreate):
     employee = db.query(Employee).filter(
         Employee.id == payroll.employee_id,
@@ -114,6 +164,22 @@ def validate_payroll_relations(db: Session, payroll: PayrollCreate):
             status_code=400,
             detail="El contrato seleccionado no pertenece al trabajador indicado",
         )
+
+    if contract.status != "active":
+        raise HTTPException(status_code=400, detail="Solo se pueden generar nóminas sobre contratos activos")
+
+    skip_reason = get_contract_period_skip_reason(contract, payroll.period_month, payroll.period_year)
+    if skip_reason:
+        raise HTTPException(status_code=400, detail=skip_reason)
+
+    existing_payroll = db.query(Payroll).filter(
+        Payroll.contract_id == contract.id,
+        Payroll.period_month == payroll.period_month,
+        Payroll.period_year == payroll.period_year,
+        Payroll.status.in_(ACTIVE_PAYROLL_STATUSES),
+    ).first()
+    if existing_payroll:
+        raise HTTPException(status_code=400, detail="Ya existe una nómina activa para este contrato y periodo")
 
     company_id = payroll.company_id or contract.company_id
     if company_id is None:
@@ -134,6 +200,17 @@ def validate_payroll_relations(db: Session, payroll: PayrollCreate):
             status_code=400,
             detail="La empresa indicada no coincide con la empresa del contrato",
         )
+
+    center_id = payroll.center_id or contract.center_id
+    if center_id is not None:
+        center = db.query(WorkCenter).filter(
+            WorkCenter.id == center_id,
+            WorkCenter.is_active == True,
+        ).first()
+        if not center:
+            raise HTTPException(status_code=404, detail="Centro no encontrado")
+        if center.company_id != company.id:
+            raise HTTPException(status_code=400, detail="El centro no pertenece a la empresa indicada")
 
     return employee, contract, company
 
@@ -173,14 +250,6 @@ def create_payroll(db: Session, payroll: PayrollCreate):
     return get_payroll(db, db_payroll.id)
 
 
-def get_period_dates(period_month: int, period_year: int):
-    if period_month not in MONTHLY_PERIODS:
-        return None, None
-
-    last_day = monthrange(period_year, period_month)[1]
-    return date(period_year, period_month, 1), date(period_year, period_month, last_day)
-
-
 def get_incident_summary(db: Session, contract: Contract, period_month: int, period_year: int):
     period_start, period_end = get_period_dates(period_month, period_year)
     if not period_start or not period_end:
@@ -208,6 +277,17 @@ def build_contract_code(contract: Contract):
     return str(contract.id)
 
 
+def build_skipped_item(contract: Contract, reason: str):
+    return {
+        "employee_id": contract.employee_id,
+        "employee_code": contract.employee.employee_code if contract.employee else None,
+        "employee_name": contract.employee_name or None,
+        "contract_id": contract.id,
+        "contract_code": build_contract_code(contract),
+        "reason": reason,
+    }
+
+
 def prepare_monthly_payrolls(db: Session, request: PayrollPrepareRequest):
     companies_count = db.query(Company).filter(
         Company.id.in_(request.company_ids),
@@ -224,29 +304,49 @@ def prepare_monthly_payrolls(db: Session, request: PayrollPrepareRequest):
     ).filter(
         Contract.company_id.in_(request.company_ids),
         Contract.status == "active",
-        Contract.start_date <= date(request.period_year, min(request.period_month, 12), 28),
-        (Contract.end_date == None) | (Contract.end_date >= date(request.period_year, min(request.period_month, 12), 1)),
     )
 
     if request.center_id:
+        center = db.query(WorkCenter).filter(
+            WorkCenter.id == request.center_id,
+            WorkCenter.is_active == True,
+        ).first()
+        if not center:
+            raise HTTPException(status_code=404, detail="Centro no encontrado")
+        if center.company_id not in request.company_ids:
+            raise HTTPException(status_code=400, detail="El centro no pertenece a la empresa seleccionada")
         contracts_query = contracts_query.filter(Contract.center_id == request.center_id)
 
     contracts = contracts_query.order_by(Contract.company_id.asc(), Contract.center_id.asc(), Contract.employee_id.asc()).all()
 
     result_items = []
+    skipped_items = []
     created_count = 0
     existing_count = 0
     skipped_count = 0
 
     for contract in contracts:
-        if not contract.employee or not contract.employee.is_active:
+        if not contract.employee:
             skipped_count += 1
+            skipped_items.append(build_skipped_item(contract, "Contrato sin trabajador vinculado"))
+            continue
+
+        if not contract.employee.is_active:
+            skipped_count += 1
+            skipped_items.append(build_skipped_item(contract, "Trabajador inactivo"))
+            continue
+
+        skip_reason = get_contract_period_skip_reason(contract, request.period_month, request.period_year)
+        if skip_reason:
+            skipped_count += 1
+            skipped_items.append(build_skipped_item(contract, skip_reason))
             continue
 
         existing_payroll = get_payroll_query(db).filter(
             Payroll.contract_id == contract.id,
             Payroll.period_month == request.period_month,
             Payroll.period_year == request.period_year,
+            Payroll.status.in_(ACTIVE_PAYROLL_STATUSES),
         ).first()
 
         incident_summary = get_incident_summary(db, contract, request.period_month, request.period_year)
@@ -310,6 +410,7 @@ def prepare_monthly_payrolls(db: Session, request: PayrollPrepareRequest):
         "existing_count": existing_count,
         "skipped_count": skipped_count,
         "payrolls": result_items,
+        "skipped": skipped_items,
     }
 
 
@@ -321,12 +422,29 @@ def update_payroll(db: Session, payroll_id: int, payroll_data: PayrollUpdate):
     update_data = payroll_data.model_dump(exclude_unset=True)
     irpf_percentage = update_data.pop("irpf_percentage", DEFAULT_IRPF_PERCENTAGE)
 
-    for key, value in update_data.items():
-        setattr(db_payroll, key, value)
+    new_period_month = update_data.get("period_month", db_payroll.period_month)
+    new_period_year = update_data.get("period_year", db_payroll.period_year)
 
     contract = db.query(Contract).filter(Contract.id == db_payroll.contract_id).first()
     if not contract:
         raise HTTPException(status_code=404, detail="Contrato no encontrado")
+
+    skip_reason = get_contract_period_skip_reason(contract, new_period_month, new_period_year)
+    if skip_reason:
+        raise HTTPException(status_code=400, detail=skip_reason)
+
+    if "center_id" in update_data and update_data["center_id"] is not None:
+        center = db.query(WorkCenter).filter(
+            WorkCenter.id == update_data["center_id"],
+            WorkCenter.is_active == True,
+        ).first()
+        if not center:
+            raise HTTPException(status_code=404, detail="Centro no encontrado")
+        if center.company_id != db_payroll.company_id:
+            raise HTTPException(status_code=400, detail="El centro no pertenece a la empresa de la nómina")
+
+    for key, value in update_data.items():
+        setattr(db_payroll, key, value)
 
     base_salary = calculate_contract_base_salary(contract, db_payroll.period_month)
     salary_supplements = money(db_payroll.salary_supplements or Decimal("0.00"))
@@ -355,7 +473,7 @@ def delete_payroll(db: Session, payroll_id: int):
     if not db_payroll:
         return None
 
-    deleted_payroll_id = db_payroll.id
-    db.delete(db_payroll)
+    db_payroll.status = "cancelled"
     db.commit()
-    return {"id": deleted_payroll_id}
+    db.refresh(db_payroll)
+    return {"id": db_payroll.id, "status": db_payroll.status}
