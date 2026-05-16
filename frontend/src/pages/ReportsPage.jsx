@@ -48,6 +48,16 @@ function getEmployeeDocuments(employee) {
   ];
 }
 
+function getScopedFilename(baseName, selectedCompanyId, companies) {
+  const company = getCompany(companies, selectedCompanyId);
+  const suffix = company ? company.name.toLowerCase().replace(/[^a-z0-9áéíóúñ]+/gi, "_").replace(/^_+|_+$/g, "") : "todas";
+  return `${baseName}_${suffix}.csv`;
+}
+
+function getPayrollPeriod(payroll) {
+  return `${String(payroll.period_month || "").padStart(2, "0")}/${payroll.period_year || ""}`;
+}
+
 function DocumentShell({ title, subtitle, children }) {
   return (
     <article className="printable-report" style={documentStyles.sheet}>
@@ -99,7 +109,7 @@ function EmployeeSummaryTemplate({ employee, company, center, contract, incident
         <div style={documentStyles.block}>
           <h2>Control documental</h2>
           <p><strong>Estado documental:</strong> {receivedDocs}/{docs.length} recibidos</p>
-          <p><strong>Última nómina:</strong> {lastPayroll ? `${String(lastPayroll.period_month).padStart(2, "0")}/${lastPayroll.period_year}` : "Sin nóminas"}</p>
+          <p><strong>Última nómina:</strong> {lastPayroll ? getPayrollPeriod(lastPayroll) : "Sin nóminas"}</p>
           <p><strong>Incidencias:</strong> {activeIncident ? `${activeIncident.incident_type} activa` : "Sin incidencias activas"}</p>
         </div>
       </section>
@@ -210,26 +220,55 @@ function IncidentsTemplate({ employee, company, center, incidents }) {
   );
 }
 
-export default function ReportsPage({ loading, employees, companies, workCenters, contracts, incidents, payrolls }) {
+export default function ReportsPage({ loading, employees, companies, workCenters, contracts, incidents, payrolls, documents = [] }) {
   const [selectedEmployeeId, setSelectedEmployeeId] = useState(employees[0]?.id ? String(employees[0].id) : "");
   const [selectedTemplate, setSelectedTemplate] = useState("employee-summary");
+  const [selectedCompanyId, setSelectedCompanyId] = useState("all");
 
   const selectedEmployee = employees.find((employee) => String(employee.id) === String(selectedEmployeeId)) || employees[0];
   const selectedContract = getActiveContract(contracts, selectedEmployee?.id);
   const selectedCompany = getCompany(companies, selectedContract?.company_id || selectedEmployee?.company_id);
   const selectedCenter = getCenter(workCenters, selectedContract?.center_id || selectedEmployee?.center_id);
 
+  const companyScopedEmployees = useMemo(() => employees.filter((employee) => {
+    if (selectedCompanyId === "all") return true;
+    const contract = getActiveContract(contracts, employee.id);
+    return Number(contract?.company_id || employee.company_id) === Number(selectedCompanyId);
+  }), [employees, contracts, selectedCompanyId]);
+
+  const companyScopedContracts = useMemo(() => contracts.filter((contract) => (
+    selectedCompanyId === "all" || Number(contract.company_id) === Number(selectedCompanyId)
+  )), [contracts, selectedCompanyId]);
+
+  const companyScopedPayrolls = useMemo(() => payrolls.filter((payroll) => (
+    selectedCompanyId === "all" || Number(payroll.company_id) === Number(selectedCompanyId)
+  )), [payrolls, selectedCompanyId]);
+
+  const companyScopedIncidents = useMemo(() => incidents.filter((incident) => (
+    selectedCompanyId === "all" || Number(incident.company_id) === Number(selectedCompanyId)
+  )), [incidents, selectedCompanyId]);
+
+  const companyScopedDocuments = useMemo(() => documents.filter((document) => (
+    selectedCompanyId === "all" || Number(document.company_id) === Number(selectedCompanyId)
+  )), [documents, selectedCompanyId]);
+
+  const companyScopedCenters = useMemo(() => workCenters.filter((center) => (
+    selectedCompanyId === "all" || Number(center.company_id) === Number(selectedCompanyId)
+  )), [workCenters, selectedCompanyId]);
+
+  const selectedCompanyLabel = selectedCompanyId === "all" ? "Todas las empresas" : getCompany(companies, selectedCompanyId)?.name || "Empresa seleccionada";
+
   const summary = useMemo(() => {
-    const activeEmployees = employees.filter((employee) => employee.is_active).length;
-    const activeContracts = contracts.filter((contract) => contract.status === "active").length;
-    const openIncidents = incidents.filter((incident) => incident.status === "open").length;
-    const payrollTotal = payrolls.reduce((total, payroll) => total + Number(payroll.net_salary || payroll.gross_salary || 0), 0);
+    const activeEmployees = companyScopedEmployees.filter((employee) => employee.is_active).length;
+    const activeContracts = companyScopedContracts.filter((contract) => contract.status === "active").length;
+    const openIncidents = companyScopedIncidents.filter((incident) => incident.status === "open").length;
+    const payrollTotal = companyScopedPayrolls.reduce((total, payroll) => total + Number(payroll.net_salary || payroll.gross_salary || 0), 0);
 
     return { activeEmployees, activeContracts, openIncidents, payrollTotal };
-  }, [employees, contracts, incidents, payrolls]);
+  }, [companyScopedEmployees, companyScopedContracts, companyScopedIncidents, companyScopedPayrolls]);
 
   const exportEmployees = () => {
-    const rows = employees.map((employee) => {
+    const rows = companyScopedEmployees.map((employee) => {
       const contract = getActiveContract(contracts, employee.id);
       const company = getCompany(companies, contract?.company_id || employee.company_id);
       const center = getCenter(workCenters, contract?.center_id || employee.center_id);
@@ -242,11 +281,13 @@ export default function ReportsPage({ loading, employees, companies, workCenters
         center: center?.name || "",
         naf: employee.naf || "",
         email: employee.email || "",
+        phone: employee.phone || "",
+        city: employee.city || "",
         active: employee.is_active ? "Alta" : "Baja",
       };
     });
 
-    exportRowsToCsv("trabajadores_aulanomina.csv", [
+    exportRowsToCsv(getScopedFilename("trabajadores", selectedCompanyId, companies), [
       { key: "code", label: "Código" },
       { key: "dni", label: "DNI" },
       { key: "name", label: "Trabajador" },
@@ -254,32 +295,37 @@ export default function ReportsPage({ loading, employees, companies, workCenters
       { key: "center", label: "Centro" },
       { key: "naf", label: "NAF" },
       { key: "email", label: "Email" },
+      { key: "phone", label: "Teléfono" },
+      { key: "city", label: "Localidad" },
       { key: "active", label: "Estado" },
     ], rows);
   };
 
   const exportPayrolls = () => {
-    const rows = payrolls.map((payroll) => ({
-      period: `${String(payroll.period_month).padStart(2, "0")}/${payroll.period_year}`,
+    const rows = companyScopedPayrolls.map((payroll) => ({
+      period: getPayrollPeriod(payroll),
       employee: payroll.employee_name || "",
       company: payroll.company_name || "",
       gross: payroll.gross_salary || "",
+      deductions: payroll.total_deductions || "",
       net: payroll.net_salary || "",
       status: payroll.status || "",
     }));
 
-    exportRowsToCsv("nominas_aulanomina.csv", [
+    exportRowsToCsv(getScopedFilename("nominas", selectedCompanyId, companies), [
       { key: "period", label: "Periodo" },
       { key: "employee", label: "Trabajador" },
       { key: "company", label: "Empresa" },
       { key: "gross", label: "Bruto" },
+      { key: "deductions", label: "Deducciones" },
       { key: "net", label: "Neto" },
       { key: "status", label: "Estado" },
     ], rows);
   };
 
   const exportCompanies = () => {
-    const rows = companies.map((company) => ({
+    const scopedCompanies = selectedCompanyId === "all" ? companies : companies.filter((company) => Number(company.id) === Number(selectedCompanyId));
+    const rows = scopedCompanies.map((company) => ({
       name: company.name,
       cif: company.cif,
       ccc: company.ccc || "",
@@ -289,7 +335,7 @@ export default function ReportsPage({ loading, employees, companies, workCenters
       active: company.is_active ? "Activa" : "Inactiva",
     }));
 
-    exportRowsToCsv("empresas_aulanomina.csv", [
+    exportRowsToCsv(getScopedFilename("empresas_ccc", selectedCompanyId, companies), [
       { key: "name", label: "Empresa" },
       { key: "cif", label: "CIF" },
       { key: "ccc", label: "CCC principal" },
@@ -297,6 +343,172 @@ export default function ReportsPage({ loading, employees, companies, workCenters
       { key: "province", label: "Provincia" },
       { key: "centers", label: "Centros" },
       { key: "active", label: "Estado" },
+    ], rows);
+  };
+
+  const exportContracts = () => {
+    const rows = companyScopedContracts.map((contract) => {
+      const employee = employees.find((item) => Number(item.id) === Number(contract.employee_id));
+      const company = getCompany(companies, contract.company_id);
+      const center = getCenter(workCenters, contract.center_id);
+      return {
+        id: contract.id,
+        employee: getEmployeeName(employee),
+        dni: employee?.dni || "",
+        company: company?.name || contract.company_name || "",
+        center: center?.name || contract.center_name || "",
+        type: contract.contract_type || "",
+        start: formatDate(contract.start_date),
+        end: formatDate(contract.end_date),
+        salary: contract.salary_base || "",
+        status: contract.status || "",
+      };
+    });
+
+    exportRowsToCsv(getScopedFilename("contratos", selectedCompanyId, companies), [
+      { key: "id", label: "ID contrato" },
+      { key: "employee", label: "Trabajador" },
+      { key: "dni", label: "DNI" },
+      { key: "company", label: "Empresa" },
+      { key: "center", label: "Centro" },
+      { key: "type", label: "Tipo contrato" },
+      { key: "start", label: "Inicio" },
+      { key: "end", label: "Fin" },
+      { key: "salary", label: "Salario base" },
+      { key: "status", label: "Estado" },
+    ], rows);
+  };
+
+  const exportIncidents = () => {
+    const rows = companyScopedIncidents.map((incident) => {
+      const employee = employees.find((item) => Number(item.id) === Number(incident.employee_id));
+      const company = getCompany(companies, incident.company_id);
+      const center = getCenter(workCenters, incident.center_id);
+      return {
+        id: incident.id,
+        employee: getEmployeeName(employee),
+        dni: employee?.dni || "",
+        company: company?.name || incident.company_name || "",
+        center: center?.name || incident.center_name || "",
+        type: incident.incident_type || "",
+        start: formatDate(incident.start_date),
+        end: formatDate(incident.end_date),
+        status: incident.status || "",
+        description: incident.description || "",
+      };
+    });
+
+    exportRowsToCsv(getScopedFilename("incidencias", selectedCompanyId, companies), [
+      { key: "id", label: "ID incidencia" },
+      { key: "employee", label: "Trabajador" },
+      { key: "dni", label: "DNI" },
+      { key: "company", label: "Empresa" },
+      { key: "center", label: "Centro" },
+      { key: "type", label: "Tipo" },
+      { key: "start", label: "Inicio" },
+      { key: "end", label: "Fin" },
+      { key: "status", label: "Estado" },
+      { key: "description", label: "Descripción" },
+    ], rows);
+  };
+
+  const exportDocuments = () => {
+    const rows = companyScopedDocuments.map((document) => {
+      const employee = employees.find((item) => Number(item.id) === Number(document.employee_id));
+      const company = getCompany(companies, document.company_id || employee?.company_id);
+      const center = getCenter(workCenters, document.center_id || employee?.center_id);
+      return {
+        employee: getEmployeeName(employee),
+        dni: employee?.dni || "",
+        company: company?.name || "",
+        center: center?.name || "",
+        type: document.document_type || "",
+        name: document.document_name || "",
+        status: document.status || "",
+        issue: formatDate(document.issue_date),
+        expiry: formatDate(document.expiry_date),
+        notes: document.notes || "",
+      };
+    });
+
+    exportRowsToCsv(getScopedFilename("documentacion", selectedCompanyId, companies), [
+      { key: "employee", label: "Trabajador" },
+      { key: "dni", label: "DNI" },
+      { key: "company", label: "Empresa" },
+      { key: "center", label: "Centro" },
+      { key: "type", label: "Tipo documento" },
+      { key: "name", label: "Documento" },
+      { key: "status", label: "Estado" },
+      { key: "issue", label: "Fecha emisión" },
+      { key: "expiry", label: "Fecha caducidad" },
+      { key: "notes", label: "Notas" },
+    ], rows);
+  };
+
+  const exportCenters = () => {
+    const rows = companyScopedCenters.map((center) => {
+      const company = getCompany(companies, center.company_id);
+      return {
+        company: company?.name || "",
+        cif: company?.cif || "",
+        centerCode: center.center_code || "",
+        center: center.name || "",
+        generalCcc: center.general_ccc || "",
+        mainCcc: center.main_ccc || "",
+        city: center.city || "",
+        province: center.province || "",
+        active: center.is_active ? "Activo" : "Inactivo",
+      };
+    });
+
+    exportRowsToCsv(getScopedFilename("centros_ccc", selectedCompanyId, companies), [
+      { key: "company", label: "Empresa" },
+      { key: "cif", label: "CIF" },
+      { key: "centerCode", label: "Código centro" },
+      { key: "center", label: "Centro" },
+      { key: "generalCcc", label: "CCC general" },
+      { key: "mainCcc", label: "CCC principal centro" },
+      { key: "city", label: "Localidad" },
+      { key: "province", label: "Provincia" },
+      { key: "active", label: "Estado" },
+    ], rows);
+  };
+
+  const exportPayrollSummary = () => {
+    const grouped = companyScopedPayrolls.reduce((acc, payroll) => {
+      const key = `${payroll.company_id || "sin_empresa"}-${payroll.period_year}-${payroll.period_month}`;
+      const company = getCompany(companies, payroll.company_id);
+      if (!acc[key]) {
+        acc[key] = {
+          period: getPayrollPeriod(payroll),
+          company: company?.name || payroll.company_name || "",
+          payrolls: 0,
+          gross: 0,
+          deductions: 0,
+          net: 0,
+        };
+      }
+      acc[key].payrolls += 1;
+      acc[key].gross += Number(payroll.gross_salary || 0);
+      acc[key].deductions += Number(payroll.total_deductions || 0);
+      acc[key].net += Number(payroll.net_salary || 0);
+      return acc;
+    }, {});
+
+    const rows = Object.values(grouped).map((item) => ({
+      ...item,
+      gross: item.gross.toFixed(2),
+      deductions: item.deductions.toFixed(2),
+      net: item.net.toFixed(2),
+    }));
+
+    exportRowsToCsv(getScopedFilename("resumen_nominas", selectedCompanyId, companies), [
+      { key: "period", label: "Periodo" },
+      { key: "company", label: "Empresa" },
+      { key: "payrolls", label: "Nóminas" },
+      { key: "gross", label: "Bruto total" },
+      { key: "deductions", label: "Deducciones total" },
+      { key: "net", label: "Neto total" },
     ], rows);
   };
 
@@ -341,11 +553,30 @@ export default function ReportsPage({ loading, employees, companies, workCenters
       </div>
 
       <div className="reports-screen-only">
-        <PageCard title="Informes exportables" subtitle="Listados tipo Excel en CSV, compatibles con LibreOffice Calc y Excel.">
-          <div style={styles.exportGrid}>
-            <button type="button" onClick={exportEmployees} style={styles.primaryButton}>Exportar trabajadores</button>
-            <button type="button" onClick={exportPayrolls} style={styles.primaryButton}>Exportar nóminas</button>
-            <button type="button" onClick={exportCompanies} style={styles.primaryButton}>Exportar empresas / CCC</button>
+        <PageCard title="Informes exportables" subtitle="Listados tipo Excel en CSV, filtrables por empresa o para todo el entorno demo.">
+          <div style={styles.exportHeader}>
+            <div style={styles.companyFilter}>
+              <label style={styles.label}>Empresa</label>
+              <select value={selectedCompanyId} onChange={(event) => setSelectedCompanyId(event.target.value)} style={styles.input}>
+                <option value="all">Todas las empresas</option>
+                {companies.map((company) => <option key={company.id} value={company.id}>{company.name}</option>)}
+              </select>
+            </div>
+            <div style={styles.scopeBox}>
+              <span>Ámbito</span>
+              <strong>{selectedCompanyLabel}</strong>
+            </div>
+          </div>
+
+          <div style={styles.reportGrid}>
+            <button type="button" onClick={exportEmployees} style={styles.exportButton}><strong>Trabajadores</strong><span>Alta/baja, empresa, centro y contacto</span></button>
+            <button type="button" onClick={exportPayrolls} style={styles.exportButton}><strong>Nóminas detalladas</strong><span>Periodo, bruto, deducciones y neto</span></button>
+            <button type="button" onClick={exportCompanies} style={styles.exportButton}><strong>Empresas / CCC</strong><span>CIF, CCC principal y centros</span></button>
+            <button type="button" onClick={exportContracts} style={styles.exportButton}><strong>Contratos</strong><span>Trabajador, tipo, fechas y salario</span></button>
+            <button type="button" onClick={exportIncidents} style={styles.exportButton}><strong>Incidencias</strong><span>IT, vacaciones, ausencias y permisos</span></button>
+            <button type="button" onClick={exportDocuments} style={styles.exportButton}><strong>Documentación</strong><span>Estado documental por trabajador</span></button>
+            <button type="button" onClick={exportCenters} style={styles.exportButton}><strong>Centros / CCC</strong><span>Centros de trabajo y CCC asociados</span></button>
+            <button type="button" onClick={exportPayrollSummary} style={styles.exportButton}><strong>Resumen nóminas</strong><span>Totales por empresa y periodo</span></button>
           </div>
         </PageCard>
       </div>
@@ -383,8 +614,11 @@ export default function ReportsPage({ loading, employees, companies, workCenters
 const styles = {
   wrapper: { display: "flex", flexDirection: "column", gap: "20px" },
   kpiGrid: { display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: "14px" },
-  exportGrid: { display: "flex", gap: "12px", flexWrap: "wrap" },
-  primaryButton: { backgroundColor: "#111", color: "#fff", border: "2px solid #111", padding: "10px 14px", fontWeight: 900, cursor: "pointer" },
+  exportHeader: { display: "grid", gridTemplateColumns: "minmax(260px, 420px) 1fr", gap: "14px", alignItems: "end", marginBottom: "18px" },
+  companyFilter: { display: "flex", flexDirection: "column", gap: "6px" },
+  scopeBox: { border: "1px solid #d1d5db", backgroundColor: "#f9fafb", padding: "10px 12px", display: "flex", flexDirection: "column", gap: "3px", minHeight: "58px" },
+  reportGrid: { display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: "12px" },
+  exportButton: { backgroundColor: "#fff", color: "#111", border: "2px solid #111", padding: "12px", minHeight: "82px", fontWeight: 800, cursor: "pointer", textAlign: "left", display: "flex", flexDirection: "column", gap: "6px", boxShadow: "3px 3px 0 #f5ef9c" },
   printButton: { backgroundColor: "#f8f3b5", color: "#111", border: "2px solid #111", padding: "9px 14px", fontWeight: 900, cursor: "pointer", height: "39px" },
   controls: { display: "grid", gridTemplateColumns: "minmax(220px, 1fr) minmax(220px, 1fr) auto", gap: "12px", alignItems: "end", marginBottom: "20px" },
   controlGroup: { display: "flex", flexDirection: "column", gap: "5px" },
