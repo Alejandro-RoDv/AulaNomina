@@ -34,6 +34,23 @@ export default function Sidebar({ activePage, setActivePage }) {
     },
   ];
 
+  const handleNavClick = (item) => {
+    if (!item.enabled) return;
+
+    setActivePage(item.id);
+
+    if (item.id === "case-studies") {
+      window.location.hash = "case-studies";
+      window.dispatchEvent(new Event("aulanomina-route-change"));
+      return;
+    }
+
+    if (window.location.hash === "#case-studies") {
+      window.history.replaceState(null, "", window.location.pathname + window.location.search);
+      window.dispatchEvent(new Event("aulanomina-route-change"));
+    }
+  };
+
   return (
     <aside style={styles.sidebar}>
       <div style={styles.logoPanel}>
@@ -53,7 +70,7 @@ export default function Sidebar({ activePage, setActivePage }) {
                     key={item.id}
                     type="button"
                     disabled={!item.enabled}
-                    onClick={() => item.enabled && setActivePage(item.id)}
+                    onClick={() => handleNavClick(item)}
                     style={{
                       ...styles.navItem,
                       ...(isActive ? styles.navItemActive : {}),
