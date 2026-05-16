@@ -199,7 +199,6 @@ export default function Header({
       </div>
 
       <div style={styles.titleBlock}>
-        <p style={styles.kicker}>Módulo actual</p>
         <h1 style={styles.title}>{title}</h1>
         {subtitle && <p style={styles.subtitle}>{subtitle}</p>}
       </div>
@@ -249,12 +248,12 @@ const styles = {
   header: {
     width: "100%",
     backgroundColor: "#ffffff",
-    borderBottom: "2px solid #111111",
+    borderBottom: "3px solid #111111",
   },
   topBar: {
     minHeight: "54px",
     background: "linear-gradient(90deg, #e6d85c 0%, #f5ef9c 55%, #ffffff 100%)",
-    borderBottom: "2px solid #111111",
+    borderBottom: "3px solid #111111",
     display: "flex",
     alignItems: "center",
     justifyContent: "space-between",
@@ -527,25 +526,18 @@ const styles = {
     padding: "24px 34px 20px",
     boxSizing: "border-box",
   },
-  kicker: {
-    color: "#9a7b00",
-    fontSize: "12px",
-    fontWeight: 900,
-    letterSpacing: "0.08em",
-    textTransform: "uppercase",
-  },
   title: {
-    marginTop: "6px",
+    margin: 0,
     color: "#111111",
     fontSize: "32px",
     lineHeight: 1.1,
-    fontWeight: 900,
+    fontWeight: 950,
   },
   subtitle: {
-    marginTop: "6px",
+    margin: "8px 0 0",
     color: "#4b5563",
-    fontSize: "14px",
-    fontWeight: 600,
+    fontSize: "15px",
+    fontWeight: 700,
   },
   modalOverlay: {
     position: "fixed",
