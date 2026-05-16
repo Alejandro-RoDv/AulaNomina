@@ -49,6 +49,7 @@ class StudentGroupUpdate(BaseModel):
 
 class StudentGroupResponse(StudentGroupBase):
     id: int
+    student_count: int = 0
     created_at: datetime
 
     class Config:
