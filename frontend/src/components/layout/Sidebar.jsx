@@ -76,7 +76,7 @@ export default function Sidebar({ activePage, setActivePage }) {
         },
         { id: "contracts", label: "Contratos", enabled: true },
         { id: "documents", label: "Documentos", enabled: true },
-        { id: "alerts", label: "Alertas", enabled: true },
+        { id: "alerts", label: "Alertas laborales", enabled: true },
         { id: "reports", label: "Informes", enabled: true },
       ],
     },
@@ -103,7 +103,7 @@ export default function Sidebar({ activePage, setActivePage }) {
       separator: true,
       items: [
         { id: "teacher-dashboard", label: "Panel profesor", enabled: true },
-        { id: "teaching-alerts", label: "Alertas", enabled: true },
+        { id: "teaching-alerts", label: "Alertas docentes", enabled: true },
         { id: "case-studies", label: "Casos prácticos", enabled: true },
         { id: "assignments", label: "Asignar caso", enabled: true },
         { id: "corrections", label: "Correcciones", enabled: true },
