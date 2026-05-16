@@ -7,6 +7,8 @@ import CorrectionsPage from "../../pages/CorrectionsPage";
 import StudentsPage from "../../pages/StudentsPage";
 import StudentGroupsPage from "../../pages/StudentGroupsPage";
 import ProgressPage from "../../pages/ProgressPage";
+import StudentDemoViewPage from "../../pages/StudentDemoViewPage";
+import TeachingAlertsPage from "../../pages/TeachingAlertsPage";
 
 function getTeachingRoute() {
   if (window.location.hash === "#teacher-dashboard") return "teacher-dashboard";
@@ -16,6 +18,8 @@ function getTeachingRoute() {
   if (window.location.hash === "#students") return "students";
   if (window.location.hash === "#groups") return "groups";
   if (window.location.hash === "#progress") return "progress";
+  if (window.location.hash === "#student-demo") return "student-demo";
+  if (window.location.hash === "#teaching-alerts") return "teaching-alerts";
   return null;
 }
 
@@ -26,6 +30,8 @@ function getRouteTitle(route) {
   if (route === "students") return "Alumnos";
   if (route === "groups") return "Grupos";
   if (route === "progress") return "Progreso";
+  if (route === "student-demo") return "Vista alumno";
+  if (route === "teaching-alerts") return "Alertas docentes";
   return "Casos prácticos";
 }
 
@@ -36,6 +42,8 @@ function getRouteSubtitle(route) {
   if (route === "students") return "Gestión básica de alumnos para la simulación docente.";
   if (route === "groups") return "Organización de alumnos por curso, centro o programa formativo.";
   if (route === "progress") return "Seguimiento intuitivo del avance de casos, tareas, alumnos y correcciones.";
+  if (route === "student-demo") return "Simulación del portal del alumno sin autenticación real.";
+  if (route === "teaching-alerts") return "Vencimientos y avisos docentes derivados de casos, entregas y documentación.";
   return "Creación y edición de ejercicios docentes dentro del ERP.";
 }
 
@@ -71,6 +79,8 @@ export default function CaseStudiesRoute() {
         {route === "students" && <StudentsPage />}
         {route === "groups" && <StudentGroupsPage />}
         {route === "progress" && <ProgressPage />}
+        {route === "student-demo" && <StudentDemoViewPage />}
+        {route === "teaching-alerts" && <TeachingAlertsPage />}
         {route === "case-studies" && <CaseStudiesPage />}
       </main>
     </div>
