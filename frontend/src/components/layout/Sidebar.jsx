@@ -14,16 +14,6 @@ export default function Sidebar({ activePage, setActivePage }) {
       ],
     },
     {
-      title: "Docencia",
-      items: [
-        { id: "case-studies", label: "Casos prácticos", enabled: true },
-        { id: "corrections", label: "Correcciones", enabled: true },
-        { id: "students", label: "Alumnos", enabled: false },
-        { id: "groups", label: "Grupos", enabled: false },
-        { id: "progress", label: "Progreso", enabled: false },
-      ],
-    },
-    {
       title: "Acciones",
       items: [
         { id: "payrolls", label: "Cálculo nóminas", enabled: true },
@@ -41,6 +31,17 @@ export default function Sidebar({ activePage, setActivePage }) {
         { id: "communications", label: "Comunicados", enabled: false },
       ],
     },
+    {
+      title: "Docencia",
+      separator: true,
+      items: [
+        { id: "case-studies", label: "Casos prácticos", enabled: true },
+        { id: "corrections", label: "Correcciones", enabled: true },
+        { id: "students", label: "Alumnos", enabled: true },
+        { id: "groups", label: "Grupos", enabled: false },
+        { id: "progress", label: "Progreso", enabled: false },
+      ],
+    },
   ];
 
   const handleNavClick = (item) => {
@@ -48,13 +49,13 @@ export default function Sidebar({ activePage, setActivePage }) {
 
     setActivePage(item.id);
 
-    if (item.id === "case-studies" || item.id === "corrections") {
+    if (item.id === "case-studies" || item.id === "corrections" || item.id === "students") {
       window.location.hash = item.id;
       window.dispatchEvent(new Event("aulanomina-route-change"));
       return;
     }
 
-    if (window.location.hash === "#case-studies" || window.location.hash === "#corrections") {
+    if (["#case-studies", "#corrections", "#students"].includes(window.location.hash)) {
       window.history.replaceState(null, "", window.location.pathname + window.location.search);
       window.dispatchEvent(new Event("aulanomina-route-change"));
     }
@@ -69,6 +70,7 @@ export default function Sidebar({ activePage, setActivePage }) {
       <div style={styles.menuPanel}>
         {groups.map((group) => (
           <section key={group.title} style={styles.group}>
+            {group.separator && <div style={styles.erpSeparator} />}
             <p style={styles.groupTitle}>{group.title}</p>
             <div style={styles.groupItems}>
               {group.items.map((item) => {
@@ -137,6 +139,12 @@ const styles = {
   },
   group: {
     marginBottom: "28px",
+  },
+  erpSeparator: {
+    height: "3px",
+    backgroundColor: "#111111",
+    margin: "8px 0 22px",
+    width: "100%",
   },
   groupTitle: {
     margin: "0 0 10px",
