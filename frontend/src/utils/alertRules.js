@@ -37,7 +37,10 @@ function buildAlert({
   centerName,
   dueDate,
   status,
+  metadata = {},
 }) {
+  const dueDays = diffDays(dueDate);
+
   return {
     id,
     source,
@@ -49,7 +52,9 @@ function buildAlert({
     companyName,
     centerName,
     dueDate,
+    dueDays,
     status,
+    metadata,
   };
 }
 
@@ -72,15 +77,17 @@ function generateDocumentAlerts(documents = [], collections, now) {
     const status = normalizeStatus(document.status);
     const context = buildContext(document, collections);
     const alerts = [];
+    const documentLabel = document.document_name || document.document_type || "sin nombre";
 
     if (status === "pending") {
       alerts.push(buildAlert({
         id: `document-pending-${document.id}`,
         source: "document",
-        severity: "high",
-        title: `Documento pendiente: ${document.document_name || document.document_type || "sin nombre"}`,
+        severity: "medium",
+        title: `Documento pendiente: ${documentLabel}`,
         description: "Documento laboral pendiente de recibir o validar en el expediente.",
         status: "Pendiente",
+        metadata: { documentName: documentLabel, documentId: document.id, documentStatus: status },
         ...context,
       }));
     }
@@ -90,24 +97,26 @@ function generateDocumentAlerts(documents = [], collections, now) {
         id: `document-expired-${document.id}`,
         source: "document",
         severity: "critical",
-        title: `Documento caducado: ${document.document_name || document.document_type || "sin nombre"}`,
+        title: `Documento caducado: ${documentLabel}`,
         description: "Documento marcado como caducado. Requiere revisión documental.",
         dueDate: document.expiry_date,
         status: "Caducado",
+        metadata: { documentName: documentLabel, documentId: document.id, documentStatus: status },
         ...context,
       }));
     }
 
     const daysToExpiry = diffDays(document.expiry_date, now);
-    if (status === "received" && daysToExpiry !== null && daysToExpiry >= 0 && daysToExpiry <= 30) {
+    if (status === "received" && daysToExpiry !== null && daysToExpiry <= 30) {
       alerts.push(buildAlert({
         id: `document-expiry-${document.id}`,
         source: "document",
-        severity: daysToExpiry <= 7 ? "high" : "medium",
-        title: `Documento próximo a caducar: ${document.document_name || document.document_type || "sin nombre"}`,
-        description: `Caduca en ${daysToExpiry} días.`,
+        severity: daysToExpiry < 0 ? "critical" : daysToExpiry <= 7 ? "high" : "medium",
+        title: `Documento próximo a caducar: ${documentLabel}`,
+        description: daysToExpiry < 0 ? "Documento recibido con fecha de caducidad vencida." : `Caduca en ${daysToExpiry} días.`,
         dueDate: document.expiry_date,
-        status: "Próximo vencimiento",
+        status: daysToExpiry < 0 ? "Vencido" : "Próximo vencimiento",
+        metadata: { documentName: documentLabel, documentId: document.id, documentStatus: status },
         ...context,
       }));
     }
@@ -123,15 +132,16 @@ function generateContractAlerts(contracts = [], collections, now) {
     const daysToEnd = diffDays(contract.end_date, now);
     const alerts = [];
 
-    if (status === "active" && daysToEnd !== null && daysToEnd >= 0 && daysToEnd <= 30) {
+    if (status === "active" && daysToEnd !== null && daysToEnd <= 30) {
       alerts.push(buildAlert({
         id: `contract-ending-${contract.id}`,
         source: "contract",
-        severity: daysToEnd <= 7 ? "critical" : "high",
-        title: "Contrato próximo a finalizar",
-        description: `Finaliza en ${daysToEnd} días. Revisar prórroga, baja o nuevo contrato.`,
+        severity: daysToEnd < 0 ? "critical" : daysToEnd <= 7 ? "critical" : "high",
+        title: daysToEnd < 0 ? "Contrato activo con fecha de fin vencida" : "Contrato próximo a finalizar",
+        description: daysToEnd < 0 ? "Contrato activo cuya fecha de finalización ya ha pasado. Revisar baja, prórroga o nuevo contrato." : `Finaliza en ${daysToEnd} días. Revisar prórroga, baja o nuevo contrato.`,
         dueDate: contract.end_date,
-        status: "Vencimiento",
+        status: daysToEnd < 0 ? "Vencido" : "Vencimiento",
+        metadata: { contractId: contract.id, contractType: contract.contract_type },
         ...context,
       }));
     }
@@ -144,6 +154,7 @@ function generateContractAlerts(contracts = [], collections, now) {
         title: "Contrato temporal sin fecha de fin",
         description: "Contrato temporal activo sin fecha de finalización informada.",
         status: "Revisión",
+        metadata: { contractId: contract.id, contractType: contract.contract_type },
         ...context,
       }));
     }
@@ -167,6 +178,7 @@ function generateIncidentAlerts(incidents = [], collections) {
       description: incident.description || "Incidencia laboral abierta pendiente de cierre o seguimiento.",
       dueDate: incident.end_date || incident.start_date,
       status: "Abierta",
+      metadata: { incidentId: incident.id, incidentType: incident.incident_type },
       ...context,
     })];
   });
@@ -186,6 +198,7 @@ function generatePayrollAlerts(payrolls = [], collections) {
       title: `Nómina pendiente: ${String(payroll.period_month).padStart(2, "0")}/${payroll.period_year}`,
       description: "Nómina simulada pendiente de revisión, cierre o validación docente.",
       status: "Pendiente",
+      metadata: { payrollId: payroll.id, periodMonth: payroll.period_month, periodYear: payroll.period_year },
       ...context,
     })];
   });
@@ -217,6 +230,8 @@ export function getAlertStats(alerts = []) {
     critical: alerts.filter((alert) => alert.severity === "critical").length,
     high: alerts.filter((alert) => alert.severity === "high").length,
     medium: alerts.filter((alert) => alert.severity === "medium").length,
+    due7: alerts.filter((alert) => typeof alert.dueDays === "number" && alert.dueDays >= 0 && alert.dueDays <= 7).length,
+    overdue: alerts.filter((alert) => typeof alert.dueDays === "number" && alert.dueDays < 0).length,
     document: alerts.filter((alert) => alert.source === "document").length,
     contract: alerts.filter((alert) => alert.source === "contract").length,
     incident: alerts.filter((alert) => alert.source === "incident").length,
