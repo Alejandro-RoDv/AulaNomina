@@ -1,6 +1,52 @@
+import { useEffect, useState } from "react";
+
 import logo from "../../assets/aulanomina-logo.svg";
 
+const teachingPages = [
+  "teacher-dashboard",
+  "teaching-alerts",
+  "case-studies",
+  "assignments",
+  "corrections",
+  "student-demo",
+  "students",
+  "groups",
+  "progress",
+];
+
+const teachingHashes = teachingPages.map((page) => `#${page}`);
+
+function getTeachingPageFromHash() {
+  const page = window.location.hash.replace("#", "");
+  return teachingPages.includes(page) ? page : null;
+}
+
 export default function Sidebar({ activePage, setActivePage }) {
+  const [hashActivePage, setHashActivePage] = useState(getTeachingPageFromHash());
+
+  useEffect(() => {
+    const syncActivePageFromHash = () => {
+      const teachingPage = getTeachingPageFromHash();
+      setHashActivePage(teachingPage);
+
+      if (teachingPage) {
+        setActivePage(teachingPage);
+      }
+    };
+
+    syncActivePageFromHash();
+
+    window.addEventListener("hashchange", syncActivePageFromHash);
+    window.addEventListener("aulanomina-route-change", syncActivePageFromHash);
+
+    return () => {
+      window.removeEventListener("hashchange", syncActivePageFromHash);
+      window.removeEventListener("aulanomina-route-change", syncActivePageFromHash);
+    };
+  }, [setActivePage]);
+
+  const currentActivePage = hashActivePage || activePage;
+
   const groups = [
     {
       title: "Datos",
@@ -48,29 +94,19 @@ export default function Sidebar({ activePage, setActivePage }) {
     },
   ];
 
-  const teachingPages = [
-    "teacher-dashboard",
-    "teaching-alerts",
-    "case-studies",
-    "assignments",
-    "corrections",
-    "student-demo",
-    "students",
-    "groups",
-    "progress",
-  ];
-  const teachingHashes = teachingPages.map((page) => `#${page}`);
-
   const handleNavClick = (item) => {
     if (!item.enabled) return;
 
     setActivePage(item.id);
 
     if (teachingPages.includes(item.id)) {
+      setHashActivePage(item.id);
       window.location.hash = item.id;
       window.dispatchEvent(new Event("aulanomina-route-change"));
       return;
     }
+
+    setHashActivePage(null);
 
     if (teachingHashes.includes(window.location.hash)) {
       window.history.replaceState(null, "", window.location.pathname + window.location.search);
@@ -91,7 +127,7 @@ export default function Sidebar({ activePage, setActivePage }) {
             <p style={styles.groupTitle}>{group.title}</p>
             <div style={styles.groupItems}>
               {group.items.map((item) => {
-                const isActive = activePage === item.id;
+                const isActive = currentActivePage === item.id;
 
                 return (
                   <button
