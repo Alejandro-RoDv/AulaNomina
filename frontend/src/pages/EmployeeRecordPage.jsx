@@ -1,6 +1,14 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import PageCard from "../components/layout/PageCard";
+
+function normalizeText(value) {
+  return String(value || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim();
+}
 
 function formatDate(value) {
   if (!value) return "-";
@@ -34,6 +42,16 @@ function getCenter(workCenters, id) {
 function getActiveContract(contracts, employeeId) {
   const employeeContracts = contracts.filter((contract) => Number(contract.employee_id) === Number(employeeId));
   return employeeContracts.find((contract) => contract.status === "active") || employeeContracts[0];
+}
+
+function getEmployeeCompany(employee, contracts, companies) {
+  const activeContract = getActiveContract(contracts, employee.id);
+  return getCompany(companies, activeContract?.company_id || employee.company_id);
+}
+
+function getEmployeeCenter(employee, contracts, workCenters) {
+  const activeContract = getActiveContract(contracts, employee.id);
+  return getCenter(workCenters, activeContract?.center_id || employee.center_id);
 }
 
 function payrollPeriodSortValue(payroll) {
@@ -70,9 +88,60 @@ function getIncidentLabel(type) {
 }
 
 export default function EmployeeRecordPage({ loading, employees, companies, workCenters, contracts, incidents, payrolls, documents }) {
-  const [selectedEmployeeId, setSelectedEmployeeId] = useState(employees[0]?.id ? String(employees[0].id) : "");
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState("");
+  const [filters, setFilters] = useState({ companyId: "", search: "", status: "" });
 
-  const selectedEmployee = employees.find((employee) => String(employee.id) === String(selectedEmployeeId)) || employees[0];
+  useEffect(() => {
+    const storedEmployeeId = window.sessionStorage.getItem("aulanomina:selectedEmployeeId");
+    const existsStoredEmployee = employees.some((employee) => String(employee.id) === String(storedEmployeeId));
+
+    if (existsStoredEmployee) {
+      setSelectedEmployeeId(String(storedEmployeeId));
+      return;
+    }
+
+    if (!selectedEmployeeId && employees[0]?.id) {
+      setSelectedEmployeeId(String(employees[0].id));
+    }
+  }, [employees, selectedEmployeeId]);
+
+  const filteredEmployees = useMemo(() => {
+    const search = normalizeText(filters.search);
+
+    return employees.filter((employee) => {
+      const company = getEmployeeCompany(employee, contracts, companies);
+      const center = getEmployeeCenter(employee, contracts, workCenters);
+      const employeeText = normalizeText(`${employee.employee_code || ""} ${employee.dni || ""} ${employee.naf || ""} ${getEmployeeName(employee)}`);
+      const matchesCompany = !filters.companyId || Number(company?.id) === Number(filters.companyId);
+      const matchesStatus = !filters.status || String(employee.is_active) === filters.status;
+      const matchesSearch = !search || employeeText.includes(search);
+
+      return matchesCompany && matchesStatus && matchesSearch;
+    });
+  }, [employees, filters, contracts, companies, workCenters]);
+
+  useEffect(() => {
+    if (!filteredEmployees.length) return;
+    const selectedVisible = filteredEmployees.some((employee) => String(employee.id) === String(selectedEmployeeId));
+
+    if (!selectedVisible) {
+      setSelectedEmployeeId(String(filteredEmployees[0].id));
+    }
+  }, [filteredEmployees, selectedEmployeeId]);
+
+  const selectedEmployee = employees.find((employee) => String(employee.id) === String(selectedEmployeeId)) || filteredEmployees[0] || employees[0];
+
+  const handleSelectEmployee = (employee) => {
+    setSelectedEmployeeId(String(employee.id));
+    window.sessionStorage.setItem("aulanomina:selectedEmployeeId", String(employee.id));
+  };
+
+  const handleFilterChange = (event) => {
+    const { name, value } = event.target;
+    setFilters((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const clearFilters = () => setFilters({ companyId: "", search: "", status: "" });
 
   const record = useMemo(() => {
     if (!selectedEmployee) return null;
@@ -118,16 +187,64 @@ export default function EmployeeRecordPage({ loading, employees, companies, work
 
   return (
     <div style={styles.wrapper}>
-      <PageCard title="Seleccionar trabajador" subtitle="El expediente centraliza datos personales, contrato activo, documentación, incidencias, nóminas y documentos generados.">
-        <div style={styles.selectorRow}>
-          <div style={styles.selectorGroup}>
-            <label style={styles.label}>Trabajador</label>
-            <select value={String(selectedEmployee.id)} onChange={(event) => setSelectedEmployeeId(event.target.value)} style={styles.input}>
-              {employees.map((employee) => (
-                <option key={employee.id} value={employee.id}>{getEmployeeName(employee)} · {employee.dni || "sin DNI"}</option>
-              ))}
+      <PageCard title="Buscar trabajador" subtitle="Listado filtrable por empresa, estado, nombre, DNI, NAF o código. Selecciona un trabajador para abrir su expediente.">
+        <div style={styles.filters}>
+          <div style={styles.filterCompany}>
+            <label style={styles.label}>Empresa</label>
+            <select name="companyId" value={filters.companyId} onChange={handleFilterChange} style={styles.input}>
+              <option value="">Todas</option>
+              {companies.map((company) => <option key={company.id} value={company.id}>{company.name}</option>)}
             </select>
           </div>
+          <div style={styles.filterSearch}>
+            <label style={styles.label}>Buscar</label>
+            <input name="search" value={filters.search} onChange={handleFilterChange} placeholder="Nombre, DNI, NAF o código" style={styles.input} />
+          </div>
+          <div style={styles.filterStatus}>
+            <label style={styles.label}>Estado</label>
+            <select name="status" value={filters.status} onChange={handleFilterChange} style={styles.input}>
+              <option value="">Todos</option>
+              <option value="true">Alta</option>
+              <option value="false">Baja</option>
+            </select>
+          </div>
+          <button type="button" onClick={clearFilters} style={styles.clearButton}>Limpiar</button>
+        </div>
+
+        <div style={styles.employeeListWrapper}>
+          <table style={styles.table}>
+            <thead>
+              <tr>
+                <th style={styles.th}>Código</th>
+                <th style={styles.th}>Trabajador</th>
+                <th style={styles.th}>DNI</th>
+                <th style={styles.th}>Empresa</th>
+                <th style={styles.th}>Centro</th>
+                <th style={styles.th}>Estado</th>
+                <th style={styles.th}>Acción</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredEmployees.length === 0 && <tr><td style={styles.td} colSpan="7">No hay trabajadores que coincidan con los filtros.</td></tr>}
+              {filteredEmployees.map((employee) => {
+                const company = getEmployeeCompany(employee, contracts, companies);
+                const center = getEmployeeCenter(employee, contracts, workCenters);
+                const isSelected = String(employee.id) === String(selectedEmployee.id);
+
+                return (
+                  <tr key={employee.id} style={isSelected ? styles.selectedRow : undefined}>
+                    <td style={styles.tdStrong}>{employee.employee_code || employee.id}</td>
+                    <td style={styles.tdStrong}>{getEmployeeName(employee)}</td>
+                    <td style={styles.td}>{employee.dni || "-"}</td>
+                    <td style={styles.td}>{company?.name || "-"}</td>
+                    <td style={styles.td}>{center?.name || "-"}</td>
+                    <td style={styles.td}><span style={employee.is_active ? styles.activeBadgeSmall : styles.inactiveBadgeSmall}>{employee.is_active ? "Alta" : "Baja"}</span></td>
+                    <td style={styles.td}><button type="button" onClick={() => handleSelectEmployee(employee)} style={isSelected ? styles.selectedButton : styles.openButton}>{isSelected ? "Abierto" : "Abrir"}</button></td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       </PageCard>
 
@@ -250,10 +367,17 @@ export default function EmployeeRecordPage({ loading, employees, companies, work
 
 const styles = {
   wrapper: { display: "flex", flexDirection: "column", gap: "20px" },
-  selectorRow: { display: "flex", gap: "14px", alignItems: "end" },
-  selectorGroup: { minWidth: "420px", display: "flex", flexDirection: "column", gap: "6px" },
+  filters: { display: "grid", gridTemplateColumns: "minmax(220px, 1fr) minmax(280px, 1.5fr) 140px 90px", gap: "12px", alignItems: "end", marginBottom: "16px" },
+  filterCompany: { display: "flex", flexDirection: "column", gap: "6px" },
+  filterSearch: { display: "flex", flexDirection: "column", gap: "6px" },
+  filterStatus: { display: "flex", flexDirection: "column", gap: "6px" },
   label: { fontSize: "13px", fontWeight: 800, color: "#374151" },
-  input: { height: "39px", padding: "8px 10px", border: "1px solid #ccc", borderRadius: "7px", fontSize: "13px" },
+  input: { height: "39px", padding: "8px 10px", border: "1px solid #ccc", borderRadius: "7px", fontSize: "13px", boxSizing: "border-box" },
+  clearButton: { height: "39px", backgroundColor: "#f3f4f6", color: "#111827", border: "1px solid #d1d5db", borderRadius: "7px", padding: "8px 10px", cursor: "pointer", fontWeight: 800 },
+  employeeListWrapper: { maxHeight: "320px", overflowY: "auto", border: "1px solid #d1d5db" },
+  selectedRow: { backgroundColor: "#fffdf0" },
+  openButton: { backgroundColor: "#111827", color: "#ffffff", border: "1px solid #111827", padding: "7px 10px", cursor: "pointer", fontWeight: 900 },
+  selectedButton: { backgroundColor: "#f8f3b5", color: "#111827", border: "1px solid #111827", padding: "7px 10px", cursor: "pointer", fontWeight: 900 },
   heroCard: { border: "3px solid #111", backgroundColor: "#fff", boxShadow: "6px 6px 0 #f5ef9c", padding: "24px", display: "flex", justifyContent: "space-between", gap: "24px", alignItems: "center" },
   eyebrow: { margin: "0 0 8px", fontSize: "12px", fontWeight: 950, letterSpacing: "0.08em", color: "#92400e" },
   heroTitle: { margin: 0, fontSize: "30px", fontWeight: 950, color: "#111" },
@@ -265,9 +389,11 @@ const styles = {
   infoGrid: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" },
   fullWidth: { gridColumn: "1 / -1" },
   table: { width: "100%", borderCollapse: "collapse", fontSize: "13px" },
-  th: { textAlign: "left", borderBottom: "2px solid #111", padding: "10px", backgroundColor: "#f8f3b5", fontWeight: 900 },
+  th: { textAlign: "left", borderBottom: "2px solid #111", padding: "10px", backgroundColor: "#f8f3b5", fontWeight: 900, position: "sticky", top: 0, zIndex: 1 },
   td: { borderBottom: "1px solid #e5e7eb", padding: "10px", verticalAlign: "middle" },
   tdStrong: { borderBottom: "1px solid #e5e7eb", padding: "10px", fontWeight: 900, verticalAlign: "middle" },
+  activeBadgeSmall: { backgroundColor: "#dcfce7", color: "#166534", border: "1px solid #86efac", padding: "4px 8px", fontWeight: 900 },
+  inactiveBadgeSmall: { backgroundColor: "#f3f4f6", color: "#4b5563", border: "1px solid #d1d5db", padding: "4px 8px", fontWeight: 900 },
   activeBadgeLarge: { width: "fit-content", backgroundColor: "#dcfce7", color: "#166534", border: "1px solid #86efac", padding: "5px 9px", fontWeight: 950 },
   inactiveBadgeLarge: { width: "fit-content", backgroundColor: "#f3f4f6", color: "#4b5563", border: "1px solid #d1d5db", padding: "5px 9px", fontWeight: 950 },
   receivedBadge: { backgroundColor: "#dcfce7", color: "#166534", border: "1px solid #86efac", padding: "4px 8px", fontWeight: 900 },
