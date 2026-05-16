@@ -31,6 +31,16 @@ from app.crud.student import (
     soft_delete_student,
     update_student,
 )
+from app.crud.student_group import (
+    create_student_group,
+    get_group_by_code,
+    get_next_group_code,
+    get_student_group,
+    get_student_groups,
+    seed_demo_student_groups,
+    soft_delete_student_group,
+    update_student_group,
+)
 from app.schemas.case_study import (
     CaseStudyCreate,
     CaseStudyResponse,
@@ -41,6 +51,7 @@ from app.schemas.case_study import (
 )
 from app.schemas.correction import CorrectionCreate, CorrectionResponse, CorrectionUpdate
 from app.schemas.student import StudentCreate, StudentResponse, StudentUpdate
+from app.schemas.student_group import StudentGroupCreate, StudentGroupResponse, StudentGroupUpdate
 
 router = APIRouter(tags=["teaching"])
 
@@ -65,10 +76,11 @@ def create_case_study_endpoint(case_study: CaseStudyCreate, db: Session = Depend
 
 @router.post("/case-studies/seed-demo")
 def seed_demo_case_studies_endpoint(db: Session = Depends(get_db)):
+    seed_demo_student_groups(db)
     seed_demo_students(db)
     seed_demo_case_studies(db)
     seed_demo_corrections(db)
-    return {"ok": True, "message": "Casos practicos, alumnos y correcciones demo cargados"}
+    return {"ok": True, "message": "Casos practicos, grupos, alumnos y correcciones demo cargados"}
 
 
 @router.get("/case-studies/{case_study_id}", response_model=CaseStudyResponse)
@@ -128,6 +140,7 @@ def create_correction_endpoint(correction: CorrectionCreate, db: Session = Depen
 
 @router.post("/corrections/seed-demo")
 def seed_demo_corrections_endpoint(db: Session = Depends(get_db)):
+    seed_demo_student_groups(db)
     seed_demo_students(db)
     seed_demo_case_studies(db)
     seed_demo_corrections(db)
@@ -173,6 +186,7 @@ def create_student_endpoint(student: StudentCreate, db: Session = Depends(get_db
 
 @router.post("/students/seed-demo")
 def seed_demo_students_endpoint(db: Session = Depends(get_db)):
+    seed_demo_student_groups(db)
     seed_demo_students(db)
     return {"ok": True, "message": "Alumnos demo cargados"}
 
@@ -190,3 +204,41 @@ def delete_student_endpoint(student_id: int, db: Session = Depends(get_db)):
     if not deleted_student:
         raise HTTPException(status_code=404, detail="Alumno no encontrado")
     return deleted_student
+
+
+@router.get("/student-groups/next-code")
+def get_next_group_code_endpoint(db: Session = Depends(get_db)):
+    return {"group_code": get_next_group_code(db)}
+
+
+@router.get("/student-groups", response_model=list[StudentGroupResponse])
+def list_student_groups(db: Session = Depends(get_db)):
+    return get_student_groups(db)
+
+
+@router.post("/student-groups", response_model=StudentGroupResponse)
+def create_student_group_endpoint(group: StudentGroupCreate, db: Session = Depends(get_db)):
+    if group.group_code and get_group_by_code(db, group.group_code):
+        raise HTTPException(status_code=400, detail="Ya existe un grupo con ese codigo")
+    return create_student_group(db, group)
+
+
+@router.post("/student-groups/seed-demo")
+def seed_demo_student_groups_endpoint(db: Session = Depends(get_db)):
+    seed_demo_student_groups(db)
+    return {"ok": True, "message": "Grupos demo cargados"}
+
+
+@router.put("/student-groups/{group_id}", response_model=StudentGroupResponse)
+def update_student_group_endpoint(group_id: int, group: StudentGroupUpdate, db: Session = Depends(get_db)):
+    if not get_student_group(db, group_id):
+        raise HTTPException(status_code=404, detail="Grupo no encontrado")
+    return update_student_group(db, group_id, group)
+
+
+@router.delete("/student-groups/{group_id}", response_model=StudentGroupResponse)
+def delete_student_group_endpoint(group_id: int, db: Session = Depends(get_db)):
+    deleted_group = soft_delete_student_group(db, group_id)
+    if not deleted_group:
+        raise HTTPException(status_code=404, detail="Grupo no encontrado")
+    return deleted_group
