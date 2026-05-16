@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 
 import PageCard from "../components/layout/PageCard";
+import { buildDatedFilename, exportRowsToCsv } from "../utils/csvExport";
 import { generateAlerts, getAlertStats } from "../utils/alertRules";
 
 const SOURCE_LABELS = {
@@ -86,6 +87,8 @@ export default function AlertsPage({
     });
   }, [alerts, filters]);
 
+  const filteredStats = useMemo(() => getAlertStats(filteredAlerts), [filteredAlerts]);
+
   const handleFilterChange = (event) => {
     const { name, value } = event.target;
     setFilters((prev) => ({ ...prev, [name]: value }));
@@ -93,6 +96,24 @@ export default function AlertsPage({
 
   const clearFilters = () => {
     setFilters({ search: "", source: "", severity: "" });
+  };
+
+  const exportFilteredAlerts = () => {
+    exportRowsToCsv(
+      filteredAlerts,
+      [
+        { label: "Prioridad", value: (alert) => SEVERITY_LABELS[alert.severity] || alert.severity },
+        { label: "Origen", value: (alert) => SOURCE_LABELS[alert.source] || alert.source },
+        { label: "Titulo", value: "title" },
+        { label: "Descripcion", value: "description" },
+        { label: "Estado", value: "status" },
+        { label: "Trabajador", value: "employeeName" },
+        { label: "Empresa", value: "companyName" },
+        { label: "Centro", value: "centerName" },
+        { label: "Fecha", value: (alert) => formatDate(alert.dueDate) },
+      ],
+      buildDatedFilename("aulanomina_alertas")
+    );
   };
 
   return (
@@ -116,46 +137,59 @@ export default function AlertsPage({
         </div>
       </div>
 
+      <div style={styles.summaryGrid}>
+        <div style={styles.summaryItem}><span>Documentos</span><strong>{filteredStats.document}</strong></div>
+        <div style={styles.summaryItem}><span>Contratos</span><strong>{filteredStats.contract}</strong></div>
+        <div style={styles.summaryItem}><span>Incidencias</span><strong>{filteredStats.incident}</strong></div>
+        <div style={styles.summaryItem}><span>Nóminas</span><strong>{filteredStats.payroll}</strong></div>
+      </div>
+
       <PageCard
         title="Centro de alertas"
         subtitle="Alertas generadas automáticamente desde documentos, contratos, incidencias y nóminas."
       >
-        <div style={styles.filters}>
-          <div style={styles.searchGroup}>
-            <label style={styles.label}>Buscar</label>
-            <input
-              name="search"
-              value={filters.search}
-              onChange={handleFilterChange}
-              placeholder="Trabajador, empresa, documento, incidencia..."
-              style={styles.input}
-            />
+        <div style={styles.toolbar}>
+          <div style={styles.filters}>
+            <div style={styles.searchGroup}>
+              <label style={styles.label}>Buscar</label>
+              <input
+                name="search"
+                value={filters.search}
+                onChange={handleFilterChange}
+                placeholder="Trabajador, empresa, documento, incidencia..."
+                style={styles.input}
+              />
+            </div>
+
+            <div style={styles.filterGroup}>
+              <label style={styles.label}>Origen</label>
+              <select name="source" value={filters.source} onChange={handleFilterChange} style={styles.input}>
+                <option value="">Todos</option>
+                <option value="document">Documentos</option>
+                <option value="contract">Contratos</option>
+                <option value="incident">Incidencias</option>
+                <option value="payroll">Nóminas</option>
+              </select>
+            </div>
+
+            <div style={styles.filterGroup}>
+              <label style={styles.label}>Prioridad</label>
+              <select name="severity" value={filters.severity} onChange={handleFilterChange} style={styles.input}>
+                <option value="">Todas</option>
+                <option value="critical">Crítica</option>
+                <option value="high">Alta</option>
+                <option value="medium">Media</option>
+                <option value="low">Baja</option>
+              </select>
+            </div>
+
+            <button type="button" onClick={clearFilters} style={styles.clearButton}>
+              Limpiar
+            </button>
           </div>
 
-          <div style={styles.filterGroup}>
-            <label style={styles.label}>Origen</label>
-            <select name="source" value={filters.source} onChange={handleFilterChange} style={styles.input}>
-              <option value="">Todos</option>
-              <option value="document">Documentos</option>
-              <option value="contract">Contratos</option>
-              <option value="incident">Incidencias</option>
-              <option value="payroll">Nóminas</option>
-            </select>
-          </div>
-
-          <div style={styles.filterGroup}>
-            <label style={styles.label}>Prioridad</label>
-            <select name="severity" value={filters.severity} onChange={handleFilterChange} style={styles.input}>
-              <option value="">Todas</option>
-              <option value="critical">Crítica</option>
-              <option value="high">Alta</option>
-              <option value="medium">Media</option>
-              <option value="low">Baja</option>
-            </select>
-          </div>
-
-          <button type="button" onClick={clearFilters} style={styles.clearButton}>
-            Limpiar
+          <button type="button" onClick={exportFilteredAlerts} style={styles.exportButton} disabled={filteredAlerts.length === 0}>
+            Exportar CSV
           </button>
         </div>
 
@@ -232,12 +266,16 @@ const styles = {
   kpiCardHigh: { border: "2px solid #92400e", backgroundColor: "#fffbeb", padding: "16px", boxShadow: "4px 4px 0 #fde68a" },
   kpiLabel: { margin: 0, color: "#4b5563", fontSize: "12px", fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.06em" },
   kpiValue: { display: "block", marginTop: "8px", color: "#111827", fontSize: "32px", lineHeight: 1, fontWeight: 900 },
-  filters: { display: "grid", gridTemplateColumns: "minmax(260px, 1fr) 160px 150px 92px", gap: "10px", alignItems: "end", marginBottom: "12px" },
+  summaryGrid: { display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: "10px" },
+  summaryItem: { border: "1px solid #d1d5db", backgroundColor: "#f9fafb", padding: "10px 12px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: "10px", fontSize: "13px", fontWeight: 850, color: "#374151" },
+  toolbar: { display: "flex", alignItems: "end", justifyContent: "space-between", gap: "14px", marginBottom: "12px" },
+  filters: { flex: 1, display: "grid", gridTemplateColumns: "minmax(260px, 1fr) 160px 150px 92px", gap: "10px", alignItems: "end" },
   searchGroup: { display: "flex", flexDirection: "column", gap: "5px", minWidth: 0 },
   filterGroup: { display: "flex", flexDirection: "column", gap: "5px", minWidth: 0 },
   label: { fontSize: "13px", fontWeight: 800, color: "#374151" },
   input: { width: "100%", height: "36px", boxSizing: "border-box", padding: "7px 9px", border: "1px solid #cbd5e1", borderRadius: "7px", fontSize: "13px" },
   clearButton: { width: "92px", height: "36px", backgroundColor: "#f3f4f6", color: "#111827", border: "1px solid #d1d5db", borderRadius: "7px", padding: "7px 8px", cursor: "pointer", fontWeight: 900, fontSize: "12px", textTransform: "uppercase" },
+  exportButton: { height: "36px", backgroundColor: "#111827", color: "#ffffff", border: "1px solid #111827", borderRadius: "7px", padding: "7px 12px", cursor: "pointer", fontWeight: 900, fontSize: "12px", textTransform: "uppercase", whiteSpace: "nowrap" },
   resultInfo: { marginBottom: "14px", color: "#6b7280", fontSize: "13px", fontWeight: 800 },
   tableWrapper: { overflowX: "auto", border: "1px solid #e5e7eb", borderRadius: "10px" },
   table: { width: "100%", borderCollapse: "collapse", fontSize: "13px" },
