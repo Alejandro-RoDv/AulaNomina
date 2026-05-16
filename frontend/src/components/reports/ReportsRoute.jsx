@@ -88,7 +88,7 @@ export default function ReportsRoute() {
 const styles = {
   wrapper: {
     position: "fixed",
-    top: 0,
+    top: "56px",
     left: "272px",
     right: 0,
     bottom: 0,
