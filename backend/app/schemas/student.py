@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, EmailStr, field_validator
+from pydantic import BaseModel, field_validator
 
 
 STUDENT_STATUSES = {"active", "inactive", "completed"}
@@ -11,7 +11,7 @@ class StudentBase(BaseModel):
     student_code: Optional[str] = None
     first_name: str
     last_name: str
-    email: Optional[EmailStr] = None
+    email: Optional[str] = None
     group_name: Optional[str] = None
     education_center: Optional[str] = None
     status: str = "active"
@@ -34,7 +34,7 @@ class StudentUpdate(BaseModel):
     student_code: Optional[str] = None
     first_name: Optional[str] = None
     last_name: Optional[str] = None
-    email: Optional[EmailStr] = None
+    email: Optional[str] = None
     group_name: Optional[str] = None
     education_center: Optional[str] = None
     status: Optional[str] = None
