@@ -1,6 +1,21 @@
 import { useEffect, useMemo, useState } from "react";
 
 import PageCard from "../components/layout/PageCard";
+import { generateAlerts } from "../utils/alertRules";
+
+const ALERT_SEVERITY_LABELS = {
+  critical: "Crítica",
+  high: "Alta",
+  medium: "Media",
+  low: "Baja",
+};
+
+const ALERT_SOURCE_LABELS = {
+  document: "Documentos",
+  contract: "Contratos",
+  incident: "Incidencias",
+  payroll: "Nóminas",
+};
 
 function normalizeText(value) {
   return String(value || "")
@@ -87,9 +102,30 @@ function getIncidentLabel(type) {
   return labels[type] || type || "-";
 }
 
+function getAlertSeverityStyle(severity) {
+  if (severity === "critical") return styles.alertCritical;
+  if (severity === "high") return styles.alertHigh;
+  if (severity === "medium") return styles.alertMedium;
+  return styles.alertLow;
+}
+
 export default function EmployeeRecordPage({ loading, employees, companies, workCenters, contracts, incidents, payrolls, documents }) {
   const [selectedEmployeeId, setSelectedEmployeeId] = useState("");
   const [filters, setFilters] = useState({ companyId: "", search: "", status: "" });
+
+  useEffect(() => {
+    const handleExternalOpenRecord = (event) => {
+      const employeeId = event.detail?.employeeId;
+      if (!employeeId) return;
+
+      setSelectedEmployeeId(String(employeeId));
+      window.sessionStorage.setItem("aulanomina:selectedEmployeeId", String(employeeId));
+    };
+
+    window.addEventListener("aulanomina-open-employee-record", handleExternalOpenRecord);
+
+    return () => window.removeEventListener("aulanomina-open-employee-record", handleExternalOpenRecord);
+  }, []);
 
   useEffect(() => {
     const storedEmployeeId = window.sessionStorage.getItem("aulanomina:selectedEmployeeId");
@@ -160,6 +196,15 @@ export default function EmployeeRecordPage({ loading, employees, companies, work
       .filter((payroll) => Number(payroll.employee_id) === Number(selectedEmployee.id))
       .sort((a, b) => payrollPeriodSortValue(b) - payrollPeriodSortValue(a));
     const latestPayroll = employeePayrolls[0];
+    const employeeAlerts = generateAlerts({
+      documents: employeeDocuments,
+      contracts: contracts.filter((contract) => Number(contract.employee_id) === Number(selectedEmployee.id)),
+      incidents: employeeIncidents,
+      payrolls: employeePayrolls,
+      employees,
+      companies,
+      workCenters,
+    }).filter((alert) => Number(alert.employeeId) === Number(selectedEmployee.id));
 
     return {
       activeContract,
@@ -172,8 +217,9 @@ export default function EmployeeRecordPage({ loading, employees, companies, work
       openIncidents,
       employeePayrolls,
       latestPayroll,
+      employeeAlerts,
     };
-  }, [selectedEmployee, companies, workCenters, contracts, incidents, payrolls, documents]);
+  }, [selectedEmployee, employees, companies, workCenters, contracts, incidents, payrolls, documents]);
 
   if (loading) return <p>Cargando expediente...</p>;
 
@@ -267,6 +313,31 @@ export default function EmployeeRecordPage({ loading, employees, companies, work
         <div style={styles.kpi}><span>Última nómina</span><strong>{formatPeriod(record.latestPayroll)}</strong></div>
         <div style={styles.kpi}><span>Incidencias activas</span><strong>{record.openIncidents.length}</strong></div>
       </div>
+
+      <PageCard title={`Alertas del expediente (${record.employeeAlerts.length})`} subtitle="Avisos generados automáticamente para este trabajador desde documentos, contratos, incidencias y nóminas.">
+        {record.employeeAlerts.length === 0 && <p style={styles.emptyText}>Este expediente no tiene alertas activas.</p>}
+
+        {record.employeeAlerts.length > 0 && (
+          <div style={styles.alertGrid}>
+            {record.employeeAlerts.map((alert) => (
+              <article key={alert.id} style={styles.alertCard}>
+                <div style={styles.alertHeader}>
+                  <span style={{ ...styles.alertBadge, ...getAlertSeverityStyle(alert.severity) }}>
+                    {ALERT_SEVERITY_LABELS[alert.severity] || alert.severity}
+                  </span>
+                  <span style={styles.alertSource}>{ALERT_SOURCE_LABELS[alert.source] || alert.source}</span>
+                </div>
+                <strong style={styles.alertTitle}>{alert.title}</strong>
+                <p style={styles.alertDescription}>{alert.description}</p>
+                <div style={styles.alertMeta}>
+                  <span>{alert.status || "Revisión"}</span>
+                  <span>{formatDate(alert.dueDate)}</span>
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
+      </PageCard>
 
       <div style={styles.gridTwoColumns}>
         <PageCard title="Datos personales" subtitle="Identificación y contacto.">
@@ -385,6 +456,19 @@ const styles = {
   statusPanel: { border: "2px solid #111", padding: "12px", display: "flex", flexDirection: "column", gap: "6px", minWidth: "260px", backgroundColor: "#fffdf0" },
   kpiGrid: { display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: "14px" },
   kpi: { border: "2px solid #111", backgroundColor: "#fff", boxShadow: "4px 4px 0 #f5ef9c", padding: "16px", display: "flex", flexDirection: "column", gap: "8px" },
+  alertGrid: { display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "12px" },
+  alertCard: { border: "1px solid #d1d5db", backgroundColor: "#f9fafb", padding: "13px", display: "flex", flexDirection: "column", gap: "7px" },
+  alertHeader: { display: "flex", justifyContent: "space-between", gap: "8px", alignItems: "center" },
+  alertBadge: { borderRadius: "999px", padding: "4px 8px", fontSize: "11px", fontWeight: 950, textTransform: "uppercase" },
+  alertCritical: { backgroundColor: "#fee2e2", color: "#991b1b", border: "1px solid #fecaca" },
+  alertHigh: { backgroundColor: "#ffedd5", color: "#9a3412", border: "1px solid #fed7aa" },
+  alertMedium: { backgroundColor: "#fef3c7", color: "#92400e", border: "1px solid #fde68a" },
+  alertLow: { backgroundColor: "#dcfce7", color: "#166534", border: "1px solid #bbf7d0" },
+  alertSource: { color: "#6b7280", fontSize: "11px", fontWeight: 900, textTransform: "uppercase" },
+  alertTitle: { color: "#111827", fontSize: "14px", fontWeight: 950, lineHeight: 1.25 },
+  alertDescription: { margin: 0, color: "#4b5563", fontSize: "13px", fontWeight: 650, lineHeight: 1.35 },
+  alertMeta: { display: "flex", justifyContent: "space-between", gap: "10px", color: "#6b7280", fontSize: "12px", fontWeight: 900, textTransform: "uppercase" },
+  emptyText: { margin: 0, color: "#6b7280", fontSize: "14px", fontWeight: 750 },
   gridTwoColumns: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" },
   infoGrid: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" },
   fullWidth: { gridColumn: "1 / -1" },
