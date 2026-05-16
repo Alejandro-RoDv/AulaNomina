@@ -50,7 +50,7 @@ function getEmployeeDocuments(employee) {
 
 function DocumentShell({ title, subtitle, children }) {
   return (
-    <article style={documentStyles.sheet}>
+    <article className="printable-report" style={documentStyles.sheet}>
       <header style={documentStyles.header}>
         <div>
           <p style={documentStyles.brand}>AulaNomina</p>
@@ -332,24 +332,26 @@ export default function ReportsPage({ loading, employees, companies, workCenters
   }
 
   return (
-    <div style={styles.wrapper}>
-      <div style={styles.kpiGrid}>
+    <div className="reports-page" style={styles.wrapper}>
+      <div className="reports-screen-only" style={styles.kpiGrid}>
         <div style={styles.kpi}><span>Trabajadores alta</span><strong>{summary.activeEmployees}</strong></div>
         <div style={styles.kpi}><span>Contratos activos</span><strong>{summary.activeContracts}</strong></div>
         <div style={styles.kpi}><span>Incidencias abiertas</span><strong>{summary.openIncidents}</strong></div>
         <div style={styles.kpi}><span>Volumen nóminas</span><strong>{formatMoney(summary.payrollTotal)}</strong></div>
       </div>
 
-      <PageCard title="Informes exportables" subtitle="Listados tipo Excel en CSV, compatibles con LibreOffice Calc y Excel.">
-        <div style={styles.exportGrid}>
-          <button type="button" onClick={exportEmployees} style={styles.primaryButton}>Exportar trabajadores</button>
-          <button type="button" onClick={exportPayrolls} style={styles.primaryButton}>Exportar nóminas</button>
-          <button type="button" onClick={exportCompanies} style={styles.primaryButton}>Exportar empresas / CCC</button>
-        </div>
-      </PageCard>
+      <div className="reports-screen-only">
+        <PageCard title="Informes exportables" subtitle="Listados tipo Excel en CSV, compatibles con LibreOffice Calc y Excel.">
+          <div style={styles.exportGrid}>
+            <button type="button" onClick={exportEmployees} style={styles.primaryButton}>Exportar trabajadores</button>
+            <button type="button" onClick={exportPayrolls} style={styles.primaryButton}>Exportar nóminas</button>
+            <button type="button" onClick={exportCompanies} style={styles.primaryButton}>Exportar empresas / CCC</button>
+          </div>
+        </PageCard>
+      </div>
 
       <PageCard title="Documentos HTML" subtitle="Motor inicial de plantillas: datos ERP + plantilla = documento profesional imprimible.">
-        <div style={styles.controls}>
+        <div className="reports-screen-only" style={styles.controls}>
           <div style={styles.controlGroup}>
             <label style={styles.label}>Trabajador</label>
             <select value={selectedEmployeeId} onChange={(event) => setSelectedEmployeeId(event.target.value)} style={styles.input} disabled={loading || employees.length === 0}>
@@ -372,7 +374,7 @@ export default function ReportsPage({ loading, employees, companies, workCenters
           <button type="button" onClick={printPreview} style={styles.printButton}>Imprimir / guardar PDF</button>
         </div>
 
-        <div style={styles.previewFrame}>{renderTemplate()}</div>
+        <div className="report-preview-frame" style={styles.previewFrame}>{renderTemplate()}</div>
       </PageCard>
     </div>
   );
@@ -381,7 +383,6 @@ export default function ReportsPage({ loading, employees, companies, workCenters
 const styles = {
   wrapper: { display: "flex", flexDirection: "column", gap: "20px" },
   kpiGrid: { display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: "14px" },
-  kpi: { border: "2px solid #111", backgroundColor: "#fff", boxShadow: "4px 4px 0 #f5ef9c", padding: "16px" },
   exportGrid: { display: "flex", gap: "12px", flexWrap: "wrap" },
   primaryButton: { backgroundColor: "#111", color: "#fff", border: "2px solid #111", padding: "10px 14px", fontWeight: 900, cursor: "pointer" },
   printButton: { backgroundColor: "#f8f3b5", color: "#111", border: "2px solid #111", padding: "9px 14px", fontWeight: 900, cursor: "pointer", height: "39px" },
