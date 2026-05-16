@@ -8,12 +8,14 @@ import {
   seedDemoStudents,
   updateStudent,
 } from "../services/studentApi";
+import { fetchStudentGroups } from "../services/studentGroupApi";
 
 const initialForm = {
   student_code: "",
   first_name: "",
   last_name: "",
   email: "",
+  group_id: "",
   group_name: "",
   education_center: "",
   status: "active",
@@ -33,6 +35,7 @@ function buildPayload(form) {
     first_name: form.first_name,
     last_name: form.last_name,
     email: form.email || null,
+    group_id: form.group_id ? Number(form.group_id) : null,
     group_name: form.group_name || null,
     education_center: form.education_center || null,
     status: form.status,
@@ -47,9 +50,10 @@ function normalizeText(value) {
 
 export default function StudentsPage() {
   const [students, setStudents] = useState([]);
+  const [groups, setGroups] = useState([]);
   const [form, setForm] = useState(initialForm);
   const [editingId, setEditingId] = useState(null);
-  const [filters, setFilters] = useState({ search: "", group_name: "", status: "" });
+  const [filters, setFilters] = useState({ search: "", group_id: "", status: "" });
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState("");
@@ -68,17 +72,14 @@ export default function StudentsPage() {
     );
   }, [students]);
 
-  const groupOptions = useMemo(() => {
-    return [...new Set(students.map((student) => student.group_name).filter(Boolean))].sort();
-  }, [students]);
-
   const filteredStudents = useMemo(() => {
     const search = normalizeText(filters.search);
     return students.filter((student) => {
-      const fullText = normalizeText(`${student.student_code} ${student.full_name} ${student.email} ${student.education_center}`);
+      const groupName = student.group_display_name || student.group_name || "";
+      const fullText = normalizeText(`${student.student_code} ${student.full_name} ${student.email} ${groupName} ${student.education_center}`);
       return (
         (!search || fullText.includes(search)) &&
-        (!filters.group_name || student.group_name === filters.group_name) &&
+        (!filters.group_id || Number(student.group_id) === Number(filters.group_id)) &&
         (!filters.status || student.status === filters.status)
       );
     });
@@ -87,8 +88,13 @@ export default function StudentsPage() {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [studentsData, nextCodeData] = await Promise.all([fetchStudents(), fetchNextStudentCode()]);
+      const [studentsData, groupsData, nextCodeData] = await Promise.all([
+        fetchStudents(),
+        fetchStudentGroups(),
+        fetchNextStudentCode(),
+      ]);
       setStudents(studentsData);
+      setGroups(groupsData);
       if (!editingId) setForm((prev) => ({ ...prev, student_code: nextCodeData.student_code }));
     } catch (err) {
       setError(err.message || "Error cargando alumnos");
@@ -103,6 +109,18 @@ export default function StudentsPage() {
 
   const handleChange = (event) => {
     const { name, value } = event.target;
+
+    if (name === "group_id") {
+      const selectedGroup = groups.find((group) => Number(group.id) === Number(value));
+      setForm((prev) => ({
+        ...prev,
+        group_id: value,
+        group_name: selectedGroup?.name || "",
+        education_center: selectedGroup?.education_center || prev.education_center,
+      }));
+      return;
+    }
+
     setForm((prev) => ({ ...prev, [name]: value }));
   };
 
@@ -147,7 +165,8 @@ export default function StudentsPage() {
       first_name: student.first_name || "",
       last_name: student.last_name || "",
       email: student.email || "",
-      group_name: student.group_name || "",
+      group_id: student.group_id || "",
+      group_name: student.group_display_name || student.group_name || "",
       education_center: student.education_center || "",
       status: student.status || "active",
       notes: student.notes || "",
@@ -201,7 +220,7 @@ export default function StudentsPage() {
           <div style={styles.cardHeader}>
             <div>
               <h2 style={styles.cardTitle}>{editingId ? "Editar alumno" : "Crear alumno"}</h2>
-              <p style={styles.cardSubtitle}>Alta básica de alumnos para la parte docente.</p>
+              <p style={styles.cardSubtitle}>Alta básica de alumnos con asignación real a grupos docentes.</p>
             </div>
             <button type="button" style={styles.secondaryButton} onClick={handleSeedDemo} disabled={submitting}>Cargar demo</button>
           </div>
@@ -212,7 +231,7 @@ export default function StudentsPage() {
             <label style={styles.field}>Nombre<input name="first_name" value={form.first_name} onChange={handleChange} required style={styles.input} /></label>
             <label style={styles.field}>Apellidos<input name="last_name" value={form.last_name} onChange={handleChange} required style={styles.input} /></label>
             <label style={styles.field}>Email<input name="email" value={form.email} onChange={handleChange} style={styles.input} /></label>
-            <label style={styles.field}>Grupo<input name="group_name" value={form.group_name} onChange={handleChange} style={styles.input} /></label>
+            <label style={styles.field}>Grupo<select name="group_id" value={form.group_id} onChange={handleChange} style={styles.input}><option value="">Sin grupo</option>{groups.map((group) => <option key={group.id} value={group.id}>{group.name}</option>)}</select></label>
             <label style={styles.fieldWide}>Centro educativo<input name="education_center" value={form.education_center} onChange={handleChange} style={styles.input} /></label>
           </div>
 
@@ -226,8 +245,8 @@ export default function StudentsPage() {
 
         <div style={styles.card}>
           <h2 style={styles.cardTitle}>Filtros</h2>
-          <label style={styles.field}>Buscar<input name="search" value={filters.search} onChange={handleFilterChange} placeholder="Nombre, email, código o centro" style={styles.input} /></label>
-          <label style={styles.field}>Grupo<select name="group_name" value={filters.group_name} onChange={handleFilterChange} style={styles.input}><option value="">Todos</option>{groupOptions.map((group) => <option key={group} value={group}>{group}</option>)}</select></label>
+          <label style={styles.field}>Buscar<input name="search" value={filters.search} onChange={handleFilterChange} placeholder="Nombre, email, código, grupo o centro" style={styles.input} /></label>
+          <label style={styles.field}>Grupo<select name="group_id" value={filters.group_id} onChange={handleFilterChange} style={styles.input}><option value="">Todos</option>{groups.map((group) => <option key={group.id} value={group.id}>{group.name}</option>)}</select></label>
           <label style={styles.field}>Estado<select name="status" value={filters.status} onChange={handleFilterChange} style={styles.input}><option value="">Todos</option>{Object.entries(statusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
         </div>
       </section>
@@ -246,7 +265,7 @@ export default function StudentsPage() {
                   <td style={styles.td}><strong>{student.student_code || student.id}</strong></td>
                   <td style={styles.td}>{student.full_name}</td>
                   <td style={styles.td}>{student.email || "-"}</td>
-                  <td style={styles.td}>{student.group_name || "-"}</td>
+                  <td style={styles.td}>{student.group_display_name || student.group_name || "Sin grupo"}</td>
                   <td style={styles.td}>{student.education_center || "-"}</td>
                   <td style={styles.td}>{statusLabels[student.status] || student.status}</td>
                   <td style={styles.tdActions}><button type="button" style={styles.smallButton} onClick={() => handleEdit(student)}>Editar</button><button type="button" style={styles.linkButton} onClick={() => handleDelete(student.id)}>Desactivar</button></td>
