@@ -20,12 +20,23 @@ const SEVERITY_LABELS = {
 
 const QUICK_FILTERS = [
   { id: "all", label: "Todas" },
+  { id: "urgent", label: "Urgentes" },
   { id: "critical", label: "Críticas" },
   { id: "high", label: "Alta prioridad" },
   { id: "due7", label: "Próximos 7 días" },
   { id: "overdue", label: "Vencidas" },
   { id: "documents", label: "Documentales" },
+  { id: "incomplete", label: "Expedientes incompletos" },
 ];
+
+const SORT_OPTIONS = {
+  priority: "Prioridad",
+  deadline: "Plazo",
+  employee: "Trabajador",
+  company: "Empresa",
+};
+
+const SEVERITY_ORDER = { critical: 0, high: 1, medium: 2, low: 3 };
 
 function normalizeText(value) {
   return String(value || "")
@@ -40,6 +51,17 @@ function formatDate(value) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "—";
   return date.toLocaleDateString("es-ES");
+}
+
+function formatDateTime(value) {
+  if (!value) return "—";
+  return value.toLocaleString("es-ES", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 function formatDeadline(alert) {
@@ -111,6 +133,38 @@ function buildGroupedDocumentAlerts(alerts) {
     );
 }
 
+function sortAlerts(alerts, sortBy) {
+  const sorted = [...alerts];
+
+  if (sortBy === "deadline") {
+    return sorted.sort((a, b) => {
+      const aValue = typeof a.dueDays === "number" ? a.dueDays : Number.POSITIVE_INFINITY;
+      const bValue = typeof b.dueDays === "number" ? b.dueDays : Number.POSITIVE_INFINITY;
+      return aValue - bValue;
+    });
+  }
+
+  if (sortBy === "employee") {
+    return sorted.sort((a, b) => String(a.employeeName || "").localeCompare(String(b.employeeName || ""), "es"));
+  }
+
+  if (sortBy === "company") {
+    return sorted.sort((a, b) => String(a.companyName || "").localeCompare(String(b.companyName || ""), "es"));
+  }
+
+  return sorted.sort((a, b) => {
+    const severityDiff = (SEVERITY_ORDER[a.severity] ?? 9) - (SEVERITY_ORDER[b.severity] ?? 9);
+    if (severityDiff !== 0) return severityDiff;
+    const aDays = typeof a.dueDays === "number" ? a.dueDays : Number.POSITIVE_INFINITY;
+    const bDays = typeof b.dueDays === "number" ? b.dueDays : Number.POSITIVE_INFINITY;
+    return aDays - bDays;
+  });
+}
+
+function getUniqueSorted(values) {
+  return Array.from(new Set(values.filter(Boolean))).sort((a, b) => String(a).localeCompare(String(b), "es"));
+}
+
 export default function AlertsPage({
   documents = [],
   contracts = [],
@@ -121,10 +175,14 @@ export default function AlertsPage({
   workCenters = [],
   onOpenEmployeeRecord,
 }) {
+  const [updatedAt] = useState(() => new Date());
   const [filters, setFilters] = useState({
     search: "",
     source: "",
     severity: "",
+    company: "",
+    center: "",
+    sortBy: "priority",
     quick: "all",
   });
 
@@ -145,27 +203,36 @@ export default function AlertsPage({
   );
 
   const stats = useMemo(() => getAlertStats(alerts), [alerts]);
+  const urgentCount = stats.critical + stats.high + stats.due7 + stats.overdue;
+  const companyOptions = useMemo(() => getUniqueSorted(alerts.map((alert) => alert.companyName)), [alerts]);
+  const centerOptions = useMemo(() => getUniqueSorted(alerts.map((alert) => alert.centerName)), [alerts]);
 
   const filteredAlerts = useMemo(() => {
     const search = normalizeText(filters.search);
 
-    return alerts.filter((alert) => {
+    const filtered = alerts.filter((alert) => {
       const alertText = normalizeText(
         `${alert.title} ${alert.description} ${alert.employeeName} ${alert.companyName} ${alert.centerName}`
       );
       const matchesSearch = !search || alertText.includes(search);
       const matchesSource = !filters.source || alert.source === filters.source;
       const matchesSeverity = !filters.severity || alert.severity === filters.severity;
+      const matchesCompany = !filters.company || alert.companyName === filters.company;
+      const matchesCenter = !filters.center || alert.centerName === filters.center;
       const matchesQuick =
         filters.quick === "all" ||
+        (filters.quick === "urgent" && (alert.severity === "critical" || alert.severity === "high" || (typeof alert.dueDays === "number" && alert.dueDays <= 7))) ||
         (filters.quick === "critical" && alert.severity === "critical") ||
         (filters.quick === "high" && alert.severity === "high") ||
         (filters.quick === "due7" && typeof alert.dueDays === "number" && alert.dueDays >= 0 && alert.dueDays <= 7) ||
         (filters.quick === "overdue" && typeof alert.dueDays === "number" && alert.dueDays < 0) ||
-        (filters.quick === "documents" && alert.source === "document");
+        (filters.quick === "documents" && alert.source === "document") ||
+        (filters.quick === "incomplete" && alert.isGroupedDocumentAlert);
 
-      return matchesSearch && matchesSource && matchesSeverity && matchesQuick;
+      return matchesSearch && matchesSource && matchesSeverity && matchesCompany && matchesCenter && matchesQuick;
     });
+
+    return sortAlerts(filtered, filters.sortBy);
   }, [alerts, filters]);
 
   const filteredStats = useMemo(() => getAlertStats(filteredAlerts), [filteredAlerts]);
@@ -180,7 +247,7 @@ export default function AlertsPage({
   };
 
   const clearFilters = () => {
-    setFilters({ search: "", source: "", severity: "", quick: "all" });
+    setFilters({ search: "", source: "", severity: "", company: "", center: "", sortBy: "priority", quick: "all" });
   };
 
   const exportFilteredAlerts = () => {
@@ -213,12 +280,12 @@ export default function AlertsPage({
         <button type="button" style={styles.kpiCardCritical} onClick={() => setQuickFilter("critical")}>
           <p style={styles.kpiLabel}>Críticas</p>
           <strong style={styles.kpiValue}>{stats.critical}</strong>
-          <span style={styles.kpiHint}>Revisión inmediata</span>
+          <span style={styles.kpiHint}>{stats.critical === 0 ? "Sin alertas críticas activas" : "Revisión inmediata"}</span>
         </button>
-        <button type="button" style={styles.kpiCardHigh} onClick={() => setQuickFilter("high")}>
-          <p style={styles.kpiLabel}>Alta prioridad</p>
-          <strong style={styles.kpiValue}>{stats.high}</strong>
-          <span style={styles.kpiHint}>Seguimiento próximo</span>
+        <button type="button" style={styles.kpiCardHigh} onClick={() => setQuickFilter("urgent")}>
+          <p style={styles.kpiLabel}>Urgentes</p>
+          <strong style={styles.kpiValue}>{urgentCount}</strong>
+          <span style={styles.kpiHint}>Críticas, altas y plazos próximos</span>
         </button>
         <button type="button" style={styles.kpiCardDue} onClick={() => setQuickFilter("due7")}>
           <p style={styles.kpiLabel}>Próximos 7 días</p>
@@ -226,6 +293,10 @@ export default function AlertsPage({
           <span style={styles.kpiHint}>Plazos inmediatos</span>
         </button>
       </div>
+
+      {stats.critical === 0 && (
+        <div style={styles.positiveStatus}>Sin alertas críticas activas. El panel laboral no detecta vencimientos críticos pendientes.</div>
+      )}
 
       <div style={styles.quickFilters}>
         {QUICK_FILTERS.map((filter) => (
@@ -248,7 +319,7 @@ export default function AlertsPage({
       </div>
 
       <PageCard
-        title="Centro de alertas"
+        title="Centro de alertas laborales"
         subtitle="Alertas generadas automáticamente desde documentos, contratos, incidencias y nóminas."
       >
         <div style={styles.toolbar}>
@@ -286,18 +357,38 @@ export default function AlertsPage({
               </select>
             </div>
 
-            <button type="button" onClick={clearFilters} style={styles.clearButton}>
-              Limpiar
-            </button>
+            <div style={styles.filterGroup}>
+              <label style={styles.label}>Empresa</label>
+              <select name="company" value={filters.company} onChange={handleFilterChange} style={styles.input}>
+                <option value="">Todas</option>
+                {companyOptions.map((company) => <option key={company} value={company}>{company}</option>)}
+              </select>
+            </div>
+
+            <div style={styles.filterGroup}>
+              <label style={styles.label}>Centro</label>
+              <select name="center" value={filters.center} onChange={handleFilterChange} style={styles.input}>
+                <option value="">Todos</option>
+                {centerOptions.map((center) => <option key={center} value={center}>{center}</option>)}
+              </select>
+            </div>
+
+            <div style={styles.filterGroup}>
+              <label style={styles.label}>Ordenar por</label>
+              <select name="sortBy" value={filters.sortBy} onChange={handleFilterChange} style={styles.input}>
+                {Object.entries(SORT_OPTIONS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+              </select>
+            </div>
+
+            <button type="button" onClick={clearFilters} style={styles.clearButton}>Limpiar</button>
           </div>
 
-          <button type="button" onClick={exportFilteredAlerts} style={styles.exportButton} disabled={filteredAlerts.length === 0}>
-            Exportar CSV
-          </button>
+          <button type="button" onClick={exportFilteredAlerts} style={styles.exportButton} disabled={filteredAlerts.length === 0}>Exportar CSV</button>
         </div>
 
-        <div style={styles.resultInfo}>
-          Mostrando {filteredAlerts.length} de {alerts.length} alertas
+        <div style={styles.resultInfoRow}>
+          <span>Mostrando {filteredAlerts.length} de {alerts.length} alertas · Orden: {SORT_OPTIONS[filters.sortBy]}</span>
+          <span>Última actualización: {formatDateTime(updatedAt)}</span>
         </div>
 
         <div style={styles.tableWrapper}>
@@ -316,19 +407,13 @@ export default function AlertsPage({
             <tbody>
               {filteredAlerts.length === 0 && (
                 <tr>
-                  <td colSpan="7" style={styles.emptyCell}>
-                    No hay alertas con los filtros actuales.
-                  </td>
+                  <td colSpan="7" style={styles.emptyCell}>No hay alertas con los filtros actuales.</td>
                 </tr>
               )}
 
               {filteredAlerts.map((alert) => (
                 <tr key={alert.id} style={styles.row}>
-                  <td style={styles.tdCompact}>
-                    <span style={{ ...styles.badge, ...getSeverityStyle(alert.severity) }}>
-                      {SEVERITY_LABELS[alert.severity] || alert.severity}
-                    </span>
-                  </td>
+                  <td style={styles.tdCompact}><span style={{ ...styles.badge, ...getSeverityStyle(alert.severity) }}>{SEVERITY_LABELS[alert.severity] || alert.severity}</span></td>
                   <td style={styles.tdCompact}>{SOURCE_LABELS[alert.source] || alert.source}</td>
                   <td style={styles.tdWide}>
                     <strong style={styles.alertTitle}>{alert.title}</strong>
@@ -336,23 +421,10 @@ export default function AlertsPage({
                     <span style={styles.status}>{alert.status}</span>
                   </td>
                   <td style={styles.td}>{alert.employeeName}</td>
-                  <td style={styles.td}>
-                    <strong>{alert.companyName}</strong>
-                    <p style={styles.centerName}>{alert.centerName}</p>
-                  </td>
+                  <td style={styles.td}><strong>{alert.companyName}</strong><p style={styles.centerName}>{alert.centerName}</p></td>
+                  <td style={styles.tdCompact}><span style={{ ...styles.deadlineBadge, ...getDeadlineStyle(alert) }}>{formatDeadline(alert)}</span><p style={styles.deadlineDate}>{formatDate(alert.dueDate)}</p></td>
                   <td style={styles.tdCompact}>
-                    <span style={{ ...styles.deadlineBadge, ...getDeadlineStyle(alert) }}>{formatDeadline(alert)}</span>
-                    <p style={styles.deadlineDate}>{formatDate(alert.dueDate)}</p>
-                  </td>
-                  <td style={styles.tdCompact}>
-                    <button
-                      type="button"
-                      style={styles.recordButton}
-                      disabled={!alert.employeeId || !onOpenEmployeeRecord}
-                      onClick={() => onOpenEmployeeRecord?.(alert.employeeId)}
-                    >
-                      {getActionLabel(alert.source)}
-                    </button>
+                    <button type="button" style={styles.recordButton} disabled={!alert.employeeId || !onOpenEmployeeRecord} onClick={() => onOpenEmployeeRecord?.(alert.employeeId)}>{getActionLabel(alert.source)}</button>
                   </td>
                 </tr>
               ))}
@@ -374,20 +446,21 @@ const styles = {
   kpiLabel: { margin: 0, color: "#4b5563", fontSize: "12px", fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.06em" },
   kpiValue: { display: "block", marginTop: "8px", color: "#111827", fontSize: "32px", lineHeight: 1, fontWeight: 900 },
   kpiHint: { display: "block", marginTop: "7px", color: "#6b7280", fontSize: "12px", fontWeight: 800 },
+  positiveStatus: { border: "1px solid #86efac", backgroundColor: "#dcfce7", color: "#166534", padding: "10px 12px", fontSize: "13px", fontWeight: 900 },
   quickFilters: { display: "flex", flexWrap: "wrap", gap: "8px" },
   quickFilter: { backgroundColor: "#ffffff", color: "#111827", border: "1px solid #d1d5db", borderRadius: "999px", padding: "8px 12px", cursor: "pointer", fontWeight: 900, fontSize: "12px", textTransform: "uppercase" },
   quickFilterActive: { backgroundColor: "#111827", color: "#ffffff", borderColor: "#111827" },
   summaryGrid: { display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: "10px" },
   summaryItem: { border: "1px solid #d1d5db", backgroundColor: "#f9fafb", padding: "10px 12px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: "10px", fontSize: "13px", fontWeight: 850, color: "#374151", cursor: "pointer" },
   toolbar: { display: "flex", alignItems: "end", justifyContent: "space-between", gap: "14px", marginBottom: "12px" },
-  filters: { flex: 1, display: "grid", gridTemplateColumns: "minmax(260px, 1fr) 160px 150px 92px", gap: "10px", alignItems: "end" },
+  filters: { flex: 1, display: "grid", gridTemplateColumns: "minmax(240px, 1.3fr) 140px 130px 150px 150px 140px 92px", gap: "10px", alignItems: "end" },
   searchGroup: { display: "flex", flexDirection: "column", gap: "5px", minWidth: 0 },
   filterGroup: { display: "flex", flexDirection: "column", gap: "5px", minWidth: 0 },
   label: { fontSize: "13px", fontWeight: 800, color: "#374151" },
   input: { width: "100%", height: "36px", boxSizing: "border-box", padding: "7px 9px", border: "1px solid #cbd5e1", borderRadius: "7px", fontSize: "13px" },
   clearButton: { width: "92px", height: "36px", backgroundColor: "#f3f4f6", color: "#111827", border: "1px solid #d1d5db", borderRadius: "7px", padding: "7px 8px", cursor: "pointer", fontWeight: 900, fontSize: "12px", textTransform: "uppercase" },
   exportButton: { height: "36px", backgroundColor: "#111827", color: "#ffffff", border: "1px solid #111827", borderRadius: "7px", padding: "7px 12px", cursor: "pointer", fontWeight: 900, fontSize: "12px", textTransform: "uppercase", whiteSpace: "nowrap" },
-  resultInfo: { marginBottom: "14px", color: "#6b7280", fontSize: "13px", fontWeight: 800 },
+  resultInfoRow: { marginBottom: "14px", color: "#6b7280", fontSize: "13px", fontWeight: 800, display: "flex", justifyContent: "space-between", gap: "14px", flexWrap: "wrap" },
   tableWrapper: { overflowX: "auto", border: "1px solid #e5e7eb", borderRadius: "10px" },
   table: { width: "100%", borderCollapse: "separate", borderSpacing: 0, fontSize: "13px" },
   th: { backgroundColor: "#f9fafb", color: "#111827", borderBottom: "1px solid #e5e7eb", padding: "10px 12px", textAlign: "left", fontSize: "12px", fontWeight: 900, textTransform: "uppercase" },
