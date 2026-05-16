@@ -1,15 +1,16 @@
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, field_validator, model_validator
 
 
 CORRECTION_STATUSES = {"pending_review", "reviewed", "approved", "needs_revision"}
 
 
 class CorrectionBase(BaseModel):
-    case_study_id: int
-    student_name: str
+    assignment_id: Optional[int] = None
+    case_study_id: Optional[int] = None
+    student_name: Optional[str] = None
     student_group: Optional[str] = None
     status: str = "pending_review"
     grade: Optional[float] = None
@@ -30,12 +31,19 @@ class CorrectionBase(BaseModel):
             raise ValueError("La nota debe estar entre 0 y 10")
         return value
 
+    @model_validator(mode="after")
+    def validate_source(self):
+        if not self.assignment_id and not self.case_study_id:
+            raise ValueError("La correccion debe estar vinculada a una asignacion o a un caso heredado")
+        return self
+
 
 class CorrectionCreate(CorrectionBase):
     pass
 
 
 class CorrectionUpdate(BaseModel):
+    assignment_id: Optional[int] = None
     case_study_id: Optional[int] = None
     student_name: Optional[str] = None
     student_group: Optional[str] = None
@@ -62,6 +70,9 @@ class CorrectionUpdate(BaseModel):
 class CorrectionResponse(CorrectionBase):
     id: int
     case_title: Optional[str] = None
+    assignee_name: Optional[str] = None
+    assignee_type: Optional[str] = None
+    assignment_status: Optional[str] = None
     submitted_at: datetime
     reviewed_at: Optional[datetime] = None
     created_at: datetime
