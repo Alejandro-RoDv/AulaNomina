@@ -1,6 +1,7 @@
 from datetime import datetime
 
 from sqlalchemy import Boolean, Column, DateTime, Integer, String, Text
+from sqlalchemy.orm import relationship
 
 from app.db import Base
 
@@ -18,3 +19,9 @@ class StudentGroup(Base):
     notes = Column(Text, nullable=True)
     is_active = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+    students = relationship("Student", back_populates="group")
+
+    @property
+    def student_count(self):
+        return len([student for student in self.students if student.is_active])
