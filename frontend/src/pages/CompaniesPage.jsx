@@ -2,6 +2,7 @@ import PageCard from "../components/layout/PageCard";
 import CompanyTable from "../components/CompanyTable";
 import WorkCenterTable from "../components/workCenters/WorkCenterTable";
 import CompanyCenterForm from "../components/companyCenters/CompanyCenterForm";
+import { openReportPreset } from "../utils/reportShortcuts";
 
 export default function CompaniesPage({
   loading,
@@ -33,6 +34,10 @@ export default function CompaniesPage({
         title="Empresas"
         subtitle="Empresas registradas actualmente en AulaNomina."
       >
+        <div style={styles.reportActions}>
+          <button type="button" style={styles.reportButton} onClick={() => openReportPreset({ category: "company", reportId: "companies-active" })}>Informe empresas activas</button>
+          <button type="button" style={styles.reportButtonSecondary} onClick={() => openReportPreset({ category: "company", reportId: "centers-ccc" })}>Informe centros / CCC</button>
+        </div>
         <CompanyTable
           loading={loading}
           companies={companies}
@@ -65,4 +70,7 @@ const styles = {
     flexDirection: "column",
     gap: "20px",
   },
+  reportActions: { display: "flex", gap: "10px", justifyContent: "flex-end", marginBottom: "14px" },
+  reportButton: { backgroundColor: "#111827", color: "#fff", border: "1px solid #111827", borderRadius: "7px", padding: "9px 12px", cursor: "pointer", fontWeight: 900 },
+  reportButtonSecondary: { backgroundColor: "#fff", color: "#111827", border: "1px solid #d1d5db", borderRadius: "7px", padding: "9px 12px", cursor: "pointer", fontWeight: 900 },
 };
