@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import ReportsPage from "../../pages/ReportsPage";
 import { fetchContracts } from "../../services/api";
 import { fetchCompanies } from "../../services/companyApi";
+import { fetchDocuments } from "../../services/documentApi";
 import { fetchAllEmployees } from "../../services/employeeApi";
 import { fetchIncidents } from "../../services/incidentApi";
 import { fetchPayrolls } from "../../services/payrollApi";
@@ -23,6 +24,7 @@ export default function ReportsRoute() {
     contracts: [],
     incidents: [],
     payrolls: [],
+    documents: [],
   });
 
   useEffect(() => {
@@ -44,16 +46,17 @@ export default function ReportsRoute() {
       try {
         setLoading(true);
         setError("");
-        const [contracts, employees, companies, workCenters, incidents, payrolls] = await Promise.all([
+        const [contracts, employees, companies, workCenters, incidents, payrolls, documents] = await Promise.all([
           fetchContracts(),
           fetchAllEmployees(),
           fetchCompanies(),
           fetchWorkCenters(),
           fetchIncidents(),
           fetchPayrolls(),
+          fetchDocuments(),
         ]);
 
-        setData({ contracts, employees, companies, workCenters, incidents, payrolls });
+        setData({ contracts, employees, companies, workCenters, incidents, payrolls, documents });
       } catch (err) {
         setError(err.message || "Error cargando informes");
       } finally {
