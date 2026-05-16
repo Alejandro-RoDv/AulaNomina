@@ -35,8 +35,9 @@ export default function Sidebar({ activePage, setActivePage }) {
       title: "Docencia",
       separator: true,
       items: [
+        { id: "teacher-dashboard", label: "Panel profesor", enabled: true },
         { id: "case-studies", label: "Casos prácticos", enabled: true },
-        { id: "assignments", label: "Asignaciones", enabled: true },
+        { id: "assignments", label: "Asignar caso", enabled: true },
         { id: "corrections", label: "Correcciones", enabled: true },
         { id: "students", label: "Alumnos", enabled: true },
         { id: "groups", label: "Grupos", enabled: true },
@@ -45,7 +46,7 @@ export default function Sidebar({ activePage, setActivePage }) {
     },
   ];
 
-  const teachingPages = ["case-studies", "assignments", "corrections", "students", "groups", "progress"];
+  const teachingPages = ["teacher-dashboard", "case-studies", "assignments", "corrections", "students", "groups", "progress"];
   const teachingHashes = teachingPages.map((page) => `#${page}`);
 
   const handleNavClick = (item) => {
