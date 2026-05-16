@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import logo from "../../assets/aulanomina-logo.svg";
 
 const overlayPages = [
+  "alerts",
   "reports",
   "employee-admissions",
   "employees",
@@ -75,6 +76,7 @@ export default function Sidebar({ activePage, setActivePage }) {
         },
         { id: "contracts", label: "Contratos", enabled: true },
         { id: "documents", label: "Documentos", enabled: true },
+        { id: "alerts", label: "Alertas", enabled: true },
         { id: "reports", label: "Informes", enabled: true },
       ],
     },
