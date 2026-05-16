@@ -7,3 +7,4 @@ from app.models.incident import Incident
 from app.models.payroll import Payroll
 from app.models.document import Document
 from app.models.employee_assignment_history import EmployeeAssignmentHistory
+from app.models.case_study import CaseStudy, CaseTask
