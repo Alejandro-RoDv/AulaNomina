@@ -20,6 +20,17 @@ from app.crud.correction import (
     seed_demo_corrections,
     update_correction,
 )
+from app.crud.student import (
+    create_student,
+    get_next_student_code,
+    get_student,
+    get_student_by_code,
+    get_student_by_email,
+    get_students,
+    seed_demo_students,
+    soft_delete_student,
+    update_student,
+)
 from app.schemas.case_study import (
     CaseStudyCreate,
     CaseStudyResponse,
@@ -29,6 +40,7 @@ from app.schemas.case_study import (
     CaseTaskUpdate,
 )
 from app.schemas.correction import CorrectionCreate, CorrectionResponse, CorrectionUpdate
+from app.schemas.student import StudentCreate, StudentResponse, StudentUpdate
 
 router = APIRouter(tags=["teaching"])
 
@@ -53,9 +65,10 @@ def create_case_study_endpoint(case_study: CaseStudyCreate, db: Session = Depend
 
 @router.post("/case-studies/seed-demo")
 def seed_demo_case_studies_endpoint(db: Session = Depends(get_db)):
+    seed_demo_students(db)
     seed_demo_case_studies(db)
     seed_demo_corrections(db)
-    return {"ok": True, "message": "Casos practicos y correcciones demo cargados"}
+    return {"ok": True, "message": "Casos practicos, alumnos y correcciones demo cargados"}
 
 
 @router.get("/case-studies/{case_study_id}", response_model=CaseStudyResponse)
@@ -115,6 +128,7 @@ def create_correction_endpoint(correction: CorrectionCreate, db: Session = Depen
 
 @router.post("/corrections/seed-demo")
 def seed_demo_corrections_endpoint(db: Session = Depends(get_db)):
+    seed_demo_students(db)
     seed_demo_case_studies(db)
     seed_demo_corrections(db)
     return {"ok": True, "message": "Correcciones demo cargadas"}
@@ -134,3 +148,45 @@ def delete_correction_endpoint(correction_id: int, db: Session = Depends(get_db)
     if not deleted_correction:
         raise HTTPException(status_code=404, detail="Correccion no encontrada")
     return {"ok": True, "deleted_id": correction_id}
+
+
+@router.get("/students/next-code")
+def get_next_student_code_endpoint(db: Session = Depends(get_db)):
+    return {"student_code": get_next_student_code(db)}
+
+
+@router.get("/students", response_model=list[StudentResponse])
+def list_students(db: Session = Depends(get_db)):
+    return get_students(db)
+
+
+@router.post("/students", response_model=StudentResponse)
+def create_student_endpoint(student: StudentCreate, db: Session = Depends(get_db)):
+    if student.student_code and get_student_by_code(db, student.student_code):
+        raise HTTPException(status_code=400, detail="Ya existe un alumno con ese codigo")
+
+    if student.email and get_student_by_email(db, student.email):
+        raise HTTPException(status_code=400, detail="Ya existe un alumno con ese email")
+
+    return create_student(db, student)
+
+
+@router.post("/students/seed-demo")
+def seed_demo_students_endpoint(db: Session = Depends(get_db)):
+    seed_demo_students(db)
+    return {"ok": True, "message": "Alumnos demo cargados"}
+
+
+@router.put("/students/{student_id}", response_model=StudentResponse)
+def update_student_endpoint(student_id: int, student: StudentUpdate, db: Session = Depends(get_db)):
+    if not get_student(db, student_id):
+        raise HTTPException(status_code=404, detail="Alumno no encontrado")
+    return update_student(db, student_id, student)
+
+
+@router.delete("/students/{student_id}", response_model=StudentResponse)
+def delete_student_endpoint(student_id: int, db: Session = Depends(get_db)):
+    deleted_student = soft_delete_student(db, student_id)
+    if not deleted_student:
+        raise HTTPException(status_code=404, detail="Alumno no encontrado")
+    return deleted_student
