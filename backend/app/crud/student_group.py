@@ -1,5 +1,5 @@
 from fastapi import HTTPException
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app.models.student_group import StudentGroup
 from app.schemas.student_group import StudentGroupCreate, StudentGroupUpdate
@@ -29,20 +29,29 @@ def create_student_group(db: Session, group: StudentGroupCreate):
     db_group = StudentGroup(**group_data)
     db.add(db_group)
     db.commit()
-    db.refresh(db_group)
-    return db_group
+    return get_student_group(db, db_group.id)
 
 
 def get_student_groups(db: Session):
-    return db.query(StudentGroup).order_by(StudentGroup.created_at.desc()).all()
+    return (
+        db.query(StudentGroup)
+        .options(joinedload(StudentGroup.students))
+        .order_by(StudentGroup.created_at.desc())
+        .all()
+    )
 
 
 def get_student_group(db: Session, group_id: int):
-    return db.query(StudentGroup).filter(StudentGroup.id == group_id).first()
+    return (
+        db.query(StudentGroup)
+        .options(joinedload(StudentGroup.students))
+        .filter(StudentGroup.id == group_id)
+        .first()
+    )
 
 
 def update_student_group(db: Session, group_id: int, data: StudentGroupUpdate):
-    db_group = get_student_group(db, group_id)
+    db_group = db.query(StudentGroup).filter(StudentGroup.id == group_id).first()
     if not db_group:
         return None
 
@@ -57,20 +66,18 @@ def update_student_group(db: Session, group_id: int, data: StudentGroupUpdate):
         setattr(db_group, key, value)
 
     db.commit()
-    db.refresh(db_group)
-    return db_group
+    return get_student_group(db, group_id)
 
 
 def soft_delete_student_group(db: Session, group_id: int):
-    db_group = get_student_group(db, group_id)
+    db_group = db.query(StudentGroup).filter(StudentGroup.id == group_id).first()
     if not db_group:
         return None
 
     db_group.is_active = False
     db_group.status = "inactive"
     db.commit()
-    db.refresh(db_group)
-    return db_group
+    return get_student_group(db, group_id)
 
 
 def seed_demo_student_groups(db: Session):
