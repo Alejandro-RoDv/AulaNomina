@@ -17,7 +17,7 @@ export default function Sidebar({ activePage, setActivePage }) {
       title: "Docencia",
       items: [
         { id: "case-studies", label: "Casos prácticos", enabled: true },
-        { id: "corrections", label: "Correcciones", enabled: false },
+        { id: "corrections", label: "Correcciones", enabled: true },
         { id: "students", label: "Alumnos", enabled: false },
         { id: "groups", label: "Grupos", enabled: false },
         { id: "progress", label: "Progreso", enabled: false },
@@ -48,13 +48,13 @@ export default function Sidebar({ activePage, setActivePage }) {
 
     setActivePage(item.id);
 
-    if (item.id === "case-studies") {
-      window.location.hash = "case-studies";
+    if (item.id === "case-studies" || item.id === "corrections") {
+      window.location.hash = item.id;
       window.dispatchEvent(new Event("aulanomina-route-change"));
       return;
     }
 
-    if (window.location.hash === "#case-studies") {
+    if (window.location.hash === "#case-studies" || window.location.hash === "#corrections") {
       window.history.replaceState(null, "", window.location.pathname + window.location.search);
       window.dispatchEvent(new Event("aulanomina-route-change"));
     }
