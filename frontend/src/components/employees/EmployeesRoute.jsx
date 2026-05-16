@@ -61,7 +61,7 @@ function getRouteTitle(route) {
 function getRouteSubtitle(route) {
   if (route === "employee-admissions") return "Alta, baja y reactivación de trabajadores.";
   if (route === "employee-record") return "Vista ERP del expediente profesional del trabajador.";
-  return "Listado, edición y ficha básica de trabajadores.";
+  return "Listado y edición de trabajadores. El expediente completo se abre desde cada fila.";
 }
 
 export default function EmployeesRoute() {
@@ -181,6 +181,12 @@ export default function EmployeesRoute() {
     await handleUpdateEmployee(employee.id, { ...employee, is_active: true });
   };
 
+  const handleOpenRecord = (employee) => {
+    window.sessionStorage.setItem("aulanomina:selectedEmployeeId", String(employee.id));
+    window.location.hash = "employee-record";
+    window.dispatchEvent(new Event("aulanomina-route-change"));
+  };
+
   if (!route) return null;
 
   return (
@@ -223,6 +229,7 @@ export default function EmployeesRoute() {
             onEmployeeSubmit={handleEmployeeSubmit}
             onUpdateEmployee={handleUpdateEmployee}
             onDeleteEmployee={handleDeleteEmployee}
+            onOpenRecord={handleOpenRecord}
             employeeError={employeeError}
             employeeSuccess={employeeSuccess}
             employeeSubmitting={employeeSubmitting}
