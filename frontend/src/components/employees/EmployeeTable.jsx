@@ -3,6 +3,8 @@ import { getEmployeeVisibleCode } from "../../utils/visibleCodes";
 
 const emptyEditForm = {
   employee_code: "",
+  company_id: "",
+  center_id: "",
   dni: "",
   naf: "",
   first_name: "",
@@ -20,6 +22,8 @@ const emptyEditForm = {
 function toEditForm(employee) {
   return {
     employee_code: employee.employee_code || "",
+    company_id: employee.company_id ? String(employee.company_id) : "",
+    center_id: employee.center_id ? String(employee.center_id) : "",
     dni: employee.dni || "",
     naf: employee.naf || "",
     first_name: employee.first_name || "",
@@ -35,6 +39,10 @@ function toEditForm(employee) {
   };
 }
 
+function formatValue(value) {
+  return value || "-";
+}
+
 export default function EmployeeTable({
   loading,
   employees,
@@ -46,14 +54,19 @@ export default function EmployeeTable({
   onOpenRecord,
   submitting,
 }) {
-  const [editingEmployee, setEditingEmployee] = useState(null);
+  const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [employeeToDelete, setEmployeeToDelete] = useState(null);
+  const [editMode, setEditMode] = useState(false);
   const [editForm, setEditForm] = useState(emptyEditForm);
   const [editError, setEditError] = useState("");
   const [deleteError, setDeleteError] = useState("");
 
   const companyMap = useMemo(() => companies.reduce((acc, company) => ({ ...acc, [company.id]: company }), {}), [companies]);
   const centerMap = useMemo(() => workCenters.reduce((acc, center) => ({ ...acc, [center.id]: center }), {}), [workCenters]);
+
+  const availableCenters = useMemo(() => {
+    return workCenters.filter((center) => !editForm.company_id || String(center.company_id) === String(editForm.company_id));
+  }, [workCenters, editForm.company_id]);
 
   if (loading) return <p>Cargando...</p>;
 
@@ -73,30 +86,54 @@ export default function EmployeeTable({
     return activeContract?.center_name || centerMap[activeContract?.center_id]?.name || centerMap[employee.center_id]?.name || "-";
   };
 
-  const openEditModal = (employee) => {
-    setEditingEmployee(employee);
+  const openDetailsModal = (employee) => {
+    setSelectedEmployee(employee);
     setEditForm(toEditForm(employee));
+    setEditMode(false);
     setEditError("");
     setDeleteError("");
   };
 
-  const closeEditModal = () => {
-    setEditingEmployee(null);
+  const closeDetailsModal = () => {
+    setSelectedEmployee(null);
     setEditForm(emptyEditForm);
+    setEditMode(false);
     setEditError("");
+    setDeleteError("");
   };
 
   const handleEditChange = (event) => {
     const { name, value, type, checked } = event.target;
-    setEditForm((prev) => ({ ...prev, [name]: type === "checkbox" ? checked : value }));
+
+    setEditForm((prev) => {
+      if (name === "company_id") {
+        return { ...prev, company_id: value, center_id: "" };
+      }
+
+      return { ...prev, [name]: type === "checkbox" ? checked : value };
+    });
+  };
+
+  const handleCancelEdit = () => {
+    if (selectedEmployee) setEditForm(toEditForm(selectedEmployee));
+    setEditMode(false);
+    setEditError("");
   };
 
   const handleEditSubmit = async (event) => {
     event.preventDefault();
     setEditError("");
+
     try {
-      await onUpdateEmployee(editingEmployee.id, editForm);
-      closeEditModal();
+      await onUpdateEmployee(selectedEmployee.id, editForm);
+      const updatedEmployee = {
+        ...selectedEmployee,
+        ...editForm,
+        company_id: editForm.company_id ? Number(editForm.company_id) : null,
+        center_id: editForm.center_id ? Number(editForm.center_id) : null,
+      };
+      setSelectedEmployee(updatedEmployee);
+      setEditMode(false);
     } catch (err) {
       setEditError(err.message || "Error al actualizar trabajador");
     }
@@ -107,7 +144,7 @@ export default function EmployeeTable({
     try {
       await onDeleteEmployee(employeeToDelete.id);
       setEmployeeToDelete(null);
-      closeEditModal();
+      closeDetailsModal();
     } catch (err) {
       setDeleteError(err.message || "Error al desactivar trabajador");
     }
@@ -139,7 +176,6 @@ export default function EmployeeTable({
                 <th style={styles.th}>Nombre completo</th>
                 <th style={styles.th}>Empresa</th>
                 <th style={styles.th}>Centro</th>
-                <th style={styles.th}>Email</th>
                 <th style={styles.th}>Estado</th>
                 <th style={styles.th}>Acciones</th>
               </tr>
@@ -153,7 +189,6 @@ export default function EmployeeTable({
                   <td style={styles.td}>{employee.first_name} {employee.last_name}</td>
                   <td style={styles.td}>{getCompanyName(employee)}</td>
                   <td style={styles.td}>{getCenterName(employee)}</td>
-                  <td style={styles.td}>{employee.email || "-"}</td>
                   <td style={styles.td}>
                     <span style={employee.is_active ? styles.activeBadge : styles.inactiveBadge}>
                       {employee.is_active ? "Activo" : "Inactivo"}
@@ -162,7 +197,7 @@ export default function EmployeeTable({
                   <td style={styles.td}>
                     <div style={styles.actionGroup}>
                       <button type="button" style={styles.recordButton} onClick={() => handleOpenRecord(employee)}>Expediente</button>
-                      <button type="button" style={styles.editButton} onClick={() => openEditModal(employee)}>Editar</button>
+                      <button type="button" style={styles.detailsButton} onClick={() => openDetailsModal(employee)}>Detalles</button>
                     </div>
                   </td>
                 </tr>
@@ -172,95 +207,137 @@ export default function EmployeeTable({
         </div>
       )}
 
-      {editingEmployee && (
+      {selectedEmployee && (
         <div style={styles.modalBackdrop}>
           <div style={styles.modal}>
             <div style={styles.modalHeader}>
               <div>
-                <h3 style={styles.modalTitle}>Editar trabajador</h3>
-                <p style={styles.modalSubtitle}>{editingEmployee.first_name} {editingEmployee.last_name}</p>
+                <h3 style={styles.modalTitle}>Detalles del trabajador</h3>
+                <p style={styles.modalSubtitle}>{selectedEmployee.first_name} {selectedEmployee.last_name} · {selectedEmployee.dni || "Sin DNI"}</p>
               </div>
-              <button type="button" onClick={closeEditModal} style={styles.closeButton}>×</button>
+              <button type="button" onClick={closeDetailsModal} style={styles.closeButton}>×</button>
             </div>
 
-            <form onSubmit={handleEditSubmit} style={styles.form}>
-              <div style={styles.formRow}>
-                <div style={styles.formGroupCode}>
-                  <label>Código trabajador</label>
-                  <input name="employee_code" value={editForm.employee_code} readOnly disabled style={{ ...styles.input, ...styles.readOnlyInput }} />
+            {!editMode ? (
+              <div style={styles.detailsWrapper}>
+                <div style={styles.detailsGrid}>
+                  <div style={styles.detailBox}><span>Código</span><strong>{formatValue(selectedEmployee.employee_code)}</strong></div>
+                  <div style={styles.detailBox}><span>DNI</span><strong>{formatValue(selectedEmployee.dni)}</strong></div>
+                  <div style={styles.detailBox}><span>NAF</span><strong>{formatValue(selectedEmployee.naf)}</strong></div>
+                  <div style={styles.detailBox}><span>Estado</span><strong>{selectedEmployee.is_active ? "Activo" : "Inactivo"}</strong></div>
+                  <div style={styles.detailBox}><span>Nombre</span><strong>{formatValue(selectedEmployee.first_name)}</strong></div>
+                  <div style={styles.detailBox}><span>Apellidos</span><strong>{formatValue(selectedEmployee.last_name)}</strong></div>
+                  <div style={styles.detailBox}><span>Email</span><strong>{formatValue(selectedEmployee.email)}</strong></div>
+                  <div style={styles.detailBox}><span>Teléfono</span><strong>{formatValue(selectedEmployee.phone)}</strong></div>
+                  <div style={styles.detailBox}><span>Empresa</span><strong>{getCompanyName(selectedEmployee)}</strong></div>
+                  <div style={styles.detailBox}><span>Centro</span><strong>{getCenterName(selectedEmployee)}</strong></div>
+                  <div style={styles.detailBox}><span>Ciudad</span><strong>{formatValue(selectedEmployee.city)}</strong></div>
+                  <div style={styles.detailBox}><span>Provincia</span><strong>{formatValue(selectedEmployee.province)}</strong></div>
+                  <div style={styles.detailBoxWide}><span>Dirección</span><strong>{formatValue(selectedEmployee.address)}</strong></div>
                 </div>
-                <div style={styles.formGroupDni}>
-                  <label>DNI</label>
-                  <input name="dni" value={editForm.dni} onChange={handleEditChange} required style={styles.input} />
-                </div>
-                <div style={styles.formGroupNaf}>
-                  <label>NAF</label>
-                  <input name="naf" value={editForm.naf} onChange={handleEditChange} style={styles.input} />
+
+                <div style={styles.modalActionsSplit}>
+                  <button type="button" onClick={() => setEmployeeToDelete(selectedEmployee)} style={styles.deleteButton}>Eliminar trabajador</button>
+                  <div style={styles.modalActionsRight}>
+                    <button type="button" onClick={() => handleOpenRecord(selectedEmployee)} style={styles.recordButton}>Abrir expediente</button>
+                    <button type="button" onClick={() => setEditMode(true)} style={styles.saveButton}>Editar datos</button>
+                  </div>
                 </div>
               </div>
+            ) : (
+              <form onSubmit={handleEditSubmit} style={styles.form}>
+                <div style={styles.formRow}>
+                  <div style={styles.formGroupCode}>
+                    <label>Código trabajador</label>
+                    <input name="employee_code" value={editForm.employee_code} readOnly disabled style={{ ...styles.input, ...styles.readOnlyInput }} />
+                  </div>
+                  <div style={styles.formGroupDni}>
+                    <label>DNI</label>
+                    <input name="dni" value={editForm.dni} onChange={handleEditChange} required style={styles.input} />
+                  </div>
+                  <div style={styles.formGroupNaf}>
+                    <label>NAF</label>
+                    <input name="naf" value={editForm.naf} onChange={handleEditChange} style={styles.input} />
+                  </div>
+                </div>
 
-              <div style={styles.formRow}>
-                <div style={styles.formGroup}>
-                  <label>Nombre</label>
-                  <input name="first_name" value={editForm.first_name} onChange={handleEditChange} required style={styles.input} />
+                <div style={styles.formRow}>
+                  <div style={styles.formGroup}>
+                    <label>Nombre</label>
+                    <input name="first_name" value={editForm.first_name} onChange={handleEditChange} required style={styles.input} />
+                  </div>
+                  <div style={styles.formGroup}>
+                    <label>Apellidos</label>
+                    <input name="last_name" value={editForm.last_name} onChange={handleEditChange} required style={styles.input} />
+                  </div>
                 </div>
-                <div style={styles.formGroup}>
-                  <label>Apellidos</label>
-                  <input name="last_name" value={editForm.last_name} onChange={handleEditChange} required style={styles.input} />
-                </div>
-              </div>
 
-              <div style={styles.formRow}>
-                <div style={styles.formGroup}>
-                  <label>Email</label>
-                  <input name="email" type="email" value={editForm.email} onChange={handleEditChange} style={styles.input} />
+                <div style={styles.formRow}>
+                  <div style={styles.formGroup}>
+                    <label>Empresa</label>
+                    <select name="company_id" value={editForm.company_id} onChange={handleEditChange} style={styles.input}>
+                      <option value="">Sin empresa</option>
+                      {companies.map((company) => <option key={company.id} value={company.id}>{company.name}</option>)}
+                    </select>
+                  </div>
+                  <div style={styles.formGroup}>
+                    <label>Centro</label>
+                    <select name="center_id" value={editForm.center_id} onChange={handleEditChange} style={styles.input} disabled={!editForm.company_id}>
+                      <option value="">Sin centro</option>
+                      {availableCenters.map((center) => <option key={center.id} value={center.id}>{center.name}</option>)}
+                    </select>
+                  </div>
                 </div>
-                <div style={styles.formGroup}>
-                  <label>Teléfono</label>
-                  <input name="phone" value={editForm.phone} onChange={handleEditChange} style={styles.input} />
-                </div>
-                <div style={styles.formGroup}>
-                  <label>Fecha nacimiento</label>
-                  <input name="birth_date" type="date" value={editForm.birth_date} onChange={handleEditChange} style={styles.input} />
-                </div>
-              </div>
 
-              <div style={styles.formRow}>
-                <div style={styles.formGroupWide}>
-                  <label>Dirección</label>
-                  <input name="address" value={editForm.address} onChange={handleEditChange} style={styles.input} />
+                <div style={styles.formRow}>
+                  <div style={styles.formGroup}>
+                    <label>Email</label>
+                    <input name="email" type="email" value={editForm.email} onChange={handleEditChange} style={styles.input} />
+                  </div>
+                  <div style={styles.formGroup}>
+                    <label>Teléfono</label>
+                    <input name="phone" value={editForm.phone} onChange={handleEditChange} style={styles.input} />
+                  </div>
+                  <div style={styles.formGroup}>
+                    <label>Fecha nacimiento</label>
+                    <input name="birth_date" type="date" value={editForm.birth_date} onChange={handleEditChange} style={styles.input} />
+                  </div>
                 </div>
-              </div>
 
-              <div style={styles.formRow}>
-                <div style={styles.formGroup}>
-                  <label>Ciudad</label>
-                  <input name="city" value={editForm.city} onChange={handleEditChange} style={styles.input} />
+                <div style={styles.formRow}>
+                  <div style={styles.formGroupWide}>
+                    <label>Dirección</label>
+                    <input name="address" value={editForm.address} onChange={handleEditChange} style={styles.input} />
+                  </div>
                 </div>
-                <div style={styles.formGroup}>
-                  <label>Provincia</label>
-                  <input name="province" value={editForm.province} onChange={handleEditChange} style={styles.input} />
-                </div>
-                <div style={styles.formGroup}>
-                  <label>Código postal</label>
-                  <input name="postal_code" value={editForm.postal_code} onChange={handleEditChange} style={styles.input} />
-                </div>
-              </div>
 
-              <label style={styles.checkboxLabel}>
-                <input name="is_active" type="checkbox" checked={editForm.is_active} onChange={handleEditChange} />
-                Trabajador activo
-              </label>
+                <div style={styles.formRow}>
+                  <div style={styles.formGroup}>
+                    <label>Ciudad</label>
+                    <input name="city" value={editForm.city} onChange={handleEditChange} style={styles.input} />
+                  </div>
+                  <div style={styles.formGroup}>
+                    <label>Provincia</label>
+                    <input name="province" value={editForm.province} onChange={handleEditChange} style={styles.input} />
+                  </div>
+                  <div style={styles.formGroup}>
+                    <label>Código postal</label>
+                    <input name="postal_code" value={editForm.postal_code} onChange={handleEditChange} style={styles.input} />
+                  </div>
+                </div>
 
-              {editError && <div style={styles.error}>{editError}</div>}
-              <div style={styles.modalActionsSplit}>
-                <button type="button" onClick={() => setEmployeeToDelete(editingEmployee)} style={styles.deleteButton}>Eliminar trabajador</button>
+                <label style={styles.checkboxLabel}>
+                  <input name="is_active" type="checkbox" checked={editForm.is_active} onChange={handleEditChange} />
+                  Trabajador activo
+                </label>
+
+                {editError && <div style={styles.error}>{editError}</div>}
                 <div style={styles.modalActionsRight}>
-                  <button type="button" onClick={closeEditModal} style={styles.cancelButton}>Cancelar</button>
+                  <button type="button" onClick={handleCancelEdit} style={styles.cancelButton}>Cancelar</button>
                   <button type="submit" disabled={submitting} style={styles.saveButton}>{submitting ? "Guardando..." : "Guardar cambios"}</button>
                 </div>
-              </div>
-            </form>
+              </form>
+            )}
           </div>
         </div>
       )}
@@ -299,15 +376,19 @@ const styles = {
   activeBadge: { backgroundColor: "#dcfce7", color: "#166534", padding: "4px 8px", borderRadius: "999px", fontSize: "12px", fontWeight: 800 },
   inactiveBadge: { backgroundColor: "#fee2e2", color: "#991b1b", padding: "4px 8px", borderRadius: "999px", fontSize: "12px", fontWeight: 800 },
   recordButton: { backgroundColor: "#f8f3b5", color: "#111827", border: "1px solid #111827", borderRadius: "8px", padding: "7px 10px", cursor: "pointer", fontWeight: 800 },
-  editButton: { backgroundColor: "#111827", color: "#ffffff", border: "1px solid #111827", borderRadius: "8px", padding: "7px 10px", cursor: "pointer", fontWeight: 700 },
+  detailsButton: { backgroundColor: "#111827", color: "#ffffff", border: "1px solid #111827", borderRadius: "8px", padding: "7px 10px", cursor: "pointer", fontWeight: 800 },
   deleteButton: { backgroundColor: "#fee2e2", color: "#991b1b", border: "1px solid #fecaca", borderRadius: "8px", padding: "10px 14px", cursor: "pointer", fontWeight: 800 },
   modalBackdrop: { position: "fixed", inset: 0, backgroundColor: "rgba(17, 24, 39, 0.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, padding: "24px" },
-  modal: { width: "min(920px, 100%)", maxHeight: "90vh", overflowY: "auto", backgroundColor: "#ffffff", border: "3px solid #111111", borderRadius: "12px", boxShadow: "8px 8px 0 #e6d85c", padding: "22px" },
+  modal: { width: "min(960px, 100%)", maxHeight: "90vh", overflowY: "auto", backgroundColor: "#ffffff", border: "3px solid #111111", borderRadius: "12px", boxShadow: "8px 8px 0 #e6d85c", padding: "22px" },
   confirmModal: { width: "min(560px, 100%)", backgroundColor: "#ffffff", border: "3px solid #111111", borderRadius: "12px", boxShadow: "8px 8px 0 #e6d85c", padding: "22px" },
   modalHeader: { display: "flex", justifyContent: "space-between", alignItems: "start", gap: "16px", marginBottom: "18px", borderBottom: "1px solid #e5e7eb", paddingBottom: "14px" },
   modalTitle: { margin: 0, fontSize: "20px", fontWeight: 900, color: "#111827" },
   modalSubtitle: { margin: "4px 0 0", color: "#6b7280", fontSize: "13px", fontWeight: 700 },
   closeButton: { border: "none", backgroundColor: "transparent", fontSize: "28px", lineHeight: 1, cursor: "pointer", color: "#111827" },
+  detailsWrapper: { display: "flex", flexDirection: "column", gap: "16px" },
+  detailsGrid: { display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: "12px" },
+  detailBox: { border: "1px solid #e5e7eb", backgroundColor: "#f9fafb", borderRadius: "10px", padding: "12px", display: "flex", flexDirection: "column", gap: "4px", minWidth: 0 },
+  detailBoxWide: { border: "1px solid #e5e7eb", backgroundColor: "#f9fafb", borderRadius: "10px", padding: "12px", display: "flex", flexDirection: "column", gap: "4px", gridColumn: "1 / -1" },
   form: { display: "flex", flexDirection: "column", gap: "16px" },
   formRow: { display: "flex", gap: "16px", flexWrap: "wrap" },
   formGroup: { flex: 1, minWidth: "200px", display: "flex", flexDirection: "column", gap: "6px" },
@@ -322,7 +403,7 @@ const styles = {
   error: { backgroundColor: "#fee2e2", color: "#991b1b", padding: "10px 12px", borderRadius: "8px" },
   modalActions: { display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "6px" },
   modalActionsSplit: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: "10px", marginTop: "6px" },
-  modalActionsRight: { display: "flex", justifyContent: "flex-end", gap: "10px" },
+  modalActionsRight: { display: "flex", justifyContent: "flex-end", gap: "10px", flexWrap: "wrap" },
   cancelButton: { backgroundColor: "#f3f4f6", color: "#111827", border: "1px solid #d1d5db", borderRadius: "8px", padding: "10px 14px", cursor: "pointer", fontWeight: 800 },
   saveButton: { backgroundColor: "#111827", color: "#ffffff", border: "1px solid #111827", borderRadius: "8px", padding: "10px 14px", cursor: "pointer", fontWeight: 800 },
   dangerButton: { backgroundColor: "#991b1b", color: "#ffffff", border: "1px solid #991b1b", borderRadius: "8px", padding: "10px 14px", cursor: "pointer", fontWeight: 900 },
