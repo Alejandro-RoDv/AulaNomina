@@ -3,7 +3,6 @@ import { useMemo, useState } from "react";
 import PageCard from "../components/layout/PageCard";
 import EmployeeForm from "../components/employees/EmployeeForm";
 import EmployeeTable from "../components/employees/EmployeeTable";
-import EmployeeAssignmentPanel from "../components/employees/EmployeeAssignmentPanel";
 
 function normalizeText(value) {
   return String(value || "")
@@ -105,13 +104,6 @@ export default function EmployeesPage({
           onDeleteEmployee={onDeleteEmployee}
           onOpenRecord={onOpenRecord}
           submitting={employeeSubmitting}
-        />
-
-        <EmployeeAssignmentPanel
-          employees={filteredEmployees}
-          companies={companies}
-          workCenters={workCenters}
-          onUpdateEmployee={onUpdateEmployee}
         />
       </PageCard>
     </div>
