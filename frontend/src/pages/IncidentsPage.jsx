@@ -4,6 +4,7 @@ import PageCard from "../components/layout/PageCard";
 import IncidentForm, { INCIDENT_TYPES, STATUS_OPTIONS } from "../components/incidents/IncidentForm";
 import IncidentTable from "../components/incidents/IncidentTable";
 import { getEmployeeVisibleCode } from "../utils/visibleCodes";
+import { openReportPreset } from "../utils/reportShortcuts";
 
 function normalizeText(value) {
   return String(value || "")
@@ -77,6 +78,16 @@ export default function IncidentsPage({
     });
   };
 
+  const openIncidentsMonthReport = () => {
+    const today = new Date();
+    openReportPreset({
+      category: "incident",
+      reportId: "incidents-open",
+      year: String(today.getFullYear()),
+      month: String(today.getMonth() + 1).padStart(2, "0"),
+    });
+  };
+
   const filteredIncidents = useMemo(() => {
     const employeeFilter = normalizeText(filters.employee);
     const companyFilter = normalizeText(filters.company);
@@ -123,6 +134,11 @@ export default function IncidentsPage({
       </PageCard>
 
       <PageCard title="Listado de incidencias" subtitle="Histórico de incidencias laborales registradas en el sistema.">
+        <div style={styles.reportActions}>
+          <button type="button" style={styles.reportButton} onClick={openIncidentsMonthReport}>Informe incidencias del mes</button>
+          <button type="button" style={styles.reportButtonSecondary} onClick={() => openReportPreset({ category: "incident", reportId: "incidents-all" })}>Histórico de incidencias</button>
+        </div>
+
         <div style={styles.filters}>
           <div style={styles.filterGroupWide}>
             <label style={styles.label}>Trabajador</label>
@@ -222,6 +238,9 @@ const styles = {
     flexDirection: "column",
     gap: "20px",
   },
+  reportActions: { display: "flex", gap: "10px", justifyContent: "flex-end", marginBottom: "14px" },
+  reportButton: { backgroundColor: "#111827", color: "#fff", border: "1px solid #111827", borderRadius: "7px", padding: "9px 12px", cursor: "pointer", fontWeight: 900 },
+  reportButtonSecondary: { backgroundColor: "#fff", color: "#111827", border: "1px solid #d1d5db", borderRadius: "7px", padding: "9px 12px", cursor: "pointer", fontWeight: 900 },
   filters: {
     display: "grid",
     gridTemplateColumns: "minmax(170px, 1.1fr) minmax(170px, 1.1fr) minmax(150px, 0.8fr) 118px 132px 132px 86px",
