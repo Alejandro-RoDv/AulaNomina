@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 
 import logo from "../../assets/aulanomina-logo.svg";
 
-const teachingPages = [
+const overlayPages = [
+  "reports",
   "teacher-dashboard",
   "teaching-alerts",
   "case-studies",
@@ -14,23 +15,23 @@ const teachingPages = [
   "progress",
 ];
 
-const teachingHashes = teachingPages.map((page) => `#${page}`);
+const overlayHashes = overlayPages.map((page) => `#${page}`);
 
-function getTeachingPageFromHash() {
+function getOverlayPageFromHash() {
   const page = window.location.hash.replace("#", "");
-  return teachingPages.includes(page) ? page : null;
+  return overlayPages.includes(page) ? page : null;
 }
 
 export default function Sidebar({ activePage, setActivePage }) {
-  const [hashActivePage, setHashActivePage] = useState(getTeachingPageFromHash());
+  const [hashActivePage, setHashActivePage] = useState(getOverlayPageFromHash());
 
   useEffect(() => {
     const syncActivePageFromHash = () => {
-      const teachingPage = getTeachingPageFromHash();
-      setHashActivePage(teachingPage);
+      const overlayPage = getOverlayPageFromHash();
+      setHashActivePage(overlayPage);
 
-      if (teachingPage) {
-        setActivePage(teachingPage);
+      if (overlayPage) {
+        setActivePage(overlayPage);
       }
     };
 
@@ -99,7 +100,7 @@ export default function Sidebar({ activePage, setActivePage }) {
 
     setActivePage(item.id);
 
-    if (teachingPages.includes(item.id)) {
+    if (overlayPages.includes(item.id)) {
       setHashActivePage(item.id);
       window.location.hash = item.id;
       window.dispatchEvent(new Event("aulanomina-route-change"));
@@ -108,7 +109,7 @@ export default function Sidebar({ activePage, setActivePage }) {
 
     setHashActivePage(null);
 
-    if (teachingHashes.includes(window.location.hash)) {
+    if (overlayHashes.includes(window.location.hash)) {
       window.history.replaceState(null, "", window.location.pathname + window.location.search);
       window.dispatchEvent(new Event("aulanomina-route-change"));
     }
