@@ -36,9 +36,11 @@ export default function Sidebar({ activePage, setActivePage }) {
       separator: true,
       items: [
         { id: "teacher-dashboard", label: "Panel profesor", enabled: true },
+        { id: "teaching-alerts", label: "Alertas", enabled: true },
         { id: "case-studies", label: "Casos prácticos", enabled: true },
         { id: "assignments", label: "Asignar caso", enabled: true },
         { id: "corrections", label: "Correcciones", enabled: true },
+        { id: "student-demo", label: "Vista alumno", enabled: true },
         { id: "students", label: "Alumnos", enabled: true },
         { id: "groups", label: "Grupos", enabled: true },
         { id: "progress", label: "Progreso", enabled: true },
@@ -46,7 +48,17 @@ export default function Sidebar({ activePage, setActivePage }) {
     },
   ];
 
-  const teachingPages = ["teacher-dashboard", "case-studies", "assignments", "corrections", "students", "groups", "progress"];
+  const teachingPages = [
+    "teacher-dashboard",
+    "teaching-alerts",
+    "case-studies",
+    "assignments",
+    "corrections",
+    "student-demo",
+    "students",
+    "groups",
+    "progress",
+  ];
   const teachingHashes = teachingPages.map((page) => `#${page}`);
 
   const handleNavClick = (item) => {
