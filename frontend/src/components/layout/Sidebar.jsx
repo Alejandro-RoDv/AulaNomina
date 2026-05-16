@@ -16,6 +16,7 @@ export default function Sidebar({ activePage, setActivePage }) {
     {
       title: "Acciones",
       items: [
+        { id: "case-studies", label: "Casos prácticos", enabled: true },
         { id: "payrolls", label: "Cálculo nóminas", enabled: true },
         { id: "irpf", label: "IRPF", enabled: false },
         { id: "tax", label: "Mod. 111/190", enabled: false },
