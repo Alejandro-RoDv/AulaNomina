@@ -11,3 +11,4 @@ from app.models.case_study import CaseStudy, CaseTask
 from app.models.correction import Correction
 from app.models.student import Student
 from app.models.student_group import StudentGroup
+from app.models.case_assignment import CaseAssignment
