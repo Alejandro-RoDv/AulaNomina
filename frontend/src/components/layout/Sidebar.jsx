@@ -14,9 +14,18 @@ export default function Sidebar({ activePage, setActivePage }) {
       ],
     },
     {
-      title: "Acciones",
+      title: "Docencia",
       items: [
         { id: "case-studies", label: "Casos prácticos", enabled: true },
+        { id: "corrections", label: "Correcciones", enabled: false },
+        { id: "students", label: "Alumnos", enabled: false },
+        { id: "groups", label: "Grupos", enabled: false },
+        { id: "progress", label: "Progreso", enabled: false },
+      ],
+    },
+    {
+      title: "Acciones",
+      items: [
         { id: "payrolls", label: "Cálculo nóminas", enabled: true },
         { id: "irpf", label: "IRPF", enabled: false },
         { id: "tax", label: "Mod. 111/190", enabled: false },
