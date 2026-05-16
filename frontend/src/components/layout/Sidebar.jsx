@@ -36,6 +36,7 @@ export default function Sidebar({ activePage, setActivePage }) {
       separator: true,
       items: [
         { id: "case-studies", label: "Casos prácticos", enabled: true },
+        { id: "assignments", label: "Asignaciones", enabled: true },
         { id: "corrections", label: "Correcciones", enabled: true },
         { id: "students", label: "Alumnos", enabled: true },
         { id: "groups", label: "Grupos", enabled: true },
@@ -44,18 +45,21 @@ export default function Sidebar({ activePage, setActivePage }) {
     },
   ];
 
+  const teachingPages = ["case-studies", "assignments", "corrections", "students", "groups", "progress"];
+  const teachingHashes = teachingPages.map((page) => `#${page}`);
+
   const handleNavClick = (item) => {
     if (!item.enabled) return;
 
     setActivePage(item.id);
 
-    if (["case-studies", "corrections", "students", "groups", "progress"].includes(item.id)) {
+    if (teachingPages.includes(item.id)) {
       window.location.hash = item.id;
       window.dispatchEvent(new Event("aulanomina-route-change"));
       return;
     }
 
-    if (["#case-studies", "#corrections", "#students", "#groups", "#progress"].includes(window.location.hash)) {
+    if (teachingHashes.includes(window.location.hash)) {
       window.history.replaceState(null, "", window.location.pathname + window.location.search);
       window.dispatchEvent(new Event("aulanomina-route-change"));
     }
