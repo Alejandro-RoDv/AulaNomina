@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 
 import CaseStudiesPage from "../../pages/CaseStudiesPage";
+import CaseAssignmentsPage from "../../pages/CaseAssignmentsPage";
 import CorrectionsPage from "../../pages/CorrectionsPage";
 import StudentsPage from "../../pages/StudentsPage";
 import StudentGroupsPage from "../../pages/StudentGroupsPage";
@@ -8,6 +9,7 @@ import ProgressPage from "../../pages/ProgressPage";
 
 function getTeachingRoute() {
   if (window.location.hash === "#case-studies") return "case-studies";
+  if (window.location.hash === "#assignments") return "assignments";
   if (window.location.hash === "#corrections") return "corrections";
   if (window.location.hash === "#students") return "students";
   if (window.location.hash === "#groups") return "groups";
@@ -16,6 +18,7 @@ function getTeachingRoute() {
 }
 
 function getRouteTitle(route) {
+  if (route === "assignments") return "Asignaciones";
   if (route === "corrections") return "Correcciones";
   if (route === "students") return "Alumnos";
   if (route === "groups") return "Grupos";
@@ -24,6 +27,7 @@ function getRouteTitle(route) {
 }
 
 function getRouteSubtitle(route) {
+  if (route === "assignments") return "Asignación de casos prácticos a grupos o alumnos concretos.";
   if (route === "corrections") return "Revisión manual de entregas, notas y feedback del profesor.";
   if (route === "students") return "Gestión básica de alumnos para la simulación docente.";
   if (route === "groups") return "Organización de alumnos por curso, centro o programa formativo.";
@@ -57,6 +61,7 @@ export default function CaseStudiesRoute() {
         </div>
       </header>
       <main style={styles.main}>
+        {route === "assignments" && <CaseAssignmentsPage />}
         {route === "corrections" && <CorrectionsPage />}
         {route === "students" && <StudentsPage />}
         {route === "groups" && <StudentGroupsPage />}
