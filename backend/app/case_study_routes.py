@@ -43,6 +43,12 @@ def create_case_study_endpoint(case_study: CaseStudyCreate, db: Session = Depend
     return create_case_study(db, case_study)
 
 
+@router.post("/case-studies/seed-demo")
+def seed_demo_case_studies_endpoint(db: Session = Depends(get_db)):
+    seed_demo_case_studies(db)
+    return {"ok": True, "message": "Casos practicos demo cargados"}
+
+
 @router.get("/case-studies/{case_study_id}", response_model=CaseStudyResponse)
 def get_case_study_endpoint(case_study_id: int, db: Session = Depends(get_db)):
     case_study = get_case_study(db, case_study_id)
@@ -86,9 +92,3 @@ def delete_case_task_endpoint(task_id: int, db: Session = Depends(get_db)):
     if not deleted_task:
         raise HTTPException(status_code=404, detail="Tarea no encontrada")
     return {"ok": True, "deleted_id": task_id}
-
-
-@router.post("/case-studies/seed-demo")
-def seed_demo_case_studies_endpoint(db: Session = Depends(get_db)):
-    seed_demo_case_studies(db)
-    return {"ok": True, "message": "Casos practicos demo cargados"}
