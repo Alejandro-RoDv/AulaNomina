@@ -80,7 +80,7 @@ export default function AlertsRoute() {
     <div style={styles.wrapper}>
       <header style={styles.header}>
         <div>
-          <h1 style={styles.title}>Alertas</h1>
+          <h1 style={styles.title}>Alertas laborales</h1>
           <p style={styles.subtitle}>Vencimientos, pendientes y revisiones laborales generadas desde el ERP educativo.</p>
         </div>
       </header>
@@ -108,7 +108,7 @@ export default function AlertsRoute() {
 const styles = {
   wrapper: {
     position: "fixed",
-    top: 0,
+    top: "56px",
     left: "272px",
     right: 0,
     bottom: 0,
