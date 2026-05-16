@@ -2,6 +2,13 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.db import SessionLocal
+from app.crud.case_assignment import (
+    create_case_assignment,
+    delete_case_assignment,
+    get_case_assignments,
+    seed_demo_case_assignments,
+    update_case_assignment,
+)
 from app.crud.case_study import (
     create_case_study,
     create_case_task,
@@ -41,6 +48,7 @@ from app.crud.student_group import (
     soft_delete_student_group,
     update_student_group,
 )
+from app.schemas.case_assignment import CaseAssignmentCreate, CaseAssignmentResponse, CaseAssignmentUpdate
 from app.schemas.case_study import (
     CaseStudyCreate,
     CaseStudyResponse,
@@ -79,8 +87,9 @@ def seed_demo_case_studies_endpoint(db: Session = Depends(get_db)):
     seed_demo_student_groups(db)
     seed_demo_students(db)
     seed_demo_case_studies(db)
+    seed_demo_case_assignments(db)
     seed_demo_corrections(db)
-    return {"ok": True, "message": "Casos practicos, grupos, alumnos y correcciones demo cargados"}
+    return {"ok": True, "message": "Casos practicos, asignaciones, grupos, alumnos y correcciones demo cargados"}
 
 
 @router.get("/case-studies/{case_study_id}", response_model=CaseStudyResponse)
@@ -128,6 +137,41 @@ def delete_case_task_endpoint(task_id: int, db: Session = Depends(get_db)):
     return {"ok": True, "deleted_id": task_id}
 
 
+@router.get("/case-assignments", response_model=list[CaseAssignmentResponse])
+def list_case_assignments(db: Session = Depends(get_db)):
+    return get_case_assignments(db)
+
+
+@router.post("/case-assignments", response_model=CaseAssignmentResponse)
+def create_case_assignment_endpoint(assignment: CaseAssignmentCreate, db: Session = Depends(get_db)):
+    return create_case_assignment(db, assignment)
+
+
+@router.post("/case-assignments/seed-demo")
+def seed_demo_case_assignments_endpoint(db: Session = Depends(get_db)):
+    seed_demo_student_groups(db)
+    seed_demo_students(db)
+    seed_demo_case_studies(db)
+    seed_demo_case_assignments(db)
+    return {"ok": True, "message": "Asignaciones demo cargadas"}
+
+
+@router.put("/case-assignments/{assignment_id}", response_model=CaseAssignmentResponse)
+def update_case_assignment_endpoint(assignment_id: int, assignment: CaseAssignmentUpdate, db: Session = Depends(get_db)):
+    updated_assignment = update_case_assignment(db, assignment_id, assignment)
+    if not updated_assignment:
+        raise HTTPException(status_code=404, detail="Asignacion no encontrada")
+    return updated_assignment
+
+
+@router.delete("/case-assignments/{assignment_id}")
+def delete_case_assignment_endpoint(assignment_id: int, db: Session = Depends(get_db)):
+    deleted_assignment = delete_case_assignment(db, assignment_id)
+    if not deleted_assignment:
+        raise HTTPException(status_code=404, detail="Asignacion no encontrada")
+    return {"ok": True, "deleted_id": assignment_id}
+
+
 @router.get("/corrections", response_model=list[CorrectionResponse])
 def list_corrections(db: Session = Depends(get_db)):
     return get_corrections(db)
@@ -143,6 +187,7 @@ def seed_demo_corrections_endpoint(db: Session = Depends(get_db)):
     seed_demo_student_groups(db)
     seed_demo_students(db)
     seed_demo_case_studies(db)
+    seed_demo_case_assignments(db)
     seed_demo_corrections(db)
     return {"ok": True, "message": "Correcciones demo cargadas"}
 
