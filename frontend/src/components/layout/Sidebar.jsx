@@ -56,7 +56,7 @@ export default function Sidebar({ activePage, setActivePage }) {
         { id: "employees", label: "Trabajador", enabled: true },
         { id: "contracts", label: "Contratos", enabled: true },
         { id: "documents", label: "Documentos", enabled: true },
-        { id: "reports", label: "Informes", enabled: false },
+        { id: "reports", label: "Informes", enabled: true },
       ],
     },
     {
