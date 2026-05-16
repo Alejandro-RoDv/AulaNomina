@@ -8,6 +8,8 @@ from app.models import User, Employee, Company, Incident, Payroll, Document
 from app.models.contract import Contract
 from app.seed_demo import seed_demo_data
 from app.seed_demo_documents import seed_demo_documents
+from app.case_study_routes import router as case_study_router
+from app.crud.case_study import seed_demo_case_studies
 from app.schemas.employee import EmployeeCreate, EmployeeUpdate, EmployeeResponse
 from app.schemas.employee_assignment_history import EmployeeAssignmentHistoryResponse
 from app.crud.employee import (
@@ -98,6 +100,13 @@ app.add_middleware(
 )
 
 init_database()
+app.include_router(case_study_router)
+
+_demo_db = SessionLocal()
+try:
+    seed_demo_case_studies(_demo_db)
+finally:
+    _demo_db.close()
 
 
 def get_db():
@@ -118,12 +127,17 @@ def reset_demo_endpoint():
     try:
         seed_demo_data(reset=True)
         seed_demo_documents()
+        db = SessionLocal()
+        try:
+            seed_demo_case_studies(db)
+        finally:
+            db.close()
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Error al reiniciar la demo: {exc}") from exc
 
     return {
         "ok": True,
-        "message": "Demo reiniciada correctamente, incluida documentación laboral",
+        "message": "Demo reiniciada correctamente, incluida documentación laboral y casos prácticos",
         "mode": "controlled_demo_reset",
     }
 
