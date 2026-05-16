@@ -148,3 +148,32 @@ def init_database() -> None:
                     connection.execute(
                         text(f"ALTER TABLE documents ADD COLUMN {column_name} {column_definition}")
                     )
+
+        if "students" in table_names:
+            existing_student_columns = {
+                column["name"] for column in inspector.get_columns("students")
+            }
+
+            student_columns = {
+                "group_id": "INTEGER REFERENCES student_groups(id)",
+            }
+
+            for column_name, column_definition in student_columns.items():
+                if column_name not in existing_student_columns:
+                    connection.execute(
+                        text(f"ALTER TABLE students ADD COLUMN {column_name} {column_definition}")
+                    )
+
+            if "student_groups" in table_names:
+                connection.execute(
+                    text(
+                        """
+                        UPDATE students
+                        SET group_id = student_groups.id
+                        FROM student_groups
+                        WHERE students.group_id IS NULL
+                          AND students.group_name IS NOT NULL
+                          AND students.group_name = student_groups.name
+                        """
+                    )
+                )
