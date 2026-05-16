@@ -39,7 +39,7 @@ export default function Sidebar({ activePage, setActivePage }) {
         { id: "corrections", label: "Correcciones", enabled: true },
         { id: "students", label: "Alumnos", enabled: true },
         { id: "groups", label: "Grupos", enabled: true },
-        { id: "progress", label: "Progreso", enabled: false },
+        { id: "progress", label: "Progreso", enabled: true },
       ],
     },
   ];
@@ -49,13 +49,13 @@ export default function Sidebar({ activePage, setActivePage }) {
 
     setActivePage(item.id);
 
-    if (["case-studies", "corrections", "students", "groups"].includes(item.id)) {
+    if (["case-studies", "corrections", "students", "groups", "progress"].includes(item.id)) {
       window.location.hash = item.id;
       window.dispatchEvent(new Event("aulanomina-route-change"));
       return;
     }
 
-    if (["#case-studies", "#corrections", "#students", "#groups"].includes(window.location.hash)) {
+    if (["#case-studies", "#corrections", "#students", "#groups", "#progress"].includes(window.location.hash)) {
       window.history.replaceState(null, "", window.location.pathname + window.location.search);
       window.dispatchEvent(new Event("aulanomina-route-change"));
     }
