@@ -4,6 +4,9 @@ import logo from "../../assets/aulanomina-logo.svg";
 
 const overlayPages = [
   "reports",
+  "employee-admissions",
+  "employees",
+  "employee-record",
   "teacher-dashboard",
   "teaching-alerts",
   "case-studies",
@@ -15,6 +18,7 @@ const overlayPages = [
   "progress",
 ];
 
+const employeePages = ["employee-admissions", "employees", "employee-record"];
 const overlayHashes = overlayPages.map((page) => `#${page}`);
 
 function getOverlayPageFromHash() {
@@ -24,11 +28,16 @@ function getOverlayPageFromHash() {
 
 export default function Sidebar({ activePage, setActivePage }) {
   const [hashActivePage, setHashActivePage] = useState(getOverlayPageFromHash());
+  const [employeeMenuOpen, setEmployeeMenuOpen] = useState(true);
 
   useEffect(() => {
     const syncActivePageFromHash = () => {
       const overlayPage = getOverlayPageFromHash();
       setHashActivePage(overlayPage);
+
+      if (employeePages.includes(overlayPage)) {
+        setEmployeeMenuOpen(true);
+      }
 
       if (overlayPage) {
         setActivePage(overlayPage);
@@ -54,7 +63,16 @@ export default function Sidebar({ activePage, setActivePage }) {
       items: [
         { id: "dashboard", label: "Panel", enabled: true },
         { id: "companies", label: "Empresa", enabled: true },
-        { id: "employees", label: "Trabajador", enabled: true },
+        {
+          id: "employee-menu",
+          label: "Trabajador",
+          enabled: true,
+          children: [
+            { id: "employee-admissions", label: "Alta / baja", enabled: true },
+            { id: "employees", label: "Trabajadores", enabled: true },
+            { id: "employee-record", label: "Expediente", enabled: true },
+          ],
+        },
         { id: "contracts", label: "Contratos", enabled: true },
         { id: "documents", label: "Documentos", enabled: true },
         { id: "reports", label: "Informes", enabled: true },
@@ -98,6 +116,11 @@ export default function Sidebar({ activePage, setActivePage }) {
   const handleNavClick = (item) => {
     if (!item.enabled) return;
 
+    if (item.children) {
+      setEmployeeMenuOpen((prev) => !prev);
+      return;
+    }
+
     setActivePage(item.id);
 
     if (overlayPages.includes(item.id)) {
@@ -128,22 +151,47 @@ export default function Sidebar({ activePage, setActivePage }) {
             <p style={styles.groupTitle}>{group.title}</p>
             <div style={styles.groupItems}>
               {group.items.map((item) => {
-                const isActive = currentActivePage === item.id;
+                const isActive = currentActivePage === item.id || (item.children && employeePages.includes(currentActivePage));
+                const submenuOpen = item.children && employeeMenuOpen;
 
                 return (
-                  <button
-                    key={item.id}
-                    type="button"
-                    disabled={!item.enabled}
-                    onClick={() => handleNavClick(item)}
-                    style={{
-                      ...styles.navItem,
-                      ...(isActive ? styles.navItemActive : {}),
-                      ...(!item.enabled ? styles.navItemDisabled : {}),
-                    }}
-                  >
-                    {item.label}
-                  </button>
+                  <div key={item.id} style={styles.itemBlock}>
+                    <button
+                      type="button"
+                      disabled={!item.enabled}
+                      onClick={() => handleNavClick(item)}
+                      style={{
+                        ...styles.navItem,
+                        ...(isActive ? styles.navItemActive : {}),
+                        ...(!item.enabled ? styles.navItemDisabled : {}),
+                      }}
+                    >
+                      {item.children ? `${submenuOpen ? "▾" : "▸"} ${item.label}` : item.label}
+                    </button>
+
+                    {item.children && submenuOpen && (
+                      <div style={styles.submenu}>
+                        {item.children.map((child) => {
+                          const childActive = currentActivePage === child.id;
+                          return (
+                            <button
+                              key={child.id}
+                              type="button"
+                              disabled={!child.enabled}
+                              onClick={() => handleNavClick(child)}
+                              style={{
+                                ...styles.subNavItem,
+                                ...(childActive ? styles.subNavItemActive : {}),
+                                ...(!child.enabled ? styles.navItemDisabled : {}),
+                              }}
+                            >
+                              {child.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
                 );
               })}
             </div>
@@ -215,6 +263,12 @@ const styles = {
     gap: "6px",
     paddingLeft: "60px",
   },
+  itemBlock: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "flex-start",
+    gap: "3px",
+  },
   navItem: {
     border: "2px solid transparent",
     backgroundColor: "transparent",
@@ -235,5 +289,30 @@ const styles = {
   navItemDisabled: {
     cursor: "not-allowed",
     opacity: 0.55,
+  },
+  submenu: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "2px",
+    marginLeft: "16px",
+    paddingLeft: "10px",
+    borderLeft: "3px solid #111111",
+  },
+  subNavItem: {
+    border: "2px solid transparent",
+    backgroundColor: "transparent",
+    color: "#111111",
+    fontSize: "12px",
+    fontWeight: 900,
+    lineHeight: 1.2,
+    cursor: "pointer",
+    padding: "4px 6px",
+    textAlign: "left",
+    textTransform: "uppercase",
+  },
+  subNavItemActive: {
+    border: "2px solid #111111",
+    backgroundColor: "#ffffff",
+    boxShadow: "2px 2px 0 #e6d85c",
   },
 };
