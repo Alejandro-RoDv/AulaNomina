@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import PageCard from "../components/layout/PageCard";
 import EmployeeForm from "../components/employees/EmployeeForm";
 import EmployeeTable from "../components/employees/EmployeeTable";
+import { openReportPreset } from "../utils/reportShortcuts";
 
 function normalizeText(value) {
   return String(value || "")
@@ -76,6 +77,11 @@ export default function EmployeesPage({
       </PageCard>
 
       <PageCard title="Listado de trabajadores" subtitle="Listado operativo de trabajadores. El expediente completo se abre desde cada fila.">
+        <div style={styles.reportActions}>
+          <button type="button" style={styles.reportButton} onClick={() => openReportPreset({ category: "employee", reportId: "employees-active" })}>Informe trabajadores en alta</button>
+          <button type="button" style={styles.reportButtonSecondary} onClick={() => openReportPreset({ category: "employee", reportId: "contracts-active" })}>Informe contratos activos</button>
+        </div>
+
         <div style={styles.filters}>
           <div style={styles.filterGroupCode}>
             <label>ID / Código</label>
@@ -112,6 +118,9 @@ export default function EmployeesPage({
 
 const styles = {
   wrapper: { display: "flex", flexDirection: "column", gap: "20px" },
+  reportActions: { display: "flex", gap: "10px", justifyContent: "flex-end", marginBottom: "14px" },
+  reportButton: { backgroundColor: "#111827", color: "#fff", border: "1px solid #111827", borderRadius: "7px", padding: "9px 12px", cursor: "pointer", fontWeight: 900 },
+  reportButtonSecondary: { backgroundColor: "#fff", color: "#111827", border: "1px solid #d1d5db", borderRadius: "7px", padding: "9px 12px", cursor: "pointer", fontWeight: 900 },
   filters: { display: "flex", gap: "14px", alignItems: "end", flexWrap: "wrap", marginBottom: "18px" },
   filterGroupCode: { width: "220px", flex: "0 0 220px", display: "flex", flexDirection: "column", gap: "6px" },
   filterGroupName: { width: "360px", flex: "0 0 360px", display: "flex", flexDirection: "column", gap: "6px" },
