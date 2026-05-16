@@ -9,3 +9,4 @@ from app.models.document import Document
 from app.models.employee_assignment_history import EmployeeAssignmentHistory
 from app.models.case_study import CaseStudy, CaseTask
 from app.models.correction import Correction
+from app.models.student import Student
