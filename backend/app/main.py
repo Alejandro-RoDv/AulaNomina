@@ -12,6 +12,7 @@ from app.case_study_routes import router as case_study_router
 from app.crud.case_study import seed_demo_case_studies
 from app.crud.correction import seed_demo_corrections
 from app.crud.student import seed_demo_students
+from app.crud.student_group import seed_demo_student_groups
 from app.schemas.employee import EmployeeCreate, EmployeeUpdate, EmployeeResponse
 from app.schemas.employee_assignment_history import EmployeeAssignmentHistoryResponse
 from app.crud.employee import (
@@ -106,6 +107,7 @@ app.include_router(case_study_router)
 
 _demo_db = SessionLocal()
 try:
+    seed_demo_student_groups(_demo_db)
     seed_demo_students(_demo_db)
     seed_demo_case_studies(_demo_db)
     seed_demo_corrections(_demo_db)
@@ -133,6 +135,7 @@ def reset_demo_endpoint():
         seed_demo_documents()
         db = SessionLocal()
         try:
+            seed_demo_student_groups(db)
             seed_demo_students(db)
             seed_demo_case_studies(db)
             seed_demo_corrections(db)
@@ -143,7 +146,7 @@ def reset_demo_endpoint():
 
     return {
         "ok": True,
-        "message": "Demo reiniciada correctamente, incluida documentación laboral, alumnos, casos prácticos y correcciones",
+        "message": "Demo reiniciada correctamente, incluida documentación laboral, grupos, alumnos, casos prácticos y correcciones",
         "mode": "controlled_demo_reset",
     }
 
