@@ -1,16 +1,19 @@
 import { useEffect, useState } from "react";
 
 import CaseStudiesPage from "../../pages/CaseStudiesPage";
+import CorrectionsPage from "../../pages/CorrectionsPage";
 
-function isCaseStudiesRoute() {
-  return window.location.hash === "#case-studies";
+function getTeachingRoute() {
+  if (window.location.hash === "#case-studies") return "case-studies";
+  if (window.location.hash === "#corrections") return "corrections";
+  return null;
 }
 
 export default function CaseStudiesRoute() {
-  const [visible, setVisible] = useState(isCaseStudiesRoute());
+  const [route, setRoute] = useState(getTeachingRoute());
 
   useEffect(() => {
-    const handleRouteChange = () => setVisible(isCaseStudiesRoute());
+    const handleRouteChange = () => setRoute(getTeachingRoute());
 
     window.addEventListener("hashchange", handleRouteChange);
     window.addEventListener("aulanomina-route-change", handleRouteChange);
@@ -21,18 +24,24 @@ export default function CaseStudiesRoute() {
     };
   }, []);
 
-  if (!visible) return null;
+  if (!route) return null;
+
+  const isCorrections = route === "corrections";
 
   return (
     <div style={styles.wrapper}>
       <header style={styles.header}>
         <div>
-          <h1 style={styles.title}>Casos prácticos</h1>
-          <p style={styles.subtitle}>Creación y seguimiento manual de ejercicios docentes dentro del ERP.</p>
+          <h1 style={styles.title}>{isCorrections ? "Correcciones" : "Casos prácticos"}</h1>
+          <p style={styles.subtitle}>
+            {isCorrections
+              ? "Revisión manual de entregas, notas y feedback del profesor."
+              : "Creación y seguimiento manual de ejercicios docentes dentro del ERP."}
+          </p>
         </div>
       </header>
       <main style={styles.main}>
-        <CaseStudiesPage />
+        {isCorrections ? <CorrectionsPage /> : <CaseStudiesPage />}
       </main>
     </div>
   );
