@@ -12,6 +12,7 @@ class StudentBase(BaseModel):
     first_name: str
     last_name: str
     email: Optional[str] = None
+    group_id: Optional[int] = None
     group_name: Optional[str] = None
     education_center: Optional[str] = None
     status: str = "active"
@@ -35,6 +36,7 @@ class StudentUpdate(BaseModel):
     first_name: Optional[str] = None
     last_name: Optional[str] = None
     email: Optional[str] = None
+    group_id: Optional[int] = None
     group_name: Optional[str] = None
     education_center: Optional[str] = None
     status: Optional[str] = None
@@ -52,6 +54,7 @@ class StudentUpdate(BaseModel):
 class StudentResponse(StudentBase):
     id: int
     full_name: str
+    group_display_name: Optional[str] = None
     created_at: datetime
 
     class Config:
