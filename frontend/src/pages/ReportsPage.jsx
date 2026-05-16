@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import PageCard from "../components/layout/PageCard";
 import { exportRowsToCsv } from "../utils/exportCsv";
@@ -264,6 +264,25 @@ export default function ReportsPage({ loading, employees, companies, workCenters
   const [selectedYear, setSelectedYear] = useState("");
   const [selectedMonth, setSelectedMonth] = useState("");
   const [previewReport, setPreviewReport] = useState(null);
+
+  useEffect(() => {
+    const storedPreset = window.sessionStorage.getItem("aulanomina:reportPreset");
+    if (!storedPreset) return;
+
+    try {
+      const preset = JSON.parse(storedPreset);
+      if (preset.category) setSelectedCategory(preset.category);
+      if (preset.reportId) setSelectedReportId(preset.reportId);
+      if (preset.companyId) setSelectedCompanyId(String(preset.companyId));
+      if (preset.year) setSelectedYear(String(preset.year));
+      if (preset.month) setSelectedMonth(String(preset.month).padStart(2, "0"));
+      setPreviewReport(null);
+    } catch {
+      // Ignore malformed presets and keep default report state.
+    } finally {
+      window.sessionStorage.removeItem("aulanomina:reportPreset");
+    }
+  }, []);
 
   const selectedEmployee = employees.find((employee) => String(employee.id) === String(selectedEmployeeId)) || employees[0];
   const selectedContract = getActiveContract(contracts, selectedEmployee?.id);
@@ -607,160 +626,3 @@ export default function ReportsPage({ loading, employees, companies, workCenters
                   <option value="all">Todas las empresas</option>
                   {companies.map((company) => <option key={company.id} value={company.id}>{company.name}</option>)}
                 </select>
-              </div>
-
-              <div style={styles.controlGroup}>
-                <label style={styles.label}>Categoría</label>
-                <select value={selectedCategory} onChange={handleCategoryChange} style={styles.input}>
-                  {reportCategories.map((category) => <option key={category.id} value={category.id}>{category.label}</option>)}
-                </select>
-              </div>
-
-              <div style={styles.controlGroup}>
-                <label style={styles.label}>Tipo de informe</label>
-                <select value={selectedReportId} onChange={handleReportChange} style={styles.input}>
-                  {categoryReports.map((report) => <option key={report.id} value={report.id}>{report.label}</option>)}
-                </select>
-              </div>
-
-              <div style={styles.periodGrid}>
-                <div style={styles.controlGroup}>
-                  <label style={styles.label}>Mes</label>
-                  <select value={selectedMonth} onChange={(event) => setSelectedMonth(event.target.value)} style={styles.input}>
-                    <option value="">Todos</option>
-                    {Array.from({ length: 12 }, (_, index) => String(index + 1).padStart(2, "0")).map((month) => <option key={month} value={month}>{month}</option>)}
-                  </select>
-                </div>
-                <div style={styles.controlGroup}>
-                  <label style={styles.label}>Año</label>
-                  <input value={selectedYear} onChange={(event) => setSelectedYear(event.target.value)} placeholder="2026" style={styles.input} />
-                </div>
-              </div>
-            </div>
-
-            <div style={styles.reportSummaryBox}>
-              <div>
-                <span style={styles.summaryLabel}>Ámbito</span>
-                <strong>{selectedCompanyLabel}</strong>
-              </div>
-              <div>
-                <span style={styles.summaryLabel}>Informe seleccionado</span>
-                <strong>{selectedReport?.label}</strong>
-                <p style={styles.summaryDescription}>{selectedReport?.description}</p>
-              </div>
-              <div>
-                <span style={styles.summaryLabel}>Registros estimados</span>
-                <strong>{currentReportData?.rows.length || 0}</strong>
-              </div>
-            </div>
-
-            <div style={styles.actionsRow}>
-              <button type="button" onClick={handleExportSelectedReport} style={styles.primaryButton}>Generar Excel CSV</button>
-              <button type="button" onClick={handlePreviewReport} style={styles.secondaryButton}>Vista previa</button>
-            </div>
-          </div>
-
-          {previewReport && (
-            <div style={styles.previewTableBox}>
-              <div style={styles.previewHeader}>
-                <div>
-                  <h3 style={styles.previewTitle}>Vista previa</h3>
-                  <p style={styles.previewSubtitle}>Primeros registros del informe seleccionado.</p>
-                </div>
-                <span style={styles.previewCount}>{previewReport.rows.length} registros</span>
-              </div>
-              <div style={styles.tableScroll}>
-                <table style={styles.dataTable}>
-                  <thead>
-                    <tr>{previewReport.columns.slice(0, 7).map((column) => <th key={column.key} style={styles.dataTh}>{column.label}</th>)}</tr>
-                  </thead>
-                  <tbody>
-                    {previewReport.rows.slice(0, 6).map((row, index) => (
-                      <tr key={index}>{previewReport.columns.slice(0, 7).map((column) => <td key={column.key} style={styles.dataTd}>{row[column.key] || "-"}</td>)}</tr>
-                    ))}
-                    {!previewReport.rows.length && <tr><td style={styles.dataTd} colSpan={previewReport.columns.slice(0, 7).length}>No hay registros con los filtros actuales.</td></tr>}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-        </PageCard>
-      </div>
-
-      <PageCard title="Documentos HTML" subtitle="Motor inicial de plantillas: datos ERP + plantilla = documento profesional imprimible.">
-        <div className="reports-screen-only" style={styles.controls}>
-          <div style={styles.controlGroup}>
-            <label style={styles.label}>Trabajador</label>
-            <select value={selectedEmployeeId} onChange={(event) => setSelectedEmployeeId(event.target.value)} style={styles.input} disabled={loading || employees.length === 0}>
-              {employees.map((employee) => (
-                <option key={employee.id} value={employee.id}>{getEmployeeName(employee)} · {employee.dni}</option>
-              ))}
-            </select>
-          </div>
-
-          <div style={styles.controlGroup}>
-            <label style={styles.label}>Documento</label>
-            <select value={selectedTemplate} onChange={(event) => setSelectedTemplate(event.target.value)} style={styles.input}>
-              <option value="employee-summary">Expediente laboral</option>
-              <option value="contract">Contrato laboral simulado</option>
-              <option value="checklist">Checklist documental</option>
-              <option value="incidents">Informe de incidencias</option>
-            </select>
-          </div>
-
-          <button type="button" onClick={printPreview} style={styles.printButton}>Imprimir / guardar PDF</button>
-        </div>
-
-        <div className="report-preview-frame" style={styles.previewFrame}>{renderTemplate()}</div>
-      </PageCard>
-    </div>
-  );
-}
-
-const styles = {
-  wrapper: { display: "flex", flexDirection: "column", gap: "20px" },
-  kpiGrid: { display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: "14px" },
-  kpi: { border: "1px solid #d1d5db", backgroundColor: "#fff", borderLeft: "5px solid #e6d85c", padding: "16px", display: "flex", flexDirection: "column", gap: "8px" },
-  filterPanel: { border: "1px solid #d1d5db", backgroundColor: "#fafafa", padding: "18px", display: "flex", flexDirection: "column", gap: "18px" },
-  filterGrid: { display: "grid", gridTemplateColumns: "1.1fr 0.8fr 1.2fr 0.9fr", gap: "14px", alignItems: "end" },
-  periodGrid: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" },
-  reportSummaryBox: { display: "grid", gridTemplateColumns: "1fr 1.6fr 0.7fr", gap: "14px", backgroundColor: "#fff", border: "1px solid #d1d5db", padding: "14px" },
-  summaryLabel: { display: "block", fontSize: "11px", color: "#6b7280", textTransform: "uppercase", fontWeight: 900, marginBottom: "4px" },
-  summaryDescription: { margin: "4px 0 0", color: "#6b7280", fontSize: "13px", fontWeight: 700 },
-  actionsRow: { display: "flex", gap: "10px", justifyContent: "flex-end", borderTop: "1px solid #e5e7eb", paddingTop: "14px" },
-  primaryButton: { backgroundColor: "#111827", color: "#fff", border: "1px solid #111827", padding: "10px 16px", fontWeight: 900, cursor: "pointer", borderRadius: "6px" },
-  secondaryButton: { backgroundColor: "#fff", color: "#111827", border: "1px solid #d1d5db", padding: "10px 16px", fontWeight: 900, cursor: "pointer", borderRadius: "6px" },
-  previewTableBox: { border: "1px solid #d1d5db", backgroundColor: "#fff", marginTop: "18px" },
-  previewHeader: { display: "flex", justifyContent: "space-between", gap: "16px", alignItems: "center", padding: "14px", borderBottom: "1px solid #e5e7eb" },
-  previewTitle: { margin: 0, fontSize: "17px", fontWeight: 900 },
-  previewSubtitle: { margin: "2px 0 0", color: "#6b7280", fontSize: "13px", fontWeight: 700 },
-  previewCount: { border: "1px solid #d1d5db", backgroundColor: "#f9fafb", padding: "5px 9px", fontSize: "12px", fontWeight: 900 },
-  tableScroll: { overflowX: "auto" },
-  dataTable: { width: "100%", borderCollapse: "collapse", fontSize: "13px" },
-  dataTh: { textAlign: "left", padding: "10px", backgroundColor: "#f8f3b5", borderBottom: "2px solid #111", whiteSpace: "nowrap", fontWeight: 900 },
-  dataTd: { padding: "10px", borderBottom: "1px solid #e5e7eb", whiteSpace: "nowrap" },
-  printButton: { backgroundColor: "#f8f3b5", color: "#111", border: "2px solid #111", padding: "9px 14px", fontWeight: 900, cursor: "pointer", height: "39px" },
-  controls: { display: "grid", gridTemplateColumns: "minmax(220px, 1fr) minmax(220px, 1fr) auto", gap: "12px", alignItems: "end", marginBottom: "20px" },
-  controlGroup: { display: "flex", flexDirection: "column", gap: "5px" },
-  label: { fontSize: "13px", fontWeight: 800, color: "#374151" },
-  input: { width: "100%", height: "39px", boxSizing: "border-box", padding: "8px 10px", border: "1px solid #ccc", borderRadius: "7px", fontSize: "13px", backgroundColor: "#fff" },
-  previewFrame: { backgroundColor: "#f3f4f6", border: "1px solid #d1d5db", padding: "24px", overflowX: "auto" },
-  emptyPreview: { backgroundColor: "#fff", border: "2px dashed #9ca3af", padding: "28px", color: "#6b7280", fontWeight: 800 },
-};
-
-const documentStyles = {
-  sheet: { width: "794px", minHeight: "980px", margin: "0 auto", backgroundColor: "#fff", color: "#111", padding: "42px", boxSizing: "border-box", border: "1px solid #d1d5db", fontFamily: "Arial, sans-serif" },
-  header: { display: "flex", justifyContent: "space-between", gap: "24px", borderBottom: "4px solid #111", paddingBottom: "18px", marginBottom: "28px" },
-  brand: { margin: "0 0 8px", fontWeight: 900, textTransform: "uppercase", color: "#a16207", letterSpacing: "0.06em" },
-  title: { margin: 0, fontSize: "28px", textTransform: "uppercase" },
-  subtitle: { margin: "6px 0 0", color: "#4b5563", fontWeight: 700 },
-  metaBox: { border: "2px solid #111", padding: "10px", display: "flex", flexDirection: "column", gap: "4px", minWidth: "170px", fontSize: "12px" },
-  highlightGrid: { display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "10px", marginBottom: "22px" },
-  twoColumns: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "18px" },
-  block: { border: "1px solid #d1d5db", padding: "16px", marginBottom: "18px" },
-  table: { width: "100%", borderCollapse: "collapse", fontSize: "13px" },
-  okStatus: { color: "#166534", fontWeight: 900 },
-  pendingStatus: { color: "#92400e", fontWeight: 900 },
-  signatureGrid: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "32px", marginTop: "70px" },
-  footer: { borderTop: "1px solid #d1d5db", marginTop: "28px", paddingTop: "12px", fontSize: "11px", color: "#6b7280" },
-};
