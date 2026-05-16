@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 
+import TeacherDashboardPage from "../../pages/TeacherDashboardPage";
 import CaseStudiesPage from "../../pages/CaseStudiesPage";
 import CaseAssignmentsPage from "../../pages/CaseAssignmentsPage";
 import CorrectionsPage from "../../pages/CorrectionsPage";
@@ -8,6 +9,7 @@ import StudentGroupsPage from "../../pages/StudentGroupsPage";
 import ProgressPage from "../../pages/ProgressPage";
 
 function getTeachingRoute() {
+  if (window.location.hash === "#teacher-dashboard") return "teacher-dashboard";
   if (window.location.hash === "#case-studies") return "case-studies";
   if (window.location.hash === "#assignments") return "assignments";
   if (window.location.hash === "#corrections") return "corrections";
@@ -18,7 +20,8 @@ function getTeachingRoute() {
 }
 
 function getRouteTitle(route) {
-  if (route === "assignments") return "Asignaciones";
+  if (route === "teacher-dashboard") return "Panel del profesor";
+  if (route === "assignments") return "Asignar caso";
   if (route === "corrections") return "Correcciones";
   if (route === "students") return "Alumnos";
   if (route === "groups") return "Grupos";
@@ -27,7 +30,8 @@ function getRouteTitle(route) {
 }
 
 function getRouteSubtitle(route) {
-  if (route === "assignments") return "Asignación de casos prácticos a grupos o alumnos concretos.";
+  if (route === "teacher-dashboard") return "Resumen docente de casos, asignaciones, entregas, correcciones y vencimientos.";
+  if (route === "assignments") return "Vista rápida para asignar casos prácticos a grupos o alumnos concretos.";
   if (route === "corrections") return "Revisión manual de entregas, notas y feedback del profesor.";
   if (route === "students") return "Gestión básica de alumnos para la simulación docente.";
   if (route === "groups") return "Organización de alumnos por curso, centro o programa formativo.";
@@ -61,6 +65,7 @@ export default function CaseStudiesRoute() {
         </div>
       </header>
       <main style={styles.main}>
+        {route === "teacher-dashboard" && <TeacherDashboardPage />}
         {route === "assignments" && <CaseAssignmentsPage />}
         {route === "corrections" && <CorrectionsPage />}
         {route === "students" && <StudentsPage />}
