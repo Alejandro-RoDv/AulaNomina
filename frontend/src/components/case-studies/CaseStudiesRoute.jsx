@@ -32,19 +32,19 @@ function getRouteTitle(route) {
   if (route === "progress") return "Progreso";
   if (route === "student-demo") return "Vista alumno";
   if (route === "teaching-alerts") return "Alertas docentes";
-  return "Casos prácticos";
+  return "Casos practicos";
 }
 
 function getRouteSubtitle(route) {
   if (route === "teacher-dashboard") return "Resumen docente de casos, asignaciones, entregas, correcciones y vencimientos.";
-  if (route === "assignments") return "Vista rápida para asignar casos prácticos a grupos o alumnos concretos.";
-  if (route === "corrections") return "Revisión manual de entregas, notas y feedback del profesor.";
-  if (route === "students") return "Gestión básica de alumnos para la simulación docente.";
-  if (route === "groups") return "Organización de alumnos por curso, centro o programa formativo.";
+  if (route === "assignments") return "Vista rapida para asignar casos practicos a grupos o alumnos concretos.";
+  if (route === "corrections") return "Revision manual de entregas, notas y feedback del profesor.";
+  if (route === "students") return "Gestion basica de alumnos para la simulacion docente.";
+  if (route === "groups") return "Organizacion de alumnos por curso, centro o programa formativo.";
   if (route === "progress") return "Seguimiento intuitivo del avance de casos, tareas, alumnos y correcciones.";
-  if (route === "student-demo") return "Simulación del portal del alumno sin autenticación real.";
-  if (route === "teaching-alerts") return "Vencimientos y avisos docentes derivados de casos, entregas y documentación.";
-  return "Creación y edición de ejercicios docentes dentro del ERP.";
+  if (route === "student-demo") return "Simulacion del portal del alumno sin autenticacion real.";
+  if (route === "teaching-alerts") return "Vencimientos y avisos docentes derivados de casos, entregas y documentacion.";
+  return "Creacion y edicion de ejercicios docentes dentro del ERP.";
 }
 
 export default function CaseStudiesRoute() {
@@ -90,7 +90,7 @@ export default function CaseStudiesRoute() {
 const styles = {
   wrapper: {
     position: "fixed",
-    top: 0,
+    top: "56px",
     left: "272px",
     right: 0,
     bottom: 0,
