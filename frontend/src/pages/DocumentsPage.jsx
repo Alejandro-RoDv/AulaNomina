@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import DocumentForm from "../components/documents/DocumentForm";
 import DocumentTable from "../components/documents/DocumentTable";
 import { createDocument } from "../services/documentApi";
+import { openReportPreset } from "../utils/reportShortcuts";
 
 const initialFilters = {
   document_type: "",
@@ -250,6 +251,10 @@ export default function DocumentsPage({
       </section>
 
       <section style={styles.criticalCard}>
+        <div style={styles.reportActions}>
+          <button type="button" style={styles.reportButton} onClick={() => openReportPreset({ category: "documents", reportId: "documents-pending" })}>Exportar documentación pendiente</button>
+          <button type="button" style={styles.reportButtonSecondary} onClick={() => openReportPreset({ category: "documents", reportId: "documents-all" })}>Estado documental completo</button>
+        </div>
         <h2 style={styles.title}>Pendientes críticos</h2>
         {criticalDocuments.length === 0 ? (
           <p style={styles.muted}>No hay pendientes críticos.</p>
@@ -435,6 +440,9 @@ const styles = {
   summaryTitle: { margin: 0, fontSize: "12px", fontWeight: 900, textTransform: "uppercase", color: "#4b5563" },
   summaryValue: { margin: "8px 0 0", fontSize: "32px", fontWeight: 900, color: "#111" },
   criticalCard: { border: "2px solid #111", background: "#fff7c2", padding: "16px", boxShadow: "4px 4px 0 #111" },
+  reportActions: { display: "flex", gap: "10px", justifyContent: "flex-end", marginBottom: "14px" },
+  reportButton: { backgroundColor: "#111827", color: "#fff", border: "1px solid #111827", borderRadius: "7px", padding: "9px 12px", cursor: "pointer", fontWeight: 900 },
+  reportButtonSecondary: { backgroundColor: "#fff", color: "#111827", border: "1px solid #d1d5db", borderRadius: "7px", padding: "9px 12px", cursor: "pointer", fontWeight: 900 },
   checklistCard: { border: "2px solid #111", background: "#fff", padding: "16px", boxShadow: "4px 4px 0 #f0df62", display: "grid", gap: "12px" },
   checklistActions: { display: "grid", gridTemplateColumns: "1fr auto", gap: "12px", alignItems: "center" },
   browserCard: { border: "2px solid #111", background: "#fff", padding: "18px", boxShadow: "5px 5px 0 #f0df62" },
