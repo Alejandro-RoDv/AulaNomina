@@ -5,6 +5,7 @@ import PayrollForm, { PAYROLL_STATUS_OPTIONS } from "../components/payrolls/Payr
 import PayrollTable from "../components/payrolls/PayrollTable";
 import MonthlyPayrollPreparation from "../components/payrolls/MonthlyPayrollPreparation";
 import { fetchPayrolls } from "../services/payrollApi";
+import { openReportPreset } from "../utils/reportShortcuts";
 
 function normalizeText(value) {
   return String(value || "")
@@ -140,6 +141,11 @@ export default function PayrollsPage({
           </div>
         )}
 
+        <div style={styles.reportActions}>
+          <button type="button" style={styles.reportButton} onClick={() => openReportPreset({ category: "payroll", reportId: "payrolls-detail" })}>Informe nóminas detalladas</button>
+          <button type="button" style={styles.reportButtonSecondary} onClick={() => openReportPreset({ category: "payroll", reportId: "payrolls-summary" })}>Resumen de nóminas</button>
+        </div>
+
         <div style={styles.filters}>
           <div style={styles.filterGroupWide}>
             <label style={styles.label}>Trabajador</label>
@@ -210,6 +216,9 @@ const styles = {
   wrapper: { display: "flex", flexDirection: "column", gap: "20px" },
   details: { display: "flex", flexDirection: "column", gap: "12px" },
   summary: { cursor: "pointer", fontWeight: 900, color: "#111827", padding: "10px 0" },
+  reportActions: { display: "flex", gap: "10px", justifyContent: "flex-end", marginBottom: "14px" },
+  reportButton: { backgroundColor: "#111827", color: "#fff", border: "1px solid #111827", borderRadius: "7px", padding: "9px 12px", cursor: "pointer", fontWeight: 900 },
+  reportButtonSecondary: { backgroundColor: "#fff", color: "#111827", border: "1px solid #d1d5db", borderRadius: "7px", padding: "9px 12px", cursor: "pointer", fontWeight: 900 },
   filters: { display: "grid", gridTemplateColumns: "minmax(190px, 1.2fr) minmax(190px, 1.2fr) 130px 132px 132px 86px", columnGap: "10px", rowGap: "10px", alignItems: "end", marginBottom: "10px", width: "100%" },
   filterGroupWide: { minWidth: 0, display: "flex", flexDirection: "column", gap: "5px" },
   filterGroupSmall: { minWidth: 0, display: "flex", flexDirection: "column", gap: "5px" },
