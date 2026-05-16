@@ -10,8 +10,9 @@ class Correction(Base):
     __tablename__ = "corrections"
 
     id = Column(Integer, primary_key=True, index=True)
-    case_study_id = Column(Integer, ForeignKey("case_studies.id"), nullable=False)
-    student_name = Column(String, nullable=False)
+    assignment_id = Column(Integer, ForeignKey("case_assignments.id"), nullable=True)
+    case_study_id = Column(Integer, ForeignKey("case_studies.id"), nullable=True)
+    student_name = Column(String, nullable=True)
     student_group = Column(String, nullable=True)
     status = Column(String, default="pending_review", nullable=False)
     grade = Column(Float, nullable=True)
@@ -21,10 +22,31 @@ class Correction(Base):
     reviewed_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
+    assignment = relationship("CaseAssignment")
     case_study = relationship("CaseStudy")
 
     @property
     def case_title(self):
-        if not self.case_study:
-            return None
-        return self.case_study.title
+        if self.assignment and self.assignment.case_title:
+            return self.assignment.case_title
+        if self.case_study:
+            return self.case_study.title
+        return None
+
+    @property
+    def assignee_name(self):
+        if self.assignment:
+            return self.assignment.assignee_name
+        return self.student_name
+
+    @property
+    def assignee_type(self):
+        if self.assignment:
+            return self.assignment.assignee_type
+        return "legacy"
+
+    @property
+    def assignment_status(self):
+        if self.assignment:
+            return self.assignment.status
+        return None
