@@ -1,11 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 
 import PageCard from "../components/layout/PageCard";
 import EmployeeForm from "../components/employees/EmployeeForm";
 import EmployeeTable from "../components/employees/EmployeeTable";
-import EmployeeDocumentSummary from "../components/employees/EmployeeDocumentSummary";
 import EmployeeAssignmentPanel from "../components/employees/EmployeeAssignmentPanel";
-import { fetchDocuments } from "../services/documentApi";
 
 function normalizeText(value) {
   return String(value || "")
@@ -28,18 +26,12 @@ export default function EmployeesPage({
   onEmployeeSubmit,
   onUpdateEmployee,
   onDeleteEmployee,
+  onOpenRecord,
   employeeError,
   employeeSuccess,
   employeeSubmitting,
 }) {
   const [filters, setFilters] = useState({ id: "", name: "", dni: "" });
-  const [documents, setDocuments] = useState([]);
-
-  useEffect(() => {
-    fetchDocuments()
-      .then(setDocuments)
-      .catch(() => setDocuments([]));
-  }, []);
 
   const handleFilterChange = (event) => {
     const { name, value } = event.target;
@@ -70,7 +62,7 @@ export default function EmployeesPage({
     <div style={styles.wrapper}>
       <PageCard
         title="Nuevo trabajador"
-        subtitle="Crea un trabajador dentro de una empresa y centro para vincularlo después a contratos, nóminas, incidencias y documentación."
+        subtitle="Crea un trabajador dentro de una empresa y centro para vincularlo después a contratos, nóminas e incidencias."
       >
         <EmployeeForm
           form={employeeForm}
@@ -84,7 +76,7 @@ export default function EmployeesPage({
         />
       </PageCard>
 
-      <PageCard title="Listado de trabajadores" subtitle="Trabajadores registrados actualmente en AulaNomina.">
+      <PageCard title="Listado de trabajadores" subtitle="Listado operativo de trabajadores. El expediente completo se abre desde cada fila.">
         <div style={styles.filters}>
           <div style={styles.filterGroupCode}>
             <label>ID / Código</label>
@@ -109,9 +101,9 @@ export default function EmployeesPage({
           contracts={contracts}
           incidents={incidents}
           payrolls={payrolls}
-          documents={documents}
           onUpdateEmployee={onUpdateEmployee}
           onDeleteEmployee={onDeleteEmployee}
+          onOpenRecord={onOpenRecord}
           submitting={employeeSubmitting}
         />
 
@@ -121,8 +113,6 @@ export default function EmployeesPage({
           workCenters={workCenters}
           onUpdateEmployee={onUpdateEmployee}
         />
-
-        <EmployeeDocumentSummary employees={filteredEmployees} documents={documents} />
       </PageCard>
     </div>
   );
