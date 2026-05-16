@@ -61,8 +61,9 @@ export default function StudentGroupsPage() {
         active: acc.active + (group.status === "active" ? 1 : 0),
         inactive: acc.inactive + (group.status === "inactive" ? 1 : 0),
         completed: acc.completed + (group.status === "completed" ? 1 : 0),
+        students: acc.students + (group.student_count || 0),
       }),
-      { total: 0, active: 0, inactive: 0, completed: 0 }
+      { total: 0, active: 0, inactive: 0, completed: 0, students: 0 }
     );
   }, [groups]);
 
@@ -189,7 +190,7 @@ export default function StudentGroupsPage() {
       <section style={styles.summaryGrid}>
         <div style={styles.summaryCard}><span style={styles.summaryLabel}>Total</span><strong style={styles.summaryValue}>{counters.total}</strong></div>
         <div style={styles.summaryCard}><span style={styles.summaryLabel}>Activos</span><strong style={styles.summaryValue}>{counters.active}</strong></div>
-        <div style={styles.summaryCard}><span style={styles.summaryLabel}>Finalizados</span><strong style={styles.summaryValue}>{counters.completed}</strong></div>
+        <div style={styles.summaryCard}><span style={styles.summaryLabel}>Alumnos asignados</span><strong style={styles.summaryValue}>{counters.students}</strong></div>
         <div style={styles.summaryCard}><span style={styles.summaryLabel}>Inactivos</span><strong style={styles.summaryValue}>{counters.inactive}</strong></div>
       </section>
 
@@ -235,13 +236,14 @@ export default function StudentGroupsPage() {
         <h2 style={styles.cardTitle}>Listado de grupos</h2>
         <div style={styles.tableWrapper}>
           <table style={styles.table}>
-            <thead><tr><th style={styles.th}>Código</th><th style={styles.th}>Grupo</th><th style={styles.th}>Curso</th><th style={styles.th}>Centro</th><th style={styles.th}>Docente</th><th style={styles.th}>Estado</th><th style={styles.th}>Acciones</th></tr></thead>
+            <thead><tr><th style={styles.th}>Código</th><th style={styles.th}>Grupo</th><th style={styles.th}>Curso</th><th style={styles.th}>Alumnos</th><th style={styles.th}>Centro</th><th style={styles.th}>Docente</th><th style={styles.th}>Estado</th><th style={styles.th}>Acciones</th></tr></thead>
             <tbody>
               {filteredGroups.map((group) => (
                 <tr key={group.id} style={!group.is_active ? styles.inactiveRow : undefined}>
                   <td style={styles.td}><strong>{group.group_code || group.id}</strong></td>
                   <td style={styles.td}>{group.name}</td>
                   <td style={styles.td}>{group.academic_year || "-"}</td>
+                  <td style={styles.td}><strong>{group.student_count || 0}</strong></td>
                   <td style={styles.td}>{group.education_center || "-"}</td>
                   <td style={styles.td}>{group.teacher_name || "-"}</td>
                   <td style={styles.td}>{statusLabels[group.status] || group.status}</td>
