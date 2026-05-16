@@ -9,6 +9,7 @@ from app.models.contract import Contract
 from app.seed_demo import seed_demo_data
 from app.seed_demo_documents import seed_demo_documents
 from app.case_study_routes import router as case_study_router
+from app.crud.case_assignment import seed_demo_case_assignments
 from app.crud.case_study import seed_demo_case_studies
 from app.crud.correction import seed_demo_corrections
 from app.crud.student import seed_demo_students
@@ -110,6 +111,7 @@ try:
     seed_demo_student_groups(_demo_db)
     seed_demo_students(_demo_db)
     seed_demo_case_studies(_demo_db)
+    seed_demo_case_assignments(_demo_db)
     seed_demo_corrections(_demo_db)
 finally:
     _demo_db.close()
@@ -138,6 +140,7 @@ def reset_demo_endpoint():
             seed_demo_student_groups(db)
             seed_demo_students(db)
             seed_demo_case_studies(db)
+            seed_demo_case_assignments(db)
             seed_demo_corrections(db)
         finally:
             db.close()
@@ -146,7 +149,7 @@ def reset_demo_endpoint():
 
     return {
         "ok": True,
-        "message": "Demo reiniciada correctamente, incluida documentación laboral, grupos, alumnos, casos prácticos y correcciones",
+        "message": "Demo reiniciada correctamente, incluida documentación laboral, grupos, alumnos, casos prácticos, asignaciones y correcciones",
         "mode": "controlled_demo_reset",
     }
 
