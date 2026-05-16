@@ -2,6 +2,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import "./index.css";
 import AppSplit12 from "./AppSplit12.jsx";
+import AlertsRoute from "./components/alerts/AlertsRoute.jsx";
 import CaseStudiesRoute from "./components/case-studies/CaseStudiesRoute.jsx";
 import EmployeesRoute from "./components/employees/EmployeesRoute.jsx";
 import ReportsRoute from "./components/reports/ReportsRoute.jsx";
@@ -12,5 +13,6 @@ createRoot(document.getElementById("root")).render(
     <EmployeesRoute />
     <CaseStudiesRoute />
     <ReportsRoute />
+    <AlertsRoute />
   </StrictMode>
 );
