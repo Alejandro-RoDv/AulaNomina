@@ -123,6 +123,16 @@ export default function Sidebar({ activePage, setActivePage }) {
       return;
     }
 
+    if (item.id === "irpf") {
+      setActivePage("payrolls");
+      setHashActivePage(null);
+      if (overlayHashes.includes(window.location.hash)) {
+        window.history.replaceState(null, "", window.location.pathname + window.location.search);
+      }
+      window.dispatchEvent(new Event("aulanomina-route-change"));
+      return;
+    }
+
     setActivePage(item.id);
 
     if (overlayPages.includes(item.id)) {
@@ -153,7 +163,7 @@ export default function Sidebar({ activePage, setActivePage }) {
             <p style={styles.groupTitle}>{group.title}</p>
             <div style={styles.groupItems}>
               {group.items.map((item) => {
-                const isActive = currentActivePage === item.id || (item.children && employeePages.includes(currentActivePage));
+                const isActive = currentActivePage === item.id || (item.id === "irpf" && currentActivePage === "payrolls") || (item.children && employeePages.includes(currentActivePage));
                 const submenuOpen = item.children && employeeMenuOpen;
 
                 return (
