@@ -12,13 +12,13 @@ from app.models.incident import Incident
 from app.models.payroll import Payroll
 from app.models.tax_profile import TaxProfile
 from app.models.work_center import WorkCenter
-from app.schemas.payroll import PayrollCreate, PayrollFutureSimulationRequest, PayrollUpdate
+from app.schemas.payroll import PayrollCreate, PayrollFutureSimulationRequest, PayrollPrepareRequest, PayrollUpdate
 from app.services.irpf_calculator import calculate_irpf_2026
 
 SOCIAL_SECURITY_PERCENTAGE = Decimal("6.47")
 DEFAULT_IRPF_PERCENTAGE = Decimal("10.00")
 
-MONTHLY_PERIODS = set(range(1, 13))
+MONTHLY_PERIODS = set(range(1, 12 + 1))
 EXTRA_JULY = 13
 EXTRA_DECEMBER = 14
 EXTRA_COMPLEMENTARY = 15
@@ -36,16 +36,17 @@ def percent(value) -> Decimal:
 
 def calculate_contract_base_salary(contract: Contract, period_month: int) -> Decimal:
     annual_salary = money(contract.salary_base or Decimal("0.00"))
-    pay_schedule = contract.pay_schedule or "not_prorated_14"
 
     if period_month == EXTRA_COMPLEMENTARY:
         return Decimal("0.00")
 
+    # salary_base is the agreed gross annual salary.
+    # A 14-pay contract has 12 ordinary payrolls + 2 extra payrolls.
+    # A 12-pay prorated contract keeps the ordinary base as 1/14 and adds
+    # the prorated extra-pay amount separately, so the annual total remains
+    # exactly the agreed salary instead of overcounting the two extra pays.
     if period_month in {EXTRA_JULY, EXTRA_DECEMBER}:
         return money(annual_salary / Decimal("14"))
-
-    if pay_schedule == "prorated_12":
-        return money(annual_salary / Decimal("12"))
 
     return money(annual_salary / Decimal("14"))
 
