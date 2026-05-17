@@ -78,7 +78,13 @@ def init_database() -> None:
 
         if "payrolls" in table_names:
             existing_payroll_columns = {column["name"] for column in inspector.get_columns("payrolls")}
-            payroll_columns = {"center_id": "INTEGER REFERENCES work_centers(id)", "payroll_code": "VARCHAR"}
+            payroll_columns = {
+                "center_id": "INTEGER REFERENCES work_centers(id)",
+                "payroll_code": "VARCHAR",
+                "irpf_mode": "VARCHAR DEFAULT 'auto' NOT NULL",
+                "irpf_percentage": "NUMERIC(5, 2) DEFAULT 0 NOT NULL",
+                "suggested_irpf_percentage": "NUMERIC(5, 2) DEFAULT 0 NOT NULL",
+            }
             for column_name, column_definition in payroll_columns.items():
                 if column_name not in existing_payroll_columns:
                     connection.execute(text(f"ALTER TABLE payrolls ADD COLUMN {column_name} {column_definition}"))
