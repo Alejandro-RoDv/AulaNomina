@@ -13,6 +13,7 @@ class TaxProfile(Base):
     employee_id = Column(Integer, ForeignKey("employees.id"), unique=True, nullable=False, index=True)
 
     birth_year = Column(Integer, nullable=True)
+    autonomous_community = Column(String, default="andalucia", nullable=False)
     family_situation = Column(String, default="situation_3", nullable=False)
     spouse_nif = Column(String, nullable=True)
     employment_situation = Column(String, default="active", nullable=False)
