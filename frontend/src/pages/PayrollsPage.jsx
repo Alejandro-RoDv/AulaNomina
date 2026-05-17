@@ -68,7 +68,13 @@ export default function PayrollsPage({
           title="IRPF"
           subtitle="Configuración fiscal, cálculo anual, previsión mensual, IRPF voluntario y variables futuras. Las nóminas reales alimentan esta tabla mensual."
         >
-          <IrpfModulePanel employees={employees} contracts={contracts} onRefresh={refreshPayrollList} />
+          <IrpfModulePanel
+            employees={employees}
+            contracts={contracts}
+            companies={companies}
+            workCenters={workCenters}
+            onRefresh={refreshPayrollList}
+          />
         </PageCard>
       </div>
     );
