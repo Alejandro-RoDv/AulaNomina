@@ -29,8 +29,9 @@ from app.crud.employee import (
     get_employee_by_naf,
     get_next_employee_code,
 )
-from app.schemas.tax_profile import TaxProfileResponse, TaxProfileUpdate
+from app.schemas.tax_profile import IrpfCalculationInput, IrpfCalculationResponse, TaxProfileResponse, TaxProfileUpdate
 from app.crud.tax_profile import get_tax_profiles, get_tax_profile_by_employee, upsert_tax_profile
+from app.services.irpf_calculator import calculate_irpf_2026
 from app.schemas.contract import ContractCreate, ContractUpdate, ContractResponse
 from app.crud.contract import (
     create_contract,
@@ -231,11 +232,33 @@ def list_tax_profiles(db: Session = Depends(get_db)):
     return get_tax_profiles(db)
 
 
+@app.post("/tax-profiles/calculate-irpf", response_model=IrpfCalculationResponse)
+def calculate_irpf_endpoint(profile: IrpfCalculationInput):
+    return calculate_irpf_2026(profile.model_dump())
+
+
 @app.get("/employees/{employee_id}/tax-profile", response_model=TaxProfileResponse | None)
 def get_employee_tax_profile_endpoint(employee_id: int, db: Session = Depends(get_db)):
     if not get_employee(db, employee_id):
         raise HTTPException(status_code=404, detail="Trabajador no encontrado")
     return get_tax_profile_by_employee(db, employee_id)
+
+
+@app.get("/employees/{employee_id}/tax-profile/calculate-irpf", response_model=IrpfCalculationResponse)
+def calculate_employee_irpf_endpoint(employee_id: int, db: Session = Depends(get_db)):
+    employee = get_employee(db, employee_id)
+    if not employee:
+        raise HTTPException(status_code=404, detail="Trabajador no encontrado")
+
+    tax_profile = get_tax_profile_by_employee(db, employee_id)
+    if not tax_profile:
+        raise HTTPException(status_code=404, detail="Ficha fiscal no encontrada")
+
+    profile_data = TaxProfileResponse.model_validate(tax_profile).model_dump()
+    if not profile_data.get("birth_year") and employee.birth_date:
+        profile_data["birth_year"] = employee.birth_date.year
+
+    return calculate_irpf_2026(profile_data)
 
 
 @app.put("/employees/{employee_id}/tax-profile", response_model=TaxProfileResponse)
