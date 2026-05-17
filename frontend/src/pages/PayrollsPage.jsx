@@ -5,6 +5,7 @@ import PayrollForm, { PAYROLL_STATUS_OPTIONS } from "../components/payrolls/Payr
 import PayrollTable from "../components/payrolls/PayrollTable";
 import MonthlyPayrollPreparation from "../components/payrolls/MonthlyPayrollPreparation";
 import FuturePayrollSimulator from "../components/payrolls/FuturePayrollSimulator";
+import IrpfModulePanel from "../components/payrolls/IrpfModulePanel";
 import { fetchPayrolls } from "../services/payrollApi";
 import { openReportPreset } from "../utils/reportShortcuts";
 
