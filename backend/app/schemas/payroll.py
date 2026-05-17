@@ -14,6 +14,8 @@ PAYROLL_STATUS_VALUES = {
     "cancelled",
 }
 
+IRPF_MODE_VALUES = {"auto", "manual", "voluntary"}
+
 
 class PayrollBase(BaseModel):
     employee_id: int
@@ -23,7 +25,8 @@ class PayrollBase(BaseModel):
     period_month: int
     period_year: int
     salary_supplements: Decimal = Decimal("0.00")
-    irpf_percentage: Decimal = Decimal("10.00")
+    irpf_percentage: Optional[Decimal] = None
+    irpf_mode: str = "auto"
     status: str = "pending"
 
     @field_validator("period_month")
@@ -47,6 +50,13 @@ class PayrollBase(BaseModel):
             raise ValueError("Estado de nómina no válido")
         return value
 
+    @field_validator("irpf_mode")
+    @classmethod
+    def validate_irpf_mode(cls, value):
+        if value not in IRPF_MODE_VALUES:
+            raise ValueError("Modo IRPF no válido")
+        return value
+
     @field_validator("salary_supplements", "irpf_percentage")
     @classmethod
     def validate_non_negative_amounts(cls, value):
@@ -65,6 +75,7 @@ class PayrollUpdate(BaseModel):
     period_year: Optional[int] = None
     salary_supplements: Optional[Decimal] = None
     irpf_percentage: Optional[Decimal] = None
+    irpf_mode: Optional[str] = None
     status: Optional[str] = None
 
     @field_validator("status")
@@ -76,6 +87,15 @@ class PayrollUpdate(BaseModel):
             raise ValueError("Estado de nómina no válido")
         return value
 
+    @field_validator("irpf_mode")
+    @classmethod
+    def validate_irpf_mode(cls, value):
+        if value is None:
+            return value
+        if value not in IRPF_MODE_VALUES:
+            raise ValueError("Modo IRPF no válido")
+        return value
+
 
 class PayrollPrepareRequest(BaseModel):
     company_ids: list[int]
@@ -83,6 +103,7 @@ class PayrollPrepareRequest(BaseModel):
     period_month: int
     period_year: int
     status: str = "pending"
+    irpf_mode: str = "auto"
 
     @field_validator("company_ids")
     @classmethod
@@ -113,6 +134,13 @@ class PayrollPrepareRequest(BaseModel):
             raise ValueError("Estado de nómina no válido")
         return value
 
+    @field_validator("irpf_mode")
+    @classmethod
+    def validate_irpf_mode(cls, value):
+        if value not in IRPF_MODE_VALUES:
+            raise ValueError("Modo IRPF no válido")
+        return value
+
 
 class PayrollPrepareResponseItem(BaseModel):
     payroll_id: Optional[int] = None
@@ -128,6 +156,9 @@ class PayrollPrepareResponseItem(BaseModel):
     incident_summary: list[str] = []
     status: str
     gross_salary: Decimal
+    irpf_mode: str = "auto"
+    irpf_percentage: Decimal = Decimal("0.00")
+    suggested_irpf_percentage: Decimal = Decimal("0.00")
     already_existing: bool = False
 
 
@@ -150,6 +181,43 @@ class PayrollPrepareResponse(BaseModel):
     skipped: list[PayrollSkippedItem] = []
 
 
+class PayrollFutureIncentive(BaseModel):
+    period_month: int
+    period_year: int
+    amount: Decimal = Decimal("0.00")
+    description: str = "Variable futura"
+
+
+class PayrollFutureSimulationRequest(BaseModel):
+    employee_id: int
+    contract_id: int
+    periods: list[int]
+    period_year: int
+    incentives: list[PayrollFutureIncentive] = []
+    salary_increase: Decimal = Decimal("0.00")
+    irpf_mode: str = "auto"
+
+
+class PayrollFutureSimulationItem(BaseModel):
+    period_month: int
+    period_year: int
+    base_salary: Decimal
+    salary_supplements: Decimal
+    gross_salary: Decimal
+    employee_social_security: Decimal
+    irpf_percentage: Decimal
+    suggested_irpf_percentage: Decimal
+    irpf: Decimal
+    total_deductions: Decimal
+    net_salary: Decimal
+
+
+class PayrollFutureSimulationResponse(BaseModel):
+    employee_id: int
+    contract_id: int
+    items: list[PayrollFutureSimulationItem]
+
+
 class PayrollResponse(BaseModel):
     id: int
     employee_id: int
@@ -166,6 +234,9 @@ class PayrollResponse(BaseModel):
     extra_pay_proration: Decimal
     gross_salary: Decimal
     employee_social_security: Decimal
+    irpf_mode: str = "auto"
+    irpf_percentage: Decimal = Decimal("0.00")
+    suggested_irpf_percentage: Decimal = Decimal("0.00")
     irpf: Decimal
     total_deductions: Decimal
     net_salary: Decimal
