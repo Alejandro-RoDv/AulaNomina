@@ -20,6 +20,18 @@ export async function fetchEmployeeIrpfAnnualSummary(employeeId, year) {
   );
 }
 
+export async function simulateEmployeeIrpfAnnualSummary(employeeId, payload) {
+  return apiRequest(
+    `/employees/${employeeId}/irpf-annual-summary/simulate`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    },
+    "Error al simular resumen anual de IRPF"
+  );
+}
+
 export async function calculateEmployeeIrpf(employeeId) {
   return apiRequest(
     `/employees/${employeeId}/tax-profile/calculate-irpf`,
