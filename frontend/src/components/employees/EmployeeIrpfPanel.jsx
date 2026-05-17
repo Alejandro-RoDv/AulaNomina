@@ -1,7 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 
-import { fetchPayrolls } from "../../services/payrollApi";
-import { calculateIrpf, updateEmployeeTaxProfile } from "../../services/taxProfileApi";
+import { calculateIrpf, fetchEmployeeIrpfAnnualSummary, updateEmployeeTaxProfile } from "../../services/taxProfileApi";
 
 const COMMUNITY_OPTIONS = [
   ["andalucia", "Andalucía"],
@@ -50,18 +49,9 @@ const DISABILITY_OPTIONS = [
 ];
 
 const MONTHS = [
-  [1, "Enero"],
-  [2, "Febrero"],
-  [3, "Marzo"],
-  [4, "Abril"],
-  [5, "Mayo"],
-  [6, "Junio"],
-  [7, "Julio"],
-  [8, "Agosto"],
-  [9, "Septiembre"],
-  [10, "Octubre"],
-  [11, "Noviembre"],
-  [12, "Diciembre"],
+  [1, "Enero"], [2, "Febrero"], [3, "Marzo"], [4, "Abril"],
+  [5, "Mayo"], [6, "Junio"], [7, "Julio"], [8, "Agosto"],
+  [9, "Septiembre"], [10, "Octubre"], [11, "Noviembre"], [12, "Diciembre"],
 ];
 
 const defaultForm = {
@@ -156,84 +146,35 @@ function formatPercent(value) {
   return `${Number(value).toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`;
 }
 
-function periodValue(year, month) {
-  return Number(`${year}${String(month).padStart(2, "0")}`);
-}
-
-function calculateBaseSalary(contract, month) {
-  const annualSalary = Number(contract?.salary_base || 0);
-  const paySchedule = contract?.pay_schedule || "not_prorated_14";
-  if (month === 13 || month === 14) return annualSalary / 14;
-  if (month < 1 || month > 12) return 0;
-  if (paySchedule === "prorated_12") return annualSalary / 12;
-  return annualSalary / 14;
-}
-
-function calculateExtraPayProration(contract, month) {
-  const annualSalary = Number(contract?.salary_base || 0);
-  const paySchedule = contract?.pay_schedule || "not_prorated_14";
-  if (month < 1 || month > 12) return 0;
-  if (paySchedule !== "prorated_12") return 0;
-  return ((annualSalary / 14) * 2) / 12;
-}
-
-function buildProjectedMonth({ contract, year, month, irpfPercentage }) {
-  const baseSalary = calculateBaseSalary(contract, month);
-  const extraPay = calculateExtraPayProration(contract, month);
-  const gross = baseSalary + extraPay;
-  const ss = gross * 0.0647;
-  const irpf = gross * (Number(irpfPercentage || 0) / 100);
-  const net = gross - ss - irpf;
-
-  return {
-    id: `forecast-${year}-${month}`,
-    month,
-    year,
-    status: "Prevista",
-    type: "forecast",
-    gross,
-    net,
-    irpf,
-    irpfPercentage: Number(irpfPercentage || 0),
-  };
-}
-
-function buildRealMonth(payroll) {
-  return {
-    id: payroll.id,
-    month: Number(payroll.period_month),
-    year: Number(payroll.period_year),
-    status: payroll.status || "real",
-    type: "real",
-    gross: Number(payroll.gross_salary || 0),
-    net: Number(payroll.net_salary || 0),
-    irpf: Number(payroll.irpf || 0),
-    irpfPercentage: Number(payroll.irpf_percentage || 0),
-  };
-}
-
-function sumRows(rows) {
-  return rows.reduce(
-    (acc, row) => ({
-      gross: acc.gross + Number(row.gross || 0),
-      net: acc.net + Number(row.net || 0),
-      irpf: acc.irpf + Number(row.irpf || 0),
-    }),
-    { gross: 0, net: 0, irpf: 0 }
-  );
+function getMonthLabel(month) {
+  return MONTHS.find(([value]) => Number(value) === Number(month))?.[1] || String(month).padStart(2, "0");
 }
 
 export default function EmployeeIrpfPanel({ employee, taxProfile, activeContract, onRefresh }) {
   const currentYear = new Date().getFullYear();
   const [year, setYear] = useState(currentYear);
   const [form, setForm] = useState(toFormValue(taxProfile, employee, activeContract));
-  const [payrolls, setPayrolls] = useState([]);
+  const [summary, setSummary] = useState(null);
   const [calculation, setCalculation] = useState(null);
   const [irpfMode, setIrpfMode] = useState(taxProfile?.voluntary_irpf ? "voluntary" : "auto");
+  const [loadingSummary, setLoadingSummary] = useState(false);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+
+  const loadSummary = async () => {
+    if (!employee?.id) return;
+    try {
+      setLoadingSummary(true);
+      setError("");
+      setSummary(await fetchEmployeeIrpfAnnualSummary(employee.id, year));
+    } catch (err) {
+      setError(err.message || "No se pudo cargar el resumen anual de IRPF");
+    } finally {
+      setLoadingSummary(false);
+    }
+  };
 
   useEffect(() => {
     setForm(toFormValue(taxProfile, employee, activeContract));
@@ -244,18 +185,8 @@ export default function EmployeeIrpfPanel({ employee, taxProfile, activeContract
   }, [employee?.id, taxProfile, activeContract?.id]);
 
   useEffect(() => {
-    let ignore = false;
-    async function loadPayrolls() {
-      try {
-        const data = await fetchPayrolls();
-        if (!ignore) setPayrolls(data.filter((payroll) => Number(payroll.employee_id) === Number(employee?.id)));
-      } catch {
-        if (!ignore) setError("No se pudieron cargar las nóminas reales del trabajador");
-      }
-    }
-    if (employee?.id) loadPayrolls();
-    return () => { ignore = true; };
-  }, [employee?.id]);
+    loadSummary();
+  }, [employee?.id, year]);
 
   const handleChange = (event) => {
     const { name, value, type, checked } = event.target;
@@ -263,8 +194,8 @@ export default function EmployeeIrpfPanel({ employee, taxProfile, activeContract
   };
 
   const handleRecalculate = async () => {
-    if (!employee?.id || !activeContract?.id) {
-      setError("El trabajador necesita un contrato activo para calcular el IRPF anual");
+    if (!employee?.id) {
+      setError("Selecciona un trabajador para recalcular IRPF");
       return;
     }
 
@@ -290,6 +221,7 @@ export default function EmployeeIrpfPanel({ employee, taxProfile, activeContract
       await updateEmployeeTaxProfile(employee.id, buildPayload(form));
       setMessage("Datos fiscales guardados correctamente");
       await onRefresh?.();
+      await loadSummary();
     } catch (err) {
       setError(err.message || "Error al guardar datos fiscales");
     } finally {
@@ -312,6 +244,7 @@ export default function EmployeeIrpfPanel({ employee, taxProfile, activeContract
       setIrpfMode("voluntary");
       setMessage("IRPF calculado guardado como IRPF voluntario/aplicado para próximas simulaciones");
       await onRefresh?.();
+      await loadSummary();
     } catch (err) {
       setError(err.message || "Error al guardar el IRPF calculado");
     } finally {
@@ -327,24 +260,15 @@ export default function EmployeeIrpfPanel({ employee, taxProfile, activeContract
     setError("");
   };
 
-  const suggestedIrpf = calculation?.suggested_irpf ?? taxProfile?.suggested_irpf_percentage ?? null;
-  const effectiveIrpf = irpfMode === "voluntary" && form.voluntary_irpf !== "" ? Number(form.voluntary_irpf) : Number(suggestedIrpf || 0);
+  const suggestedIrpf = calculation?.suggested_irpf ?? summary?.suggested_irpf ?? null;
+  const effectiveIrpf = irpfMode === "voluntary" && form.voluntary_irpf !== ""
+    ? Number(form.voluntary_irpf)
+    : Number(suggestedIrpf || summary?.current_irpf || 0);
 
-  const annualRows = useMemo(() => {
-    const realByMonth = new Map();
-    payrolls
-      .filter((payroll) => Number(payroll.period_year) === Number(year) && Number(payroll.period_month) >= 1 && Number(payroll.period_month) <= 12)
-      .forEach((payroll) => realByMonth.set(Number(payroll.period_month), buildRealMonth(payroll)));
-
-    return MONTHS.map(([month]) => {
-      if (realByMonth.has(month)) return realByMonth.get(month);
-      return buildProjectedMonth({ contract: activeContract, year, month, irpfPercentage: effectiveIrpf });
-    });
-  }, [payrolls, year, activeContract, effectiveIrpf]);
-
-  const realTotals = useMemo(() => sumRows(annualRows.filter((row) => row.type === "real")), [annualRows]);
-  const projectedTotals = useMemo(() => sumRows(annualRows.filter((row) => row.type === "forecast")), [annualRows]);
-  const totalTotals = useMemo(() => sumRows(annualRows), [annualRows]);
+  const realTotals = summary?.totals?.real || { gross: 0, net: 0, irpf: 0 };
+  const forecastTotals = summary?.totals?.forecast || { gross: 0, net: 0, irpf: 0 };
+  const annualTotals = summary?.totals?.annual || { gross: 0, net: 0, irpf: 0 };
+  const rows = summary?.months || [];
 
   return (
     <section style={styles.card}>
@@ -352,35 +276,32 @@ export default function EmployeeIrpfPanel({ employee, taxProfile, activeContract
         <div>
           <p style={styles.eyebrow}>IRPF ANUAL DEL TRABAJADOR</p>
           <h3 style={styles.title}>IRPF y previsión anual</h3>
-          <p style={styles.subtitle}>Vista anual con nóminas reales, meses previstos, IRPF sugerido y opción de IRPF voluntario.</p>
+          <p style={styles.subtitle}>Resumen anual calculado por backend: nóminas reales, meses previstos, bruto, neto e IRPF.</p>
         </div>
         <div style={styles.actions}>
           <button type="button" onClick={handleRecalculate} disabled={loading || saving} style={styles.primaryButton}>
             {loading ? "Recalculando..." : "Recalcular IRPF"}
           </button>
-          <button type="button" onClick={handleSaveCalculatedIrpf} disabled={!calculation || saving} style={styles.secondaryButton}>
-            Guardar IRPF calculado
-          </button>
-          <button type="button" onClick={handleSaveFiscalData} disabled={saving} style={styles.secondaryButton}>
-            Guardar datos fiscales
-          </button>
+          <button type="button" onClick={handleSaveCalculatedIrpf} disabled={!calculation || saving} style={styles.secondaryButton}>Guardar IRPF calculado</button>
+          <button type="button" onClick={handleSaveFiscalData} disabled={saving} style={styles.secondaryButton}>Guardar datos fiscales</button>
           <button type="button" onClick={handleCancel} disabled={saving} style={styles.cancelButton}>Cancelar</button>
         </div>
       </div>
 
       {error && <div style={styles.error}>{error}</div>}
       {message && <div style={styles.success}>{message}</div>}
-      {!activeContract && <div style={styles.warning}>El trabajador no tiene contrato activo. La previsión mensual no puede calcular salario base.</div>}
+      {loadingSummary && <div style={styles.warning}>Actualizando resumen anual...</div>}
+      {!activeContract && <div style={styles.warning}>El trabajador no tiene contrato activo. El backend calculará el resumen con contrato disponible o importes a cero.</div>}
 
       <div style={styles.summaryGrid}>
         <div style={styles.kpi}><span>Bruto real</span><strong>{formatMoney(realTotals.gross)}</strong></div>
         <div style={styles.kpi}><span>Neto real</span><strong>{formatMoney(realTotals.net)}</strong></div>
         <div style={styles.kpi}><span>IRPF real</span><strong>{formatMoney(realTotals.irpf)}</strong></div>
         <div style={styles.kpi}><span>IRPF sugerido</span><strong>{formatPercent(suggestedIrpf)}</strong></div>
-        <div style={styles.kpi}><span>Bruto previsto</span><strong>{formatMoney(projectedTotals.gross)}</strong></div>
-        <div style={styles.kpi}><span>Neto previsto</span><strong>{formatMoney(projectedTotals.net)}</strong></div>
-        <div style={styles.kpi}><span>IRPF previsto</span><strong>{formatMoney(projectedTotals.irpf)}</strong></div>
-        <div style={styles.kpiAccent}><span>Total bruto/neto/IRPF</span><strong>{formatMoney(totalTotals.gross)} / {formatMoney(totalTotals.net)} / {formatMoney(totalTotals.irpf)}</strong></div>
+        <div style={styles.kpi}><span>Bruto previsto</span><strong>{formatMoney(forecastTotals.gross)}</strong></div>
+        <div style={styles.kpi}><span>Neto previsto</span><strong>{formatMoney(forecastTotals.net)}</strong></div>
+        <div style={styles.kpi}><span>IRPF previsto</span><strong>{formatMoney(forecastTotals.irpf)}</strong></div>
+        <div style={styles.kpiAccent}><span>Total bruto/neto/IRPF</span><strong>{formatMoney(annualTotals.gross)} / {formatMoney(annualTotals.net)} / {formatMoney(annualTotals.irpf)}</strong></div>
       </div>
 
       <div style={styles.controlGrid}>
@@ -397,41 +318,36 @@ export default function EmployeeIrpfPanel({ employee, taxProfile, activeContract
         <label style={styles.field}>IRPF voluntario / manual (%)
           <input name="voluntary_irpf" type="number" min="0" max="100" step="0.01" value={form.voluntary_irpf} onChange={handleChange} style={styles.input} />
         </label>
-        <div style={styles.resultBox}>
-          <span>IRPF aplicado en previsión</span>
-          <strong>{formatPercent(effectiveIrpf)}</strong>
-        </div>
+        <div style={styles.resultBox}><span>IRPF aplicado en previsión</span><strong>{formatPercent(effectiveIrpf)}</strong></div>
       </div>
 
       <div style={styles.tableWrapper}>
         <table style={styles.table}>
           <thead>
             <tr>
-              <th style={styles.th}>Mes</th>
-              <th style={styles.th}>Estado</th>
-              <th style={styles.thAmount}>Bruto real</th>
-              <th style={styles.thAmount}>Neto real</th>
-              <th style={styles.thAmount}>IRPF real</th>
-              <th style={styles.thAmount}>IRPF %</th>
-              <th style={styles.thAmount}>Bruto previsto</th>
-              <th style={styles.thAmount}>Neto previsto</th>
-              <th style={styles.thAmount}>IRPF previsto</th>
+              <th style={styles.th}>Mes</th><th style={styles.th}>Estado</th>
+              <th style={styles.thAmount}>Bruto real</th><th style={styles.thAmount}>Neto real</th><th style={styles.thAmount}>IRPF real</th><th style={styles.thAmount}>IRPF %</th>
+              <th style={styles.thAmount}>Bruto previsto</th><th style={styles.thAmount}>Neto previsto</th><th style={styles.thAmount}>IRPF previsto</th>
             </tr>
           </thead>
           <tbody>
-            {annualRows.map((row) => (
-              <tr key={row.id}>
-                <td style={styles.tdStrong}>{MONTHS.find(([month]) => month === row.month)?.[1]}</td>
-                <td style={styles.td}><span style={row.type === "real" ? styles.realBadge : styles.forecastBadge}>{row.type === "real" ? "Cobrado" : "Previsto"}</span></td>
-                <td style={styles.tdAmount}>{row.type === "real" ? formatMoney(row.gross) : "-"}</td>
-                <td style={styles.tdAmount}>{row.type === "real" ? formatMoney(row.net) : "-"}</td>
-                <td style={styles.tdAmount}>{row.type === "real" ? formatMoney(row.irpf) : "-"}</td>
-                <td style={styles.tdAmount}>{formatPercent(row.irpfPercentage)}</td>
-                <td style={styles.tdAmount}>{row.type === "forecast" ? formatMoney(row.gross) : "-"}</td>
-                <td style={styles.tdAmount}>{row.type === "forecast" ? formatMoney(row.net) : "-"}</td>
-                <td style={styles.tdAmountStrong}>{row.type === "forecast" ? formatMoney(row.irpf) : "-"}</td>
-              </tr>
-            ))}
+            {rows.map((row) => {
+              const isReal = row.source === "real";
+              return (
+                <tr key={`${row.year}-${row.month}-${row.source}-${row.payroll_id || "forecast"}`}>
+                  <td style={styles.tdStrong}>{getMonthLabel(row.month)}</td>
+                  <td style={styles.td}><span style={isReal ? styles.realBadge : styles.forecastBadge}>{isReal ? "Cobrado" : row.status || "Previsto"}</span></td>
+                  <td style={styles.tdAmount}>{isReal ? formatMoney(row.gross_salary) : "-"}</td>
+                  <td style={styles.tdAmount}>{isReal ? formatMoney(row.net_salary) : "-"}</td>
+                  <td style={styles.tdAmount}>{isReal ? formatMoney(row.irpf) : "-"}</td>
+                  <td style={styles.tdAmount}>{formatPercent(row.irpf_percentage)}</td>
+                  <td style={styles.tdAmount}>{!isReal ? formatMoney(row.gross_salary) : "-"}</td>
+                  <td style={styles.tdAmount}>{!isReal ? formatMoney(row.net_salary) : "-"}</td>
+                  <td style={styles.tdAmountStrong}>{!isReal ? formatMoney(row.irpf) : "-"}</td>
+                </tr>
+              );
+            })}
+            {rows.length === 0 && <tr><td style={styles.td} colSpan="9">Sin datos anuales disponibles.</td></tr>}
           </tbody>
         </table>
       </div>
@@ -439,67 +355,23 @@ export default function EmployeeIrpfPanel({ employee, taxProfile, activeContract
       <details style={styles.details} open>
         <summary style={styles.summary}>Configuración fiscal que afecta al IRPF</summary>
         <div style={styles.formGrid}>
-          <label style={styles.field}>Comunidad autónoma
-            <select name="autonomous_community" value={form.autonomous_community} onChange={handleChange} style={styles.input}>
-              {COMMUNITY_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-            </select>
-          </label>
-          <label style={styles.field}>Año nacimiento
-            <input name="birth_year" type="number" min="1906" max="2026" value={form.birth_year || ""} onChange={handleChange} style={styles.input} />
-          </label>
-          <label style={styles.field}>Situación familiar
-            <select name="family_situation" value={form.family_situation} onChange={handleChange} style={styles.input}>
-              {FAMILY_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-            </select>
-          </label>
-          <label style={styles.field}>NIF cónyuge
-            <input name="spouse_nif" value={form.spouse_nif || ""} onChange={handleChange} style={styles.input} />
-          </label>
-          <label style={styles.field}>Situación laboral
-            <select name="employment_situation" value={form.employment_situation} onChange={handleChange} style={styles.input}>
-              {EMPLOYMENT_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-            </select>
-          </label>
-          <label style={styles.field}>Categoría contrato IRPF
-            <select name="contract_category" value={form.contract_category} onChange={handleChange} style={styles.input}>
-              {CONTRACT_CATEGORY_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-            </select>
-          </label>
-          <label style={styles.field}>Tipo contrato interno
-            <input name="contract_type" value={form.contract_type || ""} onChange={handleChange} style={styles.input} />
-          </label>
-          <label style={styles.field}>Inicio contrato
-            <input name="contract_start_date" type="date" value={form.contract_start_date || ""} onChange={handleChange} style={styles.input} />
-          </label>
-          <label style={styles.field}>Retribución anual prevista
-            <input name="expected_annual_salary" type="number" min="0" step="0.01" value={form.expected_annual_salary || 0} onChange={handleChange} style={styles.input} />
-          </label>
-          <label style={styles.field}>Cotizaciones SS previstas
-            <input name="social_security_contributions" type="number" min="0" step="0.01" value={form.social_security_contributions || 0} onChange={handleChange} style={styles.input} />
-          </label>
-          <label style={styles.field}>Hijos / descendientes
-            <input name="children_count" type="number" min="0" value={form.children_count || 0} onChange={handleChange} style={styles.input} />
-          </label>
-          <label style={styles.field}>Ascendientes a cargo
-            <input name="ascendants_in_care" type="number" min="0" value={form.ascendants_in_care || 0} onChange={handleChange} style={styles.input} />
-          </label>
-          <label style={styles.field}>Grado discapacidad trabajador
-            <select name="disability_degree" value={form.disability_degree} onChange={handleChange} style={styles.input}>
-              {DISABILITY_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-            </select>
-          </label>
-          <label style={styles.field}>Pensión compensatoria
-            <input name="compensatory_pension" type="number" min="0" step="0.01" value={form.compensatory_pension || 0} onChange={handleChange} style={styles.input} />
-          </label>
-          <label style={styles.field}>Anualidades alimentos
-            <input name="child_support_annuity" type="number" min="0" step="0.01" value={form.child_support_annuity || 0} onChange={handleChange} style={styles.input} />
-          </label>
-          <label style={styles.field}>Rendimiento irregular art. 18.2
-            <input name="irregular_income_18_2" type="number" min="0" step="0.01" value={form.irregular_income_18_2 || 0} onChange={handleChange} style={styles.input} />
-          </label>
-          <label style={styles.field}>Rendimiento irregular art. 18.3
-            <input name="irregular_income_18_3" type="number" min="0" step="0.01" value={form.irregular_income_18_3 || 0} onChange={handleChange} style={styles.input} />
-          </label>
+          <label style={styles.field}>Comunidad autónoma<select name="autonomous_community" value={form.autonomous_community} onChange={handleChange} style={styles.input}>{COMMUNITY_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+          <label style={styles.field}>Año nacimiento<input name="birth_year" type="number" min="1906" max="2026" value={form.birth_year || ""} onChange={handleChange} style={styles.input} /></label>
+          <label style={styles.field}>Situación familiar<select name="family_situation" value={form.family_situation} onChange={handleChange} style={styles.input}>{FAMILY_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+          <label style={styles.field}>NIF cónyuge<input name="spouse_nif" value={form.spouse_nif || ""} onChange={handleChange} style={styles.input} /></label>
+          <label style={styles.field}>Situación laboral<select name="employment_situation" value={form.employment_situation} onChange={handleChange} style={styles.input}>{EMPLOYMENT_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+          <label style={styles.field}>Categoría contrato IRPF<select name="contract_category" value={form.contract_category} onChange={handleChange} style={styles.input}>{CONTRACT_CATEGORY_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+          <label style={styles.field}>Tipo contrato interno<input name="contract_type" value={form.contract_type || ""} onChange={handleChange} style={styles.input} /></label>
+          <label style={styles.field}>Inicio contrato<input name="contract_start_date" type="date" value={form.contract_start_date || ""} onChange={handleChange} style={styles.input} /></label>
+          <label style={styles.field}>Retribución anual prevista<input name="expected_annual_salary" type="number" min="0" step="0.01" value={form.expected_annual_salary || 0} onChange={handleChange} style={styles.input} /></label>
+          <label style={styles.field}>Cotizaciones SS previstas<input name="social_security_contributions" type="number" min="0" step="0.01" value={form.social_security_contributions || 0} onChange={handleChange} style={styles.input} /></label>
+          <label style={styles.field}>Hijos / descendientes<input name="children_count" type="number" min="0" value={form.children_count || 0} onChange={handleChange} style={styles.input} /></label>
+          <label style={styles.field}>Ascendientes a cargo<input name="ascendants_in_care" type="number" min="0" value={form.ascendants_in_care || 0} onChange={handleChange} style={styles.input} /></label>
+          <label style={styles.field}>Grado discapacidad trabajador<select name="disability_degree" value={form.disability_degree} onChange={handleChange} style={styles.input}>{DISABILITY_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+          <label style={styles.field}>Pensión compensatoria<input name="compensatory_pension" type="number" min="0" step="0.01" value={form.compensatory_pension || 0} onChange={handleChange} style={styles.input} /></label>
+          <label style={styles.field}>Anualidades alimentos<input name="child_support_annuity" type="number" min="0" step="0.01" value={form.child_support_annuity || 0} onChange={handleChange} style={styles.input} /></label>
+          <label style={styles.field}>Rendimiento irregular art. 18.2<input name="irregular_income_18_2" type="number" min="0" step="0.01" value={form.irregular_income_18_2 || 0} onChange={handleChange} style={styles.input} /></label>
+          <label style={styles.field}>Rendimiento irregular art. 18.3<input name="irregular_income_18_3" type="number" min="0" step="0.01" value={form.irregular_income_18_3 || 0} onChange={handleChange} style={styles.input} /></label>
         </div>
 
         <div style={styles.checkGrid}>
@@ -513,9 +385,7 @@ export default function EmployeeIrpfPanel({ employee, taxProfile, activeContract
           <label style={styles.check}><input name="manual_regularization" type="checkbox" checked={Boolean(form.manual_regularization)} onChange={handleChange} /> Regularización manual</label>
         </div>
 
-        <label style={styles.field}>Notas fiscales internas
-          <textarea name="notes" value={form.notes || ""} onChange={handleChange} rows="3" style={styles.textarea} />
-        </label>
+        <label style={styles.field}>Notas fiscales internas<textarea name="notes" value={form.notes || ""} onChange={handleChange} rows="3" style={styles.textarea} /></label>
       </details>
     </section>
   );
