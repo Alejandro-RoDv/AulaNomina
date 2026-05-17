@@ -141,8 +141,24 @@ function buildEmptyIncentive(year) {
   return { period_month: "9", amount: "0", description: "Variable futura", year };
 }
 
-function getRowVariables(row) {
-  return Number(row?.salary_supplements || 0);
+function getReal(row) {
+  return row?.real || null;
+}
+
+function getProjected(row) {
+  return row?.projected || row || null;
+}
+
+function moneyOrBlank(snapshot, field) {
+  return snapshot ? formatMoney(snapshot[field]) : "";
+}
+
+function percentOrBlank(snapshot, field) {
+  return snapshot ? formatPercent(snapshot[field]) : "";
+}
+
+function getProjectedVariables(row) {
+  return Number(getProjected(row)?.salary_supplements || 0);
 }
 
 function buildImpact(baseSummary, currentSummary) {
@@ -312,7 +328,7 @@ export default function EmployeeIrpfPanel({ employee, taxProfile, activeContract
   const forecastTotals = summary?.totals?.forecast || { gross: 0, net: 0, irpf: 0 };
   const annualTotals = summary?.totals?.annual || { gross: 0, net: 0, irpf: 0 };
   const rows = summary?.months || [];
-  const realMonthsCount = rows.filter((row) => row.source === "real").length;
+  const realMonthsCount = rows.filter((row) => row.real).length;
   const impact = simulationActive ? buildImpact(baselineSummary, summary) : null;
   const modeLabel = irpfMode === "voluntary" ? "Voluntario" : irpfMode === "manual" ? "Manual docente" : "Automático";
   const modeOrigin = irpfMode === "voluntary" ? "Introducido como IRPF voluntario" : irpfMode === "manual" ? "Forzado para práctica docente" : "Cálculo automático del sistema";
@@ -323,7 +339,7 @@ export default function EmployeeIrpfPanel({ employee, taxProfile, activeContract
         <div>
           <p style={styles.eyebrow}>IRPF ANUAL DEL TRABAJADOR</p>
           <h3 style={styles.title}>IRPF y previsión anual</h3>
-          <p style={styles.subtitle}>Cada mes muestra una única cantidad: real si la nómina ya existe, prevista si aún no existe.</p>
+          <p style={styles.subtitle}>A la izquierda se ve lo realmente cobrado. A la derecha se ve la previsión anual completa: meses reales + meses simulados.</p>
         </div>
         <div style={styles.actions}>
           <button type="button" onClick={handleRecalculate} disabled={loading || saving} style={styles.primaryButton}>{loading ? "Recalculando..." : "Recalcular IRPF"}</button>
@@ -373,7 +389,7 @@ export default function EmployeeIrpfPanel({ employee, taxProfile, activeContract
         <label style={styles.field}>Año<input type="number" min="2000" max="2100" value={year} onChange={(event) => setYear(Number(event.target.value || currentYear))} style={styles.input} /></label>
         <label style={styles.field}>Modo IRPF<select value={irpfMode} onChange={(event) => setIrpfMode(event.target.value)} style={styles.input}><option value="auto">Automático</option><option value="voluntary">Voluntario</option><option value="manual">Manual docente</option></select></label>
         <label style={styles.field}>IRPF voluntario / manual (%)<input name="voluntary_irpf" type="number" min="0" max="100" step="0.01" value={form.voluntary_irpf} onChange={handleChange} style={styles.input} /></label>
-        <div style={styles.resultBox}><span>IRPF usado en meses previstos</span><strong>{formatPercent(effectiveIrpf)}</strong></div>
+        <div style={styles.resultBox}><span>IRPF usado en meses simulados</span><strong>{formatPercent(effectiveIrpf)}</strong></div>
       </div>
 
       <details style={styles.variableBox} open>
@@ -402,21 +418,44 @@ export default function EmployeeIrpfPanel({ employee, taxProfile, activeContract
       <div style={styles.tableWrapper}>
         <table style={styles.table}>
           <thead>
-            <tr><th style={styles.th}>Mes</th><th style={styles.th}>Estado</th><th style={styles.thAmount}>Variables</th><th style={styles.thAmount}>Bruto</th><th style={styles.thAmount}>Neto</th><th style={styles.thAmount}>IRPF</th><th style={styles.thAmount}>IRPF %</th><th style={styles.th}>Origen</th></tr>
+            <tr>
+              <th style={styles.th}>Mes</th>
+              <th style={styles.th}>Estado</th>
+              <th style={styles.thAmount}>Variables</th>
+              <th style={styles.thGroup} colSpan="4">Real calculado</th>
+              <th style={styles.thGroup} colSpan="4">Previsión anual</th>
+            </tr>
+            <tr>
+              <th style={styles.thSub}></th>
+              <th style={styles.thSub}></th>
+              <th style={styles.thSub}></th>
+              <th style={styles.thAmountSub}>Bruto real</th>
+              <th style={styles.thAmountSub}>Neto real</th>
+              <th style={styles.thAmountSub}>IRPF real</th>
+              <th style={styles.thAmountSub}>IRPF % real</th>
+              <th style={styles.thAmountSub}>Bruto previsto</th>
+              <th style={styles.thAmountSub}>Neto previsto</th>
+              <th style={styles.thAmountSub}>IRPF previsto</th>
+              <th style={styles.thAmountSub}>IRPF % previsto</th>
+            </tr>
           </thead>
           <tbody>
             {rows.map((row) => {
-              const isReal = row.source === "real";
+              const real = getReal(row);
+              const projected = getProjected(row);
               return (
                 <tr key={`${row.year}-${row.month}-${row.source}-${row.payroll_id || "forecast"}`}>
                   <td style={styles.tdStrong}>{getMonthLabel(row.month)}</td>
-                  <td style={styles.td}><span style={isReal ? styles.realBadge : styles.forecastBadge}>{isReal ? "Cobrado" : row.status || "Previsto"}</span></td>
-                  <td style={styles.tdAmount}>{getRowVariables(row) !== 0 ? formatMoney(getRowVariables(row)) : "-"}</td>
-                  <td style={styles.tdAmount}>{formatMoney(row.gross_salary)}</td>
-                  <td style={styles.tdAmount}>{formatMoney(row.net_salary)}</td>
-                  <td style={styles.tdAmountStrong}>{formatMoney(row.irpf)}</td>
-                  <td style={styles.tdAmount}>{formatPercent(row.irpf_percentage)}</td>
-                  <td style={styles.td}>{isReal ? "Nómina real" : "Previsión"}</td>
+                  <td style={styles.td}><span style={real ? styles.realBadge : styles.forecastBadge}>{real ? "Cobrado" : row.status || "Previsto"}</span></td>
+                  <td style={styles.tdAmount}>{getProjectedVariables(row) !== 0 ? formatMoney(getProjectedVariables(row)) : "-"}</td>
+                  <td style={styles.tdAmountReal}>{moneyOrBlank(real, "gross_salary")}</td>
+                  <td style={styles.tdAmountReal}>{moneyOrBlank(real, "net_salary")}</td>
+                  <td style={styles.tdAmountRealStrong}>{moneyOrBlank(real, "irpf")}</td>
+                  <td style={styles.tdAmountReal}>{percentOrBlank(real, "irpf_percentage")}</td>
+                  <td style={styles.tdAmount}>{moneyOrBlank(projected, "gross_salary")}</td>
+                  <td style={styles.tdAmount}>{moneyOrBlank(projected, "net_salary")}</td>
+                  <td style={styles.tdAmountStrong}>{moneyOrBlank(projected, "irpf")}</td>
+                  <td style={styles.tdAmount}>{percentOrBlank(projected, "irpf_percentage")}</td>
                 </tr>
               );
             })}
@@ -425,14 +464,17 @@ export default function EmployeeIrpfPanel({ employee, taxProfile, activeContract
                 <td style={styles.totalLabel}>Total anual</td>
                 <td style={styles.totalCell}>Real + previsto</td>
                 <td style={styles.totalAmount}>{formatMoney(summary?.future_variables_total || 0)}</td>
+                <td style={styles.totalAmount}>{formatMoney(realTotals.gross)}</td>
+                <td style={styles.totalAmount}>{formatMoney(realTotals.net)}</td>
+                <td style={styles.totalAmountStrong}>{formatMoney(realTotals.irpf)}</td>
+                <td style={styles.totalAmount}>{formatPercent(effectiveIrpf)}</td>
                 <td style={styles.totalAmount}>{formatMoney(annualTotals.gross)}</td>
                 <td style={styles.totalAmount}>{formatMoney(annualTotals.net)}</td>
                 <td style={styles.totalAmountStrong}>{formatMoney(annualTotals.irpf)}</td>
                 <td style={styles.totalAmount}>{formatPercent(effectiveIrpf)}</td>
-                <td style={styles.totalCell}>Anual</td>
               </tr>
             )}
-            {rows.length === 0 && <tr><td style={styles.td} colSpan="8">Sin datos anuales disponibles.</td></tr>}
+            {rows.length === 0 && <tr><td style={styles.td} colSpan="11">Sin datos anuales disponibles.</td></tr>}
           </tbody>
         </table>
       </div>
@@ -506,13 +548,18 @@ const styles = {
   input: { height: "38px", padding: "8px 10px", border: "1px solid #cbd5e1", borderRadius: "7px", fontSize: "13px", boxSizing: "border-box", width: "100%" },
   textarea: { padding: "8px 10px", border: "1px solid #cbd5e1", borderRadius: "7px", fontSize: "13px", resize: "vertical" },
   tableWrapper: { overflowX: "auto", width: "100%" },
-  table: { width: "100%", minWidth: "900px", borderCollapse: "collapse", fontSize: "13px" },
+  table: { width: "100%", minWidth: "1220px", borderCollapse: "collapse", fontSize: "13px" },
   th: { textAlign: "left", borderBottom: "2px solid #111", padding: "10px", backgroundColor: "#f8f3b5", fontWeight: 900 },
+  thGroup: { textAlign: "center", borderBottom: "2px solid #111", padding: "10px", backgroundColor: "#f8f3b5", fontWeight: 950 },
+  thSub: { textAlign: "left", borderBottom: "1px solid #d1d5db", padding: "7px 10px", backgroundColor: "#fffdf0", fontWeight: 900 },
   thAmount: { textAlign: "right", borderBottom: "2px solid #111", padding: "10px", backgroundColor: "#f8f3b5", fontWeight: 900 },
+  thAmountSub: { textAlign: "right", borderBottom: "1px solid #d1d5db", padding: "7px 10px", backgroundColor: "#fffdf0", fontWeight: 900 },
   td: { borderBottom: "1px solid #e5e7eb", padding: "10px", verticalAlign: "middle" },
   tdStrong: { borderBottom: "1px solid #e5e7eb", padding: "10px", fontWeight: 900, verticalAlign: "middle" },
   tdAmount: { borderBottom: "1px solid #e5e7eb", padding: "10px", textAlign: "right", whiteSpace: "nowrap" },
   tdAmountStrong: { borderBottom: "1px solid #e5e7eb", padding: "10px", textAlign: "right", whiteSpace: "nowrap", fontWeight: 950 },
+  tdAmountReal: { borderBottom: "1px solid #e5e7eb", padding: "10px", textAlign: "right", whiteSpace: "nowrap", backgroundColor: "#f9fafb" },
+  tdAmountRealStrong: { borderBottom: "1px solid #e5e7eb", padding: "10px", textAlign: "right", whiteSpace: "nowrap", fontWeight: 950, backgroundColor: "#f9fafb" },
   totalRow: { backgroundColor: "#f3f4f6", color: "#111827" },
   totalLabel: { padding: "12px 10px", fontWeight: 950, borderTop: "2px solid #d1d5db" },
   totalCell: { padding: "12px 10px", fontWeight: 900, borderTop: "2px solid #d1d5db" },
