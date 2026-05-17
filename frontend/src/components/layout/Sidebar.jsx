@@ -21,9 +21,11 @@ const overlayPages = [
 
 const employeePages = ["employee-admissions", "employees", "employee-record"];
 const overlayHashes = overlayPages.map((page) => `#${page}`);
+const IRPF_HASH = "#irpf-module";
 
 function getOverlayPageFromHash() {
   const page = window.location.hash.replace("#", "");
+  if (page === "irpf-module") return "irpf-module";
   return overlayPages.includes(page) ? page : null;
 }
 
@@ -38,6 +40,11 @@ export default function Sidebar({ activePage, setActivePage }) {
 
       if (employeePages.includes(overlayPage)) {
         setEmployeeMenuOpen(true);
+      }
+
+      if (overlayPage === "irpf-module") {
+        setActivePage("payrolls");
+        return;
       }
 
       if (overlayPage) {
@@ -125,7 +132,7 @@ export default function Sidebar({ activePage, setActivePage }) {
 
     if (item.id === "irpf") {
       setActivePage("payrolls");
-      setHashActivePage(null);
+      setHashActivePage("irpf-module");
       window.location.hash = "irpf-module";
       window.dispatchEvent(new Event("aulanomina-route-change"));
       return;
@@ -142,7 +149,7 @@ export default function Sidebar({ activePage, setActivePage }) {
 
     setHashActivePage(null);
 
-    if (overlayHashes.includes(window.location.hash) || window.location.hash === "#irpf-module") {
+    if (overlayHashes.includes(window.location.hash) || window.location.hash === IRPF_HASH) {
       window.history.replaceState(null, "", window.location.pathname + window.location.search);
       window.dispatchEvent(new Event("aulanomina-route-change"));
     }
@@ -161,7 +168,7 @@ export default function Sidebar({ activePage, setActivePage }) {
             <p style={styles.groupTitle}>{group.title}</p>
             <div style={styles.groupItems}>
               {group.items.map((item) => {
-                const isActive = currentActivePage === item.id || (item.id === "irpf" && window.location.hash === "#irpf-module") || (item.children && employeePages.includes(currentActivePage));
+                const isActive = currentActivePage === item.id || (item.id === "irpf" && currentActivePage === "irpf-module") || (item.children && employeePages.includes(currentActivePage));
                 const submenuOpen = item.children && employeeMenuOpen;
 
                 return (
