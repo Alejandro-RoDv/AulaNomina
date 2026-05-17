@@ -94,6 +94,7 @@ def init_database() -> None:
             existing_tax_profile_columns = {column["name"] for column in inspector.get_columns("tax_profiles")}
             tax_profile_columns = {
                 "birth_year": "INTEGER",
+                "autonomous_community": "VARCHAR DEFAULT 'andalucia' NOT NULL",
                 "family_situation": "VARCHAR DEFAULT 'situation_3' NOT NULL",
                 "spouse_nif": "VARCHAR",
                 "employment_situation": "VARCHAR DEFAULT 'active' NOT NULL",
