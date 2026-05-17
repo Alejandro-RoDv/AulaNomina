@@ -142,9 +142,9 @@ export default function ContractForm({
 
         <div style={styles.formRow}>
           <div style={styles.formGroup}>
-            <label>Salario mensual de referencia</label>
-            <input type="number" name="salary_base" value={form.salary_base} onChange={onChange} placeholder="Ej. 1680" style={styles.input} />
-            <small style={styles.helpText}>Se usa como base para la nómina simulada.</small>
+            <label>Salario bruto anual pactado</label>
+            <input type="number" name="salary_base" value={form.salary_base} onChange={onChange} placeholder="Ej. 30000" style={styles.input} />
+            <small style={styles.helpText}>Importe bruto anual. El sistema lo reparte en 12 pagas prorrateadas o 14 pagas según el contrato.</small>
           </div>
 
           <div style={styles.formGroup}>
