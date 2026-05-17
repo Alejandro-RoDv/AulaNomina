@@ -12,6 +12,14 @@ export async function fetchEmployeeTaxProfile(employeeId) {
   );
 }
 
+export async function fetchEmployeeIrpfAnnualSummary(employeeId, year) {
+  return apiRequest(
+    `/employees/${employeeId}/irpf-annual-summary?year=${year}`,
+    {},
+    "Error al cargar resumen anual de IRPF"
+  );
+}
+
 export async function calculateEmployeeIrpf(employeeId) {
   return apiRequest(
     `/employees/${employeeId}/tax-profile/calculate-irpf`,
