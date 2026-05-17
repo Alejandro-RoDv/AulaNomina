@@ -8,22 +8,13 @@ import {
 } from "../../services/taxProfileApi";
 
 const COMMUNITY_OPTIONS = [
-  ["andalucia", "Andalucía"],
-  ["aragon", "Aragón"],
-  ["asturias", "Asturias"],
-  ["baleares", "Baleares"],
-  ["canarias", "Canarias"],
-  ["cantabria", "Cantabria"],
-  ["castilla_la_mancha", "Castilla-La Mancha"],
-  ["castilla_y_leon", "Castilla y León"],
-  ["cataluna", "Cataluña"],
-  ["madrid", "Comunidad de Madrid"],
-  ["extremadura", "Extremadura · pendiente"],
-  ["galicia", "Galicia · pendiente"],
-  ["la_rioja", "La Rioja · pendiente"],
-  ["murcia", "Murcia · pendiente"],
-  ["navarra", "Navarra · pendiente"],
-  ["pais_vasco", "País Vasco · pendiente"],
+  ["andalucia", "Andalucía"], ["aragon", "Aragón"], ["asturias", "Asturias"],
+  ["baleares", "Baleares"], ["canarias", "Canarias"], ["cantabria", "Cantabria"],
+  ["castilla_la_mancha", "Castilla-La Mancha"], ["castilla_y_leon", "Castilla y León"],
+  ["cataluna", "Cataluña"], ["madrid", "Comunidad de Madrid"],
+  ["extremadura", "Extremadura · pendiente"], ["galicia", "Galicia · pendiente"],
+  ["la_rioja", "La Rioja · pendiente"], ["murcia", "Murcia · pendiente"],
+  ["navarra", "Navarra · pendiente"], ["pais_vasco", "País Vasco · pendiente"],
   ["comunidad_valenciana", "Comunidad Valenciana · pendiente"],
 ];
 
@@ -33,40 +24,10 @@ const FAMILY_OPTIONS = [
   ["situation_3", "Situación 3 · resto de situaciones"],
 ];
 
-const EMPLOYMENT_OPTIONS = [
-  ["active", "Activo"],
-  ["pensioner", "Pensionista"],
-  ["unemployed", "Desempleado"],
-  ["other", "Otra situación"],
-];
-
-const CONTRACT_CATEGORY_OPTIONS = [
-  ["general", "General"],
-  ["inferior_year", "Contrato inferior al año"],
-  ["special", "Relación laboral especial"],
-  ["manual", "Manual docente"],
-];
-
-const DISABILITY_OPTIONS = [
-  ["none", "Sin discapacidad"],
-  ["from_33_to_65", "33% a 64%"],
-  ["from_65", "65% o superior"],
-];
-
-const MONTHS = [
-  [1, "Enero"],
-  [2, "Febrero"],
-  [3, "Marzo"],
-  [4, "Abril"],
-  [5, "Mayo"],
-  [6, "Junio"],
-  [7, "Julio"],
-  [8, "Agosto"],
-  [9, "Septiembre"],
-  [10, "Octubre"],
-  [11, "Noviembre"],
-  [12, "Diciembre"],
-];
+const EMPLOYMENT_OPTIONS = [["active", "Activo"], ["pensioner", "Pensionista"], ["unemployed", "Desempleado"], ["other", "Otra situación"]];
+const CONTRACT_CATEGORY_OPTIONS = [["general", "General"], ["inferior_year", "Contrato inferior al año"], ["special", "Relación laboral especial"], ["manual", "Manual docente"]];
+const DISABILITY_OPTIONS = [["none", "Sin discapacidad"], ["from_33_to_65", "33% a 64%"], ["from_65", "65% o superior"]];
+const MONTHS = [[1, "Enero"], [2, "Febrero"], [3, "Marzo"], [4, "Abril"], [5, "Mayo"], [6, "Junio"], [7, "Julio"], [8, "Agosto"], [9, "Septiembre"], [10, "Octubre"], [11, "Noviembre"], [12, "Diciembre"]];
 
 const defaultForm = {
   birth_year: "",
@@ -155,9 +116,21 @@ function formatMoney(value) {
   return new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" }).format(Number(value || 0));
 }
 
+function formatSignedMoney(value) {
+  const number = Number(value || 0);
+  const sign = number > 0 ? "+" : "";
+  return `${sign}${formatMoney(number)}`;
+}
+
 function formatPercent(value) {
   if (value === null || value === undefined || value === "") return "-";
   return `${Number(value).toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`;
+}
+
+function formatSignedPercent(value) {
+  const number = Number(value || 0);
+  const sign = number > 0 ? "+" : "";
+  return `${sign}${formatPercent(number)}`;
 }
 
 function getMonthLabel(month) {
@@ -172,11 +145,22 @@ function getRowVariables(row) {
   return Number(row?.salary_supplements || 0);
 }
 
+function buildImpact(baseSummary, currentSummary) {
+  if (!baseSummary || !currentSummary) return null;
+  return {
+    irpfRate: Number(currentSummary.suggested_irpf || 0) - Number(baseSummary.suggested_irpf || 0),
+    gross: Number(currentSummary.totals?.annual?.gross || 0) - Number(baseSummary.totals?.annual?.gross || 0),
+    net: Number(currentSummary.totals?.annual?.net || 0) - Number(baseSummary.totals?.annual?.net || 0),
+    irpf: Number(currentSummary.totals?.annual?.irpf || 0) - Number(baseSummary.totals?.annual?.irpf || 0),
+  };
+}
+
 export default function EmployeeIrpfPanel({ employee, taxProfile, activeContract, onRefresh }) {
   const currentYear = new Date().getFullYear();
   const [year, setYear] = useState(currentYear);
   const [form, setForm] = useState(toFormValue(taxProfile, employee, activeContract));
   const [summary, setSummary] = useState(null);
+  const [baselineSummary, setBaselineSummary] = useState(null);
   const [calculation, setCalculation] = useState(null);
   const [irpfMode, setIrpfMode] = useState(taxProfile?.voluntary_irpf ? "voluntary" : "auto");
   const [salaryIncrease, setSalaryIncrease] = useState("0");
@@ -194,7 +178,7 @@ export default function EmployeeIrpfPanel({ employee, taxProfile, activeContract
       setLoadingSummary(true);
       setError("");
       if (simulate) {
-        setSummary(await simulateEmployeeIrpfAnnualSummary(employee.id, {
+        const simulated = await simulateEmployeeIrpfAnnualSummary(employee.id, {
           year: Number(year),
           salary_increase: Number(salaryIncrease || 0),
           incentives: incentives
@@ -204,9 +188,12 @@ export default function EmployeeIrpfPanel({ employee, taxProfile, activeContract
               amount: Number(item.amount || 0),
               description: item.description || "Variable futura",
             })),
-        }));
+        });
+        setSummary(simulated);
       } else {
-        setSummary(await fetchEmployeeIrpfAnnualSummary(employee.id, year));
+        const base = await fetchEmployeeIrpfAnnualSummary(employee.id, year);
+        setSummary(base);
+        setBaselineSummary(base);
       }
     } catch (err) {
       setError(err.message || "No se pudo cargar el resumen anual de IRPF");
@@ -245,7 +232,7 @@ export default function EmployeeIrpfPanel({ employee, taxProfile, activeContract
       setMessage("");
       const result = await calculateIrpf(buildPayload(form));
       setCalculation(result);
-      setMessage("IRPF recalculado. Revisa el resultado antes de guardarlo.");
+      setMessage("IRPF recalculado. Revisa el resultado antes de aplicarlo.");
     } catch (err) {
       setError(err.message || "Error al recalcular IRPF");
     } finally {
@@ -283,7 +270,7 @@ export default function EmployeeIrpfPanel({ employee, taxProfile, activeContract
     }
   };
 
-  const handleSaveCalculatedIrpf = async () => {
+  const handleApplySuggestedIrpf = async () => {
     if (!employee?.id || !calculation) return;
     try {
       setSaving(true);
@@ -292,11 +279,11 @@ export default function EmployeeIrpfPanel({ employee, taxProfile, activeContract
       await updateEmployeeTaxProfile(employee.id, payload);
       setForm((prev) => ({ ...prev, voluntary_irpf: String(calculation.suggested_irpf || 0), manual_regularization: true }));
       setIrpfMode("voluntary");
-      setMessage("IRPF calculado guardado como IRPF voluntario/aplicado para próximas simulaciones");
+      setMessage("IRPF sugerido aplicado como IRPF voluntario para próximas nóminas.");
       await onRefresh?.();
       await loadSummary();
     } catch (err) {
-      setError(err.message || "Error al guardar el IRPF calculado");
+      setError(err.message || "Error al aplicar el IRPF sugerido");
     } finally {
       setSaving(false);
     }
@@ -310,6 +297,11 @@ export default function EmployeeIrpfPanel({ employee, taxProfile, activeContract
     setError("");
   };
 
+  const goToPayrolls = () => {
+    window.history.replaceState(null, "", window.location.pathname + window.location.search);
+    window.dispatchEvent(new Event("aulanomina-route-change"));
+  };
+
   const addIncentive = () => setIncentives((prev) => [...prev, buildEmptyIncentive(year)]);
   const updateIncentive = (index, field, value) => setIncentives((prev) => prev.map((item, current) => current === index ? { ...item, [field]: value } : item));
   const removeIncentive = (index) => setIncentives((prev) => prev.filter((_, current) => current !== index));
@@ -320,6 +312,10 @@ export default function EmployeeIrpfPanel({ employee, taxProfile, activeContract
   const forecastTotals = summary?.totals?.forecast || { gross: 0, net: 0, irpf: 0 };
   const annualTotals = summary?.totals?.annual || { gross: 0, net: 0, irpf: 0 };
   const rows = summary?.months || [];
+  const realMonthsCount = rows.filter((row) => row.source === "real").length;
+  const impact = simulationActive ? buildImpact(baselineSummary, summary) : null;
+  const modeLabel = irpfMode === "voluntary" ? "Voluntario" : irpfMode === "manual" ? "Manual docente" : "Automático";
+  const modeOrigin = irpfMode === "voluntary" ? "Introducido como IRPF voluntario" : irpfMode === "manual" ? "Forzado para práctica docente" : "Cálculo automático del sistema";
 
   return (
     <section style={styles.card}>
@@ -331,8 +327,9 @@ export default function EmployeeIrpfPanel({ employee, taxProfile, activeContract
         </div>
         <div style={styles.actions}>
           <button type="button" onClick={handleRecalculate} disabled={loading || saving} style={styles.primaryButton}>{loading ? "Recalculando..." : "Recalcular IRPF"}</button>
-          <button type="button" onClick={handleSaveCalculatedIrpf} disabled={!calculation || saving} style={styles.secondaryButton}>Guardar IRPF calculado</button>
+          <button type="button" onClick={handleApplySuggestedIrpf} disabled={!calculation || saving} style={styles.secondaryButton}>Aplicar IRPF sugerido</button>
           <button type="button" onClick={handleSaveFiscalData} disabled={saving} style={styles.secondaryButton}>Guardar datos fiscales</button>
+          <button type="button" onClick={goToPayrolls} style={styles.secondaryButton}>Ver nóminas reales</button>
           <button type="button" onClick={handleCancel} disabled={saving} style={styles.cancelButton}>Cancelar</button>
         </div>
       </div>
@@ -341,6 +338,13 @@ export default function EmployeeIrpfPanel({ employee, taxProfile, activeContract
       {message && <div style={styles.success}>{message}</div>}
       {loadingSummary && <div style={styles.warning}>Actualizando resumen anual...</div>}
       {!activeContract && <div style={styles.warning}>El trabajador no tiene contrato activo. El backend calculará el resumen con contrato disponible o importes a cero.</div>}
+      {realMonthsCount > 0 && <div style={styles.info}>Hay {realMonthsCount} nóminas ya generadas. El recálculo afecta a la previsión y a futuras nóminas; no modifica los meses ya cobrados.</div>}
+
+      <div style={styles.statusGrid}>
+        <div style={styles.statusBox}><span>Modo actual</span><strong>{modeLabel}</strong></div>
+        <div style={styles.statusBox}><span>IRPF aplicado en nómina</span><strong>{formatPercent(effectiveIrpf)}</strong></div>
+        <div style={styles.statusBoxWide}><span>Origen</span><strong>{modeOrigin}</strong></div>
+      </div>
 
       <div style={styles.summaryGrid}>
         <div style={styles.kpiAccent}><span>Bruto anual previsto</span><strong>{formatMoney(annualTotals.gross)}</strong></div>
@@ -352,6 +356,18 @@ export default function EmployeeIrpfPanel({ employee, taxProfile, activeContract
         <div style={styles.kpi}><span>Pendiente bruto/neto</span><strong>{formatMoney(forecastTotals.gross)} / {formatMoney(forecastTotals.net)}</strong></div>
         <div style={styles.kpi}><span>IRPF pendiente previsto</span><strong>{formatMoney(forecastTotals.irpf)}</strong></div>
       </div>
+
+      {impact && (
+        <div style={styles.impactBox}>
+          <strong>Impacto de la simulación</strong>
+          <div style={styles.impactGrid}>
+            <span>IRPF sugerido: {formatSignedPercent(impact.irpfRate)}</span>
+            <span>Bruto anual: {formatSignedMoney(impact.gross)}</span>
+            <span>Neto anual: {formatSignedMoney(impact.net)}</span>
+            <span>IRPF anual: {formatSignedMoney(impact.irpf)}</span>
+          </div>
+        </div>
+      )}
 
       <div style={styles.controlGrid}>
         <label style={styles.field}>Año<input type="number" min="2000" max="2100" value={year} onChange={(event) => setYear(Number(event.target.value || currentYear))} style={styles.input} /></label>
@@ -386,16 +402,7 @@ export default function EmployeeIrpfPanel({ employee, taxProfile, activeContract
       <div style={styles.tableWrapper}>
         <table style={styles.table}>
           <thead>
-            <tr>
-              <th style={styles.th}>Mes</th>
-              <th style={styles.th}>Estado</th>
-              <th style={styles.thAmount}>Variables</th>
-              <th style={styles.thAmount}>Bruto</th>
-              <th style={styles.thAmount}>Neto</th>
-              <th style={styles.thAmount}>IRPF</th>
-              <th style={styles.thAmount}>IRPF %</th>
-              <th style={styles.th}>Origen</th>
-            </tr>
+            <tr><th style={styles.th}>Mes</th><th style={styles.th}>Estado</th><th style={styles.thAmount}>Variables</th><th style={styles.thAmount}>Bruto</th><th style={styles.thAmount}>Neto</th><th style={styles.thAmount}>IRPF</th><th style={styles.thAmount}>IRPF %</th><th style={styles.th}>Origen</th></tr>
           </thead>
           <tbody>
             {rows.map((row) => {
@@ -479,16 +486,21 @@ const styles = {
   secondaryButton: { backgroundColor: "#f3f4f6", color: "#111827", border: "1px solid #d1d5db", padding: "9px 12px", cursor: "pointer", fontWeight: 900 },
   cancelButton: { backgroundColor: "#fff", color: "#991b1b", border: "1px solid #fecaca", padding: "9px 12px", cursor: "pointer", fontWeight: 900 },
   dangerButton: { backgroundColor: "#fee2e2", color: "#991b1b", border: "1px solid #fecaca", padding: "8px 10px", cursor: "pointer", fontWeight: 900 },
+  statusGrid: { display: "grid", gridTemplateColumns: "180px 220px 1fr", gap: "12px" },
+  statusBox: { border: "1px solid #d1d5db", backgroundColor: "#f9fafb", padding: "10px", display: "flex", flexDirection: "column", gap: "4px" },
+  statusBoxWide: { border: "1px solid #d1d5db", backgroundColor: "#f9fafb", padding: "10px", display: "flex", flexDirection: "column", gap: "4px" },
   summaryGrid: { display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: "12px" },
   kpi: { border: "1px solid #d1d5db", backgroundColor: "#f9fafb", padding: "12px", display: "flex", flexDirection: "column", gap: "6px" },
   kpiAccent: { border: "2px solid #111", backgroundColor: "#fffdf0", padding: "12px", display: "flex", flexDirection: "column", gap: "6px" },
+  impactBox: { border: "2px solid #1d4ed8", backgroundColor: "#eff6ff", padding: "12px", display: "flex", flexDirection: "column", gap: "8px", color: "#1e3a8a" },
+  impactGrid: { display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: "8px", fontWeight: 900 },
   controlGrid: { display: "grid", gridTemplateColumns: "120px 180px 220px 1fr", gap: "12px", alignItems: "end" },
   resultBox: { border: "1px solid #d1d5db", backgroundColor: "#f9fafb", padding: "10px", display: "flex", justifyContent: "space-between", gap: "12px", fontWeight: 900 },
   variableBox: { border: "1px solid #e5e7eb", padding: "12px", backgroundColor: "#fffdf0" },
   variableToolbar: { display: "grid", gridTemplateColumns: "220px 1fr", gap: "12px", alignItems: "end" },
   variableActions: { display: "flex", gap: "8px", flexWrap: "wrap" },
   incentiveRow: { display: "grid", gridTemplateColumns: "180px 130px 1fr 80px", gap: "8px", alignItems: "center", marginTop: "10px" },
-  info: { backgroundColor: "#eff6ff", color: "#1d4ed8", border: "1px solid #bfdbfe", padding: "9px", fontWeight: 800, marginTop: "10px" },
+  info: { backgroundColor: "#eff6ff", color: "#1d4ed8", border: "1px solid #bfdbfe", padding: "9px", fontWeight: 800 },
   emptyText: { margin: "10px 0 0", color: "#6b7280", fontWeight: 750, fontSize: "13px" },
   field: { display: "flex", flexDirection: "column", gap: "6px", color: "#374151", fontSize: "13px", fontWeight: 850 },
   input: { height: "38px", padding: "8px 10px", border: "1px solid #cbd5e1", borderRadius: "7px", fontSize: "13px", boxSizing: "border-box", width: "100%" },
