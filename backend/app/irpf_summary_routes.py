@@ -51,12 +51,13 @@ def decimal_to_float(value):
     return float(value)
 
 
-def build_totals(rows):
+def build_totals_from_snapshots(snapshots):
     return {
-        "gross": round(sum(decimal_to_float(row.get("gross_salary")) for row in rows), 2),
-        "net": round(sum(decimal_to_float(row.get("net_salary")) for row in rows), 2),
-        "irpf": round(sum(decimal_to_float(row.get("irpf")) for row in rows), 2),
-        "employee_social_security": round(sum(decimal_to_float(row.get("employee_social_security")) for row in rows), 2),
+        "gross": round(sum(decimal_to_float(item.get("gross_salary")) for item in snapshots if item), 2),
+        "net": round(sum(decimal_to_float(item.get("net_salary")) for item in snapshots if item), 2),
+        "irpf": round(sum(decimal_to_float(item.get("irpf")) for item in snapshots if item), 2),
+        "employee_social_security": round(sum(decimal_to_float(item.get("employee_social_security")) for item in snapshots if item), 2),
+        "salary_supplements": round(sum(decimal_to_float(item.get("salary_supplements")) for item in snapshots if item), 2),
     }
 
 
@@ -88,57 +89,35 @@ def build_incentive_map(incentives: list[IrpfAnnualIncentive]):
     return result, details
 
 
-def build_forecast_row(
+def build_empty_snapshot(irpf_percentage: Decimal):
+    return {
+        "base_salary": 0,
+        "salary_supplements": 0,
+        "extra_pay_proration": 0,
+        "gross_salary": 0,
+        "employee_social_security": 0,
+        "irpf_percentage": decimal_to_float(irpf_percentage),
+        "suggested_irpf_percentage": decimal_to_float(irpf_percentage),
+        "irpf": 0,
+        "total_deductions": 0,
+        "net_salary": 0,
+    }
+
+
+def build_forecast_snapshot(
     contract: Contract | None,
     month: int,
     year: int,
     irpf_percentage: Decimal,
     salary_increase: Decimal = Decimal("0.00"),
     incentive_amount: Decimal = Decimal("0.00"),
-    incentive_details: list[dict] | None = None,
 ):
-    incentive_details = incentive_details or []
-
     if not contract:
-        return {
-            "month": month,
-            "year": year,
-            "source": "forecast",
-            "status": "Sin contrato",
-            "payroll_id": None,
-            "base_salary": 0,
-            "salary_supplements": decimal_to_float(incentive_amount + salary_increase),
-            "future_incentives": incentive_details,
-            "extra_pay_proration": 0,
-            "gross_salary": 0,
-            "employee_social_security": 0,
-            "irpf_percentage": decimal_to_float(irpf_percentage),
-            "suggested_irpf_percentage": decimal_to_float(irpf_percentage),
-            "irpf": 0,
-            "total_deductions": 0,
-            "net_salary": 0,
-        }
+        return build_empty_snapshot(irpf_percentage)
 
     skip_reason = get_contract_period_skip_reason(contract, month, year)
     if skip_reason:
-        return {
-            "month": month,
-            "year": year,
-            "source": "forecast",
-            "status": "Fuera de contrato",
-            "payroll_id": None,
-            "base_salary": 0,
-            "salary_supplements": decimal_to_float(incentive_amount + salary_increase),
-            "future_incentives": incentive_details,
-            "extra_pay_proration": 0,
-            "gross_salary": 0,
-            "employee_social_security": 0,
-            "irpf_percentage": decimal_to_float(irpf_percentage),
-            "suggested_irpf_percentage": decimal_to_float(irpf_percentage),
-            "irpf": 0,
-            "total_deductions": 0,
-            "net_salary": 0,
-        }
+        return build_empty_snapshot(irpf_percentage)
 
     base_salary = calculate_contract_base_salary(contract, month)
     salary_supplements = money(salary_increase) + money(incentive_amount)
@@ -150,17 +129,9 @@ def build_forecast_row(
         irpf_percentage=irpf_percentage,
     )
 
-    has_variable = salary_supplements != Decimal("0.00")
-
     return {
-        "month": month,
-        "year": year,
-        "source": "forecast",
-        "status": "Previsto + variable" if has_variable else "Previsto",
-        "payroll_id": None,
         "base_salary": decimal_to_float(base_salary),
         "salary_supplements": decimal_to_float(salary_supplements),
-        "future_incentives": incentive_details,
         "extra_pay_proration": decimal_to_float(extra_pay_proration),
         "gross_salary": decimal_to_float(calculated["gross_salary"]),
         "employee_social_security": decimal_to_float(calculated["employee_social_security"]),
@@ -172,16 +143,10 @@ def build_forecast_row(
     }
 
 
-def build_real_row(payroll: Payroll):
+def build_real_snapshot(payroll: Payroll):
     return {
-        "month": payroll.period_month,
-        "year": payroll.period_year,
-        "source": "real",
-        "status": payroll.status,
-        "payroll_id": payroll.id,
         "base_salary": decimal_to_float(payroll.base_salary),
         "salary_supplements": decimal_to_float(payroll.salary_supplements),
-        "future_incentives": [],
         "extra_pay_proration": decimal_to_float(payroll.extra_pay_proration),
         "gross_salary": decimal_to_float(payroll.gross_salary),
         "employee_social_security": decimal_to_float(payroll.employee_social_security),
@@ -190,6 +155,83 @@ def build_real_row(payroll: Payroll):
         "irpf": decimal_to_float(payroll.irpf),
         "total_deductions": decimal_to_float(payroll.total_deductions),
         "net_salary": decimal_to_float(payroll.net_salary),
+    }
+
+
+def build_month_row(
+    month: int,
+    year: int,
+    real_payroll: Payroll | None,
+    forecast_snapshot: dict,
+    forecast_status: str,
+    incentive_details: list[dict],
+):
+    real_snapshot = build_real_snapshot(real_payroll) if real_payroll else None
+    projected_snapshot = real_snapshot if real_snapshot else forecast_snapshot
+    status = "Cobrado" if real_snapshot else forecast_status
+    source = "real" if real_snapshot else "forecast"
+
+    return {
+        "month": month,
+        "year": year,
+        "source": source,
+        "status": status,
+        "payroll_id": real_payroll.id if real_payroll else None,
+        "real": real_snapshot,
+        "projected": projected_snapshot,
+        "future_incentives": [] if real_snapshot else incentive_details,
+        # Backwards compatibility for older frontend components.
+        "base_salary": projected_snapshot["base_salary"],
+        "salary_supplements": projected_snapshot["salary_supplements"],
+        "extra_pay_proration": projected_snapshot["extra_pay_proration"],
+        "gross_salary": projected_snapshot["gross_salary"],
+        "employee_social_security": projected_snapshot["employee_social_security"],
+        "irpf_percentage": projected_snapshot["irpf_percentage"],
+        "suggested_irpf_percentage": projected_snapshot["suggested_irpf_percentage"],
+        "irpf": projected_snapshot["irpf"],
+        "total_deductions": projected_snapshot["total_deductions"],
+        "net_salary": projected_snapshot["net_salary"],
+    }
+
+
+def get_forecast_status(contract: Contract | None, month: int, year: int, salary_supplements: Decimal):
+    if not contract:
+        return "Sin contrato"
+    if get_contract_period_skip_reason(contract, month, year):
+        return "Fuera de contrato"
+    return "Previsto + variable" if salary_supplements != Decimal("0.00") else "Previsto"
+
+
+def build_fallback_payload(employee: Employee, tax_profile: TaxProfile | None, expected_annual_salary):
+    return {
+        "birth_year": employee.birth_date.year if employee.birth_date else None,
+        "autonomous_community": getattr(tax_profile, "autonomous_community", "andalucia") if tax_profile else "andalucia",
+        "family_situation": getattr(tax_profile, "family_situation", "situation_3") if tax_profile else "situation_3",
+        "employment_situation": getattr(tax_profile, "employment_situation", "active") if tax_profile else "active",
+        "contract_category": getattr(tax_profile, "contract_category", "general") if tax_profile else "general",
+        "children_count": getattr(tax_profile, "children_count", 0) if tax_profile else 0,
+        "descendants": getattr(tax_profile, "descendants", []) if tax_profile else [],
+        "ascendants_in_care": getattr(tax_profile, "ascendants_in_care", 0) if tax_profile else 0,
+        "ascendants": getattr(tax_profile, "ascendants", []) if tax_profile else [],
+        "employee_disability": getattr(tax_profile, "employee_disability", False) if tax_profile else False,
+        "disability_degree": getattr(tax_profile, "disability_degree", "none") if tax_profile else "none",
+        "reduced_mobility": getattr(tax_profile, "reduced_mobility", False) if tax_profile else False,
+        "descendants_disability": getattr(tax_profile, "descendants_disability", False) if tax_profile else False,
+        "geographic_mobility": getattr(tax_profile, "geographic_mobility", False) if tax_profile else False,
+        "ceuta_melilla_residence": getattr(tax_profile, "ceuta_melilla_residence", False) if tax_profile else False,
+        "ceuta_melilla_income": getattr(tax_profile, "ceuta_melilla_income", False) if tax_profile else False,
+        "home_loan": getattr(tax_profile, "home_loan", False) if tax_profile else False,
+        "compensatory_pension": getattr(tax_profile, "compensatory_pension", 0) if tax_profile else 0,
+        "child_support_annuity": getattr(tax_profile, "child_support_annuity", 0) if tax_profile else 0,
+        "irregular_income_18_2": getattr(tax_profile, "irregular_income_18_2", 0) if tax_profile else 0,
+        "irregular_income_18_3": getattr(tax_profile, "irregular_income_18_3", 0) if tax_profile else 0,
+        "social_security_contributions": getattr(tax_profile, "social_security_contributions", 0) if tax_profile else 0,
+        "contract_type": getattr(tax_profile, "contract_type", None) if tax_profile else None,
+        "contract_start_date": getattr(tax_profile, "contract_start_date", None) if tax_profile else None,
+        "expected_annual_salary": expected_annual_salary,
+        "manual_regularization": getattr(tax_profile, "manual_regularization", False) if tax_profile else False,
+        "voluntary_irpf": getattr(tax_profile, "voluntary_irpf", None) if tax_profile else None,
+        "notes": getattr(tax_profile, "notes", None) if tax_profile else None,
     }
 
 
@@ -213,36 +255,7 @@ def build_irpf_annual_summary(db: Session, employee_id: int, year: int, incentiv
         payload = tax_profile_to_calculation_payload(tax_profile, employee, contract, expected_annual_salary_with_variables)
         payload["expected_annual_salary"] = expected_annual_salary_with_variables
     else:
-        payload = {
-            "birth_year": employee.birth_date.year if employee.birth_date else None,
-            "autonomous_community": getattr(tax_profile, "autonomous_community", "andalucia") if tax_profile else "andalucia",
-            "family_situation": getattr(tax_profile, "family_situation", "situation_3") if tax_profile else "situation_3",
-            "employment_situation": getattr(tax_profile, "employment_situation", "active") if tax_profile else "active",
-            "contract_category": getattr(tax_profile, "contract_category", "general") if tax_profile else "general",
-            "children_count": getattr(tax_profile, "children_count", 0) if tax_profile else 0,
-            "descendants": getattr(tax_profile, "descendants", []) if tax_profile else [],
-            "ascendants_in_care": getattr(tax_profile, "ascendants_in_care", 0) if tax_profile else 0,
-            "ascendants": getattr(tax_profile, "ascendants", []) if tax_profile else [],
-            "employee_disability": getattr(tax_profile, "employee_disability", False) if tax_profile else False,
-            "disability_degree": getattr(tax_profile, "disability_degree", "none") if tax_profile else "none",
-            "reduced_mobility": getattr(tax_profile, "reduced_mobility", False) if tax_profile else False,
-            "descendants_disability": getattr(tax_profile, "descendants_disability", False) if tax_profile else False,
-            "geographic_mobility": getattr(tax_profile, "geographic_mobility", False) if tax_profile else False,
-            "ceuta_melilla_residence": getattr(tax_profile, "ceuta_melilla_residence", False) if tax_profile else False,
-            "ceuta_melilla_income": getattr(tax_profile, "ceuta_melilla_income", False) if tax_profile else False,
-            "home_loan": getattr(tax_profile, "home_loan", False) if tax_profile else False,
-            "compensatory_pension": getattr(tax_profile, "compensatory_pension", 0) if tax_profile else 0,
-            "child_support_annuity": getattr(tax_profile, "child_support_annuity", 0) if tax_profile else 0,
-            "irregular_income_18_2": getattr(tax_profile, "irregular_income_18_2", 0) if tax_profile else 0,
-            "irregular_income_18_3": getattr(tax_profile, "irregular_income_18_3", 0) if tax_profile else 0,
-            "social_security_contributions": getattr(tax_profile, "social_security_contributions", 0) if tax_profile else 0,
-            "contract_type": getattr(tax_profile, "contract_type", None) if tax_profile else None,
-            "contract_start_date": getattr(tax_profile, "contract_start_date", None) if tax_profile else None,
-            "expected_annual_salary": expected_annual_salary_with_variables,
-            "manual_regularization": getattr(tax_profile, "manual_regularization", False) if tax_profile else False,
-            "voluntary_irpf": getattr(tax_profile, "voluntary_irpf", None) if tax_profile else None,
-            "notes": getattr(tax_profile, "notes", None) if tax_profile else None,
-        }
+        payload = build_fallback_payload(employee, tax_profile, expected_annual_salary_with_variables)
 
     calculation = calculate_irpf_2026(payload)
     suggested_irpf = Decimal(str(calculation.get("suggested_irpf", 0))).quantize(Decimal("0.01"))
@@ -263,21 +276,28 @@ def build_irpf_annual_summary(db: Session, employee_id: int, year: int, incentiv
 
     rows = []
     for month in MONTHS:
-        if month in real_by_month:
-            rows.append(build_real_row(real_by_month[month]))
-        else:
-            rows.append(build_forecast_row(
-                contract=contract,
-                month=month,
-                year=year,
-                irpf_percentage=applied_irpf,
-                salary_increase=salary_increase,
-                incentive_amount=incentive_map.get(month, Decimal("0.00")),
-                incentive_details=incentive_details.get(month, []),
-            ))
+        incentive_amount = incentive_map.get(month, Decimal("0.00"))
+        monthly_supplements = money(salary_increase) + money(incentive_amount)
+        forecast_snapshot = build_forecast_snapshot(
+            contract=contract,
+            month=month,
+            year=year,
+            irpf_percentage=applied_irpf,
+            salary_increase=salary_increase,
+            incentive_amount=incentive_amount,
+        )
+        rows.append(build_month_row(
+            month=month,
+            year=year,
+            real_payroll=real_by_month.get(month),
+            forecast_snapshot=forecast_snapshot,
+            forecast_status=get_forecast_status(contract, month, year, monthly_supplements),
+            incentive_details=incentive_details.get(month, []),
+        ))
 
-    real_rows = [row for row in rows if row["source"] == "real"]
-    forecast_rows = [row for row in rows if row["source"] == "forecast"]
+    real_snapshots = [row["real"] for row in rows if row["real"]]
+    pending_projected_snapshots = [row["projected"] for row in rows if row["source"] == "forecast"]
+    annual_projected_snapshots = [row["projected"] for row in rows]
 
     return {
         "employee_id": employee.id,
@@ -295,9 +315,9 @@ def build_irpf_annual_summary(db: Session, employee_id: int, year: int, incentiv
         "irpf_mode": "voluntary" if voluntary_irpf is not None else "auto",
         "calculation": calculation,
         "totals": {
-            "real": build_totals(real_rows),
-            "forecast": build_totals(forecast_rows),
-            "annual": build_totals(rows),
+            "real": build_totals_from_snapshots(real_snapshots),
+            "forecast": build_totals_from_snapshots(pending_projected_snapshots),
+            "annual": build_totals_from_snapshots(annual_projected_snapshots),
         },
         "future_incentives": [
             {
