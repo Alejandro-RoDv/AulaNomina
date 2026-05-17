@@ -1,6 +1,7 @@
 from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.db import SessionLocal
@@ -22,6 +23,18 @@ router = APIRouter(tags=["irpf"])
 
 MONTHS = list(range(1, 13))
 CANCELLED_STATUSES = {"cancelled"}
+
+
+class IrpfAnnualIncentive(BaseModel):
+    period_month: int = Field(..., ge=1, le=12)
+    amount: Decimal = Field(default=Decimal("0.00"))
+    description: str = "Variable futura"
+
+
+class IrpfAnnualSummaryRequest(BaseModel):
+    year: int = Field(..., ge=2000, le=2100)
+    incentives: list[IrpfAnnualIncentive] = []
+    salary_increase: Decimal = Decimal("0.00")
 
 
 def get_db():
@@ -61,7 +74,31 @@ def get_employee_active_contract(db: Session, employee_id: int):
     ).order_by(Contract.start_date.desc(), Contract.id.desc()).first()
 
 
-def build_forecast_row(contract: Contract | None, month: int, year: int, irpf_percentage: Decimal):
+def build_incentive_map(incentives: list[IrpfAnnualIncentive]):
+    result = {}
+    details = {}
+    for incentive in incentives:
+        month = int(incentive.period_month)
+        amount = money(incentive.amount)
+        result[month] = result.get(month, Decimal("0.00")) + amount
+        details.setdefault(month, []).append({
+            "amount": decimal_to_float(amount),
+            "description": incentive.description or "Variable futura",
+        })
+    return result, details
+
+
+def build_forecast_row(
+    contract: Contract | None,
+    month: int,
+    year: int,
+    irpf_percentage: Decimal,
+    salary_increase: Decimal = Decimal("0.00"),
+    incentive_amount: Decimal = Decimal("0.00"),
+    incentive_details: list[dict] | None = None,
+):
+    incentive_details = incentive_details or []
+
     if not contract:
         return {
             "month": month,
@@ -70,7 +107,8 @@ def build_forecast_row(contract: Contract | None, month: int, year: int, irpf_pe
             "status": "Sin contrato",
             "payroll_id": None,
             "base_salary": 0,
-            "salary_supplements": 0,
+            "salary_supplements": decimal_to_float(incentive_amount + salary_increase),
+            "future_incentives": incentive_details,
             "extra_pay_proration": 0,
             "gross_salary": 0,
             "employee_social_security": 0,
@@ -90,7 +128,8 @@ def build_forecast_row(contract: Contract | None, month: int, year: int, irpf_pe
             "status": "Fuera de contrato",
             "payroll_id": None,
             "base_salary": 0,
-            "salary_supplements": 0,
+            "salary_supplements": decimal_to_float(incentive_amount + salary_increase),
+            "future_incentives": incentive_details,
             "extra_pay_proration": 0,
             "gross_salary": 0,
             "employee_social_security": 0,
@@ -102,7 +141,7 @@ def build_forecast_row(contract: Contract | None, month: int, year: int, irpf_pe
         }
 
     base_salary = calculate_contract_base_salary(contract, month)
-    salary_supplements = Decimal("0.00")
+    salary_supplements = money(salary_increase) + money(incentive_amount)
     extra_pay_proration = calculate_extra_pay_proration(contract, month)
     calculated = calculate_payroll_amounts(
         base_salary=base_salary,
@@ -111,14 +150,17 @@ def build_forecast_row(contract: Contract | None, month: int, year: int, irpf_pe
         irpf_percentage=irpf_percentage,
     )
 
+    has_variable = salary_supplements != Decimal("0.00")
+
     return {
         "month": month,
         "year": year,
         "source": "forecast",
-        "status": "Previsto",
+        "status": "Previsto + variable" if has_variable else "Previsto",
         "payroll_id": None,
         "base_salary": decimal_to_float(base_salary),
         "salary_supplements": decimal_to_float(salary_supplements),
+        "future_incentives": incentive_details,
         "extra_pay_proration": decimal_to_float(extra_pay_proration),
         "gross_salary": decimal_to_float(calculated["gross_salary"]),
         "employee_social_security": decimal_to_float(calculated["employee_social_security"]),
@@ -139,6 +181,7 @@ def build_real_row(payroll: Payroll):
         "payroll_id": payroll.id,
         "base_salary": decimal_to_float(payroll.base_salary),
         "salary_supplements": decimal_to_float(payroll.salary_supplements),
+        "future_incentives": [],
         "extra_pay_proration": decimal_to_float(payroll.extra_pay_proration),
         "gross_salary": decimal_to_float(payroll.gross_salary),
         "employee_social_security": decimal_to_float(payroll.employee_social_security),
@@ -150,22 +193,25 @@ def build_real_row(payroll: Payroll):
     }
 
 
-@router.get("/employees/{employee_id}/irpf-annual-summary")
-def get_employee_irpf_annual_summary(
-    employee_id: int,
-    year: int = Query(..., ge=2000, le=2100),
-    db: Session = Depends(get_db),
-):
+def build_irpf_annual_summary(db: Session, employee_id: int, year: int, incentives=None, salary_increase=Decimal("0.00")):
+    incentives = incentives or []
+    salary_increase = money(salary_increase)
+
     employee = db.query(Employee).filter(Employee.id == employee_id).first()
     if not employee:
         raise HTTPException(status_code=404, detail="Trabajador no encontrado")
 
     contract = get_employee_active_contract(db, employee_id)
     tax_profile = db.query(TaxProfile).filter(TaxProfile.employee_id == employee_id).first()
+    incentive_map, incentive_details = build_incentive_map(incentives)
 
     expected_annual_salary = money(contract.salary_base if contract else 0)
+    forecast_variables_total = sum(incentive_map.values(), Decimal("0.00")) + (salary_increase * Decimal("12"))
+    expected_annual_salary_with_variables = expected_annual_salary + forecast_variables_total
+
     if contract:
-        payload = tax_profile_to_calculation_payload(tax_profile, employee, contract, expected_annual_salary)
+        payload = tax_profile_to_calculation_payload(tax_profile, employee, contract, expected_annual_salary_with_variables)
+        payload["expected_annual_salary"] = expected_annual_salary_with_variables
     else:
         payload = {
             "birth_year": employee.birth_date.year if employee.birth_date else None,
@@ -192,7 +238,7 @@ def get_employee_irpf_annual_summary(
             "social_security_contributions": getattr(tax_profile, "social_security_contributions", 0) if tax_profile else 0,
             "contract_type": getattr(tax_profile, "contract_type", None) if tax_profile else None,
             "contract_start_date": getattr(tax_profile, "contract_start_date", None) if tax_profile else None,
-            "expected_annual_salary": getattr(tax_profile, "expected_annual_salary", 0) if tax_profile else 0,
+            "expected_annual_salary": expected_annual_salary_with_variables,
             "manual_regularization": getattr(tax_profile, "manual_regularization", False) if tax_profile else False,
             "voluntary_irpf": getattr(tax_profile, "voluntary_irpf", None) if tax_profile else None,
             "notes": getattr(tax_profile, "notes", None) if tax_profile else None,
@@ -220,7 +266,15 @@ def get_employee_irpf_annual_summary(
         if month in real_by_month:
             rows.append(build_real_row(real_by_month[month]))
         else:
-            rows.append(build_forecast_row(contract, month, year, applied_irpf))
+            rows.append(build_forecast_row(
+                contract=contract,
+                month=month,
+                year=year,
+                irpf_percentage=applied_irpf,
+                salary_increase=salary_increase,
+                incentive_amount=incentive_map.get(month, Decimal("0.00")),
+                incentive_details=incentive_details.get(month, []),
+            ))
 
     real_rows = [row for row in rows if row["source"] == "real"]
     forecast_rows = [row for row in rows if row["source"] == "forecast"]
@@ -232,6 +286,9 @@ def get_employee_irpf_annual_summary(
         "contract_id": contract.id if contract else None,
         "contract_type": contract.contract_type if contract else None,
         "expected_annual_salary": decimal_to_float(expected_annual_salary),
+        "expected_annual_salary_with_variables": decimal_to_float(expected_annual_salary_with_variables),
+        "future_variables_total": decimal_to_float(forecast_variables_total),
+        "salary_increase": decimal_to_float(salary_increase),
         "current_irpf": decimal_to_float(applied_irpf),
         "suggested_irpf": decimal_to_float(suggested_irpf),
         "voluntary_irpf": decimal_to_float(voluntary_irpf) if voluntary_irpf is not None else None,
@@ -242,5 +299,37 @@ def get_employee_irpf_annual_summary(
             "forecast": build_totals(forecast_rows),
             "annual": build_totals(rows),
         },
+        "future_incentives": [
+            {
+                "period_month": incentive.period_month,
+                "amount": decimal_to_float(incentive.amount),
+                "description": incentive.description,
+            }
+            for incentive in incentives
+        ],
         "months": rows,
     }
+
+
+@router.get("/employees/{employee_id}/irpf-annual-summary")
+def get_employee_irpf_annual_summary(
+    employee_id: int,
+    year: int = Query(..., ge=2000, le=2100),
+    db: Session = Depends(get_db),
+):
+    return build_irpf_annual_summary(db=db, employee_id=employee_id, year=year)
+
+
+@router.post("/employees/{employee_id}/irpf-annual-summary/simulate")
+def simulate_employee_irpf_annual_summary(
+    employee_id: int,
+    request: IrpfAnnualSummaryRequest,
+    db: Session = Depends(get_db),
+):
+    return build_irpf_annual_summary(
+        db=db,
+        employee_id=employee_id,
+        year=request.year,
+        incentives=request.incentives,
+        salary_increase=request.salary_increase,
+    )
