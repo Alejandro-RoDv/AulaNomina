@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { getSortLabel, nextSortConfig, sortRows } from "../utils/tableSorting";
 
 function toEditForm(company) {
   return {
@@ -17,8 +18,31 @@ export default function CompanyTable({ loading, companies, onUpdateCompany, onDe
   const [editForm, setEditForm] = useState(null);
   const [editError, setEditError] = useState("");
   const [deleteError, setDeleteError] = useState("");
+  const [sortConfig, setSortConfig] = useState({ key: "id", direction: "asc" });
+
+  const sortedCompanies = useMemo(() => sortRows(companies, sortConfig, {
+    id: (company) => company.id,
+    name: (company) => company.name,
+    cif: (company) => company.cif,
+    ccc: (company) => company.ccc,
+    city: (company) => company.city,
+    province: (company) => company.province,
+  }), [companies, sortConfig]);
 
   if (loading) return <p>Cargando...</p>;
+
+  const handleSort = (key) => {
+    setSortConfig((current) => nextSortConfig(current, key));
+  };
+
+  const sortHeader = (key, label, style = styles.th) => (
+    <th style={style}>
+      <button type="button" onClick={() => handleSort(key)} style={styles.sortButton}>
+        <span>{label}</span>
+        <span style={styles.sortIcon}>{getSortLabel(sortConfig, key)}</span>
+      </button>
+    </th>
+  );
 
   const openEditModal = (company) => {
     setEditingCompany(company);
@@ -68,17 +92,17 @@ export default function CompanyTable({ loading, companies, onUpdateCompany, onDe
         <table style={styles.table}>
           <thead>
             <tr>
-              <th style={styles.th}>ID</th>
-              <th style={styles.th}>Nombre</th>
-              <th style={styles.th}>CIF</th>
-              <th style={styles.th}>CCC</th>
-              <th style={styles.th}>Ciudad</th>
-              <th style={styles.th}>Provincia</th>
+              {sortHeader("id", "ID")}
+              {sortHeader("name", "Nombre")}
+              {sortHeader("cif", "CIF")}
+              {sortHeader("ccc", "CCC")}
+              {sortHeader("city", "Ciudad")}
+              {sortHeader("province", "Provincia")}
               <th style={styles.th}>Acciones</th>
             </tr>
           </thead>
           <tbody>
-            {companies.map((c) => (
+            {sortedCompanies.map((c) => (
               <tr key={c.id}>
                 <td style={styles.td}>{c.id}</td>
                 <td style={styles.td}>{c.name}</td>
@@ -194,6 +218,8 @@ const styles = {
   tableWrapper: { overflowX: "auto" },
   table: { width: "100%", borderCollapse: "collapse" },
   th: { textAlign: "left", padding: "12px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb", whiteSpace: "nowrap" },
+  sortButton: { width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px", padding: 0, border: "none", backgroundColor: "transparent", color: "inherit", font: "inherit", fontWeight: 900, cursor: "pointer", textAlign: "left" },
+  sortIcon: { color: "#6b7280", fontSize: "12px" },
   td: { padding: "12px", borderBottom: "1px solid #eee", whiteSpace: "nowrap" },
   editButton: { backgroundColor: "#111827", color: "#ffffff", border: "1px solid #111827", borderRadius: "8px", padding: "7px 10px", cursor: "pointer", fontWeight: 700 },
   deleteButton: { backgroundColor: "#fee2e2", color: "#991b1b", border: "1px solid #fecaca", borderRadius: "8px", padding: "10px 14px", cursor: "pointer", fontWeight: 800 },
