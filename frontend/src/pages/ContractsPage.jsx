@@ -125,6 +125,7 @@ export default function ContractsPage({
           employees={employees}
           companies={companies}
           workCenters={workCenters}
+          contracts={contracts}
           onChange={onContractChange}
           onSubmit={onContractSubmit}
           error={contractError}
