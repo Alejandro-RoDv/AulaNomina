@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { getEmployeeVisibleCode } from "../utils/visibleCodes";
 
 export const PAY_SCHEDULE_OPTIONS = [
   { value: "prorated_12", label: "Nómina prorrateada 12 pagas" },
@@ -14,6 +15,7 @@ export default function ContractForm({
   employees,
   companies,
   workCenters,
+  contracts = [],
   onChange,
   onSubmit,
   error,
@@ -26,25 +28,27 @@ export default function ContractForm({
   const selectedEmployee = employees.find((emp) => String(emp.id) === String(form.employee_id));
   const selectedCompany = companies.find((company) => String(company.id) === String(form.company_id));
   const selectedCenter = workCenters.find((center) => String(center.id) === String(form.center_id));
+  const getEmployeeCode = (employee) => getEmployeeVisibleCode(employee, employees, contracts);
 
   const filteredEmployees = useMemo(() => {
     const nameFilter = employeeFilters.name.trim().toLowerCase();
     const dniFilter = employeeFilters.dni.trim().toLowerCase();
-    const idFilter = employeeFilters.id.trim();
+    const idFilter = employeeFilters.id.trim().toLowerCase();
 
     return employees.filter((emp) => {
       const fullName = `${emp.first_name || ""} ${emp.last_name || ""}`.toLowerCase();
       const dni = `${emp.dni || ""}`.toLowerCase();
-      const id = String(emp.id);
+      const id = String(emp.id).toLowerCase();
       const employeeCode = `${emp.employee_code || ""}`.toLowerCase();
+      const visibleCode = getEmployeeVisibleCode(emp, employees, contracts).toLowerCase();
 
       return (
         (!nameFilter || fullName.includes(nameFilter)) &&
         (!dniFilter || dni.includes(dniFilter)) &&
-        (!idFilter || id.includes(idFilter) || employeeCode.includes(idFilter.toLowerCase()))
+        (!idFilter || id.includes(idFilter) || employeeCode.includes(idFilter) || visibleCode.includes(idFilter))
       );
     });
-  }, [employees, employeeFilters]);
+  }, [employees, contracts, employeeFilters]);
 
   const handleEmployeeFilterChange = (event) => {
     const { name, value } = event.target;
@@ -73,7 +77,7 @@ export default function ContractForm({
                 </div>
                 {selectedEmployee && (
                   <div style={styles.selectorMeta}>
-                    Código {selectedEmployee.employee_code || selectedEmployee.id} · DNI {selectedEmployee.dni || "-"}
+                    Código {getEmployeeCode(selectedEmployee)} · DNI {selectedEmployee.dni || "-"}
                   </div>
                 )}
               </div>
@@ -166,13 +170,13 @@ export default function ContractForm({
             <div style={styles.modalHeader}>
               <div>
                 <h3 style={styles.modalTitle}>Seleccionar trabajador</h3>
-                <p style={styles.modalSubtitle}>Filtra por código, nombre o DNI.</p>
+                <p style={styles.modalSubtitle}>Filtra por código visible, ID interno, nombre o DNI.</p>
               </div>
               <button type="button" onClick={() => setEmployeeModalOpen(false)} style={styles.closeButton}>Cerrar</button>
             </div>
 
             <div style={styles.filterRow}>
-              <div style={styles.filterGroupId}><label>Código / ID</label><input name="id" value={employeeFilters.id} onChange={handleEmployeeFilterChange} placeholder="Código" style={styles.input} /></div>
+              <div style={styles.filterGroupId}><label>Código / ID</label><input name="id" value={employeeFilters.id} onChange={handleEmployeeFilterChange} placeholder="Ej. 1.2" style={styles.input} /></div>
               <div style={styles.filterGroupName}><label>Nombre y apellidos</label><input name="name" value={employeeFilters.name} onChange={handleEmployeeFilterChange} placeholder="Nombre o apellidos" style={styles.input} /></div>
               <div style={styles.filterGroupDni}><label>DNI</label><input name="dni" value={employeeFilters.dni} onChange={handleEmployeeFilterChange} placeholder="DNI" style={styles.input} /></div>
             </div>
@@ -186,7 +190,7 @@ export default function ContractForm({
                     const employeeCenter = workCenters.find((center) => Number(center.id) === Number(emp.center_id));
                     return (
                       <tr key={emp.id}>
-                        <td style={styles.td}>{emp.employee_code || emp.id}</td>
+                        <td style={styles.td}>{getEmployeeCode(emp)}</td>
                         <td style={styles.td}>{emp.first_name} {emp.last_name}</td>
                         <td style={styles.td}>{emp.dni || "-"}</td>
                         <td style={styles.td}>{employeeCompany?.name || "-"}{employeeCenter?.name ? ` · ${employeeCenter.name}` : ""}</td>
