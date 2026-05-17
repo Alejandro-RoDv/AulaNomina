@@ -90,6 +90,30 @@ def init_database() -> None:
                 if column_name not in existing_document_columns:
                     connection.execute(text(f"ALTER TABLE documents ADD COLUMN {column_name} {column_definition}"))
 
+        if "tax_profiles" in table_names:
+            existing_tax_profile_columns = {column["name"] for column in inspector.get_columns("tax_profiles")}
+            tax_profile_columns = {
+                "family_situation": "VARCHAR DEFAULT 'general' NOT NULL",
+                "children_count": "INTEGER DEFAULT 0 NOT NULL",
+                "employee_disability": "BOOLEAN DEFAULT FALSE NOT NULL",
+                "descendants_disability": "BOOLEAN DEFAULT FALSE NOT NULL",
+                "ascendants_in_care": "INTEGER DEFAULT 0 NOT NULL",
+                "geographic_mobility": "BOOLEAN DEFAULT FALSE NOT NULL",
+                "compensatory_pension": "FLOAT DEFAULT 0 NOT NULL",
+                "child_support_annuity": "FLOAT DEFAULT 0 NOT NULL",
+                "contract_type": "VARCHAR",
+                "contract_start_date": "DATE",
+                "expected_annual_salary": "FLOAT DEFAULT 0 NOT NULL",
+                "manual_regularization": "BOOLEAN DEFAULT FALSE NOT NULL",
+                "voluntary_irpf": "FLOAT",
+                "notes": "TEXT",
+                "created_at": "TIMESTAMP",
+                "updated_at": "TIMESTAMP",
+            }
+            for column_name, column_definition in tax_profile_columns.items():
+                if column_name not in existing_tax_profile_columns:
+                    connection.execute(text(f"ALTER TABLE tax_profiles ADD COLUMN {column_name} {column_definition}"))
+
         if "students" in table_names:
             existing_student_columns = {column["name"] for column in inspector.get_columns("students")}
             student_columns = {"group_id": "INTEGER REFERENCES student_groups(id)"}
