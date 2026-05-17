@@ -10,8 +10,10 @@ from app.models.contract import Contract
 from app.models.employee import Employee
 from app.models.incident import Incident
 from app.models.payroll import Payroll
+from app.models.tax_profile import TaxProfile
 from app.models.work_center import WorkCenter
-from app.schemas.payroll import PayrollCreate, PayrollPrepareRequest, PayrollUpdate
+from app.schemas.payroll import PayrollCreate, PayrollFutureSimulationRequest, PayrollUpdate
+from app.services.irpf_calculator import calculate_irpf_2026
 
 SOCIAL_SECURITY_PERCENTAGE = Decimal("6.47")
 DEFAULT_IRPF_PERCENTAGE = Decimal("10.00")
@@ -24,8 +26,12 @@ EXTRA_COMPLEMENTARY = 15
 ACTIVE_PAYROLL_STATUSES = {"draft", "pending", "calculated", "reviewed", "closed"}
 
 
-def money(value: Decimal) -> Decimal:
-    return Decimal(value).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+def money(value) -> Decimal:
+    return Decimal(value or "0.00").quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+
+def percent(value) -> Decimal:
+    return Decimal(value or "0.00").quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
 
 def calculate_contract_base_salary(contract: Contract, period_month: int) -> Decimal:
@@ -55,6 +61,102 @@ def calculate_extra_pay_proration(contract: Contract, period_month: int) -> Deci
         return Decimal("0.00")
 
     return money(((annual_salary / Decimal("14")) * Decimal("2")) / Decimal("12"))
+
+
+def tax_profile_to_calculation_payload(tax_profile: TaxProfile | None, employee: Employee, contract: Contract, expected_annual_salary: Decimal):
+    if tax_profile:
+        payload = {
+            "birth_year": tax_profile.birth_year,
+            "autonomous_community": getattr(tax_profile, "autonomous_community", "andalucia"),
+            "family_situation": tax_profile.family_situation,
+            "spouse_nif": tax_profile.spouse_nif,
+            "employment_situation": tax_profile.employment_situation,
+            "contract_category": tax_profile.contract_category,
+            "children_count": tax_profile.children_count,
+            "descendants": tax_profile.descendants or [],
+            "ascendants_in_care": tax_profile.ascendants_in_care,
+            "ascendants": tax_profile.ascendants or [],
+            "employee_disability": tax_profile.employee_disability,
+            "disability_degree": tax_profile.disability_degree,
+            "reduced_mobility": tax_profile.reduced_mobility,
+            "descendants_disability": tax_profile.descendants_disability,
+            "geographic_mobility": tax_profile.geographic_mobility,
+            "ceuta_melilla_residence": tax_profile.ceuta_melilla_residence,
+            "ceuta_melilla_income": tax_profile.ceuta_melilla_income,
+            "home_loan": tax_profile.home_loan,
+            "compensatory_pension": tax_profile.compensatory_pension,
+            "child_support_annuity": tax_profile.child_support_annuity,
+            "irregular_income_18_2": tax_profile.irregular_income_18_2,
+            "irregular_income_18_3": tax_profile.irregular_income_18_3,
+            "social_security_contributions": tax_profile.social_security_contributions,
+            "contract_type": tax_profile.contract_type or contract.contract_type,
+            "contract_start_date": tax_profile.contract_start_date or contract.start_date,
+            "expected_annual_salary": tax_profile.expected_annual_salary or expected_annual_salary,
+            "manual_regularization": tax_profile.manual_regularization,
+            "voluntary_irpf": tax_profile.voluntary_irpf,
+            "notes": tax_profile.notes,
+        }
+    else:
+        payload = {
+            "birth_year": employee.birth_date.year if employee.birth_date else None,
+            "autonomous_community": "andalucia",
+            "family_situation": "situation_3",
+            "employment_situation": "active",
+            "contract_category": "general",
+            "children_count": 0,
+            "descendants": [],
+            "ascendants_in_care": 0,
+            "ascendants": [],
+            "employee_disability": False,
+            "disability_degree": "none",
+            "reduced_mobility": False,
+            "descendants_disability": False,
+            "geographic_mobility": False,
+            "ceuta_melilla_residence": False,
+            "ceuta_melilla_income": False,
+            "home_loan": False,
+            "compensatory_pension": 0,
+            "child_support_annuity": 0,
+            "irregular_income_18_2": 0,
+            "irregular_income_18_3": 0,
+            "social_security_contributions": 0,
+            "contract_type": contract.contract_type,
+            "contract_start_date": contract.start_date,
+            "expected_annual_salary": expected_annual_salary,
+            "manual_regularization": False,
+            "voluntary_irpf": None,
+            "notes": None,
+        }
+
+    if not payload.get("birth_year") and employee.birth_date:
+        payload["birth_year"] = employee.birth_date.year
+    if not payload.get("expected_annual_salary"):
+        payload["expected_annual_salary"] = expected_annual_salary
+
+    return payload
+
+
+def resolve_irpf_percentage(db: Session, employee: Employee, contract: Contract, irpf_mode: str, manual_percentage: Decimal | None):
+    expected_annual_salary = money(contract.salary_base or Decimal("0.00"))
+    tax_profile = db.query(TaxProfile).filter(TaxProfile.employee_id == employee.id).first()
+    payload = tax_profile_to_calculation_payload(tax_profile, employee, contract, expected_annual_salary)
+    calculation = calculate_irpf_2026(payload)
+    suggested = percent(calculation.get("suggested_irpf", 0))
+
+    voluntary = None
+    if tax_profile and tax_profile.voluntary_irpf is not None:
+        voluntary = percent(tax_profile.voluntary_irpf)
+
+    if irpf_mode == "manual":
+        applied = percent(manual_percentage if manual_percentage is not None else DEFAULT_IRPF_PERCENTAGE)
+    elif irpf_mode == "voluntary" and voluntary is not None:
+        applied = voluntary
+    elif irpf_mode == "voluntary" and manual_percentage is not None:
+        applied = percent(manual_percentage)
+    else:
+        applied = suggested
+
+    return applied, suggested
 
 
 def calculate_payroll_amounts(
@@ -216,12 +318,19 @@ def validate_payroll_relations(db: Session, payroll: PayrollCreate):
 
 
 def create_payroll(db: Session, payroll: PayrollCreate):
-    _, contract, company = validate_payroll_relations(db, payroll)
+    employee, contract, company = validate_payroll_relations(db, payroll)
 
     base_salary = calculate_contract_base_salary(contract, payroll.period_month)
     salary_supplements = money(payroll.salary_supplements or Decimal("0.00"))
     extra_pay_proration = calculate_extra_pay_proration(contract, payroll.period_month)
-    irpf_percentage = payroll.irpf_percentage or DEFAULT_IRPF_PERCENTAGE
+    irpf_mode = payroll.irpf_mode or "auto"
+    irpf_percentage, suggested_irpf_percentage = resolve_irpf_percentage(
+        db=db,
+        employee=employee,
+        contract=contract,
+        irpf_mode=irpf_mode,
+        manual_percentage=payroll.irpf_percentage,
+    )
 
     calculated_amounts = calculate_payroll_amounts(
         base_salary=base_salary,
@@ -240,6 +349,9 @@ def create_payroll(db: Session, payroll: PayrollCreate):
         base_salary=base_salary,
         salary_supplements=salary_supplements,
         extra_pay_proration=extra_pay_proration,
+        irpf_mode=irpf_mode,
+        irpf_percentage=irpf_percentage,
+        suggested_irpf_percentage=suggested_irpf_percentage,
         status=payroll.status or "pending",
         **calculated_amounts,
     )
@@ -367,6 +479,9 @@ def prepare_monthly_payrolls(db: Session, request: PayrollPrepareRequest):
                 "incident_summary": incident_summary,
                 "status": existing_payroll.status,
                 "gross_salary": money(existing_payroll.gross_salary or Decimal("0.00")),
+                "irpf_mode": existing_payroll.irpf_mode or "auto",
+                "irpf_percentage": percent(existing_payroll.irpf_percentage),
+                "suggested_irpf_percentage": percent(existing_payroll.suggested_irpf_percentage),
                 "already_existing": True,
             })
             continue
@@ -379,7 +494,7 @@ def prepare_monthly_payrolls(db: Session, request: PayrollPrepareRequest):
             period_month=request.period_month,
             period_year=request.period_year,
             salary_supplements=Decimal("0.00"),
-            irpf_percentage=DEFAULT_IRPF_PERCENTAGE,
+            irpf_mode=request.irpf_mode,
             status=request.status,
         )
 
@@ -400,6 +515,9 @@ def prepare_monthly_payrolls(db: Session, request: PayrollPrepareRequest):
             "incident_summary": incident_summary,
             "status": created_payroll.status,
             "gross_salary": money(created_payroll.gross_salary or Decimal("0.00")),
+            "irpf_mode": created_payroll.irpf_mode or "auto",
+            "irpf_percentage": percent(created_payroll.irpf_percentage),
+            "suggested_irpf_percentage": percent(created_payroll.suggested_irpf_percentage),
             "already_existing": False,
         })
 
@@ -420,7 +538,8 @@ def update_payroll(db: Session, payroll_id: int, payroll_data: PayrollUpdate):
         return None
 
     update_data = payroll_data.model_dump(exclude_unset=True)
-    irpf_percentage = update_data.pop("irpf_percentage", DEFAULT_IRPF_PERCENTAGE)
+    manual_irpf_percentage = update_data.pop("irpf_percentage", None)
+    irpf_mode = update_data.pop("irpf_mode", db_payroll.irpf_mode or "auto")
 
     new_period_month = update_data.get("period_month", db_payroll.period_month)
     new_period_year = update_data.get("period_year", db_payroll.period_year)
@@ -428,6 +547,10 @@ def update_payroll(db: Session, payroll_id: int, payroll_data: PayrollUpdate):
     contract = db.query(Contract).filter(Contract.id == db_payroll.contract_id).first()
     if not contract:
         raise HTTPException(status_code=404, detail="Contrato no encontrado")
+
+    employee = db.query(Employee).filter(Employee.id == db_payroll.employee_id).first()
+    if not employee:
+        raise HTTPException(status_code=404, detail="Trabajador no encontrado")
 
     skip_reason = get_contract_period_skip_reason(contract, new_period_month, new_period_year)
     if skip_reason:
@@ -449,9 +572,19 @@ def update_payroll(db: Session, payroll_id: int, payroll_data: PayrollUpdate):
     base_salary = calculate_contract_base_salary(contract, db_payroll.period_month)
     salary_supplements = money(db_payroll.salary_supplements or Decimal("0.00"))
     extra_pay_proration = calculate_extra_pay_proration(contract, db_payroll.period_month)
+    irpf_percentage, suggested_irpf_percentage = resolve_irpf_percentage(
+        db=db,
+        employee=employee,
+        contract=contract,
+        irpf_mode=irpf_mode,
+        manual_percentage=manual_irpf_percentage if manual_irpf_percentage is not None else db_payroll.irpf_percentage,
+    )
 
     db_payroll.base_salary = base_salary
     db_payroll.extra_pay_proration = extra_pay_proration
+    db_payroll.irpf_mode = irpf_mode
+    db_payroll.irpf_percentage = irpf_percentage
+    db_payroll.suggested_irpf_percentage = suggested_irpf_percentage
 
     calculated_amounts = calculate_payroll_amounts(
         base_salary=base_salary,
@@ -466,6 +599,66 @@ def update_payroll(db: Session, payroll_id: int, payroll_data: PayrollUpdate):
     db.commit()
     db.refresh(db_payroll)
     return get_payroll(db, db_payroll.id)
+
+
+def simulate_future_payrolls(db: Session, request: PayrollFutureSimulationRequest):
+    employee = db.query(Employee).filter(Employee.id == request.employee_id, Employee.is_active == True).first()
+    if not employee:
+        raise HTTPException(status_code=404, detail="Trabajador no encontrado")
+
+    contract = db.query(Contract).filter(Contract.id == request.contract_id).first()
+    if not contract:
+        raise HTTPException(status_code=404, detail="Contrato no encontrado")
+
+    if contract.employee_id != employee.id:
+        raise HTTPException(status_code=400, detail="El contrato no pertenece al trabajador")
+
+    incentive_map = {}
+    for incentive in request.incentives:
+        key = (incentive.period_year, incentive.period_month)
+        incentive_map[key] = incentive_map.get(key, Decimal("0.00")) + money(incentive.amount)
+
+    items = []
+    for period_month in request.periods:
+        skip_reason = get_contract_period_skip_reason(contract, period_month, request.period_year)
+        if skip_reason:
+            continue
+
+        base_salary = calculate_contract_base_salary(contract, period_month)
+        extra_pay_proration = calculate_extra_pay_proration(contract, period_month)
+        salary_supplements = money(request.salary_increase or Decimal("0.00")) + incentive_map.get((request.period_year, period_month), Decimal("0.00"))
+        irpf_percentage, suggested_irpf_percentage = resolve_irpf_percentage(
+            db=db,
+            employee=employee,
+            contract=contract,
+            irpf_mode=request.irpf_mode,
+            manual_percentage=None,
+        )
+        calculated = calculate_payroll_amounts(
+            base_salary=base_salary,
+            salary_supplements=salary_supplements,
+            extra_pay_proration=extra_pay_proration,
+            irpf_percentage=irpf_percentage,
+        )
+        items.append({
+            "period_month": period_month,
+            "period_year": request.period_year,
+            "base_salary": base_salary,
+            "salary_supplements": salary_supplements,
+            "gross_salary": calculated["gross_salary"],
+            "employee_social_security": calculated["employee_social_security"],
+            "irpf_percentage": irpf_percentage,
+            "suggested_irpf_percentage": suggested_irpf_percentage,
+            "irpf": calculated["irpf"],
+            "total_deductions": calculated["total_deductions"],
+            "net_salary": calculated["net_salary"],
+        })
+
+    return {
+        "employee_id": employee.id,
+        "contract_id": contract.id,
+        "items": items,
+    }
 
 
 def delete_payroll(db: Session, payroll_id: int):
