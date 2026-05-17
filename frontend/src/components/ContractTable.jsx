@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { formatPaySchedule, PAY_SCHEDULE_OPTIONS } from "./ContractForm";
 import { getContractVisibleCode } from "../utils/visibleCodes";
+import { getSortLabel, nextSortConfig, sortRows } from "../utils/tableSorting";
 
 const TERMINATION_REASONS = [
   { value: "fin_contrato_temporal", label: "Fin de contrato temporal" },
@@ -89,6 +90,7 @@ export default function ContractTable({
   const [terminationForm, setTerminationForm] = useState(null);
   const [editError, setEditError] = useState("");
   const [terminationError, setTerminationError] = useState("");
+  const [sortConfig, setSortConfig] = useState({ key: "code", direction: "asc" });
 
   const getEmployee = (contract) => employees.find((employee) => Number(employee.id) === Number(contract.employee_id));
 
@@ -123,6 +125,29 @@ export default function ContractTable({
     const company = getCompany(contract);
     return company?.ccc || "-";
   };
+
+  const sortedContracts = useMemo(() => sortRows(contracts, sortConfig, {
+    code: (contract) => getContractCode(contract),
+    employee: (contract) => getEmployeeName(contract),
+    company: (contract) => getCompanyAndCenterName(contract),
+    ccc: (contract) => getCompanyCcc(contract),
+    type: (contract) => formatContractType(contract.contract_type),
+    start: (contract) => contract.start_date,
+    end: (contract) => contract.end_date,
+    status: (contract) => formatStatus(contract.status),
+    salary: (contract) => contract.salary_base,
+  }), [contracts, employees, companies, workCenters, sortConfig]);
+
+  const handleSort = (key) => setSortConfig((current) => nextSortConfig(current, key));
+
+  const sortHeader = (key, label, style) => (
+    <th style={style}>
+      <button type="button" onClick={() => handleSort(key)} style={styles.sortButton}>
+        <span>{label}</span>
+        <span style={styles.sortIcon}>{getSortLabel(sortConfig, key)}</span>
+      </button>
+    </th>
+  );
 
   const openEditModal = (contract) => {
     setEditingContract(contract);
@@ -215,20 +240,20 @@ export default function ContractTable({
         <table style={styles.table}>
           <thead>
             <tr>
-              <th style={styles.thCode}>Código</th>
-              <th style={styles.thEmployee}>Trabajador</th>
-              <th style={styles.thCompany}>Empresa / centro</th>
-              <th style={styles.thCcc}>CCC</th>
-              <th style={styles.thType}>Tipo</th>
-              <th style={styles.thDate}>Inicio</th>
-              <th style={styles.thDate}>Fin</th>
-              <th style={styles.thStatus}>Estado</th>
-              <th style={styles.thSalary}>Salario</th>
+              {sortHeader("code", "Código", styles.thCode)}
+              {sortHeader("employee", "Trabajador", styles.thEmployee)}
+              {sortHeader("company", "Empresa / centro", styles.thCompany)}
+              {sortHeader("ccc", "CCC", styles.thCcc)}
+              {sortHeader("type", "Tipo", styles.thType)}
+              {sortHeader("start", "Inicio", styles.thDate)}
+              {sortHeader("end", "Fin", styles.thDate)}
+              {sortHeader("status", "Estado", styles.thStatus)}
+              {sortHeader("salary", "Salario", styles.thSalary)}
               <th style={styles.thActions}>Acciones</th>
             </tr>
           </thead>
           <tbody>
-            {contracts.map((contract) => (
+            {sortedContracts.map((contract) => (
               <tr key={contract.id}>
                 <td style={styles.tdCode}>{getContractCode(contract)}</td>
                 <td style={styles.td}>{getEmployeeName(contract)}</td>
@@ -322,7 +347,7 @@ export default function ContractTable({
 
               <div style={styles.formRow}>
                 <div style={styles.formGroup}>
-                  <label>Salario mensual de referencia</label>
+                  <label>Salario bruto anual pactado</label>
                   <input type="number" name="salary_base" value={editForm.salary_base} onChange={handleEditChange} style={styles.input} />
                 </div>
 
@@ -447,6 +472,8 @@ export default function ContractTable({
 const styles = {
   tableWrapper: { overflowX: "auto", width: "100%" },
   table: { width: "100%", minWidth: "1120px", borderCollapse: "collapse", tableLayout: "fixed" },
+  sortButton: { width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px", padding: 0, border: "none", backgroundColor: "transparent", color: "inherit", font: "inherit", fontWeight: 900, cursor: "pointer", textAlign: "left" },
+  sortIcon: { color: "#6b7280", fontSize: "12px" },
   thEmployee: { width: "230px", textAlign: "left", padding: "12px 10px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb", whiteSpace: "nowrap" },
   thCompany: { width: "260px", textAlign: "left", padding: "12px 10px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb", whiteSpace: "nowrap" },
   thCode: { width: "90px", textAlign: "left", padding: "12px 8px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb", whiteSpace: "nowrap" },
