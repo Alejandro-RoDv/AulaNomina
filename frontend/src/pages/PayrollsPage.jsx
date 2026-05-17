@@ -5,7 +5,6 @@ import PayrollForm from "../components/payrolls/PayrollForm";
 import PayrollTable from "../components/payrolls/PayrollTable";
 import MonthlyPayrollPreparation from "../components/payrolls/MonthlyPayrollPreparation";
 import FuturePayrollSimulator from "../components/payrolls/FuturePayrollSimulator";
-import IrpfModulePanel from "../components/payrolls/IrpfModulePanel";
 import { fetchPayrolls } from "../services/payrollApi";
 
 export default function PayrollsPage({
@@ -47,18 +46,11 @@ export default function PayrollsPage({
 
   return (
     <div style={styles.wrapper}>
-      <PageCard
-        title="Módulo IRPF"
-        subtitle="Consulta y simula el IRPF anual de cada trabajador: real, previsto, voluntario y variables futuras."
-      >
-        <IrpfModulePanel employees={employees} contracts={contracts} onRefresh={refreshPayrollList} />
-      </PageCard>
-
-      <PageCard title="Preparar nóminas mensuales" subtitle="Preparación masiva de nóminas por empresa, centro y periodo.">
+      <PageCard title="Preparar nóminas mensuales" subtitle="Preparación masiva de nóminas por empresa, centro y periodo. El IRPF aplicado se toma de la ficha fiscal del trabajador.">
         <MonthlyPayrollPreparation companies={companies} workCenters={workCenters} onPrepared={refreshPayrollList} />
       </PageCard>
 
-      <PageCard title="Simular próximos meses" subtitle="Proyección de bruto, Seguridad Social, IRPF y neto.">
+      <PageCard title="Simular próximos meses" subtitle="Proyección de bruto, Seguridad Social, IRPF y neto para escenarios de nómina.">
         <FuturePayrollSimulator employees={employees} contracts={contracts} />
       </PageCard>
 
@@ -80,7 +72,7 @@ export default function PayrollsPage({
         </PageCard>
       </details>
 
-      <PageCard title="Listado de nóminas" subtitle="Nóminas simuladas generadas en el sistema.">
+      <PageCard title="Listado de nóminas" subtitle="Nóminas simuladas generadas en el sistema. Estas nóminas alimentan la tabla anual del módulo IRPF.">
         {refreshMessage && <div style={styles.notice}>{refreshMessage}</div>}
         <div style={styles.resultInfo}>
           {refreshingPayrolls ? "Actualizando listado..." : `Mostrando ${localPayrolls.length} nóminas`}
