@@ -126,9 +126,7 @@ export default function Sidebar({ activePage, setActivePage }) {
     if (item.id === "irpf") {
       setActivePage("payrolls");
       setHashActivePage(null);
-      if (overlayHashes.includes(window.location.hash)) {
-        window.history.replaceState(null, "", window.location.pathname + window.location.search);
-      }
+      window.location.hash = "irpf-module";
       window.dispatchEvent(new Event("aulanomina-route-change"));
       return;
     }
@@ -144,7 +142,7 @@ export default function Sidebar({ activePage, setActivePage }) {
 
     setHashActivePage(null);
 
-    if (overlayHashes.includes(window.location.hash)) {
+    if (overlayHashes.includes(window.location.hash) || window.location.hash === "#irpf-module") {
       window.history.replaceState(null, "", window.location.pathname + window.location.search);
       window.dispatchEvent(new Event("aulanomina-route-change"));
     }
@@ -163,7 +161,7 @@ export default function Sidebar({ activePage, setActivePage }) {
             <p style={styles.groupTitle}>{group.title}</p>
             <div style={styles.groupItems}>
               {group.items.map((item) => {
-                const isActive = currentActivePage === item.id || (item.id === "irpf" && currentActivePage === "payrolls") || (item.children && employeePages.includes(currentActivePage));
+                const isActive = currentActivePage === item.id || (item.id === "irpf" && window.location.hash === "#irpf-module") || (item.children && employeePages.includes(currentActivePage));
                 const submenuOpen = item.children && employeeMenuOpen;
 
                 return (
