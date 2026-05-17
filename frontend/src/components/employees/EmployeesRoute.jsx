@@ -9,6 +9,7 @@ import { fetchDocuments } from "../../services/documentApi";
 import { createEmployee, deleteEmployee, fetchAllEmployees, fetchNextEmployeeCode, updateEmployee } from "../../services/employeeApi";
 import { fetchIncidents } from "../../services/incidentApi";
 import { fetchPayrolls } from "../../services/payrollApi";
+import { fetchTaxProfiles } from "../../services/taxProfileApi";
 import { fetchWorkCenters } from "../../services/workCenterApi";
 
 const employeeRoutes = ["employee-admissions", "employees", "employee-record"];
@@ -79,12 +80,13 @@ export default function EmployeesRoute() {
     incidents: [],
     payrolls: [],
     documents: [],
+    taxProfiles: [],
   });
 
   const loadData = async () => {
     try {
       setLoading(true);
-      const [contracts, employees, companies, workCenters, incidents, payrolls, documents, nextEmployeeCode] = await Promise.all([
+      const [contracts, employees, companies, workCenters, incidents, payrolls, documents, taxProfiles, nextEmployeeCode] = await Promise.all([
         fetchContracts(),
         fetchAllEmployees(),
         fetchCompanies(),
@@ -92,10 +94,11 @@ export default function EmployeesRoute() {
         fetchIncidents(),
         fetchPayrolls(),
         fetchDocuments(),
+        fetchTaxProfiles(),
         fetchNextEmployeeCode(),
       ]);
 
-      setData({ contracts, employees, companies, workCenters, incidents, payrolls, documents });
+      setData({ contracts, employees, companies, workCenters, incidents, payrolls, documents, taxProfiles });
       setEmployeeForm((prev) => ({ ...prev, employee_code: nextEmployeeCode.employee_code }));
     } catch (err) {
       setEmployeeError(err.message || "Error cargando trabajadores");
@@ -246,6 +249,8 @@ export default function EmployeesRoute() {
             incidents={data.incidents}
             payrolls={data.payrolls}
             documents={data.documents}
+            taxProfiles={data.taxProfiles}
+            onRefresh={loadData}
           />
         )}
       </main>
