@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { getEmployeeVisibleCode } from "../../utils/visibleCodes";
+import { getSortLabel, nextSortConfig, sortRows } from "../../utils/tableSorting";
 
 const emptyEditForm = {
   employee_code: "",
@@ -60,6 +61,7 @@ export default function EmployeeTable({
   const [editForm, setEditForm] = useState(emptyEditForm);
   const [editError, setEditError] = useState("");
   const [deleteError, setDeleteError] = useState("");
+  const [sortConfig, setSortConfig] = useState({ key: "code", direction: "asc" });
 
   const companyMap = useMemo(() => companies.reduce((acc, company) => ({ ...acc, [company.id]: company }), {}), [companies]);
   const centerMap = useMemo(() => workCenters.reduce((acc, center) => ({ ...acc, [center.id]: center }), {}), [workCenters]);
@@ -67,8 +69,6 @@ export default function EmployeeTable({
   const availableCenters = useMemo(() => {
     return workCenters.filter((center) => !editForm.company_id || String(center.company_id) === String(editForm.company_id));
   }, [workCenters, editForm.company_id]);
-
-  if (loading) return <p>Cargando...</p>;
 
   const getEmployeeCode = (employee) => getEmployeeVisibleCode(employee, employees, contracts);
 
@@ -85,6 +85,29 @@ export default function EmployeeTable({
     const activeContract = getActiveContract(employee.id);
     return activeContract?.center_name || centerMap[activeContract?.center_id]?.name || centerMap[employee.center_id]?.name || "-";
   };
+
+  const sortedEmployees = useMemo(() => sortRows(employees, sortConfig, {
+    code: (employee) => getEmployeeCode(employee),
+    dni: (employee) => employee.dni,
+    naf: (employee) => employee.naf,
+    name: (employee) => `${employee.first_name || ""} ${employee.last_name || ""}`,
+    company: (employee) => getCompanyName(employee),
+    center: (employee) => getCenterName(employee),
+    status: (employee) => employee.is_active ? "Activo" : "Inactivo",
+  }), [employees, contracts, companyMap, centerMap, sortConfig]);
+
+  if (loading) return <p>Cargando...</p>;
+
+  const handleSort = (key) => setSortConfig((current) => nextSortConfig(current, key));
+
+  const sortHeader = (key, label) => (
+    <th style={styles.th}>
+      <button type="button" onClick={() => handleSort(key)} style={styles.sortButton}>
+        <span>{label}</span>
+        <span style={styles.sortIcon}>{getSortLabel(sortConfig, key)}</span>
+      </button>
+    </th>
+  );
 
   const openDetailsModal = (employee) => {
     setSelectedEmployee(employee);
@@ -170,18 +193,18 @@ export default function EmployeeTable({
           <table style={styles.table}>
             <thead>
               <tr>
-                <th style={styles.th}>Código</th>
-                <th style={styles.th}>DNI</th>
-                <th style={styles.th}>NAF</th>
-                <th style={styles.th}>Nombre completo</th>
-                <th style={styles.th}>Empresa</th>
-                <th style={styles.th}>Centro</th>
-                <th style={styles.th}>Estado</th>
+                {sortHeader("code", "Código")}
+                {sortHeader("dni", "DNI")}
+                {sortHeader("naf", "NAF")}
+                {sortHeader("name", "Nombre completo")}
+                {sortHeader("company", "Empresa")}
+                {sortHeader("center", "Centro")}
+                {sortHeader("status", "Estado")}
                 <th style={styles.th}>Acciones</th>
               </tr>
             </thead>
             <tbody>
-              {employees.map((employee) => (
+              {sortedEmployees.map((employee) => (
                 <tr key={employee.id}>
                   <td style={styles.tdStrong}>{getEmployeeCode(employee)}</td>
                   <td style={styles.td}>{employee.dni}</td>
@@ -370,6 +393,8 @@ const styles = {
   tableWrapper: { overflowX: "auto" },
   table: { width: "100%", borderCollapse: "collapse" },
   th: { textAlign: "left", padding: "12px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb", whiteSpace: "nowrap" },
+  sortButton: { width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px", padding: 0, border: "none", backgroundColor: "transparent", color: "inherit", font: "inherit", fontWeight: 900, cursor: "pointer", textAlign: "left" },
+  sortIcon: { color: "#6b7280", fontSize: "12px" },
   td: { padding: "12px", borderBottom: "1px solid #eee", whiteSpace: "nowrap" },
   tdStrong: { padding: "12px", borderBottom: "1px solid #eee", whiteSpace: "nowrap", fontWeight: 900 },
   actionGroup: { display: "flex", gap: "8px", alignItems: "center" },
