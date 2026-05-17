@@ -35,3 +35,4 @@ class Employee(Base):
     payrolls = relationship("Payroll", back_populates="employee")
     documents = relationship("Document", back_populates="employee")
     assignment_history = relationship("EmployeeAssignmentHistory", back_populates="employee", order_by="EmployeeAssignmentHistory.start_date.desc()")
+    tax_profile = relationship("TaxProfile", back_populates="employee", uselist=False, cascade="all, delete-orphan")
