@@ -22,6 +22,10 @@ from app.services.irpf_calculator import calculate_irpf_2026
 router = APIRouter(tags=["irpf"])
 
 MONTHS = list(range(1, 13))
+EXTRA_JULY = 13
+EXTRA_DECEMBER = 14
+EXTRA_TO_MONTH = {EXTRA_JULY: 7, EXTRA_DECEMBER: 12}
+EXTRA_BY_MONTH = {7: EXTRA_JULY, 12: EXTRA_DECEMBER}
 CANCELLED_STATUSES = {"cancelled"}
 
 
@@ -104,24 +108,12 @@ def build_empty_snapshot(irpf_percentage: Decimal):
     }
 
 
-def build_forecast_snapshot(
-    contract: Contract | None,
-    month: int,
-    year: int,
+def build_snapshot_from_amounts(
+    base_salary: Decimal,
+    salary_supplements: Decimal,
+    extra_pay_proration: Decimal,
     irpf_percentage: Decimal,
-    salary_increase: Decimal = Decimal("0.00"),
-    incentive_amount: Decimal = Decimal("0.00"),
 ):
-    if not contract:
-        return build_empty_snapshot(irpf_percentage)
-
-    skip_reason = get_contract_period_skip_reason(contract, month, year)
-    if skip_reason:
-        return build_empty_snapshot(irpf_percentage)
-
-    base_salary = calculate_contract_base_salary(contract, month)
-    salary_supplements = money(salary_increase) + money(incentive_amount)
-    extra_pay_proration = calculate_extra_pay_proration(contract, month)
     calculated = calculate_payroll_amounts(
         base_salary=base_salary,
         salary_supplements=salary_supplements,
@@ -143,7 +135,85 @@ def build_forecast_snapshot(
     }
 
 
-def build_real_snapshot(payroll: Payroll):
+def merge_snapshots(primary: dict | None, extra: dict | None):
+    if not primary and not extra:
+        return None
+    if not primary:
+        return extra
+    if not extra:
+        return primary
+
+    return {
+        "base_salary": decimal_to_float(primary.get("base_salary")) + decimal_to_float(extra.get("base_salary")),
+        "salary_supplements": decimal_to_float(primary.get("salary_supplements")) + decimal_to_float(extra.get("salary_supplements")),
+        "extra_pay_proration": decimal_to_float(primary.get("extra_pay_proration")) + decimal_to_float(extra.get("extra_pay_proration")),
+        "gross_salary": decimal_to_float(primary.get("gross_salary")) + decimal_to_float(extra.get("gross_salary")),
+        "employee_social_security": decimal_to_float(primary.get("employee_social_security")) + decimal_to_float(extra.get("employee_social_security")),
+        "irpf_percentage": decimal_to_float(primary.get("irpf_percentage")),
+        "suggested_irpf_percentage": decimal_to_float(primary.get("suggested_irpf_percentage")),
+        "irpf": decimal_to_float(primary.get("irpf")) + decimal_to_float(extra.get("irpf")),
+        "total_deductions": decimal_to_float(primary.get("total_deductions")) + decimal_to_float(extra.get("total_deductions")),
+        "net_salary": decimal_to_float(primary.get("net_salary")) + decimal_to_float(extra.get("net_salary")),
+    }
+
+
+def build_forecast_snapshot(
+    contract: Contract | None,
+    month: int,
+    year: int,
+    irpf_percentage: Decimal,
+    salary_increase: Decimal = Decimal("0.00"),
+    incentive_amount: Decimal = Decimal("0.00"),
+):
+    if not contract:
+        return build_empty_snapshot(irpf_percentage)
+
+    skip_reason = get_contract_period_skip_reason(contract, month, year)
+    if skip_reason:
+        return build_empty_snapshot(irpf_percentage)
+
+    base_salary = calculate_contract_base_salary(contract, month)
+    salary_supplements = money(salary_increase) + money(incentive_amount)
+    extra_pay_proration = calculate_extra_pay_proration(contract, month)
+
+    snapshot = build_snapshot_from_amounts(
+        base_salary=base_salary,
+        salary_supplements=salary_supplements,
+        extra_pay_proration=extra_pay_proration,
+        irpf_percentage=irpf_percentage,
+    )
+
+    # For 14-pay contracts, the annual forecast shown in the IRPF screen must include
+    # the two extra pays. They are merged into July and December so the annual total
+    # matches the agreed gross annual salary without requiring separate visible rows.
+    if (contract.pay_schedule or "not_prorated_14") != "prorated_12" and month in EXTRA_BY_MONTH:
+        extra_month = EXTRA_BY_MONTH[month]
+        if not get_contract_period_skip_reason(contract, extra_month, year):
+            extra_snapshot = build_snapshot_from_amounts(
+                base_salary=calculate_contract_base_salary(contract, extra_month),
+                salary_supplements=Decimal("0.00"),
+                extra_pay_proration=Decimal("0.00"),
+                irpf_percentage=irpf_percentage,
+            )
+            snapshot = merge_snapshots(snapshot, extra_snapshot)
+
+    return snapshot
+
+
+def build_real_snapshot(payroll: Payroll, contract: Contract | None = None):
+    # Existing payrolls generated before a formula correction may contain stale stored
+    # amounts. Rebuild the displayed snapshot from the current contract rules so IRPF
+    # annual views remain coherent with the current payroll engine.
+    if contract:
+        base_salary = calculate_contract_base_salary(contract, payroll.period_month)
+        extra_pay_proration = calculate_extra_pay_proration(contract, payroll.period_month)
+        return build_snapshot_from_amounts(
+            base_salary=base_salary,
+            salary_supplements=money(payroll.salary_supplements),
+            extra_pay_proration=extra_pay_proration,
+            irpf_percentage=money(payroll.irpf_percentage),
+        )
+
     return {
         "base_salary": decimal_to_float(payroll.base_salary),
         "salary_supplements": decimal_to_float(payroll.salary_supplements),
@@ -162,11 +232,15 @@ def build_month_row(
     month: int,
     year: int,
     real_payroll: Payroll | None,
+    real_extra_payroll: Payroll | None,
+    contract: Contract | None,
     forecast_snapshot: dict,
     forecast_status: str,
     incentive_details: list[dict],
 ):
-    real_snapshot = build_real_snapshot(real_payroll) if real_payroll else None
+    real_snapshot = build_real_snapshot(real_payroll, contract) if real_payroll else None
+    extra_snapshot = build_real_snapshot(real_extra_payroll, contract) if real_extra_payroll else None
+    real_snapshot = merge_snapshots(real_snapshot, extra_snapshot)
     projected_snapshot = real_snapshot if real_snapshot else forecast_snapshot
     status = "Cobrado" if real_snapshot else forecast_status
     source = "real" if real_snapshot else "forecast"
@@ -177,10 +251,10 @@ def build_month_row(
         "source": source,
         "status": status,
         "payroll_id": real_payroll.id if real_payroll else None,
+        "extra_payroll_id": real_extra_payroll.id if real_extra_payroll else None,
         "real": real_snapshot,
         "projected": projected_snapshot,
         "future_incentives": [] if real_snapshot else incentive_details,
-        # Backwards compatibility for older frontend components.
         "base_salary": projected_snapshot["base_salary"],
         "salary_supplements": projected_snapshot["salary_supplements"],
         "extra_pay_proration": projected_snapshot["extra_pay_proration"],
@@ -265,13 +339,18 @@ def build_irpf_annual_summary(db: Session, employee_id: int, year: int, incentiv
     real_payrolls = db.query(Payroll).filter(
         Payroll.employee_id == employee_id,
         Payroll.period_year == year,
-        Payroll.period_month.in_(MONTHS),
+        Payroll.period_month.in_(MONTHS + [EXTRA_JULY, EXTRA_DECEMBER]),
         ~Payroll.status.in_(CANCELLED_STATUSES),
     ).order_by(Payroll.period_month.asc(), Payroll.id.desc()).all()
 
     real_by_month = {}
+    real_extra_by_month = {}
     for payroll in real_payrolls:
-        if payroll.period_month not in real_by_month:
+        if payroll.period_month in EXTRA_TO_MONTH:
+            display_month = EXTRA_TO_MONTH[payroll.period_month]
+            if display_month not in real_extra_by_month:
+                real_extra_by_month[display_month] = payroll
+        elif payroll.period_month not in real_by_month:
             real_by_month[payroll.period_month] = payroll
 
     rows = []
@@ -290,6 +369,8 @@ def build_irpf_annual_summary(db: Session, employee_id: int, year: int, incentiv
             month=month,
             year=year,
             real_payroll=real_by_month.get(month),
+            real_extra_payroll=real_extra_by_month.get(month),
+            contract=contract,
             forecast_snapshot=forecast_snapshot,
             forecast_status=get_forecast_status(contract, month, year, monthly_supplements),
             incentive_details=incentive_details.get(month, []),
@@ -305,6 +386,7 @@ def build_irpf_annual_summary(db: Session, employee_id: int, year: int, incentiv
         "year": year,
         "contract_id": contract.id if contract else None,
         "contract_type": contract.contract_type if contract else None,
+        "pay_schedule": contract.pay_schedule if contract else None,
         "expected_annual_salary": decimal_to_float(expected_annual_salary),
         "expected_annual_salary_with_variables": decimal_to_float(expected_annual_salary_with_variables),
         "future_variables_total": decimal_to_float(forecast_variables_total),
