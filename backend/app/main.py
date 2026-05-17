@@ -69,6 +69,8 @@ from app.crud.incident import (
 )
 from app.schemas.payroll import (
     PayrollCreate,
+    PayrollFutureSimulationRequest,
+    PayrollFutureSimulationResponse,
     PayrollPrepareRequest,
     PayrollPrepareResponse,
     PayrollUpdate,
@@ -79,6 +81,7 @@ from app.crud.payroll import (
     get_payrolls,
     get_payroll,
     prepare_monthly_payrolls,
+    simulate_future_payrolls,
     update_payroll,
     delete_payroll,
 )
@@ -468,6 +471,11 @@ def create_payroll_endpoint(payroll: PayrollCreate, db: Session = Depends(get_db
 @app.post("/payrolls/prepare-monthly", response_model=PayrollPrepareResponse)
 def prepare_monthly_payrolls_endpoint(request: PayrollPrepareRequest, db: Session = Depends(get_db)):
     return prepare_monthly_payrolls(db, request)
+
+
+@app.post("/payrolls/simulate-future", response_model=PayrollFutureSimulationResponse)
+def simulate_future_payrolls_endpoint(request: PayrollFutureSimulationRequest, db: Session = Depends(get_db)):
+    return simulate_future_payrolls(db, request)
 
 
 @app.get("/payrolls/{payroll_id}", response_model=PayrollResponse)
