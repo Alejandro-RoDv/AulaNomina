@@ -4,6 +4,7 @@ import PageCard from "../components/layout/PageCard";
 import PayrollForm, { PAYROLL_STATUS_OPTIONS } from "../components/payrolls/PayrollForm";
 import PayrollTable from "../components/payrolls/PayrollTable";
 import MonthlyPayrollPreparation from "../components/payrolls/MonthlyPayrollPreparation";
+import FuturePayrollSimulator from "../components/payrolls/FuturePayrollSimulator";
 import { fetchPayrolls } from "../services/payrollApi";
 import { openReportPreset } from "../utils/reportShortcuts";
 
@@ -114,6 +115,13 @@ export default function PayrollsPage({
           workCenters={workCenters}
           onPrepared={refreshPayrollList}
         />
+      </PageCard>
+
+      <PageCard
+        title="Simular próximos meses"
+        subtitle="Proyecta bruto, Seguridad Social, IRPF y neto con incentivos futuros, subida mensual y modo IRPF automático."
+      >
+        <FuturePayrollSimulator employees={employees} contracts={contracts} />
       </PageCard>
 
       <details style={styles.details}>
