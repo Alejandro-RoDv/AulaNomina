@@ -9,6 +9,7 @@ from app.models.contract import Contract
 from app.seed_demo import seed_demo_data
 from app.seed_demo_documents import seed_demo_documents
 from app.case_study_routes import router as case_study_router
+from app.irpf_summary_routes import router as irpf_summary_router
 from app.crud.case_assignment import seed_demo_case_assignments
 from app.crud.case_study import seed_demo_case_studies
 from app.crud.correction import seed_demo_corrections
@@ -111,6 +112,7 @@ app.add_middleware(
 
 init_database()
 app.include_router(case_study_router)
+app.include_router(irpf_summary_router)
 
 _demo_db = SessionLocal()
 try:
