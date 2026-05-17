@@ -28,6 +28,18 @@ export async function prepareMonthlyPayrolls(payload) {
   );
 }
 
+export async function simulateFuturePayrolls(payload) {
+  return apiRequest(
+    "/payrolls/simulate-future",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    },
+    "Error al simular nóminas futuras"
+  );
+}
+
 export async function updatePayroll(payrollId, payload) {
   return apiRequest(
     `/payrolls/${payrollId}`,
