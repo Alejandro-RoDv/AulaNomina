@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 
 class TaxProfileBase(BaseModel):
     birth_year: int | None = Field(default=None, ge=1906, le=2026)
+    autonomous_community: str = "andalucia"
     family_situation: str = "situation_3"
     spouse_nif: str | None = None
     employment_situation: str = "active"
