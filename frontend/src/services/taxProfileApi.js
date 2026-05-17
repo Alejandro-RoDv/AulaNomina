@@ -12,6 +12,26 @@ export async function fetchEmployeeTaxProfile(employeeId) {
   );
 }
 
+export async function calculateEmployeeIrpf(employeeId) {
+  return apiRequest(
+    `/employees/${employeeId}/tax-profile/calculate-irpf`,
+    {},
+    "Error al calcular IRPF del trabajador"
+  );
+}
+
+export async function calculateIrpf(payload) {
+  return apiRequest(
+    "/tax-profiles/calculate-irpf",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    },
+    "Error al calcular IRPF"
+  );
+}
+
 export async function updateEmployeeTaxProfile(employeeId, payload) {
   return apiRequest(
     `/employees/${employeeId}/tax-profile`,
