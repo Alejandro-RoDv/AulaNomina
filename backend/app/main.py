@@ -29,6 +29,8 @@ from app.crud.employee import (
     get_employee_by_naf,
     get_next_employee_code,
 )
+from app.schemas.tax_profile import TaxProfileResponse, TaxProfileUpdate
+from app.crud.tax_profile import get_tax_profiles, get_tax_profile_by_employee, upsert_tax_profile
 from app.schemas.contract import ContractCreate, ContractUpdate, ContractResponse
 from app.crud.contract import (
     create_contract,
@@ -221,6 +223,26 @@ def delete_employee_endpoint(employee_id: int, db: Session = Depends(get_db)):
     if not deleted_employee:
         raise HTTPException(status_code=404, detail="Trabajador no encontrado")
     return deleted_employee
+
+
+# TAX PROFILES
+@app.get("/tax-profiles", response_model=list[TaxProfileResponse])
+def list_tax_profiles(db: Session = Depends(get_db)):
+    return get_tax_profiles(db)
+
+
+@app.get("/employees/{employee_id}/tax-profile", response_model=TaxProfileResponse | None)
+def get_employee_tax_profile_endpoint(employee_id: int, db: Session = Depends(get_db)):
+    if not get_employee(db, employee_id):
+        raise HTTPException(status_code=404, detail="Trabajador no encontrado")
+    return get_tax_profile_by_employee(db, employee_id)
+
+
+@app.put("/employees/{employee_id}/tax-profile", response_model=TaxProfileResponse)
+def upsert_employee_tax_profile_endpoint(employee_id: int, tax_profile: TaxProfileUpdate, db: Session = Depends(get_db)):
+    if not get_employee(db, employee_id):
+        raise HTTPException(status_code=404, detail="Trabajador no encontrado")
+    return upsert_tax_profile(db, employee_id, tax_profile)
 
 
 # CONTRACTS
