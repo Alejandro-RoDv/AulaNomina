@@ -1,6 +1,11 @@
 import { useEffect, useState } from "react";
 
-import { calculateIrpf, fetchEmployeeIrpfAnnualSummary, updateEmployeeTaxProfile } from "../../services/taxProfileApi";
+import {
+  calculateIrpf,
+  fetchEmployeeIrpfAnnualSummary,
+  simulateEmployeeIrpfAnnualSummary,
+  updateEmployeeTaxProfile,
+} from "../../services/taxProfileApi";
 
 const COMMUNITY_OPTIONS = [
   ["andalucia", "Andalucía"],
@@ -28,31 +33,10 @@ const FAMILY_OPTIONS = [
   ["situation_3", "Situación 3 · resto de situaciones"],
 ];
 
-const EMPLOYMENT_OPTIONS = [
-  ["active", "Activo"],
-  ["pensioner", "Pensionista"],
-  ["unemployed", "Desempleado"],
-  ["other", "Otra situación"],
-];
-
-const CONTRACT_CATEGORY_OPTIONS = [
-  ["general", "General"],
-  ["inferior_year", "Contrato inferior al año"],
-  ["special", "Relación laboral especial"],
-  ["manual", "Manual docente"],
-];
-
-const DISABILITY_OPTIONS = [
-  ["none", "Sin discapacidad"],
-  ["from_33_to_65", "33% a 64%"],
-  ["from_65", "65% o superior"],
-];
-
-const MONTHS = [
-  [1, "Enero"], [2, "Febrero"], [3, "Marzo"], [4, "Abril"],
-  [5, "Mayo"], [6, "Junio"], [7, "Julio"], [8, "Agosto"],
-  [9, "Septiembre"], [10, "Octubre"], [11, "Noviembre"], [12, "Diciembre"],
-];
+const EMPLOYMENT_OPTIONS = [["active", "Activo"], ["pensioner", "Pensionista"], ["unemployed", "Desempleado"], ["other", "Otra situación"]];
+const CONTRACT_CATEGORY_OPTIONS = [["general", "General"], ["inferior_year", "Contrato inferior al año"], ["special", "Relación laboral especial"], ["manual", "Manual docente"]];
+const DISABILITY_OPTIONS = [["none", "Sin discapacidad"], ["from_33_to_65", "33% a 64%"], ["from_65", "65% o superior"]];
+const MONTHS = [[1, "Enero"], [2, "Febrero"], [3, "Marzo"], [4, "Abril"], [5, "Mayo"], [6, "Junio"], [7, "Julio"], [8, "Agosto"], [9, "Septiembre"], [10, "Octubre"], [11, "Noviembre"], [12, "Diciembre"]];
 
 const defaultForm = {
   birth_year: "",
@@ -150,6 +134,10 @@ function getMonthLabel(month) {
   return MONTHS.find(([value]) => Number(value) === Number(month))?.[1] || String(month).padStart(2, "0");
 }
 
+function buildEmptyIncentive(year) {
+  return { period_month: "9", amount: "0", description: "Variable futura", year };
+}
+
 export default function EmployeeIrpfPanel({ employee, taxProfile, activeContract, onRefresh }) {
   const currentYear = new Date().getFullYear();
   const [year, setYear] = useState(currentYear);
@@ -157,18 +145,35 @@ export default function EmployeeIrpfPanel({ employee, taxProfile, activeContract
   const [summary, setSummary] = useState(null);
   const [calculation, setCalculation] = useState(null);
   const [irpfMode, setIrpfMode] = useState(taxProfile?.voluntary_irpf ? "voluntary" : "auto");
+  const [salaryIncrease, setSalaryIncrease] = useState("0");
+  const [incentives, setIncentives] = useState([]);
+  const [simulationActive, setSimulationActive] = useState(false);
   const [loadingSummary, setLoadingSummary] = useState(false);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
-  const loadSummary = async () => {
+  const loadSummary = async ({ simulate = simulationActive } = {}) => {
     if (!employee?.id) return;
     try {
       setLoadingSummary(true);
       setError("");
-      setSummary(await fetchEmployeeIrpfAnnualSummary(employee.id, year));
+      if (simulate) {
+        setSummary(await simulateEmployeeIrpfAnnualSummary(employee.id, {
+          year: Number(year),
+          salary_increase: Number(salaryIncrease || 0),
+          incentives: incentives
+            .filter((item) => Number(item.amount || 0) !== 0)
+            .map((item) => ({
+              period_month: Number(item.period_month),
+              amount: Number(item.amount || 0),
+              description: item.description || "Variable futura",
+            })),
+        }));
+      } else {
+        setSummary(await fetchEmployeeIrpfAnnualSummary(employee.id, year));
+      }
     } catch (err) {
       setError(err.message || "No se pudo cargar el resumen anual de IRPF");
     } finally {
@@ -185,7 +190,8 @@ export default function EmployeeIrpfPanel({ employee, taxProfile, activeContract
   }, [employee?.id, taxProfile, activeContract?.id]);
 
   useEffect(() => {
-    loadSummary();
+    setSimulationActive(false);
+    loadSummary({ simulate: false });
   }, [employee?.id, year]);
 
   const handleChange = (event) => {
@@ -213,6 +219,20 @@ export default function EmployeeIrpfPanel({ employee, taxProfile, activeContract
     }
   };
 
+  const handleSimulateVariables = async () => {
+    setSimulationActive(true);
+    await loadSummary({ simulate: true });
+    setMessage("Previsión anual simulada con variables futuras.");
+  };
+
+  const handleClearSimulation = async () => {
+    setSalaryIncrease("0");
+    setIncentives([]);
+    setSimulationActive(false);
+    await loadSummary({ simulate: false });
+    setMessage("Simulación de variables descartada.");
+  };
+
   const handleSaveFiscalData = async () => {
     if (!employee?.id) return;
     try {
@@ -234,11 +254,7 @@ export default function EmployeeIrpfPanel({ employee, taxProfile, activeContract
     try {
       setSaving(true);
       setError("");
-      const payload = {
-        ...buildPayload(form),
-        voluntary_irpf: Number(calculation.suggested_irpf || 0),
-        manual_regularization: true,
-      };
+      const payload = { ...buildPayload(form), voluntary_irpf: Number(calculation.suggested_irpf || 0), manual_regularization: true };
       await updateEmployeeTaxProfile(employee.id, payload);
       setForm((prev) => ({ ...prev, voluntary_irpf: String(calculation.suggested_irpf || 0), manual_regularization: true }));
       setIrpfMode("voluntary");
@@ -260,11 +276,12 @@ export default function EmployeeIrpfPanel({ employee, taxProfile, activeContract
     setError("");
   };
 
-  const suggestedIrpf = calculation?.suggested_irpf ?? summary?.suggested_irpf ?? null;
-  const effectiveIrpf = irpfMode === "voluntary" && form.voluntary_irpf !== ""
-    ? Number(form.voluntary_irpf)
-    : Number(suggestedIrpf || summary?.current_irpf || 0);
+  const addIncentive = () => setIncentives((prev) => [...prev, buildEmptyIncentive(year)]);
+  const updateIncentive = (index, field, value) => setIncentives((prev) => prev.map((item, current) => current === index ? { ...item, [field]: value } : item));
+  const removeIncentive = (index) => setIncentives((prev) => prev.filter((_, current) => current !== index));
 
+  const suggestedIrpf = calculation?.suggested_irpf ?? summary?.suggested_irpf ?? null;
+  const effectiveIrpf = irpfMode === "voluntary" && form.voluntary_irpf !== "" ? Number(form.voluntary_irpf) : Number(suggestedIrpf || summary?.current_irpf || 0);
   const realTotals = summary?.totals?.real || { gross: 0, net: 0, irpf: 0 };
   const forecastTotals = summary?.totals?.forecast || { gross: 0, net: 0, irpf: 0 };
   const annualTotals = summary?.totals?.annual || { gross: 0, net: 0, irpf: 0 };
@@ -276,12 +293,10 @@ export default function EmployeeIrpfPanel({ employee, taxProfile, activeContract
         <div>
           <p style={styles.eyebrow}>IRPF ANUAL DEL TRABAJADOR</p>
           <h3 style={styles.title}>IRPF y previsión anual</h3>
-          <p style={styles.subtitle}>Resumen anual calculado por backend: nóminas reales, meses previstos, bruto, neto e IRPF.</p>
+          <p style={styles.subtitle}>Resumen anual calculado por backend: nóminas reales, meses previstos, bruto, neto, IRPF y variables futuras.</p>
         </div>
         <div style={styles.actions}>
-          <button type="button" onClick={handleRecalculate} disabled={loading || saving} style={styles.primaryButton}>
-            {loading ? "Recalculando..." : "Recalcular IRPF"}
-          </button>
+          <button type="button" onClick={handleRecalculate} disabled={loading || saving} style={styles.primaryButton}>{loading ? "Recalculando..." : "Recalcular IRPF"}</button>
           <button type="button" onClick={handleSaveCalculatedIrpf} disabled={!calculation || saving} style={styles.secondaryButton}>Guardar IRPF calculado</button>
           <button type="button" onClick={handleSaveFiscalData} disabled={saving} style={styles.secondaryButton}>Guardar datos fiscales</button>
           <button type="button" onClick={handleCancel} disabled={saving} style={styles.cancelButton}>Cancelar</button>
@@ -305,31 +320,38 @@ export default function EmployeeIrpfPanel({ employee, taxProfile, activeContract
       </div>
 
       <div style={styles.controlGrid}>
-        <label style={styles.field}>Año
-          <input type="number" min="2000" max="2100" value={year} onChange={(event) => setYear(Number(event.target.value || currentYear))} style={styles.input} />
-        </label>
-        <label style={styles.field}>Modo IRPF
-          <select value={irpfMode} onChange={(event) => setIrpfMode(event.target.value)} style={styles.input}>
-            <option value="auto">Automático</option>
-            <option value="voluntary">Voluntario</option>
-            <option value="manual">Manual docente</option>
-          </select>
-        </label>
-        <label style={styles.field}>IRPF voluntario / manual (%)
-          <input name="voluntary_irpf" type="number" min="0" max="100" step="0.01" value={form.voluntary_irpf} onChange={handleChange} style={styles.input} />
-        </label>
+        <label style={styles.field}>Año<input type="number" min="2000" max="2100" value={year} onChange={(event) => setYear(Number(event.target.value || currentYear))} style={styles.input} /></label>
+        <label style={styles.field}>Modo IRPF<select value={irpfMode} onChange={(event) => setIrpfMode(event.target.value)} style={styles.input}><option value="auto">Automático</option><option value="voluntary">Voluntario</option><option value="manual">Manual docente</option></select></label>
+        <label style={styles.field}>IRPF voluntario / manual (%)<input name="voluntary_irpf" type="number" min="0" max="100" step="0.01" value={form.voluntary_irpf} onChange={handleChange} style={styles.input} /></label>
         <div style={styles.resultBox}><span>IRPF aplicado en previsión</span><strong>{formatPercent(effectiveIrpf)}</strong></div>
       </div>
 
+      <details style={styles.variableBox} open>
+        <summary style={styles.summary}>Variables futuras e incentivos</summary>
+        <div style={styles.variableToolbar}>
+          <label style={styles.field}>Subida mensual simulada<input type="number" step="0.01" value={salaryIncrease} onChange={(event) => setSalaryIncrease(event.target.value)} style={styles.input} /></label>
+          <div style={styles.variableActions}>
+            <button type="button" onClick={addIncentive} style={styles.secondaryButton}>Añadir variable</button>
+            <button type="button" onClick={handleSimulateVariables} disabled={loadingSummary} style={styles.primaryButton}>Simular variables</button>
+            <button type="button" onClick={handleClearSimulation} disabled={loadingSummary} style={styles.cancelButton}>Limpiar simulación</button>
+          </div>
+        </div>
+
+        {simulationActive && <div style={styles.info}>Simulación activa. Variables futuras totales: {formatMoney(summary?.future_variables_total || 0)}. Salario anual con variables: {formatMoney(summary?.expected_annual_salary_with_variables || 0)}.</div>}
+        {incentives.length === 0 && <p style={styles.emptyText}>Sin variables futuras añadidas.</p>}
+        {incentives.map((item, index) => (
+          <div key={`irpf-incentive-${index}`} style={styles.incentiveRow}>
+            <select value={item.period_month} onChange={(event) => updateIncentive(index, "period_month", event.target.value)} style={styles.input}>{MONTHS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
+            <input type="number" step="0.01" value={item.amount} onChange={(event) => updateIncentive(index, "amount", event.target.value)} placeholder="Importe" style={styles.input} />
+            <input value={item.description} onChange={(event) => updateIncentive(index, "description", event.target.value)} placeholder="Descripción" style={styles.input} />
+            <button type="button" onClick={() => removeIncentive(index)} style={styles.dangerButton}>Quitar</button>
+          </div>
+        ))}
+      </details>
+
       <div style={styles.tableWrapper}>
         <table style={styles.table}>
-          <thead>
-            <tr>
-              <th style={styles.th}>Mes</th><th style={styles.th}>Estado</th>
-              <th style={styles.thAmount}>Bruto real</th><th style={styles.thAmount}>Neto real</th><th style={styles.thAmount}>IRPF real</th><th style={styles.thAmount}>IRPF %</th>
-              <th style={styles.thAmount}>Bruto previsto</th><th style={styles.thAmount}>Neto previsto</th><th style={styles.thAmount}>IRPF previsto</th>
-            </tr>
-          </thead>
+          <thead><tr><th style={styles.th}>Mes</th><th style={styles.th}>Estado</th><th style={styles.thAmount}>Variables</th><th style={styles.thAmount}>Bruto real</th><th style={styles.thAmount}>Neto real</th><th style={styles.thAmount}>IRPF real</th><th style={styles.thAmount}>IRPF %</th><th style={styles.thAmount}>Bruto previsto</th><th style={styles.thAmount}>Neto previsto</th><th style={styles.thAmount}>IRPF previsto</th></tr></thead>
           <tbody>
             {rows.map((row) => {
               const isReal = row.source === "real";
@@ -337,6 +359,7 @@ export default function EmployeeIrpfPanel({ employee, taxProfile, activeContract
                 <tr key={`${row.year}-${row.month}-${row.source}-${row.payroll_id || "forecast"}`}>
                   <td style={styles.tdStrong}>{getMonthLabel(row.month)}</td>
                   <td style={styles.td}><span style={isReal ? styles.realBadge : styles.forecastBadge}>{isReal ? "Cobrado" : row.status || "Previsto"}</span></td>
+                  <td style={styles.tdAmount}>{!isReal && Number(row.salary_supplements || 0) !== 0 ? formatMoney(row.salary_supplements) : "-"}</td>
                   <td style={styles.tdAmount}>{isReal ? formatMoney(row.gross_salary) : "-"}</td>
                   <td style={styles.tdAmount}>{isReal ? formatMoney(row.net_salary) : "-"}</td>
                   <td style={styles.tdAmount}>{isReal ? formatMoney(row.irpf) : "-"}</td>
@@ -347,7 +370,7 @@ export default function EmployeeIrpfPanel({ employee, taxProfile, activeContract
                 </tr>
               );
             })}
-            {rows.length === 0 && <tr><td style={styles.td} colSpan="9">Sin datos anuales disponibles.</td></tr>}
+            {rows.length === 0 && <tr><td style={styles.td} colSpan="10">Sin datos anuales disponibles.</td></tr>}
           </tbody>
         </table>
       </div>
@@ -384,7 +407,6 @@ export default function EmployeeIrpfPanel({ employee, taxProfile, activeContract
           <label style={styles.check}><input name="ceuta_melilla_income" type="checkbox" checked={Boolean(form.ceuta_melilla_income)} onChange={handleChange} /> Rentas Ceuta/Melilla</label>
           <label style={styles.check}><input name="manual_regularization" type="checkbox" checked={Boolean(form.manual_regularization)} onChange={handleChange} /> Regularización manual</label>
         </div>
-
         <label style={styles.field}>Notas fiscales internas<textarea name="notes" value={form.notes || ""} onChange={handleChange} rows="3" style={styles.textarea} /></label>
       </details>
     </section>
@@ -401,16 +423,23 @@ const styles = {
   primaryButton: { backgroundColor: "#111827", color: "#fff", border: "1px solid #111827", padding: "9px 12px", cursor: "pointer", fontWeight: 900 },
   secondaryButton: { backgroundColor: "#f3f4f6", color: "#111827", border: "1px solid #d1d5db", padding: "9px 12px", cursor: "pointer", fontWeight: 900 },
   cancelButton: { backgroundColor: "#fff", color: "#991b1b", border: "1px solid #fecaca", padding: "9px 12px", cursor: "pointer", fontWeight: 900 },
+  dangerButton: { backgroundColor: "#fee2e2", color: "#991b1b", border: "1px solid #fecaca", padding: "8px 10px", cursor: "pointer", fontWeight: 900 },
   summaryGrid: { display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: "12px" },
   kpi: { border: "1px solid #d1d5db", backgroundColor: "#f9fafb", padding: "12px", display: "flex", flexDirection: "column", gap: "6px" },
   kpiAccent: { border: "2px solid #111", backgroundColor: "#fffdf0", padding: "12px", display: "flex", flexDirection: "column", gap: "6px" },
   controlGrid: { display: "grid", gridTemplateColumns: "120px 180px 220px 1fr", gap: "12px", alignItems: "end" },
   resultBox: { border: "1px solid #d1d5db", backgroundColor: "#f9fafb", padding: "10px", display: "flex", justifyContent: "space-between", gap: "12px", fontWeight: 900 },
+  variableBox: { border: "1px solid #e5e7eb", padding: "12px", backgroundColor: "#fffdf0" },
+  variableToolbar: { display: "grid", gridTemplateColumns: "220px 1fr", gap: "12px", alignItems: "end" },
+  variableActions: { display: "flex", gap: "8px", flexWrap: "wrap" },
+  incentiveRow: { display: "grid", gridTemplateColumns: "180px 130px 1fr 80px", gap: "8px", alignItems: "center", marginTop: "10px" },
+  info: { backgroundColor: "#eff6ff", color: "#1d4ed8", border: "1px solid #bfdbfe", padding: "9px", fontWeight: 800, marginTop: "10px" },
+  emptyText: { margin: "10px 0 0", color: "#6b7280", fontWeight: 750, fontSize: "13px" },
   field: { display: "flex", flexDirection: "column", gap: "6px", color: "#374151", fontSize: "13px", fontWeight: 850 },
   input: { height: "38px", padding: "8px 10px", border: "1px solid #cbd5e1", borderRadius: "7px", fontSize: "13px", boxSizing: "border-box", width: "100%" },
   textarea: { padding: "8px 10px", border: "1px solid #cbd5e1", borderRadius: "7px", fontSize: "13px", resize: "vertical" },
   tableWrapper: { overflowX: "auto", width: "100%" },
-  table: { width: "100%", minWidth: "980px", borderCollapse: "collapse", fontSize: "13px" },
+  table: { width: "100%", minWidth: "1080px", borderCollapse: "collapse", fontSize: "13px" },
   th: { textAlign: "left", borderBottom: "2px solid #111", padding: "10px", backgroundColor: "#f8f3b5", fontWeight: 900 },
   thAmount: { textAlign: "right", borderBottom: "2px solid #111", padding: "10px", backgroundColor: "#f8f3b5", fontWeight: 900 },
   td: { borderBottom: "1px solid #e5e7eb", padding: "10px", verticalAlign: "middle" },
