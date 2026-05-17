@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import logo from "../../assets/aulanomina-logo.svg";
 
 const overlayPages = [
+  "companies",
   "alerts",
   "reports",
   "employee-admissions",
