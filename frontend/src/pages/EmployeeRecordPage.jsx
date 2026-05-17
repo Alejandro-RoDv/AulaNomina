@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 
+import TaxProfileCard from "../components/employees/TaxProfileCard";
 import PageCard from "../components/layout/PageCard";
 import { generateAlerts } from "../utils/alertRules";
 
@@ -109,7 +110,7 @@ function getAlertSeverityStyle(severity) {
   return styles.alertLow;
 }
 
-export default function EmployeeRecordPage({ loading, employees, companies, workCenters, contracts, incidents, payrolls, documents }) {
+export default function EmployeeRecordPage({ loading, employees, companies, workCenters, contracts, incidents, payrolls, documents, taxProfiles = [], onRefresh }) {
   const [selectedEmployeeId, setSelectedEmployeeId] = useState("");
   const [filters, setFilters] = useState({ companyId: "", search: "", status: "" });
 
@@ -185,6 +186,7 @@ export default function EmployeeRecordPage({ loading, employees, companies, work
     const activeContract = getActiveContract(contracts, selectedEmployee.id);
     const company = getCompany(companies, activeContract?.company_id || selectedEmployee.company_id);
     const center = getCenter(workCenters, activeContract?.center_id || selectedEmployee.center_id);
+    const taxProfile = taxProfiles.find((profile) => Number(profile.employee_id) === Number(selectedEmployee.id));
     const employeeDocuments = documents.filter((document) => Number(document.employee_id) === Number(selectedEmployee.id));
     const receivedDocuments = employeeDocuments.filter((document) => document.status === "received").length;
     const pendingDocuments = employeeDocuments.filter((document) => document.status === "pending").length;
@@ -210,6 +212,7 @@ export default function EmployeeRecordPage({ loading, employees, companies, work
       activeContract,
       company,
       center,
+      taxProfile,
       employeeDocuments,
       receivedDocuments,
       pendingDocuments,
@@ -219,7 +222,7 @@ export default function EmployeeRecordPage({ loading, employees, companies, work
       latestPayroll,
       employeeAlerts,
     };
-  }, [selectedEmployee, employees, companies, workCenters, contracts, incidents, payrolls, documents]);
+  }, [selectedEmployee, employees, companies, workCenters, contracts, incidents, payrolls, documents, taxProfiles]);
 
   if (loading) return <p>Cargando expediente...</p>;
 
@@ -364,6 +367,13 @@ export default function EmployeeRecordPage({ loading, employees, companies, work
           </div>
         </PageCard>
       </div>
+
+      <TaxProfileCard
+        employee={selectedEmployee}
+        taxProfile={record.taxProfile}
+        activeContract={record.activeContract}
+        onRefresh={onRefresh}
+      />
 
       <PageCard title="Documentación" subtitle={`Recibidos ${record.receivedDocuments}. Pendientes ${record.pendingDocuments}.`}>
         <table style={styles.table}>
