@@ -370,6 +370,20 @@ export default function EmployeeIrpfPanel({ employee, taxProfile, activeContract
                 </tr>
               );
             })}
+            {rows.length > 0 && (
+              <tr style={styles.totalRow}>
+                <td style={styles.totalLabel}>Total anual</td>
+                <td style={styles.totalCell}>Real + previsto</td>
+                <td style={styles.totalAmount}>{formatMoney(summary?.future_variables_total || 0)}</td>
+                <td style={styles.totalAmount}>{formatMoney(realTotals.gross)}</td>
+                <td style={styles.totalAmount}>{formatMoney(realTotals.net)}</td>
+                <td style={styles.totalAmount}>{formatMoney(realTotals.irpf)}</td>
+                <td style={styles.totalAmount}>{formatPercent(suggestedIrpf)}</td>
+                <td style={styles.totalAmount}>{formatMoney(forecastTotals.gross)}</td>
+                <td style={styles.totalAmount}>{formatMoney(forecastTotals.net)}</td>
+                <td style={styles.totalAmountStrong}>{formatMoney(forecastTotals.irpf)}</td>
+              </tr>
+            )}
             {rows.length === 0 && <tr><td style={styles.td} colSpan="10">Sin datos anuales disponibles.</td></tr>}
           </tbody>
         </table>
@@ -446,6 +460,11 @@ const styles = {
   tdStrong: { borderBottom: "1px solid #e5e7eb", padding: "10px", fontWeight: 900, verticalAlign: "middle" },
   tdAmount: { borderBottom: "1px solid #e5e7eb", padding: "10px", textAlign: "right", whiteSpace: "nowrap" },
   tdAmountStrong: { borderBottom: "1px solid #e5e7eb", padding: "10px", textAlign: "right", whiteSpace: "nowrap", fontWeight: 950 },
+  totalRow: { backgroundColor: "#111827", color: "#ffffff" },
+  totalLabel: { padding: "12px 10px", fontWeight: 950, borderTop: "3px solid #111827" },
+  totalCell: { padding: "12px 10px", fontWeight: 900, borderTop: "3px solid #111827" },
+  totalAmount: { padding: "12px 10px", textAlign: "right", whiteSpace: "nowrap", fontWeight: 950, borderTop: "3px solid #111827" },
+  totalAmountStrong: { padding: "12px 10px", textAlign: "right", whiteSpace: "nowrap", fontWeight: 950, borderTop: "3px solid #111827" },
   realBadge: { backgroundColor: "#dcfce7", color: "#166534", border: "1px solid #86efac", padding: "4px 8px", fontWeight: 900 },
   forecastBadge: { backgroundColor: "#fef3c7", color: "#92400e", border: "1px solid #fde68a", padding: "4px 8px", fontWeight: 900 },
   details: { border: "1px solid #e5e7eb", padding: "12px", backgroundColor: "#fff" },
