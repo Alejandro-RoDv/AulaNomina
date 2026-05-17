@@ -5,7 +5,12 @@ import PayrollForm from "../components/payrolls/PayrollForm";
 import PayrollTable from "../components/payrolls/PayrollTable";
 import MonthlyPayrollPreparation from "../components/payrolls/MonthlyPayrollPreparation";
 import FuturePayrollSimulator from "../components/payrolls/FuturePayrollSimulator";
+import IrpfModulePanel from "../components/payrolls/IrpfModulePanel";
 import { fetchPayrolls } from "../services/payrollApi";
+
+function isIrpfRoute() {
+  return window.location.hash === "#irpf-module";
+}
 
 export default function PayrollsPage({
   loading,
@@ -26,10 +31,22 @@ export default function PayrollsPage({
   const [localPayrolls, setLocalPayrolls] = useState(payrolls);
   const [refreshingPayrolls, setRefreshingPayrolls] = useState(false);
   const [refreshMessage, setRefreshMessage] = useState("");
+  const [irpfRoute, setIrpfRoute] = useState(isIrpfRoute());
 
   useEffect(() => {
     setLocalPayrolls(payrolls);
   }, [payrolls]);
+
+  useEffect(() => {
+    const syncRoute = () => setIrpfRoute(isIrpfRoute());
+    window.addEventListener("hashchange", syncRoute);
+    window.addEventListener("aulanomina-route-change", syncRoute);
+    syncRoute();
+    return () => {
+      window.removeEventListener("hashchange", syncRoute);
+      window.removeEventListener("aulanomina-route-change", syncRoute);
+    };
+  }, []);
 
   const refreshPayrollList = async () => {
     try {
@@ -43,6 +60,19 @@ export default function PayrollsPage({
       setRefreshingPayrolls(false);
     }
   };
+
+  if (irpfRoute) {
+    return (
+      <div style={styles.wrapper}>
+        <PageCard
+          title="IRPF"
+          subtitle="Configuración fiscal, cálculo anual, previsión mensual, IRPF voluntario y variables futuras. Las nóminas reales alimentan esta tabla mensual."
+        >
+          <IrpfModulePanel employees={employees} contracts={contracts} onRefresh={refreshPayrollList} />
+        </PageCard>
+      </div>
+    );
+  }
 
   return (
     <div style={styles.wrapper}>
