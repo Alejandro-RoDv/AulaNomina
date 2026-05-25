@@ -19,6 +19,14 @@ EMPLOYEE_COMMON_CONTINGENCIES_PERCENTAGE = Decimal("4.70")
 EMPLOYEE_UNEMPLOYMENT_PERCENTAGE = Decimal("1.55")
 EMPLOYEE_TRAINING_PERCENTAGE = Decimal("0.10")
 EMPLOYEE_MEI_PERCENTAGE = Decimal("0.13")
+
+COMPANY_COMMON_CONTINGENCIES_PERCENTAGE = Decimal("23.60")
+COMPANY_UNEMPLOYMENT_PERCENTAGE = Decimal("5.50")
+COMPANY_FOGASA_PERCENTAGE = Decimal("0.20")
+COMPANY_TRAINING_PERCENTAGE = Decimal("0.60")
+COMPANY_AT_EP_PERCENTAGE = Decimal("1.50")
+COMPANY_MEI_PERCENTAGE = Decimal("0.67")
+
 DEFAULT_IRPF_PERCENTAGE = Decimal("10.00")
 
 MONTHLY_PERIODS = set(range(1, 12 + 1))
@@ -186,9 +194,26 @@ def calculate_payroll_amounts(
     employee_social_security = money(
         employee_common_contingencies + employee_unemployment + employee_training + employee_mei
     )
+
     irpf = money(irpf_base * irpf_percentage / Decimal("100"))
     total_deductions = money(employee_social_security + irpf)
     net_salary = money(gross_salary - total_deductions)
+
+    company_common_contingencies = money(common_contingencies_base * COMPANY_COMMON_CONTINGENCIES_PERCENTAGE / Decimal("100"))
+    company_unemployment = money(unemployment_training_fogasa_base * COMPANY_UNEMPLOYMENT_PERCENTAGE / Decimal("100"))
+    company_fogasa = money(unemployment_training_fogasa_base * COMPANY_FOGASA_PERCENTAGE / Decimal("100"))
+    company_training = money(unemployment_training_fogasa_base * COMPANY_TRAINING_PERCENTAGE / Decimal("100"))
+    company_at_ep = money(professional_contingencies_base * COMPANY_AT_EP_PERCENTAGE / Decimal("100"))
+    company_mei = money(common_contingencies_base * COMPANY_MEI_PERCENTAGE / Decimal("100"))
+    company_total_social_security = money(
+        company_common_contingencies
+        + company_unemployment
+        + company_fogasa
+        + company_training
+        + company_at_ep
+        + company_mei
+    )
+    company_total_cost = money(gross_salary + company_total_social_security)
 
     return {
         "gross_salary": gross_salary,
@@ -204,6 +229,14 @@ def calculate_payroll_amounts(
         "irpf": irpf,
         "total_deductions": total_deductions,
         "net_salary": net_salary,
+        "company_common_contingencies": company_common_contingencies,
+        "company_unemployment": company_unemployment,
+        "company_fogasa": company_fogasa,
+        "company_training": company_training,
+        "company_at_ep": company_at_ep,
+        "company_mei": company_mei,
+        "company_total_social_security": company_total_social_security,
+        "company_total_cost": company_total_cost,
     }
 
 
@@ -696,6 +729,14 @@ def simulate_future_payrolls(db: Session, request: PayrollFutureSimulationReques
             "irpf": calculated["irpf"],
             "total_deductions": calculated["total_deductions"],
             "net_salary": calculated["net_salary"],
+            "company_common_contingencies": calculated["company_common_contingencies"],
+            "company_unemployment": calculated["company_unemployment"],
+            "company_fogasa": calculated["company_fogasa"],
+            "company_training": calculated["company_training"],
+            "company_at_ep": calculated["company_at_ep"],
+            "company_mei": calculated["company_mei"],
+            "company_total_social_security": calculated["company_total_social_security"],
+            "company_total_cost": calculated["company_total_cost"],
         })
 
     return {
