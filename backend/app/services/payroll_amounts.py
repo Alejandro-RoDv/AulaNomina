@@ -22,9 +22,9 @@ def money(value) -> Decimal:
 def calculate_payroll_amounts(
     base_salary: Decimal,
     salary_supplements: Decimal,
-    variable_incentives: Decimal,
-    extra_pay_proration: Decimal,
-    irpf_percentage: Decimal,
+    variable_incentives: Decimal = Decimal("0.00"),
+    extra_pay_proration: Decimal = Decimal("0.00"),
+    irpf_percentage: Decimal = Decimal("0.00"),
 ) -> dict[str, Decimal]:
     """Calculate the full simulated payroll breakdown.
 
