@@ -214,6 +214,10 @@ class PayrollFutureSimulationItem(BaseModel):
     salary_supplements: Decimal
     variable_incentives: Decimal
     gross_salary: Decimal
+    common_contingencies_base: Decimal = Decimal("0.00")
+    professional_contingencies_base: Decimal = Decimal("0.00")
+    unemployment_training_fogasa_base: Decimal = Decimal("0.00")
+    irpf_base: Decimal = Decimal("0.00")
     employee_social_security: Decimal
     irpf_percentage: Decimal
     suggested_irpf_percentage: Decimal
@@ -244,6 +248,10 @@ class PayrollResponse(BaseModel):
     variable_incentives: Decimal = Decimal("0.00")
     extra_pay_proration: Decimal
     gross_salary: Decimal
+    common_contingencies_base: Decimal = Decimal("0.00")
+    professional_contingencies_base: Decimal = Decimal("0.00")
+    unemployment_training_fogasa_base: Decimal = Decimal("0.00")
+    irpf_base: Decimal = Decimal("0.00")
     employee_social_security: Decimal
     irpf_mode: str = "auto"
     irpf_percentage: Decimal = Decimal("0.00")
