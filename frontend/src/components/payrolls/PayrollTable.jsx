@@ -29,6 +29,7 @@ function toEditForm(payroll) {
     salary_supplement_1: String(payroll.salary_supplements ?? "0"),
     salary_supplement_2: "0",
     salary_supplement_3: "0",
+    variable_incentives: String(payroll.variable_incentives ?? "0"),
     irpf_percentage: "10",
     status: payroll.status || "pending",
   };
