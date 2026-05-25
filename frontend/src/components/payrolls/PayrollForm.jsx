@@ -70,9 +70,10 @@ function calculateExtraPayProration(contract, periodMonth) {
 function calculatePreview(form, contract) {
   const baseSalary = calculateBaseSalary(contract, form.period_month);
   const supplements = getSalarySupplementsTotal(form);
+  const variableIncentives = Number(form.variable_incentives || 0);
   const extraPay = calculateExtraPayProration(contract, form.period_month);
   const irpfPercentage = Number(form.irpf_percentage || 0);
-  const grossSalary = baseSalary + supplements + extraPay;
+  const grossSalary = baseSalary + supplements + variableIncentives + extraPay;
   const socialSecurity = grossSalary * 0.0647;
   const irpf = grossSalary * (irpfPercentage / 100);
   const totalDeductions = socialSecurity + irpf;
@@ -81,6 +82,7 @@ function calculatePreview(form, contract) {
   return {
     baseSalary,
     supplements,
+    variableIncentives,
     extraPay,
     grossSalary,
     socialSecurity,
@@ -230,6 +232,11 @@ export default function PayrollForm({
 
       <div style={styles.formRow}>
         <div style={styles.formGroupSmall}>
+          <label>Variables / incentivos</label>
+          <input type="number" step="0.01" name="variable_incentives" value={form.variable_incentives ?? "0"} onChange={onChange} min="0" style={styles.input} />
+        </div>
+
+        <div style={styles.formGroupSmall}>
           <label>IRPF %</label>
           <input type="number" step="0.01" name="irpf_percentage" value={form.irpf_percentage} onChange={onChange} min="0" max="100" style={styles.input} />
         </div>
@@ -249,8 +256,16 @@ export default function PayrollForm({
         </div>
       </div>
 
+      <div style={styles.devengoPreviewPanel}>
+        <AmountPreviewItem label="Salario base" amount={preview.baseSalary} />
+        <AmountPreviewItem label="Prorrata extra" amount={preview.extraPay} />
+        <AmountPreviewItem label="Complementos" amount={preview.supplements} />
+        <AmountPreviewItem label="Variables" amount={preview.variableIncentives} />
+        <AmountPreviewItem label="Total devengado" amount={preview.grossSalary} />
+      </div>
+
       <div style={styles.previewPanel}>
-        <AmountPreviewItem label="Bruto" amount={preview.grossSalary} />
+        <AmountPreviewItem label="Total devengado" amount={preview.grossSalary} />
         <AmountPreviewItem label="Seg. Social" amount={preview.socialSecurity} />
         <AmountPreviewItem label="IRPF" amount={preview.irpf} />
         <AmountPreviewItem label="Neto" amount={preview.netSalary} />
@@ -275,12 +290,13 @@ const styles = {
   formRow: { display: "flex", gap: "16px", flexWrap: "wrap" },
   supplementsGrid: { display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: "16px", width: "100%" },
   formGroup: { flex: 1, minWidth: "220px", display: "flex", flexDirection: "column", gap: "6px" },
-  formGroupSmall: { width: "160px", minWidth: "140px", display: "flex", flexDirection: "column", gap: "6px" },
+  formGroupSmall: { width: "180px", minWidth: "140px", display: "flex", flexDirection: "column", gap: "6px" },
   input: { padding: "10px 12px", border: "1px solid #ccc", borderRadius: "8px", fontSize: "14px" },
   readOnlyBox: { minHeight: "42px", padding: "8px 10px", border: "1px solid #d1d5db", borderRadius: "8px", backgroundColor: "#f9fafb" },
   readOnlyMain: { color: "#111827", fontWeight: 800, fontSize: "14px" },
   readOnlyMeta: { marginTop: "2px", color: "#6b7280", fontWeight: 600, fontSize: "12px" },
   calculationInfo: { display: "grid", gridTemplateColumns: "repeat(4, minmax(140px, 1fr))", gap: "10px", border: "1px solid #e6d85c", borderRadius: "10px", backgroundColor: "#fefce8", padding: "10px" },
+  devengoPreviewPanel: { display: "grid", gridTemplateColumns: "repeat(5, minmax(110px, 1fr))", gap: "14px", border: "2px solid #111827", borderRadius: "10px", backgroundColor: "#ffffff", padding: "10px 14px" },
   previewPanel: { display: "grid", gridTemplateColumns: "repeat(4, minmax(110px, 1fr))", gap: "14px", border: "1px solid #e5e7eb", borderRadius: "10px", backgroundColor: "#f9fafb", padding: "10px 14px" },
   previewItem: { display: "flex", justifyContent: "center", alignItems: "baseline", gap: "8px", minWidth: 0 },
   totalSupplementsBox: { flex: 1, minWidth: "220px", border: "1px solid #e5e7eb", borderRadius: "10px", backgroundColor: "#f9fafb", padding: "10px 12px", display: "flex", justifyContent: "space-between", alignItems: "center", fontWeight: 800 },
