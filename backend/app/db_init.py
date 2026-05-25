@@ -82,6 +82,10 @@ def init_database() -> None:
                 "center_id": "INTEGER REFERENCES work_centers(id)",
                 "payroll_code": "VARCHAR",
                 "variable_incentives": "NUMERIC(10, 2) DEFAULT 0 NOT NULL",
+                "common_contingencies_base": "NUMERIC(10, 2) DEFAULT 0 NOT NULL",
+                "professional_contingencies_base": "NUMERIC(10, 2) DEFAULT 0 NOT NULL",
+                "unemployment_training_fogasa_base": "NUMERIC(10, 2) DEFAULT 0 NOT NULL",
+                "irpf_base": "NUMERIC(10, 2) DEFAULT 0 NOT NULL",
                 "irpf_mode": "VARCHAR DEFAULT 'auto' NOT NULL",
                 "irpf_percentage": "NUMERIC(5, 2) DEFAULT 0 NOT NULL",
                 "suggested_irpf_percentage": "NUMERIC(5, 2) DEFAULT 0 NOT NULL",
@@ -89,6 +93,18 @@ def init_database() -> None:
             for column_name, column_definition in payroll_columns.items():
                 if column_name not in existing_payroll_columns:
                     connection.execute(text(f"ALTER TABLE payrolls ADD COLUMN {column_name} {column_definition}"))
+
+            connection.execute(
+                text(
+                    """
+                    UPDATE payrolls
+                    SET common_contingencies_base = COALESCE(NULLIF(common_contingencies_base, 0), gross_salary),
+                        professional_contingencies_base = COALESCE(NULLIF(professional_contingencies_base, 0), gross_salary),
+                        unemployment_training_fogasa_base = COALESCE(NULLIF(unemployment_training_fogasa_base, 0), gross_salary),
+                        irpf_base = COALESCE(NULLIF(irpf_base, 0), gross_salary)
+                    """
+                )
+            )
 
         if "documents" in table_names:
             existing_document_columns = {column["name"] for column in inspector.get_columns("documents")}
