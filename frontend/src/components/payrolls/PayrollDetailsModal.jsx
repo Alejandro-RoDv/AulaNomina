@@ -55,6 +55,29 @@ function PayrollLine({ label, amount, percentage, strong }) {
   );
 }
 
+function PrintStyles() {
+  return (
+    <style>{`
+      @media print {
+        body * { visibility: hidden !important; }
+        #payroll-printable-receipt, #payroll-printable-receipt * { visibility: visible !important; }
+        #payroll-printable-receipt {
+          position: absolute !important;
+          left: 0 !important;
+          top: 0 !important;
+          width: 100% !important;
+          padding: 0 !important;
+          margin: 0 !important;
+          box-shadow: none !important;
+          border: none !important;
+        }
+        .no-print { display: none !important; }
+        @page { size: A4; margin: 12mm; }
+      }
+    `}</style>
+  );
+}
+
 export default function PayrollDetailsModal({
   payroll,
   payrollCode,
@@ -78,10 +101,15 @@ export default function PayrollDetailsModal({
   const editSupplementsTotal = getEditSupplementsTotal(editForm);
   const isCancelled = payroll.status === "cancelled";
 
+  const handlePrint = () => {
+    window.print();
+  };
+
   return (
     <div style={styles.modalBackdrop}>
+      <PrintStyles />
       <div style={styles.modal}>
-        <div style={styles.modalHeader}>
+        <div style={styles.modalHeader} className="no-print">
           <div>
             <div style={styles.modalTitleRow}>
               <h3 style={styles.modalTitle}>Detalle de nómina simulada</h3>
@@ -91,81 +119,104 @@ export default function PayrollDetailsModal({
               Nómina {payrollCode || payroll.id} · {payroll.employee_name || payroll.employee_id} · {formatPeriod(payroll)}
             </p>
           </div>
-          <button type="button" onClick={onClose} style={styles.closeButton}>×</button>
+          <div style={styles.headerActions}>
+            <button type="button" onClick={handlePrint} style={styles.printButton}>Imprimir recibo</button>
+            <button type="button" onClick={onClose} style={styles.closeButton}>×</button>
+          </div>
         </div>
 
-        <section style={styles.receiptHeader}>
-          <InfoBox label="Código nómina" value={payrollCode || payroll.id} />
-          <InfoBox label="Trabajador" value={payroll.employee_name || payroll.employee_id} />
-          <InfoBox label="Empresa / centro" value={payroll.company_name || payroll.company_id} />
-          <InfoBox label="Periodo" value={formatPeriod(payroll)} />
+        <section id="payroll-printable-receipt" style={styles.receiptDocument}>
+          <div style={styles.receiptDocumentHeader}>
+            <div>
+              <p style={styles.receiptEyebrow}>RECIBO INDIVIDUAL DE SALARIOS</p>
+              <h2 style={styles.receiptTitle}>{payroll.company_name || "Empresa simulada"}</h2>
+              <p style={styles.receiptSubtitle}>Documento generado en AulaNomina · Simulación docente</p>
+            </div>
+            <div style={styles.receiptCodeBox}>
+              <span>Código nómina</span>
+              <strong>{payrollCode || payroll.id}</strong>
+            </div>
+          </div>
+
+          <section style={styles.receiptHeader}>
+            <InfoBox label="Empresa" value={payroll.company_name || payroll.company_id} />
+            <InfoBox label="Trabajador" value={payroll.employee_name || payroll.employee_id} />
+            <InfoBox label="Periodo" value={formatPeriod(payroll)} />
+            <InfoBox label="Contrato" value={payroll.contract_id ? `Contrato ${payroll.contract_id}` : "No informado"} />
+            <InfoBox label="Categoría" value="Categoría simulada" />
+            <InfoBox label="Estado" value={getStatusLabel(payroll.status)} />
+          </section>
+
+          <section style={styles.receiptBody}>
+            <div style={styles.detailSection}>
+              <div style={styles.sectionHeader}>
+                <h4 style={styles.sectionTitle}>Devengos</h4>
+                <span style={styles.sectionHint}>Importes calculados desde el contrato</span>
+              </div>
+              <PayrollLine label="Salario base" amount={payroll.base_salary} />
+              <PayrollLine label="Prorrata pagas extra" amount={payroll.extra_pay_proration} />
+              <PayrollLine label="Complementos salariales" amount={payroll.salary_supplements} />
+              <PayrollLine label="Variables / incentivos" amount={payroll.variable_incentives} />
+              <PayrollLine label="Total devengado" amount={payroll.gross_salary} strong />
+            </div>
+
+            <div style={styles.detailSection}>
+              <div style={styles.sectionHeader}>
+                <h4 style={styles.sectionTitle}>Bases de cotización</h4>
+                <span style={styles.sectionHint}>Bases simplificadas para simulación docente</span>
+              </div>
+              <PayrollLine label="Base contingencias comunes" amount={payroll.common_contingencies_base} />
+              <PayrollLine label="Base contingencias profesionales" amount={payroll.professional_contingencies_base} />
+              <PayrollLine label="Base desempleo / formación / FOGASA" amount={payroll.unemployment_training_fogasa_base} />
+              <PayrollLine label="Base IRPF" amount={payroll.irpf_base} />
+            </div>
+
+            <div style={styles.detailSection}>
+              <div style={styles.sectionHeader}>
+                <h4 style={styles.sectionTitle}>Deducciones trabajador</h4>
+                <span style={styles.sectionHint}>Seguridad Social e IRPF</span>
+              </div>
+              <PayrollLine label="Contingencias comunes trabajador" amount={payroll.employee_common_contingencies} percentage="4,70 %" />
+              <PayrollLine label="Desempleo trabajador" amount={payroll.employee_unemployment} percentage="1,55 %" />
+              <PayrollLine label="Formación profesional trabajador" amount={payroll.employee_training} percentage="0,10 %" />
+              <PayrollLine label="MEI trabajador" amount={payroll.employee_mei} percentage="0,13 %" />
+              <PayrollLine label="IRPF" amount={payroll.irpf} percentage={calculatePercentage(payroll.irpf, payroll.irpf_base || payroll.gross_salary)} />
+              <PayrollLine label="Total deducciones" amount={payroll.total_deductions} strong />
+            </div>
+
+            <div style={styles.detailSection}>
+              <div style={styles.sectionHeader}>
+                <h4 style={styles.sectionTitle}>Coste empresa</h4>
+                <span style={styles.sectionHint}>Coste laboral total para RRHH</span>
+              </div>
+              <PayrollLine label="Contingencias comunes empresa" amount={payroll.company_common_contingencies} percentage="23,60 %" />
+              <PayrollLine label="Desempleo empresa" amount={payroll.company_unemployment} percentage="5,50 %" />
+              <PayrollLine label="FOGASA" amount={payroll.company_fogasa} percentage="0,20 %" />
+              <PayrollLine label="Formación profesional empresa" amount={payroll.company_training} percentage="0,60 %" />
+              <PayrollLine label="AT/EP" amount={payroll.company_at_ep} percentage="1,50 %" />
+              <PayrollLine label="MEI empresa" amount={payroll.company_mei} percentage="0,67 %" />
+              <PayrollLine label="Total Seguridad Social empresa" amount={payroll.company_total_social_security} strong />
+              <PayrollLine label="Coste empresa total" amount={payroll.company_total_cost} strong />
+            </div>
+          </section>
+
+          <section style={styles.summaryPanels}>
+            <div style={styles.netPanel}>
+              <span>Líquido a percibir</span>
+              <strong>{formatCurrency(payroll.net_salary)}</strong>
+            </div>
+            <div style={styles.companyCostPanel}>
+              <span>Coste empresa total</span>
+              <strong>{formatCurrency(payroll.company_total_cost)}</strong>
+            </div>
+          </section>
+
+          <p style={styles.receiptFooter}>
+            Recibo generado para fines formativos. No sustituye a una nómina oficial ni a documentación laboral real.
+          </p>
         </section>
 
-        <section style={styles.receiptBody}>
-          <div style={styles.detailSection}>
-            <div style={styles.sectionHeader}>
-              <h4 style={styles.sectionTitle}>Devengos</h4>
-              <span style={styles.sectionHint}>Importes calculados desde el contrato</span>
-            </div>
-            <PayrollLine label="Salario base calculado" amount={payroll.base_salary} />
-            <PayrollLine label="Prorrata de pagas extra calculada" amount={payroll.extra_pay_proration} />
-            <PayrollLine label="Complementos salariales" amount={payroll.salary_supplements} />
-            <PayrollLine label="Variables / incentivos" amount={payroll.variable_incentives} />
-            <PayrollLine label="Total devengado / bruto" amount={payroll.gross_salary} strong />
-          </div>
-
-          <div style={styles.detailSection}>
-            <div style={styles.sectionHeader}>
-              <h4 style={styles.sectionTitle}>Bases de cotización</h4>
-              <span style={styles.sectionHint}>Bases simplificadas para simulación docente</span>
-            </div>
-            <PayrollLine label="Base contingencias comunes" amount={payroll.common_contingencies_base} />
-            <PayrollLine label="Base contingencias profesionales" amount={payroll.professional_contingencies_base} />
-            <PayrollLine label="Base desempleo / formación / FOGASA" amount={payroll.unemployment_training_fogasa_base} />
-            <PayrollLine label="Base IRPF" amount={payroll.irpf_base} />
-          </div>
-
-          <div style={styles.detailSection}>
-            <div style={styles.sectionHeader}>
-              <h4 style={styles.sectionTitle}>Deducciones trabajador</h4>
-              <span style={styles.sectionHint}>Desglose simplificado de Seguridad Social e IRPF</span>
-            </div>
-            <PayrollLine label="Contingencias comunes trabajador" amount={payroll.employee_common_contingencies} percentage="4,70 %" />
-            <PayrollLine label="Desempleo trabajador" amount={payroll.employee_unemployment} percentage="1,55 %" />
-            <PayrollLine label="Formación profesional trabajador" amount={payroll.employee_training} percentage="0,10 %" />
-            <PayrollLine label="MEI trabajador" amount={payroll.employee_mei} percentage="0,13 %" />
-            <PayrollLine label="IRPF" amount={payroll.irpf} percentage={calculatePercentage(payroll.irpf, payroll.irpf_base || payroll.gross_salary)} />
-            <PayrollLine label="Total deducciones" amount={payroll.total_deductions} strong />
-          </div>
-
-          <div style={styles.detailSection}>
-            <div style={styles.sectionHeader}>
-              <h4 style={styles.sectionTitle}>Coste empresa</h4>
-              <span style={styles.sectionHint}>Coste laboral total para RRHH</span>
-            </div>
-            <PayrollLine label="Contingencias comunes empresa" amount={payroll.company_common_contingencies} percentage="23,60 %" />
-            <PayrollLine label="Desempleo empresa" amount={payroll.company_unemployment} percentage="5,50 %" />
-            <PayrollLine label="FOGASA" amount={payroll.company_fogasa} percentage="0,20 %" />
-            <PayrollLine label="Formación profesional empresa" amount={payroll.company_training} percentage="0,60 %" />
-            <PayrollLine label="AT/EP" amount={payroll.company_at_ep} percentage="1,50 %" />
-            <PayrollLine label="MEI empresa" amount={payroll.company_mei} percentage="0,67 %" />
-            <PayrollLine label="Total Seguridad Social empresa" amount={payroll.company_total_social_security} strong />
-            <PayrollLine label="Coste empresa total" amount={payroll.company_total_cost} strong />
-          </div>
-        </section>
-
-        <section style={styles.summaryPanels}>
-          <div style={styles.netPanel}>
-            <span>Líquido a percibir</span>
-            <strong>{formatCurrency(payroll.net_salary)}</strong>
-          </div>
-          <div style={styles.companyCostPanel}>
-            <span>Coste empresa total</span>
-            <strong>{formatCurrency(payroll.company_total_cost)}</strong>
-          </div>
-        </section>
-
-        <form onSubmit={onEditSubmit} style={styles.form}>
+        <form onSubmit={onEditSubmit} style={styles.form} className="no-print">
           <div style={styles.editHeader}>
             <div>
               <h4 style={styles.editTitle}>Edición básica</h4>
@@ -246,7 +297,7 @@ export default function PayrollDetailsModal({
         </form>
 
         {showDeleteConfirm && (
-          <div style={styles.confirmBox}>
+          <div style={styles.confirmBox} className="no-print">
             <div>
               <h4 style={styles.confirmTitle}>Confirmar anulación</h4>
               <p style={styles.confirmText}>La nómina {payrollCode || payroll.id} del periodo {formatPeriod(payroll)} quedará marcada como anulada y se conservará en el histórico.</p>
@@ -267,14 +318,22 @@ const styles = {
   modalBackdrop: { position: "fixed", inset: 0, backgroundColor: "rgba(17, 24, 39, 0.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, padding: "24px" },
   modal: { width: "min(1120px, 100%)", maxHeight: "90vh", overflowY: "auto", backgroundColor: "#ffffff", border: "3px solid #111111", borderRadius: "12px", boxShadow: "8px 8px 0 #e6d85c", padding: "22px" },
   modalHeader: { display: "flex", justifyContent: "space-between", alignItems: "start", gap: "16px", marginBottom: "18px", borderBottom: "1px solid #e5e7eb", paddingBottom: "14px" },
+  headerActions: { display: "flex", alignItems: "center", gap: "10px" },
   modalTitleRow: { display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" },
   modalTitle: { margin: 0, fontSize: "20px", fontWeight: 900, color: "#111827" },
   modalSubtitle: { margin: "4px 0 0", color: "#6b7280", fontSize: "13px", fontWeight: 700 },
   closeButton: { border: "none", backgroundColor: "transparent", fontSize: "28px", lineHeight: 1, cursor: "pointer", color: "#111827" },
+  printButton: { backgroundColor: "#e6d85c", color: "#111827", border: "2px solid #111827", borderRadius: "8px", padding: "9px 12px", cursor: "pointer", fontWeight: 900 },
+  receiptDocument: { border: "1px solid #d1d5db", borderRadius: "12px", padding: "18px", backgroundColor: "#ffffff", marginBottom: "18px" },
+  receiptDocumentHeader: { display: "flex", justifyContent: "space-between", gap: "16px", alignItems: "start", borderBottom: "3px solid #111827", paddingBottom: "14px", marginBottom: "14px" },
+  receiptEyebrow: { margin: 0, fontSize: "12px", fontWeight: 900, letterSpacing: "0.08em", color: "#111827" },
+  receiptTitle: { margin: "4px 0", fontSize: "24px", fontWeight: 900, color: "#111827" },
+  receiptSubtitle: { margin: 0, color: "#6b7280", fontSize: "12px", fontWeight: 700 },
+  receiptCodeBox: { border: "2px solid #111827", borderRadius: "10px", padding: "10px 12px", minWidth: "160px", textAlign: "right", backgroundColor: "#fef3c7", display: "flex", flexDirection: "column", gap: "3px" },
   receiptHeader: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "12px", marginBottom: "18px" },
   infoBox: { border: "1px solid #e5e7eb", borderRadius: "10px", backgroundColor: "#f9fafb", padding: "12px", display: "flex", flexDirection: "column", gap: "4px" },
   receiptBody: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "16px", marginBottom: "18px" },
-  detailSection: { border: "2px solid #111827", borderRadius: "12px", padding: "14px", backgroundColor: "#ffffff" },
+  detailSection: { border: "2px solid #111827", borderRadius: "12px", padding: "14px", backgroundColor: "#ffffff", breakInside: "avoid" },
   sectionHeader: { display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: "10px", borderBottom: "1px solid #e5e7eb", paddingBottom: "8px", marginBottom: "4px" },
   sectionTitle: { margin: 0, fontSize: "16px", fontWeight: 900 },
   sectionHint: { color: "#6b7280", fontSize: "12px", fontWeight: 700 },
@@ -284,6 +343,7 @@ const styles = {
   summaryPanels: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: "14px", marginBottom: "18px" },
   netPanel: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: "16px", backgroundColor: "#fef3c7", border: "3px solid #111827", borderRadius: "12px", padding: "16px", fontSize: "18px", fontWeight: 900 },
   companyCostPanel: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: "16px", backgroundColor: "#ecfeff", border: "3px solid #111827", borderRadius: "12px", padding: "16px", fontSize: "18px", fontWeight: 900 },
+  receiptFooter: { borderTop: "1px solid #e5e7eb", paddingTop: "10px", margin: 0, color: "#6b7280", fontSize: "11px", fontWeight: 700 },
   form: { display: "flex", flexDirection: "column", gap: "16px", borderTop: "1px solid #e5e7eb", paddingTop: "16px" },
   editHeader: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px" },
   editTitle: { margin: 0, fontSize: "16px", fontWeight: 900 },
