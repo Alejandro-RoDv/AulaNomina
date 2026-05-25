@@ -137,18 +137,39 @@ export default function PayrollDetailsModal({
             <PayrollLine label="IRPF" amount={payroll.irpf} percentage={calculatePercentage(payroll.irpf, payroll.irpf_base || payroll.gross_salary)} />
             <PayrollLine label="Total deducciones" amount={payroll.total_deductions} strong />
           </div>
+
+          <div style={styles.detailSection}>
+            <div style={styles.sectionHeader}>
+              <h4 style={styles.sectionTitle}>Coste empresa</h4>
+              <span style={styles.sectionHint}>Coste laboral total para RRHH</span>
+            </div>
+            <PayrollLine label="Contingencias comunes empresa" amount={payroll.company_common_contingencies} percentage="23,60 %" />
+            <PayrollLine label="Desempleo empresa" amount={payroll.company_unemployment} percentage="5,50 %" />
+            <PayrollLine label="FOGASA" amount={payroll.company_fogasa} percentage="0,20 %" />
+            <PayrollLine label="Formación profesional empresa" amount={payroll.company_training} percentage="0,60 %" />
+            <PayrollLine label="AT/EP" amount={payroll.company_at_ep} percentage="1,50 %" />
+            <PayrollLine label="MEI empresa" amount={payroll.company_mei} percentage="0,67 %" />
+            <PayrollLine label="Total Seguridad Social empresa" amount={payroll.company_total_social_security} strong />
+            <PayrollLine label="Coste empresa total" amount={payroll.company_total_cost} strong />
+          </div>
         </section>
 
-        <section style={styles.netPanel}>
-          <span>Líquido a percibir</span>
-          <strong>{formatCurrency(payroll.net_salary)}</strong>
+        <section style={styles.summaryPanels}>
+          <div style={styles.netPanel}>
+            <span>Líquido a percibir</span>
+            <strong>{formatCurrency(payroll.net_salary)}</strong>
+          </div>
+          <div style={styles.companyCostPanel}>
+            <span>Coste empresa total</span>
+            <strong>{formatCurrency(payroll.company_total_cost)}</strong>
+          </div>
         </section>
 
         <form onSubmit={onEditSubmit} style={styles.form}>
           <div style={styles.editHeader}>
             <div>
               <h4 style={styles.editTitle}>Edición básica</h4>
-              <p style={styles.editSubtitle}>El salario base, las bases, deducciones y la prorrata extra se recalculan automáticamente desde el contrato.</p>
+              <p style={styles.editSubtitle}>El salario base, las bases, deducciones, coste empresa y prorrata extra se recalculan automáticamente desde el contrato.</p>
             </div>
             {!isEditing && !isCancelled && <button type="button" onClick={onEnableEditing} style={styles.secondaryButton}>Editar</button>}
           </div>
@@ -260,7 +281,9 @@ const styles = {
   line: { display: "flex", justifyContent: "space-between", gap: "12px", padding: "9px 0", borderBottom: "1px solid #e5e7eb" },
   totalLine: { display: "flex", justifyContent: "space-between", gap: "12px", padding: "11px 0", fontWeight: 900 },
   amountBlock: { display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "2px" },
-  netPanel: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: "16px", backgroundColor: "#fef3c7", border: "3px solid #111827", borderRadius: "12px", padding: "16px", marginBottom: "18px", fontSize: "18px", fontWeight: 900 },
+  summaryPanels: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: "14px", marginBottom: "18px" },
+  netPanel: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: "16px", backgroundColor: "#fef3c7", border: "3px solid #111827", borderRadius: "12px", padding: "16px", fontSize: "18px", fontWeight: 900 },
+  companyCostPanel: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: "16px", backgroundColor: "#ecfeff", border: "3px solid #111827", borderRadius: "12px", padding: "16px", fontSize: "18px", fontWeight: 900 },
   form: { display: "flex", flexDirection: "column", gap: "16px", borderTop: "1px solid #e5e7eb", paddingTop: "16px" },
   editHeader: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px" },
   editTitle: { margin: 0, fontSize: "16px", fontWeight: 900 },
