@@ -228,6 +228,14 @@ class PayrollFutureSimulationItem(BaseModel):
     irpf: Decimal
     total_deductions: Decimal
     net_salary: Decimal
+    company_common_contingencies: Decimal = Decimal("0.00")
+    company_unemployment: Decimal = Decimal("0.00")
+    company_fogasa: Decimal = Decimal("0.00")
+    company_training: Decimal = Decimal("0.00")
+    company_at_ep: Decimal = Decimal("0.00")
+    company_mei: Decimal = Decimal("0.00")
+    company_total_social_security: Decimal = Decimal("0.00")
+    company_total_cost: Decimal = Decimal("0.00")
 
 
 class PayrollFutureSimulationResponse(BaseModel):
@@ -267,6 +275,14 @@ class PayrollResponse(BaseModel):
     irpf: Decimal
     total_deductions: Decimal
     net_salary: Decimal
+    company_common_contingencies: Decimal = Decimal("0.00")
+    company_unemployment: Decimal = Decimal("0.00")
+    company_fogasa: Decimal = Decimal("0.00")
+    company_training: Decimal = Decimal("0.00")
+    company_at_ep: Decimal = Decimal("0.00")
+    company_mei: Decimal = Decimal("0.00")
+    company_total_social_security: Decimal = Decimal("0.00")
+    company_total_cost: Decimal = Decimal("0.00")
     status: str
     created_at: datetime
 
