@@ -116,11 +116,22 @@ export default function PayrollDetailsModal({
 
           <div style={styles.detailSection}>
             <div style={styles.sectionHeader}>
+              <h4 style={styles.sectionTitle}>Bases de cotización</h4>
+              <span style={styles.sectionHint}>Bases simplificadas para simulación docente</span>
+            </div>
+            <PayrollLine label="Base contingencias comunes" amount={payroll.common_contingencies_base} />
+            <PayrollLine label="Base contingencias profesionales" amount={payroll.professional_contingencies_base} />
+            <PayrollLine label="Base desempleo / formación / FOGASA" amount={payroll.unemployment_training_fogasa_base} />
+            <PayrollLine label="Base IRPF" amount={payroll.irpf_base} />
+          </div>
+
+          <div style={styles.detailSection}>
+            <div style={styles.sectionHeader}>
               <h4 style={styles.sectionTitle}>Deducciones</h4>
               <span style={styles.sectionHint}>Importes que restan al bruto</span>
             </div>
             <PayrollLine label="Seguridad Social trabajador" amount={payroll.employee_social_security} percentage={calculatePercentage(payroll.employee_social_security, payroll.gross_salary)} />
-            <PayrollLine label="IRPF" amount={payroll.irpf} percentage={calculatePercentage(payroll.irpf, payroll.gross_salary)} />
+            <PayrollLine label="IRPF" amount={payroll.irpf} percentage={calculatePercentage(payroll.irpf, payroll.irpf_base || payroll.gross_salary)} />
             <PayrollLine label="Total deducciones" amount={payroll.total_deductions} strong />
           </div>
         </section>
@@ -134,7 +145,7 @@ export default function PayrollDetailsModal({
           <div style={styles.editHeader}>
             <div>
               <h4 style={styles.editTitle}>Edición básica</h4>
-              <p style={styles.editSubtitle}>El salario base y la prorrata extra se recalculan automáticamente desde el contrato.</p>
+              <p style={styles.editSubtitle}>El salario base, las bases y la prorrata extra se recalculan automáticamente desde el contrato.</p>
             </div>
             {!isEditing && !isCancelled && <button type="button" onClick={onEnableEditing} style={styles.secondaryButton}>Editar</button>}
           </div>
@@ -230,7 +241,7 @@ export default function PayrollDetailsModal({
 
 const styles = {
   modalBackdrop: { position: "fixed", inset: 0, backgroundColor: "rgba(17, 24, 39, 0.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, padding: "24px" },
-  modal: { width: "min(980px, 100%)", maxHeight: "90vh", overflowY: "auto", backgroundColor: "#ffffff", border: "3px solid #111111", borderRadius: "12px", boxShadow: "8px 8px 0 #e6d85c", padding: "22px" },
+  modal: { width: "min(1120px, 100%)", maxHeight: "90vh", overflowY: "auto", backgroundColor: "#ffffff", border: "3px solid #111111", borderRadius: "12px", boxShadow: "8px 8px 0 #e6d85c", padding: "22px" },
   modalHeader: { display: "flex", justifyContent: "space-between", alignItems: "start", gap: "16px", marginBottom: "18px", borderBottom: "1px solid #e5e7eb", paddingBottom: "14px" },
   modalTitleRow: { display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" },
   modalTitle: { margin: 0, fontSize: "20px", fontWeight: 900, color: "#111827" },
