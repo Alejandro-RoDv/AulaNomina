@@ -1,16 +1,18 @@
 from decimal import Decimal, ROUND_HALF_UP
 
-EMPLOYEE_COMMON_CONTINGENCIES_PERCENTAGE = Decimal("4.70")
-EMPLOYEE_UNEMPLOYMENT_PERCENTAGE = Decimal("1.55")
-EMPLOYEE_TRAINING_PERCENTAGE = Decimal("0.10")
-EMPLOYEE_MEI_PERCENTAGE = Decimal("0.13")
+from app.services.payroll_rates import DEFAULT_PAYROLL_RATES
 
-COMPANY_COMMON_CONTINGENCIES_PERCENTAGE = Decimal("23.60")
-COMPANY_UNEMPLOYMENT_PERCENTAGE = Decimal("5.50")
-COMPANY_FOGASA_PERCENTAGE = Decimal("0.20")
-COMPANY_TRAINING_PERCENTAGE = Decimal("0.60")
-COMPANY_AT_EP_PERCENTAGE = Decimal("1.50")
-COMPANY_MEI_PERCENTAGE = Decimal("0.67")
+EMPLOYEE_COMMON_CONTINGENCIES_PERCENTAGE = DEFAULT_PAYROLL_RATES["employee_common_contingencies"]
+EMPLOYEE_UNEMPLOYMENT_PERCENTAGE = DEFAULT_PAYROLL_RATES["employee_unemployment"]
+EMPLOYEE_TRAINING_PERCENTAGE = DEFAULT_PAYROLL_RATES["employee_training"]
+EMPLOYEE_MEI_PERCENTAGE = DEFAULT_PAYROLL_RATES["employee_mei"]
+
+COMPANY_COMMON_CONTINGENCIES_PERCENTAGE = DEFAULT_PAYROLL_RATES["company_common_contingencies"]
+COMPANY_UNEMPLOYMENT_PERCENTAGE = DEFAULT_PAYROLL_RATES["company_unemployment"]
+COMPANY_FOGASA_PERCENTAGE = DEFAULT_PAYROLL_RATES["company_fogasa"]
+COMPANY_TRAINING_PERCENTAGE = DEFAULT_PAYROLL_RATES["company_training"]
+COMPANY_AT_EP_PERCENTAGE = DEFAULT_PAYROLL_RATES["company_at_ep"]
+COMPANY_MEI_PERCENTAGE = DEFAULT_PAYROLL_RATES["company_mei"]
 
 
 def money(value) -> Decimal:
@@ -33,6 +35,7 @@ def calculate_payroll_amounts(
     - all contribution bases use gross salary / total accrued amount.
     - no legal minimum or maximum bases are applied yet.
     - no excluded salary concepts are handled yet.
+    - contribution rates are loaded from payroll_rates.py.
     """
 
     gross_salary = money(base_salary + salary_supplements + variable_incentives + extra_pay_proration)
