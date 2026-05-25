@@ -127,10 +127,13 @@ export default function PayrollDetailsModal({
 
           <div style={styles.detailSection}>
             <div style={styles.sectionHeader}>
-              <h4 style={styles.sectionTitle}>Deducciones</h4>
-              <span style={styles.sectionHint}>Importes que restan al bruto</span>
+              <h4 style={styles.sectionTitle}>Deducciones trabajador</h4>
+              <span style={styles.sectionHint}>Desglose simplificado de Seguridad Social e IRPF</span>
             </div>
-            <PayrollLine label="Seguridad Social trabajador" amount={payroll.employee_social_security} percentage={calculatePercentage(payroll.employee_social_security, payroll.gross_salary)} />
+            <PayrollLine label="Contingencias comunes trabajador" amount={payroll.employee_common_contingencies} percentage="4,70 %" />
+            <PayrollLine label="Desempleo trabajador" amount={payroll.employee_unemployment} percentage="1,55 %" />
+            <PayrollLine label="Formación profesional trabajador" amount={payroll.employee_training} percentage="0,10 %" />
+            <PayrollLine label="MEI trabajador" amount={payroll.employee_mei} percentage="0,13 %" />
             <PayrollLine label="IRPF" amount={payroll.irpf} percentage={calculatePercentage(payroll.irpf, payroll.irpf_base || payroll.gross_salary)} />
             <PayrollLine label="Total deducciones" amount={payroll.total_deductions} strong />
           </div>
@@ -145,7 +148,7 @@ export default function PayrollDetailsModal({
           <div style={styles.editHeader}>
             <div>
               <h4 style={styles.editTitle}>Edición básica</h4>
-              <p style={styles.editSubtitle}>El salario base, las bases y la prorrata extra se recalculan automáticamente desde el contrato.</p>
+              <p style={styles.editSubtitle}>El salario base, las bases, deducciones y la prorrata extra se recalculan automáticamente desde el contrato.</p>
             </div>
             {!isEditing && !isCancelled && <button type="button" onClick={onEnableEditing} style={styles.secondaryButton}>Editar</button>}
           </div>
