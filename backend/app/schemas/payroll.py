@@ -218,6 +218,10 @@ class PayrollFutureSimulationItem(BaseModel):
     professional_contingencies_base: Decimal = Decimal("0.00")
     unemployment_training_fogasa_base: Decimal = Decimal("0.00")
     irpf_base: Decimal = Decimal("0.00")
+    employee_common_contingencies: Decimal = Decimal("0.00")
+    employee_unemployment: Decimal = Decimal("0.00")
+    employee_training: Decimal = Decimal("0.00")
+    employee_mei: Decimal = Decimal("0.00")
     employee_social_security: Decimal
     irpf_percentage: Decimal
     suggested_irpf_percentage: Decimal
@@ -252,6 +256,10 @@ class PayrollResponse(BaseModel):
     professional_contingencies_base: Decimal = Decimal("0.00")
     unemployment_training_fogasa_base: Decimal = Decimal("0.00")
     irpf_base: Decimal = Decimal("0.00")
+    employee_common_contingencies: Decimal = Decimal("0.00")
+    employee_unemployment: Decimal = Decimal("0.00")
+    employee_training: Decimal = Decimal("0.00")
+    employee_mei: Decimal = Decimal("0.00")
     employee_social_security: Decimal
     irpf_mode: str = "auto"
     irpf_percentage: Decimal = Decimal("0.00")
