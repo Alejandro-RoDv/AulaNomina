@@ -108,8 +108,9 @@ export default function PayrollDetailsModal({
               <span style={styles.sectionHint}>Importes calculados desde el contrato</span>
             </div>
             <PayrollLine label="Salario base calculado" amount={payroll.base_salary} />
-            <PayrollLine label="Complementos salariales" amount={payroll.salary_supplements} />
             <PayrollLine label="Prorrata de pagas extra calculada" amount={payroll.extra_pay_proration} />
+            <PayrollLine label="Complementos salariales" amount={payroll.salary_supplements} />
+            <PayrollLine label="Variables / incentivos" amount={payroll.variable_incentives} />
             <PayrollLine label="Total devengado / bruto" amount={payroll.gross_salary} strong />
           </div>
 
@@ -179,6 +180,11 @@ export default function PayrollDetailsModal({
           </div>
 
           <div style={styles.formRow}>
+            <div style={styles.formGroupSmall}>
+              <label>Variables / incentivos</label>
+              <input type="number" step="0.01" name="variable_incentives" value={editForm.variable_incentives ?? "0"} onChange={onEditChange} disabled={!isEditing} style={{ ...styles.input, ...(!isEditing ? styles.readOnlyInput : {}) }} />
+            </div>
+
             <div style={styles.formGroupSmall}>
               <label>IRPF %</label>
               <input type="number" step="0.01" name="irpf_percentage" value={editForm.irpf_percentage} onChange={onEditChange} disabled={!isEditing} style={{ ...styles.input, ...(!isEditing ? styles.readOnlyInput : {}) }} />
