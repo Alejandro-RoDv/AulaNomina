@@ -86,6 +86,10 @@ def init_database() -> None:
                 "professional_contingencies_base": "NUMERIC(10, 2) DEFAULT 0 NOT NULL",
                 "unemployment_training_fogasa_base": "NUMERIC(10, 2) DEFAULT 0 NOT NULL",
                 "irpf_base": "NUMERIC(10, 2) DEFAULT 0 NOT NULL",
+                "employee_common_contingencies": "NUMERIC(10, 2) DEFAULT 0 NOT NULL",
+                "employee_unemployment": "NUMERIC(10, 2) DEFAULT 0 NOT NULL",
+                "employee_training": "NUMERIC(10, 2) DEFAULT 0 NOT NULL",
+                "employee_mei": "NUMERIC(10, 2) DEFAULT 0 NOT NULL",
                 "irpf_mode": "VARCHAR DEFAULT 'auto' NOT NULL",
                 "irpf_percentage": "NUMERIC(5, 2) DEFAULT 0 NOT NULL",
                 "suggested_irpf_percentage": "NUMERIC(5, 2) DEFAULT 0 NOT NULL",
@@ -101,7 +105,11 @@ def init_database() -> None:
                     SET common_contingencies_base = COALESCE(NULLIF(common_contingencies_base, 0), gross_salary),
                         professional_contingencies_base = COALESCE(NULLIF(professional_contingencies_base, 0), gross_salary),
                         unemployment_training_fogasa_base = COALESCE(NULLIF(unemployment_training_fogasa_base, 0), gross_salary),
-                        irpf_base = COALESCE(NULLIF(irpf_base, 0), gross_salary)
+                        irpf_base = COALESCE(NULLIF(irpf_base, 0), gross_salary),
+                        employee_common_contingencies = COALESCE(NULLIF(employee_common_contingencies, 0), ROUND((COALESCE(NULLIF(common_contingencies_base, 0), gross_salary) * 4.70 / 100)::numeric, 2)),
+                        employee_unemployment = COALESCE(NULLIF(employee_unemployment, 0), ROUND((COALESCE(NULLIF(unemployment_training_fogasa_base, 0), gross_salary) * 1.55 / 100)::numeric, 2)),
+                        employee_training = COALESCE(NULLIF(employee_training, 0), ROUND((COALESCE(NULLIF(unemployment_training_fogasa_base, 0), gross_salary) * 0.10 / 100)::numeric, 2)),
+                        employee_mei = COALESCE(NULLIF(employee_mei, 0), ROUND((COALESCE(NULLIF(common_contingencies_base, 0), gross_salary) * 0.13 / 100)::numeric, 2))
                     """
                 )
             )
