@@ -1,3 +1,5 @@
+import { fetchEmployeeTaxProfile } from "../../services/taxProfileApi";
+
 const PAYROLL_STATUS_OPTIONS = [
   { value: "draft", label: "Borrador" },
   { value: "pending", label: "Pendiente" },
@@ -129,7 +131,7 @@ export default function PayrollForm({
 
   const preview = calculatePreview(form, selectedContract);
 
-  const handleEmployeeChange = (event) => {
+  const handleEmployeeChange = async (event) => {
     const employeeId = event.target.value;
     const activeContract = getActiveContractForEmployee(contracts, employeeId);
 
@@ -137,6 +139,17 @@ export default function PayrollForm({
     onChange({ target: { name: "contract_id", value: activeContract ? String(activeContract.id) : "" } });
     onChange({ target: { name: "company_id", value: activeContract?.company_id ? String(activeContract.company_id) : "" } });
     onChange({ target: { name: "center_id", value: activeContract?.center_id ? String(activeContract.center_id) : "" } });
+
+    if (!employeeId) return;
+
+    try {
+      const taxProfile = await fetchEmployeeTaxProfile(employeeId);
+      if (taxProfile?.voluntary_irpf !== null && taxProfile?.voluntary_irpf !== undefined) {
+        onChange({ target: { name: "irpf_percentage", value: String(taxProfile.voluntary_irpf) } });
+      }
+    } catch (err) {
+      console.warn("No se pudo cargar el IRPF guardado del trabajador", err);
+    }
   };
 
   const isSubmitDisabled = submitting || hasEmployeeWithoutActiveContract;
