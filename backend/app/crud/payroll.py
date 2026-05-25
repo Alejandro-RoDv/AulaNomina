@@ -1,6 +1,6 @@
 from calendar import monthrange
 from datetime import date
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import Decimal
 
 from fastapi import HTTPException
 from sqlalchemy.orm import Session, joinedload
@@ -14,18 +14,7 @@ from app.models.tax_profile import TaxProfile
 from app.models.work_center import WorkCenter
 from app.schemas.payroll import PayrollCreate, PayrollFutureSimulationRequest, PayrollPrepareRequest, PayrollUpdate
 from app.services.irpf_calculator import calculate_irpf_2026
-
-EMPLOYEE_COMMON_CONTINGENCIES_PERCENTAGE = Decimal("4.70")
-EMPLOYEE_UNEMPLOYMENT_PERCENTAGE = Decimal("1.55")
-EMPLOYEE_TRAINING_PERCENTAGE = Decimal("0.10")
-EMPLOYEE_MEI_PERCENTAGE = Decimal("0.13")
-
-COMPANY_COMMON_CONTINGENCIES_PERCENTAGE = Decimal("23.60")
-COMPANY_UNEMPLOYMENT_PERCENTAGE = Decimal("5.50")
-COMPANY_FOGASA_PERCENTAGE = Decimal("0.20")
-COMPANY_TRAINING_PERCENTAGE = Decimal("0.60")
-COMPANY_AT_EP_PERCENTAGE = Decimal("1.50")
-COMPANY_MEI_PERCENTAGE = Decimal("0.67")
+from app.services.payroll_amounts import calculate_payroll_amounts, money
 
 DEFAULT_IRPF_PERCENTAGE = Decimal("10.00")
 
@@ -36,13 +25,41 @@ EXTRA_COMPLEMENTARY = 15
 
 ACTIVE_PAYROLL_STATUSES = {"draft", "pending", "calculated", "reviewed", "closed"}
 
-
-def money(value) -> Decimal:
-    return Decimal(value or "0.00").quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+PERSISTED_PAYROLL_AMOUNT_KEYS = {
+    "gross_salary",
+    "common_contingencies_base",
+    "professional_contingencies_base",
+    "unemployment_training_fogasa_base",
+    "irpf_base",
+    "employee_common_contingencies",
+    "employee_unemployment",
+    "employee_training",
+    "employee_mei",
+    "employee_social_security",
+    "irpf",
+    "total_deductions",
+    "net_salary",
+    "company_common_contingencies",
+    "company_unemployment",
+    "company_fogasa",
+    "company_training",
+    "company_at_ep",
+    "company_mei",
+    "company_total_social_security",
+    "company_total_cost",
+}
 
 
 def percent(value) -> Decimal:
-    return Decimal(value or "0.00").quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    return money(value)
+
+
+def persisted_payroll_amounts(calculated_amounts: dict[str, Decimal]) -> dict[str, Decimal]:
+    return {
+        key: value
+        for key, value in calculated_amounts.items()
+        if key in PERSISTED_PAYROLL_AMOUNT_KEYS
+    }
 
 
 def calculate_contract_base_salary(contract: Contract, period_month: int) -> Decimal:
@@ -169,75 +186,6 @@ def resolve_irpf_percentage(db: Session, employee: Employee, contract: Contract,
         applied = suggested
 
     return applied, suggested
-
-
-def calculate_payroll_amounts(
-    base_salary: Decimal,
-    salary_supplements: Decimal,
-    variable_incentives: Decimal,
-    extra_pay_proration: Decimal,
-    irpf_percentage: Decimal,
-):
-    gross_salary = money(base_salary + salary_supplements + variable_incentives + extra_pay_proration)
-
-    # MVP simplification: all bases use the total accrued amount.
-    # Later splits can add legal minimum/maximum bases, excluded concepts and sector rules.
-    common_contingencies_base = gross_salary
-    professional_contingencies_base = gross_salary
-    unemployment_training_fogasa_base = gross_salary
-    irpf_base = gross_salary
-
-    employee_common_contingencies = money(common_contingencies_base * EMPLOYEE_COMMON_CONTINGENCIES_PERCENTAGE / Decimal("100"))
-    employee_unemployment = money(unemployment_training_fogasa_base * EMPLOYEE_UNEMPLOYMENT_PERCENTAGE / Decimal("100"))
-    employee_training = money(unemployment_training_fogasa_base * EMPLOYEE_TRAINING_PERCENTAGE / Decimal("100"))
-    employee_mei = money(common_contingencies_base * EMPLOYEE_MEI_PERCENTAGE / Decimal("100"))
-    employee_social_security = money(
-        employee_common_contingencies + employee_unemployment + employee_training + employee_mei
-    )
-
-    irpf = money(irpf_base * irpf_percentage / Decimal("100"))
-    total_deductions = money(employee_social_security + irpf)
-    net_salary = money(gross_salary - total_deductions)
-
-    company_common_contingencies = money(common_contingencies_base * COMPANY_COMMON_CONTINGENCIES_PERCENTAGE / Decimal("100"))
-    company_unemployment = money(unemployment_training_fogasa_base * COMPANY_UNEMPLOYMENT_PERCENTAGE / Decimal("100"))
-    company_fogasa = money(unemployment_training_fogasa_base * COMPANY_FOGASA_PERCENTAGE / Decimal("100"))
-    company_training = money(unemployment_training_fogasa_base * COMPANY_TRAINING_PERCENTAGE / Decimal("100"))
-    company_at_ep = money(professional_contingencies_base * COMPANY_AT_EP_PERCENTAGE / Decimal("100"))
-    company_mei = money(common_contingencies_base * COMPANY_MEI_PERCENTAGE / Decimal("100"))
-    company_total_social_security = money(
-        company_common_contingencies
-        + company_unemployment
-        + company_fogasa
-        + company_training
-        + company_at_ep
-        + company_mei
-    )
-    company_total_cost = money(gross_salary + company_total_social_security)
-
-    return {
-        "gross_salary": gross_salary,
-        "common_contingencies_base": common_contingencies_base,
-        "professional_contingencies_base": professional_contingencies_base,
-        "unemployment_training_fogasa_base": unemployment_training_fogasa_base,
-        "irpf_base": irpf_base,
-        "employee_common_contingencies": employee_common_contingencies,
-        "employee_unemployment": employee_unemployment,
-        "employee_training": employee_training,
-        "employee_mei": employee_mei,
-        "employee_social_security": employee_social_security,
-        "irpf": irpf,
-        "total_deductions": total_deductions,
-        "net_salary": net_salary,
-        "company_common_contingencies": company_common_contingencies,
-        "company_unemployment": company_unemployment,
-        "company_fogasa": company_fogasa,
-        "company_training": company_training,
-        "company_at_ep": company_at_ep,
-        "company_mei": company_mei,
-        "company_total_social_security": company_total_social_security,
-        "company_total_cost": company_total_cost,
-    }
 
 
 def get_payroll_query(db: Session):
@@ -416,7 +364,7 @@ def create_payroll(db: Session, payroll: PayrollCreate):
         irpf_percentage=irpf_percentage,
         suggested_irpf_percentage=suggested_irpf_percentage,
         status=payroll.status or "pending",
-        **calculated_amounts,
+        **persisted_payroll_amounts(calculated_amounts),
     )
 
     db.add(db_payroll)
@@ -659,7 +607,7 @@ def update_payroll(db: Session, payroll_id: int, payroll_data: PayrollUpdate):
         irpf_percentage=irpf_percentage,
     )
 
-    for key, value in calculated_amounts.items():
+    for key, value in persisted_payroll_amounts(calculated_amounts).items():
         setattr(db_payroll, key, value)
 
     db.commit()
@@ -714,29 +662,9 @@ def simulate_future_payrolls(db: Session, request: PayrollFutureSimulationReques
             "base_salary": base_salary,
             "salary_supplements": salary_supplements,
             "variable_incentives": variable_incentives,
-            "gross_salary": calculated["gross_salary"],
-            "common_contingencies_base": calculated["common_contingencies_base"],
-            "professional_contingencies_base": calculated["professional_contingencies_base"],
-            "unemployment_training_fogasa_base": calculated["unemployment_training_fogasa_base"],
-            "irpf_base": calculated["irpf_base"],
-            "employee_common_contingencies": calculated["employee_common_contingencies"],
-            "employee_unemployment": calculated["employee_unemployment"],
-            "employee_training": calculated["employee_training"],
-            "employee_mei": calculated["employee_mei"],
-            "employee_social_security": calculated["employee_social_security"],
+            **persisted_payroll_amounts(calculated),
             "irpf_percentage": irpf_percentage,
             "suggested_irpf_percentage": suggested_irpf_percentage,
-            "irpf": calculated["irpf"],
-            "total_deductions": calculated["total_deductions"],
-            "net_salary": calculated["net_salary"],
-            "company_common_contingencies": calculated["company_common_contingencies"],
-            "company_unemployment": calculated["company_unemployment"],
-            "company_fogasa": calculated["company_fogasa"],
-            "company_training": calculated["company_training"],
-            "company_at_ep": calculated["company_at_ep"],
-            "company_mei": calculated["company_mei"],
-            "company_total_social_security": calculated["company_total_social_security"],
-            "company_total_cost": calculated["company_total_cost"],
         })
 
     return {
