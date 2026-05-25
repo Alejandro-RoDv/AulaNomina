@@ -70,8 +70,29 @@ function PrintStyles() {
           padding: 0 !important;
           border: none !important;
           box-shadow: none !important;
+          background: #ffffff !important;
           font-size: 9.2px !important;
           line-height: 1.15 !important;
+        }
+        #payroll-printable-receipt .payroll-main-grid,
+        #payroll-printable-receipt .payroll-lower-grid {
+          grid-template-columns: 1fr 1fr !important;
+          gap: 8px !important;
+        }
+        #payroll-printable-receipt .payroll-identity-grid {
+          grid-template-columns: 1fr 1fr !important;
+          gap: 0 !important;
+          border: 2px solid #111827 !important;
+          background: #ffffff !important;
+          padding: 0 !important;
+        }
+        #payroll-printable-receipt .payroll-identity-block {
+          border: none !important;
+          border-right: 1px solid #111827 !important;
+          border-radius: 0 !important;
+          box-shadow: none !important;
+          background: #ffffff !important;
+          padding: 7px 9px !important;
         }
         #payroll-printable-receipt table { page-break-inside: avoid !important; }
         #payroll-printable-receipt section { break-inside: avoid !important; }
@@ -142,15 +163,15 @@ export default function PayrollDetailsModal({
             </div>
           </div>
 
-          <section style={styles.identityGrid}>
-            <div style={styles.identityBlock}>
+          <section style={styles.identityGrid} className="payroll-identity-grid">
+            <div style={styles.identityBlock} className="payroll-identity-block">
               <div style={styles.identityHeader}>EMPRESA</div>
               <p><strong>Nombre:</strong> {payroll.company_name || payroll.company_id || "-"}</p>
               <p><strong>Domicilio:</strong> Domicilio simulado</p>
               <p><strong>CIF:</strong> CIF simulado</p>
               <p><strong>Código cuenta cotización S.S.:</strong> CCC simulado</p>
             </div>
-            <div style={styles.identityBlock}>
+            <div style={styles.identityBlock} className="payroll-identity-block">
               <div style={styles.identityHeader}>TRABAJADOR/A</div>
               <p><strong>Nombre:</strong> {payroll.employee_name || payroll.employee_id || "-"}</p>
               <p><strong>DNI:</strong> Dato no informado</p>
@@ -167,7 +188,7 @@ export default function PayrollDetailsModal({
             <span><strong>Estado:</strong> {getStatusLabel(payroll.status)}</span>
           </section>
 
-          <section style={styles.mainPayrollGrid}>
+          <section style={styles.mainPayrollGrid} className="payroll-main-grid">
             <div style={styles.receiptTableBox}>
               <table style={styles.receiptTable}>
                 <thead>
@@ -220,7 +241,7 @@ export default function PayrollDetailsModal({
             </div>
           </section>
 
-          <section style={styles.lowerGrid}>
+          <section style={styles.lowerGrid} className="payroll-lower-grid">
             <div style={styles.receiptTableBox}>
               <table style={styles.receiptTable}>
                 <thead>
@@ -378,34 +399,34 @@ const styles = {
   modalSubtitle: { margin: "4px 0 0", color: "#6b7280", fontSize: "13px", fontWeight: 700 },
   closeButton: { border: "none", backgroundColor: "transparent", fontSize: "28px", lineHeight: 1, cursor: "pointer", color: "#111827" },
   printButton: { backgroundColor: "#e6d85c", color: "#111827", border: "2px solid #111827", borderRadius: "8px", padding: "9px 12px", cursor: "pointer", fontWeight: 900 },
-  receiptDocument: { maxWidth: "980px", margin: "0 auto 18px", border: "1px solid #d1d5db", borderRadius: "12px", padding: "16px 18px", backgroundColor: "#ffffff", color: "#1f2937" },
-  receiptTopBar: { display: "flex", justifyContent: "space-between", gap: "16px", alignItems: "start", borderBottom: "3px solid #111827", paddingBottom: "12px", marginBottom: "10px" },
+  receiptDocument: { maxWidth: "1040px", margin: "0 auto 18px", border: "1px solid #e5e7eb", borderRadius: "16px", padding: "22px", backgroundColor: "#f8fafc", color: "#1f2937" },
+  receiptTopBar: { display: "flex", justifyContent: "space-between", gap: "16px", alignItems: "start", border: "2px solid #111827", borderRadius: "14px", backgroundColor: "#ffffff", padding: "16px", marginBottom: "18px", boxShadow: "4px 4px 0 #fef3c7" },
   receiptEyebrow: { margin: 0, fontSize: "11px", fontWeight: 900, letterSpacing: "0.08em", color: "#111827" },
   receiptTitle: { margin: "3px 0", fontSize: "24px", fontWeight: 900, color: "#111827" },
   receiptSubtitle: { margin: 0, color: "#6b7280", fontSize: "11px", fontWeight: 700 },
-  receiptCodeBox: { border: "2px solid #111827", borderRadius: "9px", padding: "9px 12px", minWidth: "138px", textAlign: "right", backgroundColor: "#fef3c7", display: "flex", flexDirection: "column", gap: "2px" },
-  identityGrid: { display: "grid", gridTemplateColumns: "1fr 1fr", border: "2px solid #111827", borderBottom: "none" },
-  identityBlock: { padding: "7px 9px", borderRight: "1px solid #111827", minHeight: "92px" },
-  identityHeader: { margin: "-7px -9px 5px", padding: "4px 8px", backgroundColor: "#f3f4f6", borderBottom: "1px solid #d1d5db", textAlign: "center", fontWeight: 900, color: "#111827" },
-  periodRow: { display: "grid", gridTemplateColumns: "2fr 2fr 1fr 1fr", gap: "8px", border: "2px solid #111827", backgroundColor: "#fffdf0", padding: "6px 8px", marginBottom: "10px" },
-  mainPayrollGrid: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "10px" },
-  lowerGrid: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "10px" },
-  receiptTableBox: { border: "2px solid #111827", borderRadius: "10px", overflow: "hidden", backgroundColor: "#ffffff", breakInside: "avoid" },
+  receiptCodeBox: { border: "2px solid #111827", borderRadius: "10px", padding: "10px 13px", minWidth: "138px", textAlign: "right", backgroundColor: "#fef3c7", display: "flex", flexDirection: "column", gap: "2px" },
+  identityGrid: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "16px" },
+  identityBlock: { padding: "14px", border: "2px solid #111827", borderRadius: "14px", minHeight: "92px", backgroundColor: "#ffffff", boxShadow: "3px 3px 0 #e5e7eb" },
+  identityHeader: { margin: "-14px -14px 10px", padding: "8px 12px", backgroundColor: "#f3f4f6", borderBottom: "1px solid #d1d5db", borderRadius: "12px 12px 0 0", textAlign: "left", fontWeight: 900, color: "#111827" },
+  periodRow: { display: "grid", gridTemplateColumns: "2fr 2fr 1fr 1fr", gap: "10px", border: "2px solid #111827", borderRadius: "14px", backgroundColor: "#fffdf0", padding: "12px 14px", marginBottom: "18px", boxShadow: "3px 3px 0 #e5e7eb" },
+  mainPayrollGrid: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "18px", marginBottom: "18px" },
+  lowerGrid: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "18px", marginBottom: "18px" },
+  receiptTableBox: { border: "2px solid #111827", borderRadius: "14px", overflow: "hidden", backgroundColor: "#ffffff", breakInside: "avoid", boxShadow: "3px 3px 0 #e5e7eb" },
   receiptTable: { width: "100%", borderCollapse: "collapse", tableLayout: "fixed" },
-  receiptHeaderConcept: { textAlign: "left", padding: "6px 8px", backgroundColor: "#f3f4f6", color: "#111827", fontWeight: 900, borderBottom: "1px solid #d1d5db" },
-  receiptHeaderSmall: { width: "72px", textAlign: "right", padding: "6px 8px", backgroundColor: "#f3f4f6", color: "#111827", fontWeight: 900, borderBottom: "1px solid #d1d5db" },
-  receiptHeaderAmount: { width: "100px", textAlign: "right", padding: "6px 8px", backgroundColor: "#f3f4f6", color: "#111827", fontWeight: 900, borderBottom: "1px solid #d1d5db" },
-  subsectionLabel: { padding: "5px 8px 2px", fontWeight: 900, color: "#111827" },
-  receiptConceptCell: { padding: "5px 8px", borderBottom: "1px solid #e5e7eb", verticalAlign: "top" },
-  receiptQtyCell: { padding: "5px 8px", borderBottom: "1px solid #e5e7eb", textAlign: "right", verticalAlign: "top" },
-  receiptPriceCell: { padding: "5px 8px", borderBottom: "1px solid #e5e7eb", textAlign: "right", verticalAlign: "top" },
-  receiptDeductionPercentCell: { width: "72px", padding: "5px 8px", borderBottom: "1px solid #e5e7eb", textAlign: "right", verticalAlign: "top" },
-  receiptAmountCell: { padding: "5px 8px", borderBottom: "1px solid #e5e7eb", textAlign: "right", verticalAlign: "top", fontWeight: 800 },
+  receiptHeaderConcept: { textAlign: "left", padding: "9px 10px", backgroundColor: "#f3f4f6", color: "#111827", fontWeight: 900, borderBottom: "1px solid #d1d5db" },
+  receiptHeaderSmall: { width: "72px", textAlign: "right", padding: "9px 10px", backgroundColor: "#f3f4f6", color: "#111827", fontWeight: 900, borderBottom: "1px solid #d1d5db" },
+  receiptHeaderAmount: { width: "100px", textAlign: "right", padding: "9px 10px", backgroundColor: "#f3f4f6", color: "#111827", fontWeight: 900, borderBottom: "1px solid #d1d5db" },
+  subsectionLabel: { padding: "8px 10px 3px", fontWeight: 900, color: "#111827" },
+  receiptConceptCell: { padding: "7px 10px", borderBottom: "1px solid #e5e7eb", verticalAlign: "top" },
+  receiptQtyCell: { padding: "7px 10px", borderBottom: "1px solid #e5e7eb", textAlign: "right", verticalAlign: "top" },
+  receiptPriceCell: { padding: "7px 10px", borderBottom: "1px solid #e5e7eb", textAlign: "right", verticalAlign: "top" },
+  receiptDeductionPercentCell: { width: "72px", padding: "7px 10px", borderBottom: "1px solid #e5e7eb", textAlign: "right", verticalAlign: "top" },
+  receiptAmountCell: { padding: "7px 10px", borderBottom: "1px solid #e5e7eb", textAlign: "right", verticalAlign: "top", fontWeight: 800 },
   receiptTotalRow: { backgroundColor: "#fffdf0", fontWeight: 900 },
-  netReceiptBox: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px", borderTop: "2px solid #111827", backgroundColor: "#fef3c7", padding: "8px 10px", fontSize: "16px", fontWeight: 900 },
-  signatureGrid: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "18px", border: "2px solid #111827", borderRadius: "10px", padding: "8px 10px", marginBottom: "8px" },
+  netReceiptBox: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px", borderTop: "2px solid #111827", backgroundColor: "#fef3c7", padding: "11px 12px", fontSize: "17px", fontWeight: 900 },
+  signatureGrid: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "18px", border: "2px solid #111827", borderRadius: "14px", backgroundColor: "#ffffff", padding: "12px 14px", marginBottom: "10px", boxShadow: "3px 3px 0 #e5e7eb" },
   signatureBox: { display: "flex", alignItems: "end", justifyContent: "center", minHeight: "52px", color: "#374151" },
-  receiptFooter: { borderTop: "1px solid #e5e7eb", paddingTop: "6px", margin: 0, color: "#6b7280", fontSize: "10px", fontWeight: 700 },
+  receiptFooter: { borderTop: "1px solid #e5e7eb", paddingTop: "8px", margin: 0, color: "#6b7280", fontSize: "10px", fontWeight: 700 },
   form: { display: "flex", flexDirection: "column", gap: "16px", borderTop: "1px solid #e5e7eb", paddingTop: "16px" },
   editHeader: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px" },
   editTitle: { margin: 0, fontSize: "16px", fontWeight: 900 },
