@@ -163,10 +163,11 @@ def resolve_irpf_percentage(db: Session, employee: Employee, contract: Contract,
 def calculate_payroll_amounts(
     base_salary: Decimal,
     salary_supplements: Decimal,
+    variable_incentives: Decimal,
     extra_pay_proration: Decimal,
     irpf_percentage: Decimal,
 ):
-    gross_salary = money(base_salary + salary_supplements + extra_pay_proration)
+    gross_salary = money(base_salary + salary_supplements + variable_incentives + extra_pay_proration)
     employee_social_security = money(gross_salary * SOCIAL_SECURITY_PERCENTAGE / Decimal("100"))
     irpf = money(gross_salary * irpf_percentage / Decimal("100"))
     total_deductions = money(employee_social_security + irpf)
@@ -323,6 +324,7 @@ def create_payroll(db: Session, payroll: PayrollCreate):
 
     base_salary = calculate_contract_base_salary(contract, payroll.period_month)
     salary_supplements = money(payroll.salary_supplements or Decimal("0.00"))
+    variable_incentives = money(payroll.variable_incentives or Decimal("0.00"))
     extra_pay_proration = calculate_extra_pay_proration(contract, payroll.period_month)
     irpf_mode = payroll.irpf_mode or "auto"
     irpf_percentage, suggested_irpf_percentage = resolve_irpf_percentage(
@@ -336,6 +338,7 @@ def create_payroll(db: Session, payroll: PayrollCreate):
     calculated_amounts = calculate_payroll_amounts(
         base_salary=base_salary,
         salary_supplements=salary_supplements,
+        variable_incentives=variable_incentives,
         extra_pay_proration=extra_pay_proration,
         irpf_percentage=irpf_percentage,
     )
@@ -349,6 +352,7 @@ def create_payroll(db: Session, payroll: PayrollCreate):
         period_year=payroll.period_year,
         base_salary=base_salary,
         salary_supplements=salary_supplements,
+        variable_incentives=variable_incentives,
         extra_pay_proration=extra_pay_proration,
         irpf_mode=irpf_mode,
         irpf_percentage=irpf_percentage,
@@ -495,6 +499,7 @@ def prepare_monthly_payrolls(db: Session, request: PayrollPrepareRequest):
             period_month=request.period_month,
             period_year=request.period_year,
             salary_supplements=Decimal("0.00"),
+            variable_incentives=Decimal("0.00"),
             irpf_mode=request.irpf_mode,
             status=request.status,
         )
@@ -572,6 +577,7 @@ def update_payroll(db: Session, payroll_id: int, payroll_data: PayrollUpdate):
 
     base_salary = calculate_contract_base_salary(contract, db_payroll.period_month)
     salary_supplements = money(db_payroll.salary_supplements or Decimal("0.00"))
+    variable_incentives = money(db_payroll.variable_incentives or Decimal("0.00"))
     extra_pay_proration = calculate_extra_pay_proration(contract, db_payroll.period_month)
     irpf_percentage, suggested_irpf_percentage = resolve_irpf_percentage(
         db=db,
@@ -590,6 +596,7 @@ def update_payroll(db: Session, payroll_id: int, payroll_data: PayrollUpdate):
     calculated_amounts = calculate_payroll_amounts(
         base_salary=base_salary,
         salary_supplements=salary_supplements,
+        variable_incentives=variable_incentives,
         extra_pay_proration=extra_pay_proration,
         irpf_percentage=irpf_percentage,
     )
@@ -627,7 +634,8 @@ def simulate_future_payrolls(db: Session, request: PayrollFutureSimulationReques
 
         base_salary = calculate_contract_base_salary(contract, period_month)
         extra_pay_proration = calculate_extra_pay_proration(contract, period_month)
-        salary_supplements = money(request.salary_increase or Decimal("0.00")) + incentive_map.get((request.period_year, period_month), Decimal("0.00"))
+        salary_supplements = money(request.salary_increase or Decimal("0.00"))
+        variable_incentives = incentive_map.get((request.period_year, period_month), Decimal("0.00"))
         irpf_percentage, suggested_irpf_percentage = resolve_irpf_percentage(
             db=db,
             employee=employee,
@@ -638,6 +646,7 @@ def simulate_future_payrolls(db: Session, request: PayrollFutureSimulationReques
         calculated = calculate_payroll_amounts(
             base_salary=base_salary,
             salary_supplements=salary_supplements,
+            variable_incentives=variable_incentives,
             extra_pay_proration=extra_pay_proration,
             irpf_percentage=irpf_percentage,
         )
@@ -646,6 +655,7 @@ def simulate_future_payrolls(db: Session, request: PayrollFutureSimulationReques
             "period_year": request.period_year,
             "base_salary": base_salary,
             "salary_supplements": salary_supplements,
+            "variable_incentives": variable_incentives,
             "gross_salary": calculated["gross_salary"],
             "employee_social_security": calculated["employee_social_security"],
             "irpf_percentage": irpf_percentage,
