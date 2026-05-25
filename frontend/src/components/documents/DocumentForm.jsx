@@ -17,6 +17,10 @@ const statuses = [
   ["not_applicable", "No aplica"],
 ];
 
+function findSelectedEmployee(employees, employeeId) {
+  return employees.find((employee) => String(employee.id) === String(employeeId));
+}
+
 export default function DocumentForm({
   form,
   employees,
@@ -28,6 +32,19 @@ export default function DocumentForm({
   error,
   success,
 }) {
+  const selectedEmployee = findSelectedEmployee(employees, form.employee_id);
+  const selectedCompany = companies.find((company) => String(company.id) === String(form.company_id));
+  const selectedCenter = workCenters.find((center) => String(center.id) === String(form.center_id));
+
+  const handleEmployeeChange = (event) => {
+    const employeeId = event.target.value;
+    const employee = findSelectedEmployee(employees, employeeId);
+
+    onChange({ target: { name: "employee_id", value: employeeId } });
+    onChange({ target: { name: "company_id", value: employee?.company_id ? String(employee.company_id) : "" } });
+    onChange({ target: { name: "center_id", value: employee?.center_id ? String(employee.center_id) : "" } });
+  };
+
   return (
     <section style={styles.card}>
       <div style={styles.headerRow}>
@@ -43,7 +60,7 @@ export default function DocumentForm({
       <form onSubmit={onSubmit} style={styles.form}>
         <label style={styles.label}>
           Trabajador
-          <select name="employee_id" value={form.employee_id} onChange={onChange} required style={styles.input}>
+          <select name="employee_id" value={form.employee_id} onChange={handleEmployeeChange} required style={styles.input}>
             <option value="">Seleccionar trabajador</option>
             {employees.map((employee) => (
               <option key={employee.id} value={employee.id}>
@@ -74,6 +91,14 @@ export default function DocumentForm({
               ))}
           </select>
         </label>
+
+        {selectedEmployee && (
+          <div style={styles.employeeContext}>
+            <span><strong>Trabajador:</strong> {selectedEmployee.first_name} {selectedEmployee.last_name}</span>
+            <span><strong>Empresa:</strong> {selectedCompany?.name || "Sin empresa"}</span>
+            <span><strong>Centro:</strong> {selectedCenter?.name || "Sin centro"}</span>
+          </div>
+        )}
 
         <label style={styles.label}>
           Tipo documental
@@ -132,6 +157,7 @@ const styles = {
   form: { display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: "14px" },
   label: { display: "flex", flexDirection: "column", gap: "6px", fontSize: "12px", fontWeight: 900, textTransform: "uppercase", color: "#111" },
   input: { border: "2px solid #111", padding: "9px 10px", fontSize: "14px", fontWeight: 700, background: "#fff", color: "#111" },
+  employeeContext: { gridColumn: "1 / -1", display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: "10px", border: "2px solid #111", background: "#fffdf0", padding: "10px 12px", fontWeight: 800 },
   actions: { gridColumn: "1 / -1", display: "flex", justifyContent: "flex-end" },
   button: { border: "3px solid #111", background: "#f0df62", padding: "10px 16px", fontWeight: 900, cursor: "pointer", boxShadow: "3px 3px 0 #111" },
   error: { background: "#fee2e2", border: "2px solid #991b1b", color: "#991b1b", padding: "10px", fontWeight: 800 },
