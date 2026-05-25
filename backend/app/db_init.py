@@ -81,6 +81,7 @@ def init_database() -> None:
             payroll_columns = {
                 "center_id": "INTEGER REFERENCES work_centers(id)",
                 "payroll_code": "VARCHAR",
+                "variable_incentives": "NUMERIC(10, 2) DEFAULT 0 NOT NULL",
                 "irpf_mode": "VARCHAR DEFAULT 'auto' NOT NULL",
                 "irpf_percentage": "NUMERIC(5, 2) DEFAULT 0 NOT NULL",
                 "suggested_irpf_percentage": "NUMERIC(5, 2) DEFAULT 0 NOT NULL",
