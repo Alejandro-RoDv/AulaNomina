@@ -90,6 +90,14 @@ def init_database() -> None:
                 "employee_unemployment": "NUMERIC(10, 2) DEFAULT 0 NOT NULL",
                 "employee_training": "NUMERIC(10, 2) DEFAULT 0 NOT NULL",
                 "employee_mei": "NUMERIC(10, 2) DEFAULT 0 NOT NULL",
+                "company_common_contingencies": "NUMERIC(10, 2) DEFAULT 0 NOT NULL",
+                "company_unemployment": "NUMERIC(10, 2) DEFAULT 0 NOT NULL",
+                "company_fogasa": "NUMERIC(10, 2) DEFAULT 0 NOT NULL",
+                "company_training": "NUMERIC(10, 2) DEFAULT 0 NOT NULL",
+                "company_at_ep": "NUMERIC(10, 2) DEFAULT 0 NOT NULL",
+                "company_mei": "NUMERIC(10, 2) DEFAULT 0 NOT NULL",
+                "company_total_social_security": "NUMERIC(10, 2) DEFAULT 0 NOT NULL",
+                "company_total_cost": "NUMERIC(10, 2) DEFAULT 0 NOT NULL",
                 "irpf_mode": "VARCHAR DEFAULT 'auto' NOT NULL",
                 "irpf_percentage": "NUMERIC(5, 2) DEFAULT 0 NOT NULL",
                 "suggested_irpf_percentage": "NUMERIC(5, 2) DEFAULT 0 NOT NULL",
@@ -109,7 +117,29 @@ def init_database() -> None:
                         employee_common_contingencies = COALESCE(NULLIF(employee_common_contingencies, 0), ROUND((COALESCE(NULLIF(common_contingencies_base, 0), gross_salary) * 4.70 / 100)::numeric, 2)),
                         employee_unemployment = COALESCE(NULLIF(employee_unemployment, 0), ROUND((COALESCE(NULLIF(unemployment_training_fogasa_base, 0), gross_salary) * 1.55 / 100)::numeric, 2)),
                         employee_training = COALESCE(NULLIF(employee_training, 0), ROUND((COALESCE(NULLIF(unemployment_training_fogasa_base, 0), gross_salary) * 0.10 / 100)::numeric, 2)),
-                        employee_mei = COALESCE(NULLIF(employee_mei, 0), ROUND((COALESCE(NULLIF(common_contingencies_base, 0), gross_salary) * 0.13 / 100)::numeric, 2))
+                        employee_mei = COALESCE(NULLIF(employee_mei, 0), ROUND((COALESCE(NULLIF(common_contingencies_base, 0), gross_salary) * 0.13 / 100)::numeric, 2)),
+                        company_common_contingencies = COALESCE(NULLIF(company_common_contingencies, 0), ROUND((COALESCE(NULLIF(common_contingencies_base, 0), gross_salary) * 23.60 / 100)::numeric, 2)),
+                        company_unemployment = COALESCE(NULLIF(company_unemployment, 0), ROUND((COALESCE(NULLIF(unemployment_training_fogasa_base, 0), gross_salary) * 5.50 / 100)::numeric, 2)),
+                        company_fogasa = COALESCE(NULLIF(company_fogasa, 0), ROUND((COALESCE(NULLIF(unemployment_training_fogasa_base, 0), gross_salary) * 0.20 / 100)::numeric, 2)),
+                        company_training = COALESCE(NULLIF(company_training, 0), ROUND((COALESCE(NULLIF(unemployment_training_fogasa_base, 0), gross_salary) * 0.60 / 100)::numeric, 2)),
+                        company_at_ep = COALESCE(NULLIF(company_at_ep, 0), ROUND((COALESCE(NULLIF(professional_contingencies_base, 0), gross_salary) * 1.50 / 100)::numeric, 2)),
+                        company_mei = COALESCE(NULLIF(company_mei, 0), ROUND((COALESCE(NULLIF(common_contingencies_base, 0), gross_salary) * 0.67 / 100)::numeric, 2)),
+                        company_total_social_security = COALESCE(NULLIF(company_total_social_security, 0),
+                            ROUND((COALESCE(NULLIF(common_contingencies_base, 0), gross_salary) * 23.60 / 100)::numeric, 2)
+                            + ROUND((COALESCE(NULLIF(unemployment_training_fogasa_base, 0), gross_salary) * 5.50 / 100)::numeric, 2)
+                            + ROUND((COALESCE(NULLIF(unemployment_training_fogasa_base, 0), gross_salary) * 0.20 / 100)::numeric, 2)
+                            + ROUND((COALESCE(NULLIF(unemployment_training_fogasa_base, 0), gross_salary) * 0.60 / 100)::numeric, 2)
+                            + ROUND((COALESCE(NULLIF(professional_contingencies_base, 0), gross_salary) * 1.50 / 100)::numeric, 2)
+                            + ROUND((COALESCE(NULLIF(common_contingencies_base, 0), gross_salary) * 0.67 / 100)::numeric, 2)
+                        ),
+                        company_total_cost = COALESCE(NULLIF(company_total_cost, 0), gross_salary + COALESCE(NULLIF(company_total_social_security, 0),
+                            ROUND((COALESCE(NULLIF(common_contingencies_base, 0), gross_salary) * 23.60 / 100)::numeric, 2)
+                            + ROUND((COALESCE(NULLIF(unemployment_training_fogasa_base, 0), gross_salary) * 5.50 / 100)::numeric, 2)
+                            + ROUND((COALESCE(NULLIF(unemployment_training_fogasa_base, 0), gross_salary) * 0.20 / 100)::numeric, 2)
+                            + ROUND((COALESCE(NULLIF(unemployment_training_fogasa_base, 0), gross_salary) * 0.60 / 100)::numeric, 2)
+                            + ROUND((COALESCE(NULLIF(professional_contingencies_base, 0), gross_salary) * 1.50 / 100)::numeric, 2)
+                            + ROUND((COALESCE(NULLIF(common_contingencies_base, 0), gross_salary) * 0.67 / 100)::numeric, 2)
+                        ))
                     """
                 )
             )
