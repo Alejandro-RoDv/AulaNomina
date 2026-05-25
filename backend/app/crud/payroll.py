@@ -15,7 +15,10 @@ from app.models.work_center import WorkCenter
 from app.schemas.payroll import PayrollCreate, PayrollFutureSimulationRequest, PayrollPrepareRequest, PayrollUpdate
 from app.services.irpf_calculator import calculate_irpf_2026
 
-SOCIAL_SECURITY_PERCENTAGE = Decimal("6.47")
+EMPLOYEE_COMMON_CONTINGENCIES_PERCENTAGE = Decimal("4.70")
+EMPLOYEE_UNEMPLOYMENT_PERCENTAGE = Decimal("1.55")
+EMPLOYEE_TRAINING_PERCENTAGE = Decimal("0.10")
+EMPLOYEE_MEI_PERCENTAGE = Decimal("0.13")
 DEFAULT_IRPF_PERCENTAGE = Decimal("10.00")
 
 MONTHLY_PERIODS = set(range(1, 12 + 1))
@@ -176,7 +179,13 @@ def calculate_payroll_amounts(
     unemployment_training_fogasa_base = gross_salary
     irpf_base = gross_salary
 
-    employee_social_security = money(gross_salary * SOCIAL_SECURITY_PERCENTAGE / Decimal("100"))
+    employee_common_contingencies = money(common_contingencies_base * EMPLOYEE_COMMON_CONTINGENCIES_PERCENTAGE / Decimal("100"))
+    employee_unemployment = money(unemployment_training_fogasa_base * EMPLOYEE_UNEMPLOYMENT_PERCENTAGE / Decimal("100"))
+    employee_training = money(unemployment_training_fogasa_base * EMPLOYEE_TRAINING_PERCENTAGE / Decimal("100"))
+    employee_mei = money(common_contingencies_base * EMPLOYEE_MEI_PERCENTAGE / Decimal("100"))
+    employee_social_security = money(
+        employee_common_contingencies + employee_unemployment + employee_training + employee_mei
+    )
     irpf = money(irpf_base * irpf_percentage / Decimal("100"))
     total_deductions = money(employee_social_security + irpf)
     net_salary = money(gross_salary - total_deductions)
@@ -187,6 +196,10 @@ def calculate_payroll_amounts(
         "professional_contingencies_base": professional_contingencies_base,
         "unemployment_training_fogasa_base": unemployment_training_fogasa_base,
         "irpf_base": irpf_base,
+        "employee_common_contingencies": employee_common_contingencies,
+        "employee_unemployment": employee_unemployment,
+        "employee_training": employee_training,
+        "employee_mei": employee_mei,
         "employee_social_security": employee_social_security,
         "irpf": irpf,
         "total_deductions": total_deductions,
@@ -673,6 +686,10 @@ def simulate_future_payrolls(db: Session, request: PayrollFutureSimulationReques
             "professional_contingencies_base": calculated["professional_contingencies_base"],
             "unemployment_training_fogasa_base": calculated["unemployment_training_fogasa_base"],
             "irpf_base": calculated["irpf_base"],
+            "employee_common_contingencies": calculated["employee_common_contingencies"],
+            "employee_unemployment": calculated["employee_unemployment"],
+            "employee_training": calculated["employee_training"],
+            "employee_mei": calculated["employee_mei"],
             "employee_social_security": calculated["employee_social_security"],
             "irpf_percentage": irpf_percentage,
             "suggested_irpf_percentage": suggested_irpf_percentage,
