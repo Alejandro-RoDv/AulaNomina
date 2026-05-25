@@ -25,6 +25,7 @@ class PayrollBase(BaseModel):
     period_month: int
     period_year: int
     salary_supplements: Decimal = Decimal("0.00")
+    variable_incentives: Decimal = Decimal("0.00")
     irpf_percentage: Optional[Decimal] = None
     irpf_mode: str = "auto"
     status: str = "pending"
@@ -57,7 +58,7 @@ class PayrollBase(BaseModel):
             raise ValueError("Modo IRPF no válido")
         return value
 
-    @field_validator("salary_supplements", "irpf_percentage")
+    @field_validator("salary_supplements", "variable_incentives", "irpf_percentage")
     @classmethod
     def validate_non_negative_amounts(cls, value):
         if value is not None and value < 0:
@@ -74,6 +75,7 @@ class PayrollUpdate(BaseModel):
     period_month: Optional[int] = None
     period_year: Optional[int] = None
     salary_supplements: Optional[Decimal] = None
+    variable_incentives: Optional[Decimal] = None
     irpf_percentage: Optional[Decimal] = None
     irpf_mode: Optional[str] = None
     status: Optional[str] = None
@@ -94,6 +96,13 @@ class PayrollUpdate(BaseModel):
             return value
         if value not in IRPF_MODE_VALUES:
             raise ValueError("Modo IRPF no válido")
+        return value
+
+    @field_validator("salary_supplements", "variable_incentives", "irpf_percentage")
+    @classmethod
+    def validate_non_negative_amounts(cls, value):
+        if value is not None and value < 0:
+            raise ValueError("Los importes y porcentajes no pueden ser negativos")
         return value
 
 
@@ -203,6 +212,7 @@ class PayrollFutureSimulationItem(BaseModel):
     period_year: int
     base_salary: Decimal
     salary_supplements: Decimal
+    variable_incentives: Decimal
     gross_salary: Decimal
     employee_social_security: Decimal
     irpf_percentage: Decimal
@@ -231,6 +241,7 @@ class PayrollResponse(BaseModel):
     period_label: Optional[str] = None
     base_salary: Decimal
     salary_supplements: Decimal
+    variable_incentives: Decimal = Decimal("0.00")
     extra_pay_proration: Decimal
     gross_salary: Decimal
     employee_social_security: Decimal
