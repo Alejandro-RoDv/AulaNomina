@@ -25,6 +25,7 @@ class Payroll(Base):
     period_year = Column(Integer, nullable=False)
     base_salary = Column(Numeric(10, 2), default=0, nullable=False)
     salary_supplements = Column(Numeric(10, 2), default=0, nullable=False)
+    variable_incentives = Column(Numeric(10, 2), default=0, nullable=False)
     extra_pay_proration = Column(Numeric(10, 2), default=0, nullable=False)
     gross_salary = Column(Numeric(10, 2), default=0, nullable=False)
     employee_social_security = Column(Numeric(10, 2), default=0, nullable=False)
