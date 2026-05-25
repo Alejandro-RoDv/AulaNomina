@@ -176,12 +176,18 @@ def resolve_irpf_percentage(db: Session, employee: Employee, contract: Contract,
     if tax_profile and tax_profile.voluntary_irpf is not None:
         voluntary = percent(tax_profile.voluntary_irpf)
 
-    if irpf_mode == "manual":
-        applied = percent(manual_percentage if manual_percentage is not None else DEFAULT_IRPF_PERCENTAGE)
-    elif irpf_mode == "voluntary" and voluntary is not None:
+    # Priority order:
+    # 1. Explicit manual percentage sent in the payroll form.
+    # 2. Saved voluntary IRPF from the worker fiscal profile.
+    # 3. Automatic suggested IRPF.
+    if irpf_mode == "manual" and manual_percentage is not None:
+        applied = percent(manual_percentage)
+    elif voluntary is not None:
         applied = voluntary
     elif irpf_mode == "voluntary" and manual_percentage is not None:
         applied = percent(manual_percentage)
+    elif irpf_mode == "manual":
+        applied = DEFAULT_IRPF_PERCENTAGE
     else:
         applied = suggested
 
