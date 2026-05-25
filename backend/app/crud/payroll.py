@@ -168,13 +168,25 @@ def calculate_payroll_amounts(
     irpf_percentage: Decimal,
 ):
     gross_salary = money(base_salary + salary_supplements + variable_incentives + extra_pay_proration)
+
+    # MVP simplification: all bases use the total accrued amount.
+    # Later splits can add legal minimum/maximum bases, excluded concepts and sector rules.
+    common_contingencies_base = gross_salary
+    professional_contingencies_base = gross_salary
+    unemployment_training_fogasa_base = gross_salary
+    irpf_base = gross_salary
+
     employee_social_security = money(gross_salary * SOCIAL_SECURITY_PERCENTAGE / Decimal("100"))
-    irpf = money(gross_salary * irpf_percentage / Decimal("100"))
+    irpf = money(irpf_base * irpf_percentage / Decimal("100"))
     total_deductions = money(employee_social_security + irpf)
     net_salary = money(gross_salary - total_deductions)
 
     return {
         "gross_salary": gross_salary,
+        "common_contingencies_base": common_contingencies_base,
+        "professional_contingencies_base": professional_contingencies_base,
+        "unemployment_training_fogasa_base": unemployment_training_fogasa_base,
+        "irpf_base": irpf_base,
         "employee_social_security": employee_social_security,
         "irpf": irpf,
         "total_deductions": total_deductions,
@@ -657,6 +669,10 @@ def simulate_future_payrolls(db: Session, request: PayrollFutureSimulationReques
             "salary_supplements": salary_supplements,
             "variable_incentives": variable_incentives,
             "gross_salary": calculated["gross_salary"],
+            "common_contingencies_base": calculated["common_contingencies_base"],
+            "professional_contingencies_base": calculated["professional_contingencies_base"],
+            "unemployment_training_fogasa_base": calculated["unemployment_training_fogasa_base"],
+            "irpf_base": calculated["irpf_base"],
             "employee_social_security": calculated["employee_social_security"],
             "irpf_percentage": irpf_percentage,
             "suggested_irpf_percentage": suggested_irpf_percentage,
