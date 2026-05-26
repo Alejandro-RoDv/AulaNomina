@@ -1,8 +1,15 @@
+import { useEffect, useState } from "react";
+
 import PageCard from "../components/layout/PageCard";
 import CompanyTable from "../components/CompanyTable";
 import WorkCenterTable from "../components/workCenters/WorkCenterTable";
 import CompanyCenterSplitForm from "../components/companyCenters/CompanyCenterSplitForm";
 import { openReportPreset } from "../utils/reportShortcuts";
+
+function getInitialSection() {
+  if (window.location.hash === "#company-centers") return "centers";
+  return "companies";
+}
 
 export default function CompaniesPage({
   loading,
@@ -15,7 +22,19 @@ export default function CompaniesPage({
   companySubmitting,
   workCenterSubmitting,
 }) {
+  const [section, setSection] = useState(getInitialSection);
   const activeWorkCenters = workCenters.filter((center) => center.is_active);
+
+  useEffect(() => {
+    const syncSection = () => setSection(getInitialSection());
+    syncSection();
+    window.addEventListener("hashchange", syncSection);
+    window.addEventListener("aulanomina-route-change", syncSection);
+    return () => {
+      window.removeEventListener("hashchange", syncSection);
+      window.removeEventListener("aulanomina-route-change", syncSection);
+    };
+  }, []);
 
   const reloadPageData = async () => {
     window.location.reload();
@@ -24,23 +43,25 @@ export default function CompaniesPage({
   return (
     <div style={styles.wrapper}>
       <PageCard
-        title="Empresas y centros"
-        subtitle="Elige si quieres crear una empresa o crear un centro asociado a una empresa existente."
+        title={section === "centers" ? "Centros" : "Empresas"}
+        subtitle={section === "centers" ? "Crea centros asociados a empresas existentes." : "Crea empresas y consulta el listado principal."}
       >
-        <CompanyCenterSplitForm companies={companies} onReloadData={reloadPageData} />
+        <CompanyCenterSplitForm companies={companies} workCenters={workCenters} initialSection={section} onReloadData={reloadPageData} />
       </PageCard>
 
-      <PageCard title="Empresas" subtitle="Empresas registradas actualmente en AulaNomina. Aquí sí se mantiene visible el ID de empresa.">
-        <div style={styles.reportActions}>
-          <button type="button" style={styles.reportButton} onClick={() => openReportPreset({ category: "company", reportId: "companies-active" })}>Informe empresas activas</button>
-          <button type="button" style={styles.reportButtonSecondary} onClick={() => openReportPreset({ category: "company", reportId: "centers-ccc" })}>Informe centros / CCC</button>
-        </div>
-        <CompanyTable loading={loading} companies={companies} onUpdateCompany={onUpdateCompany} onDeleteCompany={onDeleteCompany} submitting={companySubmitting} />
-      </PageCard>
-
-      <PageCard title="Centros" subtitle="Centros vinculados a empresas. No se muestra el ID técnico del centro.">
-        <WorkCenterTable loading={loading} workCenters={activeWorkCenters} companies={companies} onUpdateWorkCenter={onUpdateWorkCenter} onDeleteWorkCenter={onDeleteWorkCenter} submitting={workCenterSubmitting} />
-      </PageCard>
+      {section === "companies" ? (
+        <PageCard title="Empresas" subtitle="Empresas registradas actualmente en AulaNomina. Aquí sí se mantiene visible el ID de empresa.">
+          <div style={styles.reportActions}>
+            <button type="button" style={styles.reportButton} onClick={() => openReportPreset({ category: "company", reportId: "companies-active" })}>Informe empresas activas</button>
+            <button type="button" style={styles.reportButtonSecondary} onClick={() => openReportPreset({ category: "company", reportId: "centers-ccc" })}>Informe centros / CCC</button>
+          </div>
+          <CompanyTable loading={loading} companies={companies} onUpdateCompany={onUpdateCompany} onDeleteCompany={onDeleteCompany} submitting={companySubmitting} />
+        </PageCard>
+      ) : (
+        <PageCard title="Centros" subtitle="Centros vinculados a empresas. No se muestra el ID técnico del centro.">
+          <WorkCenterTable loading={loading} workCenters={activeWorkCenters} companies={companies} onUpdateWorkCenter={onUpdateWorkCenter} onDeleteWorkCenter={onDeleteWorkCenter} submitting={workCenterSubmitting} />
+        </PageCard>
+      )}
     </div>
   );
 }
