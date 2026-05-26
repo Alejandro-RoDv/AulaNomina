@@ -1,6 +1,7 @@
 from sqlalchemy import inspect, text
 
 from app.db import Base, engine
+from app.db_schema_patches import add_missing_payroll_contribution_columns
 
 
 def init_database() -> None:
@@ -12,6 +13,7 @@ def init_database() -> None:
     """
 
     Base.metadata.create_all(bind=engine)
+    add_missing_payroll_contribution_columns()
 
     inspector = inspect(engine)
     table_names = inspector.get_table_names()
