@@ -83,6 +83,14 @@ code {
   background: var(--code-bg);
 }
 
+#root > div > div > header {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 1000 !important;
+  background: #ffffff !important;
+  box-shadow: 0 3px 0 #111111 !important;
+}
+
 @page {
   size: A4 portrait;
   margin: 14mm;
