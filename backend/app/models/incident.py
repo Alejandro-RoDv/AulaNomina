@@ -4,7 +4,7 @@ from sqlalchemy import Column, Date, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import relationship
 
 from app.db import Base
-from app.services.payroll_days_calculator import resolve_incident_rule
+from app.services.incident_payroll_rules import resolve_incident_rule
 
 
 class Incident(Base):
