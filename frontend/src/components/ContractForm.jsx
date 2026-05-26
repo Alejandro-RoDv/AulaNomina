@@ -1,5 +1,6 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { getEmployeeVisibleCode } from "../utils/visibleCodes";
+import { consumeLastCreatedEmployee } from "../services/employeeApi";
 
 export const PAY_SCHEDULE_OPTIONS = [
   { value: "prorated_12", label: "Nómina prorrateada 12 pagas" },
@@ -8,6 +9,17 @@ export const PAY_SCHEDULE_OPTIONS = [
 
 export function formatPaySchedule(value) {
   return PAY_SCHEDULE_OPTIONS.find((option) => option.value === value)?.label || "Nómina no prorrateada 14 pagas";
+}
+
+function mergeEmployees(baseEmployees, extraEmployees) {
+  const employeeMap = new Map();
+
+  [...baseEmployees, ...extraEmployees].forEach((employee) => {
+    if (!employee?.id) return;
+    employeeMap.set(String(employee.id), employee);
+  });
+
+  return Array.from(employeeMap.values());
 }
 
 export default function ContractForm({
@@ -24,22 +36,43 @@ export default function ContractForm({
 }) {
   const [employeeModalOpen, setEmployeeModalOpen] = useState(false);
   const [employeeFilters, setEmployeeFilters] = useState({ name: "", dni: "", id: "" });
+  const [localEmployees, setLocalEmployees] = useState([]);
 
-  const selectedEmployee = employees.find((emp) => String(emp.id) === String(form.employee_id));
+  useEffect(() => {
+    const addEmployee = (employee) => {
+      if (!employee?.id || employee.is_active === false) return;
+      setLocalEmployees((prev) => mergeEmployees(prev, [employee]));
+    };
+
+    const storedEmployee = consumeLastCreatedEmployee();
+    if (storedEmployee) addEmployee(storedEmployee);
+
+    const handleEmployeeCreated = (event) => addEmployee(event.detail);
+    window.addEventListener("aulanomina:employee-created", handleEmployeeCreated);
+
+    return () => window.removeEventListener("aulanomina:employee-created", handleEmployeeCreated);
+  }, []);
+
+  const availableEmployees = useMemo(
+    () => mergeEmployees(employees, localEmployees).filter((employee) => employee.is_active !== false),
+    [employees, localEmployees]
+  );
+
+  const selectedEmployee = availableEmployees.find((emp) => String(emp.id) === String(form.employee_id));
   const selectedCompany = companies.find((company) => String(company.id) === String(form.company_id));
   const selectedCenter = workCenters.find((center) => String(center.id) === String(form.center_id));
-  const getEmployeeCode = (employee) => getEmployeeVisibleCode(employee, employees, contracts);
+  const getEmployeeCode = (employee) => getEmployeeVisibleCode(employee, availableEmployees, contracts);
 
   const filteredEmployees = useMemo(() => {
     const nameFilter = employeeFilters.name.trim().toLowerCase();
     const dniFilter = employeeFilters.dni.trim().toLowerCase();
     const idFilter = employeeFilters.id.trim().toLowerCase();
 
-    return employees.filter((emp) => {
+    return availableEmployees.filter((emp) => {
       const fullName = `${emp.first_name || ""} ${emp.last_name || ""}`.toLowerCase();
       const dni = `${emp.dni || ""}`.toLowerCase();
       const employeeCode = `${emp.employee_code || ""}`.toLowerCase();
-      const visibleCode = getEmployeeVisibleCode(emp, employees, contracts).toLowerCase();
+      const visibleCode = getEmployeeVisibleCode(emp, availableEmployees, contracts).toLowerCase();
 
       return (
         (!nameFilter || fullName.includes(nameFilter)) &&
@@ -47,7 +80,7 @@ export default function ContractForm({
         (!idFilter || employeeCode.includes(idFilter) || visibleCode.includes(idFilter))
       );
     });
-  }, [employees, contracts, employeeFilters]);
+  }, [availableEmployees, contracts, employeeFilters]);
 
   const handleEmployeeFilterChange = (event) => {
     const { name, value } = event.target;
