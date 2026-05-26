@@ -29,8 +29,6 @@ export default function DocumentForm({
   onChange,
   onSubmit,
   submitting,
-  error,
-  success,
 }) {
   const selectedEmployee = findSelectedEmployee(employees, form.employee_id);
   const selectedCompany = companies.find((company) => String(company.id) === String(form.company_id));
@@ -53,9 +51,6 @@ export default function DocumentForm({
           <p style={styles.subtitle}>Registra documentación laboral simulada asociada a un trabajador.</p>
         </div>
       </div>
-
-      {error ? <p style={styles.error}>{error}</p> : null}
-      {success ? <p style={styles.success}>{success}</p> : null}
 
       <form onSubmit={onSubmit} style={styles.form}>
         <label style={styles.label}>
@@ -160,6 +155,4 @@ const styles = {
   employeeContext: { gridColumn: "1 / -1", display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: "10px", border: "2px solid #111", background: "#fffdf0", padding: "10px 12px", fontWeight: 800 },
   actions: { gridColumn: "1 / -1", display: "flex", justifyContent: "flex-end" },
   button: { border: "3px solid #111", background: "#f0df62", padding: "10px 16px", fontWeight: 900, cursor: "pointer", boxShadow: "3px 3px 0 #111" },
-  error: { background: "#fee2e2", border: "2px solid #991b1b", color: "#991b1b", padding: "10px", fontWeight: 800 },
-  success: { background: "#dcfce7", border: "2px solid #166534", color: "#166534", padding: "10px", fontWeight: 800 },
 };
