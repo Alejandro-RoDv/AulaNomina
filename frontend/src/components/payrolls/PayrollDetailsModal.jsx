@@ -6,6 +6,11 @@ function formatPeriod(payroll) {
   return `${month}/${payroll.period_year || ""}`;
 }
 
+function formatDays(value, fallback = 0) {
+  const number = Number(value ?? fallback);
+  return Number.isFinite(number) ? number.toLocaleString("es-ES", { maximumFractionDigits: 0 }) : "0";
+}
+
 function getStatusLabel(value) {
   return PAYROLL_STATUS_OPTIONS.find((status) => status.value === value)?.label || value || "-";
 }
@@ -127,6 +132,10 @@ export default function PayrollDetailsModal({
   const isCancelled = payroll.status === "cancelled";
   const periodLabel = formatPeriod(payroll);
   const irpfPercentage = calculatePercentage(payroll.irpf, payroll.irpf_base || payroll.gross_salary);
+  const contributionDays = Number(payroll.contribution_days ?? 30);
+  const workedDays = Number(payroll.worked_days ?? 30);
+  const incidentDays = Number(payroll.incident_days ?? 0);
+  const nonContributionDays = Number(payroll.non_contribution_days ?? 0);
 
   const handlePrint = () => window.print();
 
@@ -184,7 +193,7 @@ export default function PayrollDetailsModal({
           <section style={styles.periodRow}>
             <span><strong>Periodo de liquidación:</strong> {periodLabel}</span>
             <span><strong>Contrato:</strong> {payroll.contract_id ? `Contrato ${payroll.contract_id}` : "No informado"}</span>
-            <span><strong>Total días:</strong> 30</span>
+            <span><strong>Días cotizados:</strong> {formatDays(contributionDays, 30)}</span>
             <span><strong>Estado:</strong> {getStatusLabel(payroll.status)}</span>
           </section>
 
@@ -201,7 +210,7 @@ export default function PayrollDetailsModal({
                 </thead>
                 <tbody>
                   <tr><td colSpan="4" style={styles.subsectionLabel}>Percepciones salariales:</td></tr>
-                  <ReceiptRow label="Salario base" quantity="30" amount={payroll.base_salary} />
+                  <ReceiptRow label="Salario base" quantity={formatDays(workedDays || contributionDays, 30)} amount={payroll.base_salary} />
                   <ReceiptRow label="Prorrata pagas extraordinarias" amount={payroll.extra_pay_proration} />
                   <ReceiptRow label="Complementos salariales" amount={payroll.salary_supplements} />
                   <ReceiptRow label="Variables / incentivos" amount={payroll.variable_incentives} />
@@ -245,6 +254,23 @@ export default function PayrollDetailsModal({
             <div style={styles.receiptTableBox}>
               <table style={styles.receiptTable}>
                 <thead>
+                  <tr><th colSpan="2" style={styles.receiptHeaderConcept}>DATOS DE COTIZACIÓN</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td style={styles.receiptConceptCell}>Días periodo</td><td style={styles.receiptAmountCell}>30</td></tr>
+                  <tr><td style={styles.receiptConceptCell}>Días cotizados</td><td style={styles.receiptAmountCell}>{formatDays(contributionDays, 30)}</td></tr>
+                  <tr><td style={styles.receiptConceptCell}>Días trabajados</td><td style={styles.receiptAmountCell}>{formatDays(workedDays, 30)}</td></tr>
+                  <tr><td style={styles.receiptConceptCell}>Días incidencia</td><td style={styles.receiptAmountCell}>{formatDays(incidentDays, 0)}</td></tr>
+                  <tr><td style={styles.receiptConceptCell}>Días no cotizados</td><td style={styles.receiptAmountCell}>{formatDays(nonContributionDays, 0)}</td></tr>
+                  <tr><td style={styles.receiptConceptCell}>Base diaria CC</td><td style={styles.receiptAmountCell}>{formatCurrency(payroll.daily_common_base)}</td></tr>
+                  <tr><td style={styles.receiptConceptCell}>Base diaria CP</td><td style={styles.receiptAmountCell}>{formatCurrency(payroll.daily_professional_base)}</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div style={styles.receiptTableBox}>
+              <table style={styles.receiptTable}>
+                <thead>
                   <tr><th colSpan="2" style={styles.receiptHeaderConcept}>DETERMINACIÓN BASES COTIZACIÓN A LA SEGURIDAD SOCIAL</th></tr>
                 </thead>
                 <tbody>
@@ -255,28 +281,28 @@ export default function PayrollDetailsModal({
                 </tbody>
               </table>
             </div>
+          </section>
 
-            <div style={styles.receiptTableBox}>
-              <table style={styles.receiptTable}>
-                <thead>
-                  <tr>
-                    <th style={styles.receiptHeaderConcept}>COSTE EMPRESA</th>
-                    <th style={styles.receiptHeaderSmall}>TIPO</th>
-                    <th style={styles.receiptHeaderAmount}>TOTALES</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <ReceiptDeductionRow label="Contingencias comunes empresa" percentage="23,60 %" amount={payroll.company_common_contingencies} />
-                  <ReceiptDeductionRow label="Desempleo empresa" percentage="5,50 %" amount={payroll.company_unemployment} />
-                  <ReceiptDeductionRow label="FOGASA" percentage="0,20 %" amount={payroll.company_fogasa} />
-                  <ReceiptDeductionRow label="Formación profesional empresa" percentage="0,60 %" amount={payroll.company_training} />
-                  <ReceiptDeductionRow label="AT/EP" percentage="1,50 %" amount={payroll.company_at_ep} />
-                  <ReceiptDeductionRow label="MEI empresa" percentage="0,67 %" amount={payroll.company_mei} />
-                  <ReceiptDeductionRow label="Total Seguridad Social empresa" amount={payroll.company_total_social_security} bold />
-                  <ReceiptDeductionRow label="Coste empresa total" amount={payroll.company_total_cost} bold />
-                </tbody>
-              </table>
-            </div>
+          <section style={styles.receiptTableBox}>
+            <table style={styles.receiptTable}>
+              <thead>
+                <tr>
+                  <th style={styles.receiptHeaderConcept}>COSTE EMPRESA</th>
+                  <th style={styles.receiptHeaderSmall}>TIPO</th>
+                  <th style={styles.receiptHeaderAmount}>TOTALES</th>
+                </tr>
+              </thead>
+              <tbody>
+                <ReceiptDeductionRow label="Contingencias comunes empresa" percentage="23,60 %" amount={payroll.company_common_contingencies} />
+                <ReceiptDeductionRow label="Desempleo empresa" percentage="5,50 %" amount={payroll.company_unemployment} />
+                <ReceiptDeductionRow label="FOGASA" percentage="0,20 %" amount={payroll.company_fogasa} />
+                <ReceiptDeductionRow label="Formación profesional empresa" percentage="0,60 %" amount={payroll.company_training} />
+                <ReceiptDeductionRow label="AT/EP" percentage="1,50 %" amount={payroll.company_at_ep} />
+                <ReceiptDeductionRow label="MEI empresa" percentage="0,67 %" amount={payroll.company_mei} />
+                <ReceiptDeductionRow label="Total Seguridad Social empresa" amount={payroll.company_total_social_security} bold />
+                <ReceiptDeductionRow label="Coste empresa total" amount={payroll.company_total_cost} bold />
+              </tbody>
+            </table>
           </section>
 
           <section style={styles.signatureGrid}>
@@ -411,7 +437,7 @@ const styles = {
   periodRow: { display: "grid", gridTemplateColumns: "2fr 2fr 1fr 1fr", gap: "10px", border: "2px solid #111827", borderRadius: "14px", backgroundColor: "#fffdf0", padding: "12px 14px", marginBottom: "18px", boxShadow: "3px 3px 0 #e5e7eb" },
   mainPayrollGrid: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "18px", marginBottom: "18px" },
   lowerGrid: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "18px", marginBottom: "18px" },
-  receiptTableBox: { border: "2px solid #111827", borderRadius: "14px", overflow: "hidden", backgroundColor: "#ffffff", breakInside: "avoid", boxShadow: "3px 3px 0 #e5e7eb" },
+  receiptTableBox: { border: "2px solid #111827", borderRadius: "14px", overflow: "hidden", backgroundColor: "#ffffff", breakInside: "avoid", boxShadow: "3px 3px 0 #e5e7eb", marginBottom: "18px" },
   receiptTable: { width: "100%", borderCollapse: "collapse", tableLayout: "fixed" },
   receiptHeaderConcept: { textAlign: "left", padding: "9px 10px", backgroundColor: "#f3f4f6", color: "#111827", fontWeight: 900, borderBottom: "1px solid #d1d5db" },
   receiptHeaderSmall: { width: "72px", textAlign: "right", padding: "9px 10px", backgroundColor: "#f3f4f6", color: "#111827", fontWeight: 900, borderBottom: "1px solid #d1d5db" },
