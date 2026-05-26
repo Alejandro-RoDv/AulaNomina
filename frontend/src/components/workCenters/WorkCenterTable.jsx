@@ -82,7 +82,6 @@ export default function WorkCenterTable({
         <table style={styles.table}>
           <thead>
             <tr>
-              <th style={styles.th}>Código</th>
               <th style={styles.th}>Centro</th>
               <th style={styles.th}>Empresa madre</th>
               <th style={styles.th}>CCC general</th>
@@ -95,7 +94,6 @@ export default function WorkCenterTable({
           <tbody>
             {workCenters.map((center) => (
               <tr key={center.id}>
-                <td style={styles.tdStrong}>{center.center_code}</td>
                 <td style={styles.td}>{center.name}</td>
                 <td style={styles.td}>{center.company_name || getCompanyName(center.company_id)}</td>
                 <td style={styles.td}>{center.general_ccc || "-"}</td>
@@ -112,7 +110,7 @@ export default function WorkCenterTable({
 
             {workCenters.length === 0 && (
               <tr>
-                <td colSpan="8" style={styles.emptyCell}>
+                <td colSpan="7" style={styles.emptyCell}>
                   No hay centros creados todavía.
                 </td>
               </tr>
@@ -127,7 +125,7 @@ export default function WorkCenterTable({
             <div style={styles.modalHeader}>
               <div>
                 <h3 style={styles.modalTitle}>Editar centro</h3>
-                <p style={styles.modalSubtitle}>{editingCenter.center_code} · {editingCenter.name}</p>
+                <p style={styles.modalSubtitle}>{editingCenter.name}</p>
               </div>
               <button type="button" onClick={closeEditModal} style={styles.closeButton}>×</button>
             </div>
@@ -142,10 +140,6 @@ export default function WorkCenterTable({
                       <option key={company.id} value={company.id}>{company.name}</option>
                     ))}
                   </select>
-                </div>
-                <div style={styles.formGroupSmall}>
-                  <label>Código centro</label>
-                  <input name="center_code" value={editForm.center_code} onChange={handleEditChange} required style={styles.input} />
                 </div>
                 <div style={styles.formGroup}>
                   <label>Nombre</label>
@@ -235,7 +229,6 @@ const styles = {
   table: { width: "100%", borderCollapse: "collapse" },
   th: { textAlign: "left", padding: "12px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb", whiteSpace: "nowrap" },
   td: { padding: "12px", borderBottom: "1px solid #eee", whiteSpace: "nowrap" },
-  tdStrong: { padding: "12px", borderBottom: "1px solid #eee", whiteSpace: "nowrap", fontWeight: 900, color: "#111827" },
   emptyCell: { padding: "18px", color: "#6b7280", textAlign: "center", borderBottom: "1px solid #eee" },
   editButton: { backgroundColor: "#111827", color: "#ffffff", border: "1px solid #111827", borderRadius: "8px", padding: "7px 10px", cursor: "pointer", fontWeight: 700 },
   deleteButton: { backgroundColor: "#fee2e2", color: "#991b1b", border: "1px solid #fecaca", borderRadius: "8px", padding: "10px 14px", cursor: "pointer", fontWeight: 800 },
@@ -249,7 +242,6 @@ const styles = {
   form: { display: "flex", flexDirection: "column", gap: "16px" },
   formRow: { display: "flex", gap: "16px", flexWrap: "wrap" },
   formGroup: { flex: 1, minWidth: "220px", display: "flex", flexDirection: "column", gap: "6px" },
-  formGroupSmall: { width: "170px", flex: "0 0 170px", display: "flex", flexDirection: "column", gap: "6px" },
   formGroupWide: { flex: 1, minWidth: "100%", display: "flex", flexDirection: "column", gap: "6px" },
   input: { padding: "10px 12px", border: "1px solid #ccc", borderRadius: "8px", fontSize: "14px" },
   confirmText: { margin: "0 0 16px", color: "#374151", lineHeight: 1.5 },
