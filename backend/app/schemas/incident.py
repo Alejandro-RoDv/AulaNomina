@@ -53,6 +53,10 @@ class IncidentResponse(BaseModel):
     company_name: Optional[str]
     contract_type: Optional[str]
     incident_type: str
+    payroll_effect_label: Optional[str] = None
+    affects_payroll: bool = False
+    reduces_worked_days: bool = False
+    reduces_contribution_days: bool = False
     start_date: date
     end_date: Optional[date]
     description: Optional[str]
