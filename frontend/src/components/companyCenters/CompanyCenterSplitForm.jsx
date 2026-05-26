@@ -79,11 +79,6 @@ export default function CompanyCenterSplitForm({ companies, workCenters = [], in
     if (onReloadData) await onReloadData();
   };
 
-  const handleSectionChange = (event) => {
-    setSection(event.target.value);
-    resetMessages();
-  };
-
   const handleCompanyChange = (event) => {
     const { name, value } = event.target;
     setCompanyForm((prev) => ({ ...prev, [name]: value }));
@@ -149,19 +144,6 @@ export default function CompanyCenterSplitForm({ companies, workCenters = [], in
 
   return (
     <div style={styles.wrapper}>
-      <div style={styles.selectorRow}>
-        <label style={styles.selectorGroup}>
-          Sección
-          <select value={section} onChange={handleSectionChange} style={styles.input}>
-            <option value="companies">Empresas</option>
-            <option value="centers">Centros</option>
-          </select>
-        </label>
-        <p style={styles.helperText}>
-          En Empresas creas la empresa. En Centros creas un centro asociado. El código interno del centro se genera automáticamente.
-        </p>
-      </div>
-
       {section === "companies" ? (
         <form onSubmit={handleCreateCompany} style={styles.form}>
           <h3 style={styles.sectionTitle}>Nueva empresa</h3>
@@ -264,9 +246,6 @@ export default function CompanyCenterSplitForm({ companies, workCenters = [], in
 
 const styles = {
   wrapper: { display: "flex", flexDirection: "column", gap: "18px" },
-  selectorRow: { display: "flex", gap: "16px", alignItems: "end", flexWrap: "wrap", backgroundColor: "#f9fafb", border: "1px solid #e5e7eb", borderRadius: "10px", padding: "12px" },
-  selectorGroup: { width: "240px", display: "flex", flexDirection: "column", gap: "6px", fontWeight: 900, color: "#111827" },
-  helperText: { margin: 0, color: "#4b5563", fontSize: "13px", fontWeight: 700, maxWidth: "680px" },
   form: { border: "1px solid #e5e7eb", borderRadius: "10px", padding: "14px", display: "flex", flexDirection: "column", gap: "14px" },
   formRow: { display: "flex", gap: "16px", flexWrap: "wrap" },
   formGroup: { flex: 1, minWidth: "220px", display: "flex", flexDirection: "column", gap: "6px", fontWeight: 800, color: "#111827" },
