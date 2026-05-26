@@ -4,9 +4,13 @@ from app.db import engine
 
 
 PAYROLL_CONTRIBUTION_COLUMNS = {
+    "worked_base_salary": "NUMERIC(10, 2) DEFAULT 0 NOT NULL",
+    "temporary_disability_benefit": "NUMERIC(10, 2) DEFAULT 0 NOT NULL",
+    "company_disability_complement": "NUMERIC(10, 2) DEFAULT 0 NOT NULL",
     "contribution_days": "INTEGER DEFAULT 30 NOT NULL",
     "worked_days": "INTEGER DEFAULT 30 NOT NULL",
     "incident_days": "INTEGER DEFAULT 0 NOT NULL",
+    "it_days": "INTEGER DEFAULT 0 NOT NULL",
     "non_contribution_days": "INTEGER DEFAULT 0 NOT NULL",
     "daily_common_base": "NUMERIC(10, 2) DEFAULT 0 NOT NULL",
     "daily_professional_base": "NUMERIC(10, 2) DEFAULT 0 NOT NULL",
@@ -20,12 +24,10 @@ BASE_COLUMNS_REQUIRED_FOR_DAILY_BASE_BACKFILL = {
 
 
 def add_missing_payroll_contribution_columns() -> None:
-    """Add Split 18 payroll contribution-day columns to existing databases.
+    """Add Split 18 payroll contribution and earning-line columns.
 
     This is an idempotent development/demo bridge until Alembic migrations are
-    introduced. It is intentionally narrow and defensive:
-    - It always adds the new columns if payrolls exists.
-    - It only backfills daily bases when the older base columns already exist.
+    introduced. It is intentionally narrow and defensive.
     """
 
     inspector = inspect(engine)
@@ -38,7 +40,7 @@ def add_missing_payroll_contribution_columns() -> None:
         for column_name, column_definition in PAYROLL_CONTRIBUTION_COLUMNS.items():
             if column_name not in existing_columns:
                 connection.execute(
-                    text(f"ALTER TABLE payrolls ADD COLUMN {column_name} {column_definition}")
+                    text("ALTER TABLE payrolls ADD COLUMN " + column_name + " " + column_definition)
                 )
 
         refreshed_columns = {
@@ -53,7 +55,11 @@ def add_missing_payroll_contribution_columns() -> None:
                     SET contribution_days = COALESCE(NULLIF(contribution_days, 0), 30),
                         worked_days = COALESCE(NULLIF(worked_days, 0), 30),
                         incident_days = COALESCE(incident_days, 0),
+                        it_days = COALESCE(it_days, 0),
                         non_contribution_days = COALESCE(non_contribution_days, 0),
+                        worked_base_salary = COALESCE(NULLIF(worked_base_salary, 0), base_salary, gross_salary, 0),
+                        temporary_disability_benefit = COALESCE(temporary_disability_benefit, 0),
+                        company_disability_complement = COALESCE(company_disability_complement, 0),
                         daily_common_base = COALESCE(daily_common_base, 0),
                         daily_professional_base = COALESCE(daily_professional_base, 0)
                     """
@@ -68,7 +74,11 @@ def add_missing_payroll_contribution_columns() -> None:
                 SET contribution_days = COALESCE(NULLIF(contribution_days, 0), 30),
                     worked_days = COALESCE(NULLIF(worked_days, 0), 30),
                     incident_days = COALESCE(incident_days, 0),
+                    it_days = COALESCE(it_days, 0),
                     non_contribution_days = COALESCE(non_contribution_days, 0),
+                    worked_base_salary = COALESCE(NULLIF(worked_base_salary, 0), base_salary, gross_salary, 0),
+                    temporary_disability_benefit = COALESCE(temporary_disability_benefit, 0),
+                    company_disability_complement = COALESCE(company_disability_complement, 0),
                     daily_common_base = COALESCE(
                         NULLIF(daily_common_base, 0),
                         ROUND(
