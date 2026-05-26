@@ -1,7 +1,7 @@
 import PageCard from "../components/layout/PageCard";
 import CompanyTable from "../components/CompanyTable";
 import WorkCenterTable from "../components/workCenters/WorkCenterTable";
-import CompanyCenterForm from "../components/companyCenters/CompanyCenterForm";
+import CompanyCenterSplitForm from "../components/companyCenters/CompanyCenterSplitForm";
 import { openReportPreset } from "../utils/reportShortcuts";
 
 export default function CompaniesPage({
@@ -27,7 +27,7 @@ export default function CompaniesPage({
         title="Empresas y centros"
         subtitle="Elige si quieres crear una empresa o crear un centro asociado a una empresa existente."
       >
-        <CompanyCenterForm companies={companies} onReloadData={reloadPageData} />
+        <CompanyCenterSplitForm companies={companies} onReloadData={reloadPageData} />
       </PageCard>
 
       <PageCard title="Empresas" subtitle="Empresas registradas actualmente en AulaNomina. Aquí sí se mantiene visible el ID de empresa.">
