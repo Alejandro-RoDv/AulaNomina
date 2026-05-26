@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { createCompany } from "../../services/companyApi";
 import { createWorkCenter } from "../../services/workCenterApi";
@@ -14,7 +14,6 @@ const initialCompany = {
 
 const initialCenter = {
   company_id: "",
-  center_code: "",
   name: "",
   general_ccc: "",
   main_ccc: "",
@@ -34,10 +33,16 @@ function buildCompanyPayload(form) {
   };
 }
 
-function buildCenterPayload(form, company) {
+function getNextCenterCode(companyId, workCenters) {
+  if (!companyId) return "";
+  const centersInCompany = workCenters.filter((center) => String(center.company_id) === String(companyId));
+  return `${companyId}.${centersInCompany.length + 1}`;
+}
+
+function buildCenterPayload(form, company, workCenters) {
   return {
     company_id: Number(form.company_id),
-    center_code: form.center_code,
+    center_code: getNextCenterCode(form.company_id, workCenters),
     name: form.name,
     general_ccc: form.general_ccc || company?.ccc || null,
     main_ccc: form.main_ccc || null,
@@ -47,13 +52,17 @@ function buildCenterPayload(form, company) {
   };
 }
 
-export default function CompanyCenterSplitForm({ companies, onReloadData }) {
-  const [section, setSection] = useState("companies");
+export default function CompanyCenterSplitForm({ companies, workCenters = [], initialSection = "companies", onReloadData }) {
+  const [section, setSection] = useState(initialSection);
   const [companyForm, setCompanyForm] = useState(initialCompany);
   const [centerForm, setCenterForm] = useState(initialCenter);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+
+  useEffect(() => {
+    setSection(initialSection);
+  }, [initialSection]);
 
   const activeCompanies = companies.filter((company) => company.is_active);
   const selectedCompany = useMemo(
@@ -127,7 +136,7 @@ export default function CompanyCenterSplitForm({ companies, onReloadData }) {
 
     try {
       setSubmitting(true);
-      await createWorkCenter(buildCenterPayload(centerForm, selectedCompany));
+      await createWorkCenter(buildCenterPayload(centerForm, selectedCompany, workCenters));
       setCenterForm(initialCenter);
       setSuccess("Centro creado correctamente");
       await reloadData();
@@ -149,7 +158,7 @@ export default function CompanyCenterSplitForm({ companies, onReloadData }) {
           </select>
         </label>
         <p style={styles.helperText}>
-          En Empresas creas la empresa. En Centros creas un centro y lo asocias a una empresa existente.
+          En Empresas creas la empresa. En Centros creas un centro asociado. El código interno del centro se genera automáticamente.
         </p>
       </div>
 
@@ -209,16 +218,10 @@ export default function CompanyCenterSplitForm({ companies, onReloadData }) {
             </select>
           </label>
 
-          <div style={styles.formRow}>
-            <label style={styles.formGroupSmall}>
-              Código centro
-              <input name="center_code" value={centerForm.center_code} onChange={handleCenterChange} required placeholder="Ej. 1.1" style={styles.input} />
-            </label>
-            <label style={styles.formGroup}>
-              Nombre centro
-              <input name="name" value={centerForm.name} onChange={handleCenterChange} required placeholder="Ej. Colegio San Rafael" style={styles.input} />
-            </label>
-          </div>
+          <label style={styles.formGroupWide}>
+            Nombre centro
+            <input name="name" value={centerForm.name} onChange={handleCenterChange} required placeholder="Ej. Colegio San Rafael" style={styles.input} />
+          </label>
 
           <div style={styles.formRow}>
             <label style={styles.formGroup}>
