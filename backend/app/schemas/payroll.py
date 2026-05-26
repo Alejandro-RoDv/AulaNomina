@@ -214,12 +214,16 @@ class PayrollFutureSimulationItem(BaseModel):
     period_month: int
     period_year: int
     base_salary: Decimal
+    worked_base_salary: Decimal = Decimal("0.00")
+    temporary_disability_benefit: Decimal = Decimal("0.00")
+    company_disability_complement: Decimal = Decimal("0.00")
     salary_supplements: Decimal
     variable_incentives: Decimal
     gross_salary: Decimal
     contribution_days: int = 30
     worked_days: int = 30
     incident_days: int = 0
+    it_days: int = 0
     non_contribution_days: int = 0
     common_contingencies_base: Decimal = Decimal("0.00")
     professional_contingencies_base: Decimal = Decimal("0.00")
@@ -265,6 +269,9 @@ class PayrollResponse(BaseModel):
     period_year: int
     period_label: Optional[str] = None
     base_salary: Decimal
+    worked_base_salary: Decimal = Decimal("0.00")
+    temporary_disability_benefit: Decimal = Decimal("0.00")
+    company_disability_complement: Decimal = Decimal("0.00")
     salary_supplements: Decimal
     variable_incentives: Decimal = Decimal("0.00")
     extra_pay_proration: Decimal
@@ -272,6 +279,7 @@ class PayrollResponse(BaseModel):
     contribution_days: int = 30
     worked_days: int = 30
     incident_days: int = 0
+    it_days: int = 0
     non_contribution_days: int = 0
     common_contingencies_base: Decimal = Decimal("0.00")
     professional_contingencies_base: Decimal = Decimal("0.00")
