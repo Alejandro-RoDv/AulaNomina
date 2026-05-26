@@ -38,14 +38,13 @@ export default function ContractForm({
     return employees.filter((emp) => {
       const fullName = `${emp.first_name || ""} ${emp.last_name || ""}`.toLowerCase();
       const dni = `${emp.dni || ""}`.toLowerCase();
-      const id = String(emp.id).toLowerCase();
       const employeeCode = `${emp.employee_code || ""}`.toLowerCase();
       const visibleCode = getEmployeeVisibleCode(emp, employees, contracts).toLowerCase();
 
       return (
         (!nameFilter || fullName.includes(nameFilter)) &&
         (!dniFilter || dni.includes(dniFilter)) &&
-        (!idFilter || id.includes(idFilter) || employeeCode.includes(idFilter) || visibleCode.includes(idFilter))
+        (!idFilter || employeeCode.includes(idFilter) || visibleCode.includes(idFilter))
       );
     });
   }, [employees, contracts, employeeFilters]);
@@ -170,13 +169,13 @@ export default function ContractForm({
             <div style={styles.modalHeader}>
               <div>
                 <h3 style={styles.modalTitle}>Seleccionar trabajador</h3>
-                <p style={styles.modalSubtitle}>Filtra por código visible, ID interno, nombre o DNI.</p>
+                <p style={styles.modalSubtitle}>Filtra por código visible, nombre o DNI.</p>
               </div>
               <button type="button" onClick={() => setEmployeeModalOpen(false)} style={styles.closeButton}>Cerrar</button>
             </div>
 
             <div style={styles.filterRow}>
-              <div style={styles.filterGroupId}><label>Código / ID</label><input name="id" value={employeeFilters.id} onChange={handleEmployeeFilterChange} placeholder="Ej. 1.2" style={styles.input} /></div>
+              <div style={styles.filterGroupId}><label>Código</label><input name="id" value={employeeFilters.id} onChange={handleEmployeeFilterChange} placeholder="Ej. 1.2" style={styles.input} /></div>
               <div style={styles.filterGroupName}><label>Nombre y apellidos</label><input name="name" value={employeeFilters.name} onChange={handleEmployeeFilterChange} placeholder="Nombre o apellidos" style={styles.input} /></div>
               <div style={styles.filterGroupDni}><label>DNI</label><input name="dni" value={employeeFilters.dni} onChange={handleEmployeeFilterChange} placeholder="DNI" style={styles.input} /></div>
             </div>
