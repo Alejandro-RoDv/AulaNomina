@@ -1,3 +1,6 @@
+from calendar import monthrange
+from datetime import date
+
 from sqlalchemy.orm import Session, joinedload
 from fastapi import HTTPException
 
@@ -5,8 +8,63 @@ from app.models.incident import Incident
 from app.models.employee import Employee
 from app.models.contract import Contract
 from app.models.company import Company
+from app.models.payroll import Payroll
 from app.models.work_center import WorkCenter
 from app.schemas.incident import IncidentCreate, IncidentUpdate
+
+ACTIVE_PAYROLL_STATUSES = {"draft", "pending", "calculated", "reviewed", "closed"}
+
+
+def iter_months_between(start_date: date, end_date: date | None):
+    current = date(start_date.year, start_date.month, 1)
+    effective_end = end_date or start_date
+    final = date(effective_end.year, effective_end.month, 1)
+
+    while current <= final:
+        yield current.month, current.year
+        if current.month == 12:
+            current = date(current.year + 1, 1, 1)
+        else:
+            current = date(current.year, current.month + 1, 1)
+
+
+def get_impacted_payrolls_count(db: Session, incident: Incident) -> int:
+    if not incident.affects_payroll:
+        return 0
+
+    period_filters = [
+        (Payroll.period_month == month) & (Payroll.period_year == year)
+        for month, year in iter_months_between(incident.start_date, incident.end_date)
+    ]
+
+    if not period_filters:
+        return 0
+
+    query = db.query(Payroll).filter(
+        Payroll.contract_id == incident.contract_id,
+        Payroll.status.in_(ACTIVE_PAYROLL_STATUSES),
+    )
+
+    combined_filter = period_filters[0]
+    for period_filter in period_filters[1:]:
+        combined_filter = combined_filter | period_filter
+
+    return query.filter(combined_filter).count()
+
+
+def annotate_incident_payroll_impact(db: Session, incident: Incident | None):
+    if not incident:
+        return incident
+
+    impacted_count = get_impacted_payrolls_count(db, incident)
+    incident.impacted_payrolls_count = impacted_count
+    incident.has_impacted_payrolls = impacted_count > 0
+    incident.payroll_message = (
+        "Esta incidencia afecta a una nómina ya generada. Recalcula la nómina para aplicar los cambios."
+        if impacted_count > 0
+        else None
+    )
+    return incident
 
 
 def create_incident(db: Session, incident: IncidentCreate):
@@ -59,21 +117,23 @@ def create_incident(db: Session, incident: IncidentCreate):
 
 
 def get_incidents(db: Session):
-    return db.query(Incident).options(
+    incidents = db.query(Incident).options(
         joinedload(Incident.employee),
         joinedload(Incident.contract),
         joinedload(Incident.company),
         joinedload(Incident.work_center),
     ).all()
+    return [annotate_incident_payroll_impact(db, incident) for incident in incidents]
 
 
 def get_incident(db: Session, incident_id: int):
-    return db.query(Incident).options(
+    incident = db.query(Incident).options(
         joinedload(Incident.employee),
         joinedload(Incident.contract),
         joinedload(Incident.company),
         joinedload(Incident.work_center),
     ).filter(Incident.id == incident_id).first()
+    return annotate_incident_payroll_impact(db, incident)
 
 
 def update_incident(db: Session, incident_id: int, data: IncidentUpdate):
