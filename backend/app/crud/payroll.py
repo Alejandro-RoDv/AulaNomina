@@ -30,9 +30,13 @@ ACTIVE_PAYROLL_STATUSES = {"draft", "pending", "calculated", "reviewed", "closed
 
 PERSISTED_PAYROLL_AMOUNT_KEYS = {
     "gross_salary",
+    "worked_base_salary",
+    "temporary_disability_benefit",
+    "company_disability_complement",
     "contribution_days",
     "worked_days",
     "incident_days",
+    "it_days",
     "non_contribution_days",
     "common_contingencies_base",
     "professional_contingencies_base",
