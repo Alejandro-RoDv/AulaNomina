@@ -1,5 +1,3 @@
-from calendar import monthrange
-from datetime import date
 from decimal import Decimal
 
 from fastapi import HTTPException
@@ -14,7 +12,12 @@ from app.models.tax_profile import TaxProfile
 from app.models.work_center import WorkCenter
 from app.schemas.payroll import PayrollCreate, PayrollFutureSimulationRequest, PayrollPrepareRequest, PayrollUpdate
 from app.services.irpf_calculator import calculate_irpf_2026
-from app.services.payroll_amounts import calculate_payroll_amounts, money
+from app.services.payroll_amounts import money
+from app.services.payroll_engine import (
+    calculate_payroll_engine_result,
+    get_effective_period_dates,
+    get_period_dates,
+)
 
 DEFAULT_IRPF_PERCENTAGE = Decimal("10.00")
 
@@ -27,10 +30,16 @@ ACTIVE_PAYROLL_STATUSES = {"draft", "pending", "calculated", "reviewed", "closed
 
 PERSISTED_PAYROLL_AMOUNT_KEYS = {
     "gross_salary",
+    "contribution_days",
+    "worked_days",
+    "incident_days",
+    "non_contribution_days",
     "common_contingencies_base",
     "professional_contingencies_base",
     "unemployment_training_fogasa_base",
     "irpf_base",
+    "daily_common_base",
+    "daily_professional_base",
     "employee_common_contingencies",
     "employee_unemployment",
     "employee_training",
@@ -54,42 +63,12 @@ def percent(value) -> Decimal:
     return money(value)
 
 
-def persisted_payroll_amounts(calculated_amounts: dict[str, Decimal]) -> dict[str, Decimal]:
+def persisted_payroll_amounts(calculated_amounts: dict) -> dict:
     return {
         key: value
         for key, value in calculated_amounts.items()
         if key in PERSISTED_PAYROLL_AMOUNT_KEYS
     }
-
-
-def calculate_contract_base_salary(contract: Contract, period_month: int) -> Decimal:
-    annual_salary = money(contract.salary_base or Decimal("0.00"))
-
-    if period_month == EXTRA_COMPLEMENTARY:
-        return Decimal("0.00")
-
-    # salary_base is the agreed gross annual salary.
-    # A 14-pay contract has 12 ordinary payrolls + 2 extra payrolls.
-    # A 12-pay prorated contract keeps the ordinary base as 1/14 and adds
-    # the prorated extra-pay amount separately, so the annual total remains
-    # exactly the agreed salary instead of overcounting the two extra pays.
-    if period_month in {EXTRA_JULY, EXTRA_DECEMBER}:
-        return money(annual_salary / Decimal("14"))
-
-    return money(annual_salary / Decimal("14"))
-
-
-def calculate_extra_pay_proration(contract: Contract, period_month: int) -> Decimal:
-    annual_salary = money(contract.salary_base or Decimal("0.00"))
-    pay_schedule = contract.pay_schedule or "not_prorated_14"
-
-    if period_month not in MONTHLY_PERIODS:
-        return Decimal("0.00")
-
-    if pay_schedule != "prorated_12":
-        return Decimal("0.00")
-
-    return money(((annual_salary / Decimal("14")) * Decimal("2")) / Decimal("12"))
 
 
 def tax_profile_to_calculation_payload(tax_profile: TaxProfile | None, employee: Employee, contract: Contract, expected_annual_salary: Decimal):
@@ -176,10 +155,6 @@ def resolve_irpf_percentage(db: Session, employee: Employee, contract: Contract,
     if tax_profile and tax_profile.voluntary_irpf is not None:
         voluntary = percent(tax_profile.voluntary_irpf)
 
-    # Priority order:
-    # 1. Explicit manual percentage sent in the payroll form.
-    # 2. Saved voluntary IRPF from the worker fiscal profile.
-    # 3. Automatic suggested IRPF.
     if irpf_mode == "manual" and manual_percentage is not None:
         applied = percent(manual_percentage)
     elif voluntary is not None:
@@ -213,26 +188,6 @@ def get_payrolls(db: Session):
 
 def get_payroll(db: Session, payroll_id: int):
     return get_payroll_query(db).filter(Payroll.id == payroll_id).first()
-
-
-def get_period_dates(period_month: int, period_year: int):
-    if period_month not in MONTHLY_PERIODS:
-        return None, None
-
-    last_day = monthrange(period_year, period_month)[1]
-    return date(period_year, period_month, 1), date(period_year, period_month, last_day)
-
-
-def get_effective_period_dates(period_month: int, period_year: int):
-    if period_month in MONTHLY_PERIODS:
-        return get_period_dates(period_month, period_year)
-    if period_month == EXTRA_JULY:
-        return date(period_year, 7, 1), date(period_year, 7, 31)
-    if period_month == EXTRA_DECEMBER:
-        return date(period_year, 12, 1), date(period_year, 12, 31)
-    if period_month == EXTRA_COMPLEMENTARY:
-        return date(period_year, 12, 1), date(period_year, 12, 31)
-    return None, None
 
 
 def contract_is_valid_for_period(contract: Contract, period_month: int, period_year: int) -> bool:
@@ -331,28 +286,57 @@ def validate_payroll_relations(db: Session, payroll: PayrollCreate):
     return employee, contract, company
 
 
-def create_payroll(db: Session, payroll: PayrollCreate):
-    employee, contract, company = validate_payroll_relations(db, payroll)
-
-    base_salary = calculate_contract_base_salary(contract, payroll.period_month)
-    salary_supplements = money(payroll.salary_supplements or Decimal("0.00"))
-    variable_incentives = money(payroll.variable_incentives or Decimal("0.00"))
-    extra_pay_proration = calculate_extra_pay_proration(contract, payroll.period_month)
-    irpf_mode = payroll.irpf_mode or "auto"
+def calculate_persistable_payroll_result(
+    db: Session,
+    employee: Employee,
+    contract: Contract,
+    period_month: int,
+    period_year: int,
+    salary_supplements: Decimal,
+    variable_incentives: Decimal,
+    irpf_mode: str,
+    manual_irpf_percentage: Decimal | None,
+):
     irpf_percentage, suggested_irpf_percentage = resolve_irpf_percentage(
         db=db,
         employee=employee,
         contract=contract,
         irpf_mode=irpf_mode,
-        manual_percentage=payroll.irpf_percentage,
+        manual_percentage=manual_irpf_percentage,
     )
 
-    calculated_amounts = calculate_payroll_amounts(
-        base_salary=base_salary,
+    calculated = calculate_payroll_engine_result(
+        db=db,
+        employee=employee,
+        contract=contract,
+        period_month=period_month,
+        period_year=period_year,
         salary_supplements=salary_supplements,
         variable_incentives=variable_incentives,
-        extra_pay_proration=extra_pay_proration,
         irpf_percentage=irpf_percentage,
+        suggested_irpf_percentage=suggested_irpf_percentage,
+    )
+
+    return calculated
+
+
+def create_payroll(db: Session, payroll: PayrollCreate):
+    employee, contract, company = validate_payroll_relations(db, payroll)
+
+    salary_supplements = money(payroll.salary_supplements or Decimal("0.00"))
+    variable_incentives = money(payroll.variable_incentives or Decimal("0.00"))
+    irpf_mode = payroll.irpf_mode or "auto"
+
+    calculated = calculate_persistable_payroll_result(
+        db=db,
+        employee=employee,
+        contract=contract,
+        period_month=payroll.period_month,
+        period_year=payroll.period_year,
+        salary_supplements=salary_supplements,
+        variable_incentives=variable_incentives,
+        irpf_mode=irpf_mode,
+        manual_irpf_percentage=payroll.irpf_percentage,
     )
 
     db_payroll = Payroll(
@@ -362,15 +346,15 @@ def create_payroll(db: Session, payroll: PayrollCreate):
         center_id=payroll.center_id or contract.center_id,
         period_month=payroll.period_month,
         period_year=payroll.period_year,
-        base_salary=base_salary,
-        salary_supplements=salary_supplements,
-        variable_incentives=variable_incentives,
-        extra_pay_proration=extra_pay_proration,
+        base_salary=calculated["base_salary"],
+        salary_supplements=calculated["salary_supplements"],
+        variable_incentives=calculated["variable_incentives"],
+        extra_pay_proration=calculated["extra_pay_proration"],
         irpf_mode=irpf_mode,
-        irpf_percentage=irpf_percentage,
-        suggested_irpf_percentage=suggested_irpf_percentage,
+        irpf_percentage=calculated["irpf_percentage"],
+        suggested_irpf_percentage=calculated["suggested_irpf_percentage"],
         status=payroll.status or "pending",
-        **persisted_payroll_amounts(calculated_amounts),
+        **persisted_payroll_amounts(calculated),
     )
 
     db.add(db_payroll)
@@ -414,6 +398,31 @@ def build_skipped_item(contract: Contract, reason: str):
         "contract_id": contract.id,
         "contract_code": build_contract_code(contract),
         "reason": reason,
+    }
+
+
+def build_prepare_item_from_payroll(contract: Contract, payroll: Payroll, incident_summary: list[str], already_existing: bool):
+    return {
+        "payroll_id": payroll.id,
+        "employee_id": contract.employee_id,
+        "employee_code": contract.employee.employee_code,
+        "employee_name": contract.employee_name or "",
+        "contract_id": contract.id,
+        "contract_code": build_contract_code(contract),
+        "company_id": contract.company_id,
+        "company_name": contract.company_name,
+        "center_id": contract.center_id,
+        "center_name": contract.work_center.name if contract.work_center else None,
+        "incident_summary": incident_summary,
+        "status": payroll.status,
+        "gross_salary": money(payroll.gross_salary or Decimal("0.00")),
+        "contribution_days": payroll.contribution_days or 30,
+        "incident_days": payroll.incident_days or 0,
+        "has_payroll_affecting_incidents": bool((payroll.incident_days or 0) > 0),
+        "irpf_mode": payroll.irpf_mode or "auto",
+        "irpf_percentage": percent(payroll.irpf_percentage),
+        "suggested_irpf_percentage": percent(payroll.suggested_irpf_percentage),
+        "already_existing": already_existing,
     }
 
 
@@ -482,25 +491,7 @@ def prepare_monthly_payrolls(db: Session, request: PayrollPrepareRequest):
 
         if existing_payroll:
             existing_count += 1
-            result_items.append({
-                "payroll_id": existing_payroll.id,
-                "employee_id": contract.employee_id,
-                "employee_code": contract.employee.employee_code,
-                "employee_name": contract.employee_name or "",
-                "contract_id": contract.id,
-                "contract_code": build_contract_code(contract),
-                "company_id": contract.company_id,
-                "company_name": contract.company_name,
-                "center_id": contract.center_id,
-                "center_name": contract.work_center.name if contract.work_center else None,
-                "incident_summary": incident_summary,
-                "status": existing_payroll.status,
-                "gross_salary": money(existing_payroll.gross_salary or Decimal("0.00")),
-                "irpf_mode": existing_payroll.irpf_mode or "auto",
-                "irpf_percentage": percent(existing_payroll.irpf_percentage),
-                "suggested_irpf_percentage": percent(existing_payroll.suggested_irpf_percentage),
-                "already_existing": True,
-            })
+            result_items.append(build_prepare_item_from_payroll(contract, existing_payroll, incident_summary, True))
             continue
 
         payroll_create = PayrollCreate(
@@ -518,26 +509,7 @@ def prepare_monthly_payrolls(db: Session, request: PayrollPrepareRequest):
 
         created_payroll = create_payroll(db, payroll_create)
         created_count += 1
-
-        result_items.append({
-            "payroll_id": created_payroll.id,
-            "employee_id": contract.employee_id,
-            "employee_code": contract.employee.employee_code,
-            "employee_name": contract.employee_name or "",
-            "contract_id": contract.id,
-            "contract_code": build_contract_code(contract),
-            "company_id": contract.company_id,
-            "company_name": contract.company_name,
-            "center_id": contract.center_id,
-            "center_name": contract.work_center.name if contract.work_center else None,
-            "incident_summary": incident_summary,
-            "status": created_payroll.status,
-            "gross_salary": money(created_payroll.gross_salary or Decimal("0.00")),
-            "irpf_mode": created_payroll.irpf_mode or "auto",
-            "irpf_percentage": percent(created_payroll.irpf_percentage),
-            "suggested_irpf_percentage": percent(created_payroll.suggested_irpf_percentage),
-            "already_existing": False,
-        })
+        result_items.append(build_prepare_item_from_payroll(contract, created_payroll, incident_summary, False))
 
     return {
         "period_month": request.period_month,
@@ -587,33 +559,27 @@ def update_payroll(db: Session, payroll_id: int, payroll_data: PayrollUpdate):
     for key, value in update_data.items():
         setattr(db_payroll, key, value)
 
-    base_salary = calculate_contract_base_salary(contract, db_payroll.period_month)
-    salary_supplements = money(db_payroll.salary_supplements or Decimal("0.00"))
-    variable_incentives = money(db_payroll.variable_incentives or Decimal("0.00"))
-    extra_pay_proration = calculate_extra_pay_proration(contract, db_payroll.period_month)
-    irpf_percentage, suggested_irpf_percentage = resolve_irpf_percentage(
+    calculated = calculate_persistable_payroll_result(
         db=db,
         employee=employee,
         contract=contract,
+        period_month=db_payroll.period_month,
+        period_year=db_payroll.period_year,
+        salary_supplements=money(db_payroll.salary_supplements or Decimal("0.00")),
+        variable_incentives=money(db_payroll.variable_incentives or Decimal("0.00")),
         irpf_mode=irpf_mode,
-        manual_percentage=manual_irpf_percentage if manual_irpf_percentage is not None else db_payroll.irpf_percentage,
+        manual_irpf_percentage=manual_irpf_percentage if manual_irpf_percentage is not None else db_payroll.irpf_percentage,
     )
 
-    db_payroll.base_salary = base_salary
-    db_payroll.extra_pay_proration = extra_pay_proration
+    db_payroll.base_salary = calculated["base_salary"]
+    db_payroll.salary_supplements = calculated["salary_supplements"]
+    db_payroll.variable_incentives = calculated["variable_incentives"]
+    db_payroll.extra_pay_proration = calculated["extra_pay_proration"]
     db_payroll.irpf_mode = irpf_mode
-    db_payroll.irpf_percentage = irpf_percentage
-    db_payroll.suggested_irpf_percentage = suggested_irpf_percentage
+    db_payroll.irpf_percentage = calculated["irpf_percentage"]
+    db_payroll.suggested_irpf_percentage = calculated["suggested_irpf_percentage"]
 
-    calculated_amounts = calculate_payroll_amounts(
-        base_salary=base_salary,
-        salary_supplements=salary_supplements,
-        variable_incentives=variable_incentives,
-        extra_pay_proration=extra_pay_proration,
-        irpf_percentage=irpf_percentage,
-    )
-
-    for key, value in persisted_payroll_amounts(calculated_amounts).items():
+    for key, value in persisted_payroll_amounts(calculated).items():
         setattr(db_payroll, key, value)
 
     db.commit()
@@ -644,33 +610,30 @@ def simulate_future_payrolls(db: Session, request: PayrollFutureSimulationReques
         if skip_reason:
             continue
 
-        base_salary = calculate_contract_base_salary(contract, period_month)
-        extra_pay_proration = calculate_extra_pay_proration(contract, period_month)
         salary_supplements = money(request.salary_increase or Decimal("0.00"))
         variable_incentives = incentive_map.get((request.period_year, period_month), Decimal("0.00"))
-        irpf_percentage, suggested_irpf_percentage = resolve_irpf_percentage(
+
+        calculated = calculate_persistable_payroll_result(
             db=db,
             employee=employee,
             contract=contract,
-            irpf_mode=request.irpf_mode,
-            manual_percentage=None,
-        )
-        calculated = calculate_payroll_amounts(
-            base_salary=base_salary,
+            period_month=period_month,
+            period_year=request.period_year,
             salary_supplements=salary_supplements,
             variable_incentives=variable_incentives,
-            extra_pay_proration=extra_pay_proration,
-            irpf_percentage=irpf_percentage,
+            irpf_mode=request.irpf_mode,
+            manual_irpf_percentage=None,
         )
+
         items.append({
             "period_month": period_month,
             "period_year": request.period_year,
-            "base_salary": base_salary,
-            "salary_supplements": salary_supplements,
-            "variable_incentives": variable_incentives,
+            "base_salary": calculated["base_salary"],
+            "salary_supplements": calculated["salary_supplements"],
+            "variable_incentives": calculated["variable_incentives"],
             **persisted_payroll_amounts(calculated),
-            "irpf_percentage": irpf_percentage,
-            "suggested_irpf_percentage": suggested_irpf_percentage,
+            "irpf_percentage": calculated["irpf_percentage"],
+            "suggested_irpf_percentage": calculated["suggested_irpf_percentage"],
         })
 
     return {
