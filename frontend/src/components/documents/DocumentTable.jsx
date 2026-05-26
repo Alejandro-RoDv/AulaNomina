@@ -45,6 +45,8 @@ function toEditForm(document) {
 export default function DocumentTable({
   documents,
   loading,
+  statusMessage,
+  statusError,
   onMarkReceived,
   onMarkPending,
   onMarkExpired,
@@ -110,6 +112,9 @@ export default function DocumentTable({
           <p style={styles.subtitle}>Documentos asociados a trabajadores, empresas y centros.</p>
         </div>
       </div>
+
+      {statusMessage ? <p style={styles.success}>{statusMessage}</p> : null}
+      {statusError ? <p style={styles.error}>{statusError}</p> : null}
 
       <div style={styles.tableWrapper}>
         <table style={styles.table}>
@@ -254,5 +259,6 @@ const styles = {
   modalActions: { gridColumn: "1 / -1", display: "flex", justifyContent: "flex-end", gap: "10px" },
   cancelButton: { border: "2px solid #111", background: "#fff", padding: "9px 12px", fontWeight: 900, cursor: "pointer" },
   saveButton: { border: "3px solid #111", background: "#f0df62", padding: "9px 14px", fontWeight: 900, cursor: "pointer", boxShadow: "3px 3px 0 #111" },
-  error: { gridColumn: "1 / -1", background: "#fee2e2", border: "2px solid #991b1b", color: "#991b1b", padding: "10px", fontWeight: 800 },
+  error: { gridColumn: "1 / -1", background: "#fee2e2", border: "2px solid #991b1b", color: "#991b1b", padding: "10px", fontWeight: 800, margin: "0 0 12px" },
+  success: { background: "#dcfce7", border: "2px solid #166534", color: "#166534", padding: "10px", fontWeight: 800, margin: "0 0 12px" },
 };
