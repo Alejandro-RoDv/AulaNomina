@@ -1,117 +1,16 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
-from typing import Iterable
+from typing import Iterable, Any
 
-from app.models.incident import Incident
+from app.services.incident_payroll_rules import resolve_incident_rule
 
 STANDARD_MONTH_DAYS = 30
 
 
-@dataclass(frozen=True)
-class IncidentPayrollRule:
-    """Payroll effect rule for a simulated labour incident.
-
-    This service intentionally keeps the first MVP rules simple and explicit.
-    It does not try to reproduce the full Spanish Social Security casuistry yet.
-    """
-
-    affects_payroll: bool
-    reduces_worked_days: bool
-    reduces_contribution_days: bool
-    display_label: str
-
-
-INCIDENT_PAYROLL_RULES: dict[str, IncidentPayrollRule] = {
-    # Existing incident codes in the current API.
-    "IT": IncidentPayrollRule(
-        affects_payroll=True,
-        reduces_worked_days=True,
-        reduces_contribution_days=False,
-        display_label="Incapacidad temporal",
-    ),
-    "RECAIDA": IncidentPayrollRule(
-        affects_payroll=True,
-        reduces_worked_days=True,
-        reduces_contribution_days=False,
-        display_label="Recaída IT",
-    ),
-    "VACACIONES": IncidentPayrollRule(
-        affects_payroll=False,
-        reduces_worked_days=True,
-        reduces_contribution_days=False,
-        display_label="Vacaciones",
-    ),
-    "AUSENCIA": IncidentPayrollRule(
-        affects_payroll=True,
-        reduces_worked_days=True,
-        reduces_contribution_days=True,
-        display_label="Ausencia no retribuida",
-    ),
-    "PERMISO_RETRIBUIDO": IncidentPayrollRule(
-        affects_payroll=False,
-        reduces_worked_days=True,
-        reduces_contribution_days=False,
-        display_label="Permiso retribuido",
-    ),
-    "PERMISO_NO_RETRIBUIDO": IncidentPayrollRule(
-        affects_payroll=True,
-        reduces_worked_days=True,
-        reduces_contribution_days=True,
-        display_label="Permiso no retribuido",
-    ),
-
-    # Forward-compatible aliases for the future, more explicit incident taxonomy.
-    "COMMON_SICK_LEAVE": IncidentPayrollRule(
-        affects_payroll=True,
-        reduces_worked_days=True,
-        reduces_contribution_days=False,
-        display_label="IT enfermedad común",
-    ),
-    "WORK_ACCIDENT": IncidentPayrollRule(
-        affects_payroll=True,
-        reduces_worked_days=True,
-        reduces_contribution_days=False,
-        display_label="Accidente laboral",
-    ),
-    "UNPAID_ABSENCE": IncidentPayrollRule(
-        affects_payroll=True,
-        reduces_worked_days=True,
-        reduces_contribution_days=True,
-        display_label="Ausencia no retribuida",
-    ),
-    "VACATION": IncidentPayrollRule(
-        affects_payroll=False,
-        reduces_worked_days=True,
-        reduces_contribution_days=False,
-        display_label="Vacaciones",
-    ),
-}
-
-
 def clamp_day_count(value: int) -> int:
     return max(0, min(STANDARD_MONTH_DAYS, value))
-
-
-def resolve_incident_rule(incident_type: str) -> IncidentPayrollRule:
-    """Return the payroll rule for an incident type.
-
-    Unknown incident types are treated as informational. This avoids breaking
-    payroll generation if new incident types are introduced before the payroll
-    engine is updated, while keeping the effect conservative.
-    """
-
-    return INCIDENT_PAYROLL_RULES.get(
-        incident_type,
-        IncidentPayrollRule(
-            affects_payroll=False,
-            reduces_worked_days=False,
-            reduces_contribution_days=False,
-            display_label=incident_type,
-        ),
-    )
 
 
 def calculate_overlap_days(
@@ -148,7 +47,7 @@ def normalize_period_days(period_start: date, period_end: date) -> int:
 
 
 def calculate_payroll_days(
-    incidents: Iterable[Incident],
+    incidents: Iterable[Any],
     period_start: date,
     period_end: date,
 ) -> dict:
@@ -193,7 +92,7 @@ def calculate_payroll_days(
 
         incident_breakdown.append(
             {
-                "incident_id": incident.id,
+                "incident_id": getattr(incident, "id", None),
                 "incident_type": incident.incident_type,
                 "label": rule.display_label,
                 "days": days,
