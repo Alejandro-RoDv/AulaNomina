@@ -20,9 +20,14 @@ const checklistTemplates = [
 ];
 
 const statusPriority = { expired: 0, pending: 1, received: 2, not_applicable: 3 };
+const statusLabels = { pending: "Pendiente", received: "Entregado", expired: "Caducado", not_applicable: "No aplica" };
 
 function normalizeText(value) {
   return String(value || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+}
+
+function mergeDocuments(baseDocuments, updatedDocument) {
+  return baseDocuments.map((document) => Number(document.id) === Number(updatedDocument.id) ? { ...document, ...updatedDocument } : document);
 }
 
 export default function DocumentsPage({ loading, documents, employees, companies, workCenters, documentForm, onDocumentChange, onDocumentSubmit, onUpdateDocument, onDeleteDocument, documentSubmitting, documentError, documentSuccess }) {
@@ -33,6 +38,8 @@ export default function DocumentsPage({ loading, documents, employees, companies
   const [checklistMessage, setChecklistMessage] = useState("");
   const [checklistError, setChecklistError] = useState("");
   const [checklistLoading, setChecklistLoading] = useState(false);
+  const [documentActionMessage, setDocumentActionMessage] = useState("");
+  const [documentActionError, setDocumentActionError] = useState("");
 
   const visibleDocuments = localDocuments || documents;
   const selectedEmployee = employees.find((employee) => Number(employee.id) === Number(selectedEmployeeId));
@@ -121,7 +128,10 @@ export default function DocumentsPage({ loading, documents, employees, companies
   const clearEmployeeFilters = () => setEmployeeFilters(initialEmployeeFilters);
 
   const handleStatusChange = async (document, status) => {
-    await onUpdateDocument(document.id, {
+    setDocumentActionMessage("");
+    setDocumentActionError("");
+
+    const payload = {
       center_id: document.center_id || null,
       document_type: document.document_type,
       document_name: document.document_name,
@@ -129,16 +139,40 @@ export default function DocumentsPage({ loading, documents, employees, companies
       issue_date: document.issue_date || null,
       expiry_date: document.expiry_date || null,
       notes: document.notes || null,
-    });
+    };
+
+    try {
+      const updatedDocument = await onUpdateDocument(document.id, payload);
+      const nextDocument = updatedDocument || { ...document, ...payload };
+      const currentDocuments = localDocuments || documents;
+      setLocalDocuments(mergeDocuments(currentDocuments, nextDocument));
+      setDocumentActionMessage(`Estado actualizado a ${statusLabels[status] || status}.`);
+    } catch (err) {
+      setDocumentActionError(err.message || "Error al cambiar el estado del documento.");
+    }
   };
 
   const handleSaveDocument = async (document, payload) => {
-    await onUpdateDocument(document.id, payload);
+    setDocumentActionMessage("");
+    setDocumentActionError("");
+
+    try {
+      const updatedDocument = await onUpdateDocument(document.id, payload);
+      const nextDocument = updatedDocument || { ...document, ...payload };
+      const currentDocuments = localDocuments || documents;
+      setLocalDocuments(mergeDocuments(currentDocuments, nextDocument));
+      setDocumentActionMessage("Documento actualizado correctamente.");
+    } catch (err) {
+      setDocumentActionError(err.message || "Error al actualizar documento.");
+      throw err;
+    }
   };
 
   const handleGenerateChecklist = async () => {
     setChecklistMessage("");
     setChecklistError("");
+    setDocumentActionMessage("");
+    setDocumentActionError("");
 
     const employee = selectedEmployee;
     if (!employee) {
@@ -217,7 +251,7 @@ export default function DocumentsPage({ loading, documents, employees, companies
             <div style={styles.employeeList}>
               <div style={styles.employeeListHeader}><span>Trabajador</span><span>Empresa / centro</span><span>Documentos</span><span>Acción</span></div>
               {employeeRows.length === 0 ? <p style={styles.emptyList}>No hay trabajadores que coincidan con los filtros.</p> : employeeRows.map(({ employee, companyName, centerName, total, pending, expired, received }) => (
-                <button key={employee.id} type="button" style={styles.employeeRow} onClick={() => { setSelectedEmployeeId(employee.id); setChecklistMessage(""); setChecklistError(""); }}>
+                <button key={employee.id} type="button" style={styles.employeeRow} onClick={() => { setSelectedEmployeeId(employee.id); setChecklistMessage(""); setChecklistError(""); setDocumentActionMessage(""); setDocumentActionError(""); }}>
                   <span style={styles.employeeMainCell}><strong>{employee.first_name} {employee.last_name}</strong><small>{employee.employee_code || employee.id} · {employee.dni}</small></span>
                   <span style={styles.employeeSecondaryCell}>{companyName}<small>{centerName}</small></span>
                   <span style={styles.employeeStatsCell}>Total: {total} · Pendientes: {pending} · Caducados: {expired} · Entregados: {received}</span>
@@ -241,12 +275,12 @@ export default function DocumentsPage({ loading, documents, employees, companies
               <label style={styles.label}>Estado<select name="status" value={filters.status} onChange={handleFilterChange} style={styles.input}><option value="">Todos</option><option value="pending">Pendiente</option><option value="received">Entregado</option><option value="expired">Caducado</option><option value="not_applicable">No aplica</option></select></label>
               <label style={styles.checkboxLabel}><input type="checkbox" name="only_critical" checked={filters.only_critical} onChange={handleFilterChange} />Ver solo pendientes/caducados</label>
             </section>
-            <DocumentTable loading={loading} documents={filteredDocuments} onMarkReceived={(document) => handleStatusChange(document, "received")} onMarkPending={(document) => handleStatusChange(document, "pending")} onMarkExpired={(document) => handleStatusChange(document, "expired")} onMarkNotApplicable={(document) => onDeleteDocument(document.id)} onSaveDocument={handleSaveDocument} />
+            <DocumentTable loading={loading} documents={filteredDocuments} statusMessage={documentActionMessage || documentSuccess} statusError={documentActionError || documentError} onMarkReceived={(document) => handleStatusChange(document, "received")} onMarkPending={(document) => handleStatusChange(document, "pending")} onMarkExpired={(document) => handleStatusChange(document, "expired")} onMarkNotApplicable={(document) => handleStatusChange(document, "not_applicable")} onSaveDocument={handleSaveDocument} />
           </>
         )}
       </section>
 
-      <DocumentForm form={documentForm} employees={employees} companies={companies} workCenters={workCenters} onChange={onDocumentChange} onSubmit={onDocumentSubmit} submitting={documentSubmitting} error={documentError} success={documentSuccess} />
+      <DocumentForm form={documentForm} employees={employees} companies={companies} workCenters={workCenters} onChange={onDocumentChange} onSubmit={onDocumentSubmit} submitting={documentSubmitting} />
     </div>
   );
 }
