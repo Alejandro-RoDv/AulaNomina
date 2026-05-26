@@ -4,6 +4,8 @@ import logo from "../../assets/aulanomina-logo.svg";
 
 const overlayPages = [
   "companies",
+  "company-companies",
+  "company-centers",
   "alerts",
   "reports",
   "employee-admissions",
@@ -20,6 +22,7 @@ const overlayPages = [
   "progress",
 ];
 
+const companyPages = ["companies", "company-companies", "company-centers"];
 const employeePages = ["employee-admissions", "employees", "employee-record"];
 const overlayHashes = overlayPages.map((page) => `#${page}`);
 const IRPF_HASH = "#irpf-module";
@@ -32,12 +35,19 @@ function getOverlayPageFromHash() {
 
 export default function Sidebar({ activePage, setActivePage }) {
   const [hashActivePage, setHashActivePage] = useState(getOverlayPageFromHash());
+  const [companyMenuOpen, setCompanyMenuOpen] = useState(true);
   const [employeeMenuOpen, setEmployeeMenuOpen] = useState(true);
 
   useEffect(() => {
     const syncActivePageFromHash = () => {
       const overlayPage = getOverlayPageFromHash();
       setHashActivePage(overlayPage);
+
+      if (companyPages.includes(overlayPage)) {
+        setCompanyMenuOpen(true);
+        setActivePage("companies");
+        return;
+      }
 
       if (employeePages.includes(overlayPage)) {
         setEmployeeMenuOpen(true);
@@ -71,13 +81,22 @@ export default function Sidebar({ activePage, setActivePage }) {
       title: "Datos",
       items: [
         { id: "dashboard", label: "Panel", enabled: true },
-        { id: "companies", label: "Empresa", enabled: true },
+        {
+          id: "company-menu",
+          label: "Empresa",
+          enabled: true,
+          menu: "company",
+          children: [
+            { id: "company-companies", label: "Empresas", enabled: true },
+            { id: "company-centers", label: "Centros", enabled: true },
+          ],
+        },
         {
           id: "employee-menu",
           label: "Trabajador",
           enabled: true,
+          menu: "employee",
           children: [
-            { id: "employee-admissions", label: "Alta / baja", enabled: true },
             { id: "employees", label: "Trabajadores", enabled: true },
             { id: "employee-record", label: "Expediente", enabled: true },
           ],
@@ -127,7 +146,16 @@ export default function Sidebar({ activePage, setActivePage }) {
     if (!item.enabled) return;
 
     if (item.children) {
-      setEmployeeMenuOpen((prev) => !prev);
+      if (item.menu === "company") setCompanyMenuOpen((prev) => !prev);
+      if (item.menu === "employee") setEmployeeMenuOpen((prev) => !prev);
+      return;
+    }
+
+    if (companyPages.includes(item.id)) {
+      setActivePage("companies");
+      setHashActivePage(item.id);
+      window.location.hash = item.id;
+      window.dispatchEvent(new Event("aulanomina-route-change"));
       return;
     }
 
@@ -169,8 +197,9 @@ export default function Sidebar({ activePage, setActivePage }) {
             <p style={styles.groupTitle}>{group.title}</p>
             <div style={styles.groupItems}>
               {group.items.map((item) => {
-                const isActive = currentActivePage === item.id || (item.id === "irpf" && currentActivePage === "irpf-module") || (item.children && employeePages.includes(currentActivePage));
-                const submenuOpen = item.children && employeeMenuOpen;
+                const submenuOpen = item.children && (item.menu === "company" ? companyMenuOpen : employeeMenuOpen);
+                const childPages = item.menu === "company" ? companyPages : employeePages;
+                const isActive = currentActivePage === item.id || (item.id === "irpf" && currentActivePage === "irpf-module") || (item.children && childPages.includes(currentActivePage));
 
                 return (
                   <div key={item.id} style={styles.itemBlock}>
@@ -252,74 +281,16 @@ const styles = {
     objectFit: "contain",
     display: "block",
   },
-  menuPanel: {
-    flex: 1,
-    padding: "18px 14px 26px",
-    overflowY: "auto",
-  },
+  menuPanel: { flex: 1, padding: "18px 14px 26px", overflowY: "auto" },
   group: { marginBottom: "28px" },
-  erpSeparator: {
-    height: "3px",
-    backgroundColor: "#111111",
-    margin: "8px 0 22px",
-    width: "100%",
-  },
-  groupTitle: {
-    margin: "0 0 10px",
-    color: "#111111",
-    fontSize: "20px",
-    fontWeight: 900,
-    letterSpacing: "0.02em",
-    textTransform: "uppercase",
-  },
+  erpSeparator: { height: "3px", backgroundColor: "#111111", margin: "8px 0 22px", width: "100%" },
+  groupTitle: { margin: "0 0 10px", color: "#111111", fontSize: "20px", fontWeight: 900, letterSpacing: "0.02em", textTransform: "uppercase" },
   groupItems: { display: "flex", flexDirection: "column", gap: "7px" },
   itemBlock: { display: "flex", flexDirection: "column", gap: "5px" },
-  navItem: {
-    width: "100%",
-    textAlign: "left",
-    backgroundColor: "transparent",
-    border: "none",
-    borderRadius: 0,
-    color: "#111111",
-    padding: "6px 10px",
-    cursor: "pointer",
-    fontSize: "14px",
-    fontWeight: 950,
-    letterSpacing: "0.05em",
-    textTransform: "uppercase",
-  },
-  navItemActive: {
-    backgroundColor: "#ffffff",
-    border: "3px solid #111111",
-    boxShadow: "3px 3px 0 #111111",
-  },
-  navItemDisabled: {
-    opacity: 0.45,
-    cursor: "not-allowed",
-  },
-  submenu: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "4px",
-    paddingLeft: "18px",
-    borderLeft: "3px solid #111111",
-    marginLeft: "8px",
-  },
-  subNavItem: {
-    width: "100%",
-    textAlign: "left",
-    backgroundColor: "transparent",
-    border: "none",
-    color: "#111111",
-    padding: "5px 8px",
-    cursor: "pointer",
-    fontSize: "12px",
-    fontWeight: 900,
-    letterSpacing: "0.04em",
-    textTransform: "uppercase",
-  },
-  subNavItemActive: {
-    backgroundColor: "#ffffff",
-    border: "2px solid #111111",
-  },
+  navItem: { width: "100%", textAlign: "left", backgroundColor: "transparent", border: "none", borderRadius: 0, color: "#111111", padding: "6px 10px", cursor: "pointer", fontSize: "14px", fontWeight: 950, letterSpacing: "0.05em", textTransform: "uppercase" },
+  navItemActive: { backgroundColor: "#ffffff", border: "3px solid #111111", boxShadow: "3px 3px 0 #111111" },
+  navItemDisabled: { opacity: 0.45, cursor: "not-allowed" },
+  submenu: { display: "flex", flexDirection: "column", gap: "4px", paddingLeft: "18px", borderLeft: "3px solid #111111", marginLeft: "8px" },
+  subNavItem: { width: "100%", textAlign: "left", backgroundColor: "transparent", border: "none", color: "#111111", padding: "5px 8px", cursor: "pointer", fontSize: "12px", fontWeight: 900, letterSpacing: "0.04em", textTransform: "uppercase" },
+  subNavItemActive: { backgroundColor: "#ffffff", border: "2px solid #111111" },
 };
