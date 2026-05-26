@@ -57,6 +57,9 @@ class IncidentResponse(BaseModel):
     affects_payroll: bool = False
     reduces_worked_days: bool = False
     reduces_contribution_days: bool = False
+    impacted_payrolls_count: int = 0
+    has_impacted_payrolls: bool = False
+    payroll_message: Optional[str] = None
     start_date: date
     end_date: Optional[date]
     description: Optional[str]
