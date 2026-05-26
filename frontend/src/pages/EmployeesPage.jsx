@@ -60,23 +60,11 @@ export default function EmployeesPage({
 
   return (
     <div style={styles.wrapper}>
-      <PageCard
-        title="Nuevo trabajador"
-        subtitle="Crea un trabajador dentro de una empresa y centro para vincularlo después a contratos, nóminas e incidencias."
-      >
-        <EmployeeForm
-          form={employeeForm}
-          companies={companies}
-          workCenters={workCenters}
-          onChange={onEmployeeChange}
-          onSubmit={onEmployeeSubmit}
-          error={employeeError}
-          success={employeeSuccess}
-          submitting={employeeSubmitting}
-        />
+      <PageCard title="Trabajadores" subtitle="Crea un trabajador con empresa y centro. El alta laboral se gestionará desde Contratación.">
+        <EmployeeForm form={employeeForm} companies={companies} workCenters={workCenters} employees={employees} contracts={contracts} onChange={onEmployeeChange} onSubmit={onEmployeeSubmit} error={employeeError} success={employeeSuccess} submitting={employeeSubmitting} />
       </PageCard>
 
-      <PageCard title="Listado de trabajadores" subtitle="Listado operativo de trabajadores. El expediente completo se abre desde cada fila.">
+      <PageCard title="Listado de trabajadores" subtitle="Listado operativo de trabajadores. El expediente queda como sección en desarrollo.">
         <div style={styles.reportActions}>
           <button type="button" style={styles.reportButton} onClick={() => openReportPreset({ category: "employee", reportId: "employees-active" })}>Informe trabajadores en alta</button>
           <button type="button" style={styles.reportButtonSecondary} onClick={() => openReportPreset({ category: "employee", reportId: "contracts-active" })}>Informe contratos activos</button>
@@ -84,7 +72,7 @@ export default function EmployeesPage({
 
         <div style={styles.filters}>
           <div style={styles.filterGroupCode}>
-            <label>ID / Código</label>
+            <label>Código trabajador</label>
             <input name="id" value={filters.id} onChange={handleFilterChange} style={styles.input} />
           </div>
           <div style={styles.filterGroupName}>
@@ -98,19 +86,7 @@ export default function EmployeesPage({
           <button type="button" onClick={clearFilters} style={styles.clearButton}>Limpiar filtros</button>
         </div>
 
-        <EmployeeTable
-          loading={loading}
-          employees={filteredEmployees}
-          companies={companies}
-          workCenters={workCenters}
-          contracts={contracts}
-          incidents={incidents}
-          payrolls={payrolls}
-          onUpdateEmployee={onUpdateEmployee}
-          onDeleteEmployee={onDeleteEmployee}
-          onOpenRecord={onOpenRecord}
-          submitting={employeeSubmitting}
-        />
+        <EmployeeTable loading={loading} employees={filteredEmployees} companies={companies} workCenters={workCenters} contracts={contracts} incidents={incidents} payrolls={payrolls} onUpdateEmployee={onUpdateEmployee} onDeleteEmployee={onDeleteEmployee} onOpenRecord={onOpenRecord} submitting={employeeSubmitting} />
       </PageCard>
     </div>
   );
