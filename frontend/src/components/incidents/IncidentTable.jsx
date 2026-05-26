@@ -40,6 +40,7 @@ function PayrollEffectBadges({ incident }) {
       </span>
       {incident.reduces_contribution_days && <span style={styles.dangerMiniBadge}>Reduce cotización</span>}
       {incident.reduces_worked_days && <span style={styles.infoMiniBadge}>Reduce días trabajados</span>}
+      {incident.has_impacted_payrolls && <span style={styles.recalculateBadge}>Recalcular nómina</span>}
     </div>
   );
 }
@@ -217,6 +218,13 @@ export default function IncidentTable({
               <PayrollEffectBadges incident={selectedIncident} />
             </div>
 
+            {selectedIncident.has_impacted_payrolls && (
+              <div style={styles.recalculationNotice}>
+                {selectedIncident.payroll_message || "Esta incidencia afecta a una nómina ya generada. Recalcula la nómina para aplicar los cambios."}
+                {selectedIncident.impacted_payrolls_count > 0 && ` Nóminas afectadas: ${selectedIncident.impacted_payrolls_count}.`}
+              </div>
+            )}
+
             <form onSubmit={handleEditSubmit} style={styles.form}>
               <div style={styles.formRow}>
                 <div style={styles.formGroup}>
@@ -360,6 +368,8 @@ const styles = {
   neutralBadge: { backgroundColor: "#e5e7eb", color: "#374151", padding: "4px 8px", borderRadius: "999px", fontSize: "11px", fontWeight: 900, whiteSpace: "nowrap" },
   dangerMiniBadge: { backgroundColor: "#fee2e2", color: "#991b1b", padding: "4px 8px", borderRadius: "999px", fontSize: "11px", fontWeight: 900, whiteSpace: "nowrap" },
   infoMiniBadge: { backgroundColor: "#dbeafe", color: "#1e40af", padding: "4px 8px", borderRadius: "999px", fontSize: "11px", fontWeight: 900, whiteSpace: "nowrap" },
+  recalculateBadge: { backgroundColor: "#111827", color: "#ffffff", padding: "4px 8px", borderRadius: "999px", fontSize: "11px", fontWeight: 900, whiteSpace: "nowrap" },
+  recalculationNotice: { border: "2px solid #92400e", backgroundColor: "#fff7ed", color: "#92400e", borderRadius: "10px", padding: "10px 12px", marginBottom: "16px", fontSize: "13px", fontWeight: 900 },
   openBadge: { backgroundColor: "#dcfce7", color: "#166534", padding: "4px 8px", borderRadius: "999px", fontSize: "12px", fontWeight: 800 },
   closedBadge: { backgroundColor: "#e5e7eb", color: "#374151", padding: "4px 8px", borderRadius: "999px", fontSize: "12px", fontWeight: 800 },
   detailsButton: { backgroundColor: "#111827", color: "#ffffff", border: "1px solid #111827", borderRadius: "8px", padding: "7px 10px", cursor: "pointer", fontWeight: 700 },
