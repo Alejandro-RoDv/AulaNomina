@@ -6,9 +6,6 @@ from sqlalchemy.orm import Session
 
 from app.db import SessionLocal
 from app.crud.payroll import (
-    calculate_contract_base_salary,
-    calculate_extra_pay_proration,
-    calculate_payroll_amounts,
     get_contract_period_skip_reason,
     money,
     tax_profile_to_calculation_payload,
@@ -18,6 +15,11 @@ from app.models.employee import Employee
 from app.models.payroll import Payroll
 from app.models.tax_profile import TaxProfile
 from app.services.irpf_calculator import calculate_irpf_2026
+from app.services.payroll_amounts import calculate_payroll_amounts
+from app.services.payroll_engine import (
+    calculate_contract_base_salary,
+    calculate_extra_pay_proration,
+)
 
 router = APIRouter(tags=["irpf"])
 
