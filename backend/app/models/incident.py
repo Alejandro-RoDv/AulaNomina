@@ -4,6 +4,7 @@ from sqlalchemy import Column, Date, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import relationship
 
 from app.db import Base
+from app.services.payroll_days_calculator import resolve_incident_rule
 
 
 class Incident(Base):
@@ -43,3 +44,19 @@ class Incident(Base):
         if not self.contract:
             return None
         return self.contract.contract_type
+
+    @property
+    def payroll_effect_label(self):
+        return resolve_incident_rule(self.incident_type).display_label
+
+    @property
+    def affects_payroll(self):
+        return resolve_incident_rule(self.incident_type).affects_payroll
+
+    @property
+    def reduces_worked_days(self):
+        return resolve_incident_rule(self.incident_type).reduces_worked_days
+
+    @property
+    def reduces_contribution_days(self):
+        return resolve_incident_rule(self.incident_type).reduces_contribution_days
