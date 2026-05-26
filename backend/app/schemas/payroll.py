@@ -165,6 +165,9 @@ class PayrollPrepareResponseItem(BaseModel):
     incident_summary: list[str] = []
     status: str
     gross_salary: Decimal
+    contribution_days: int = 30
+    incident_days: int = 0
+    has_payroll_affecting_incidents: bool = False
     irpf_mode: str = "auto"
     irpf_percentage: Decimal = Decimal("0.00")
     suggested_irpf_percentage: Decimal = Decimal("0.00")
@@ -214,10 +217,16 @@ class PayrollFutureSimulationItem(BaseModel):
     salary_supplements: Decimal
     variable_incentives: Decimal
     gross_salary: Decimal
+    contribution_days: int = 30
+    worked_days: int = 30
+    incident_days: int = 0
+    non_contribution_days: int = 0
     common_contingencies_base: Decimal = Decimal("0.00")
     professional_contingencies_base: Decimal = Decimal("0.00")
     unemployment_training_fogasa_base: Decimal = Decimal("0.00")
     irpf_base: Decimal = Decimal("0.00")
+    daily_common_base: Decimal = Decimal("0.00")
+    daily_professional_base: Decimal = Decimal("0.00")
     employee_common_contingencies: Decimal = Decimal("0.00")
     employee_unemployment: Decimal = Decimal("0.00")
     employee_training: Decimal = Decimal("0.00")
@@ -260,10 +269,16 @@ class PayrollResponse(BaseModel):
     variable_incentives: Decimal = Decimal("0.00")
     extra_pay_proration: Decimal
     gross_salary: Decimal
+    contribution_days: int = 30
+    worked_days: int = 30
+    incident_days: int = 0
+    non_contribution_days: int = 0
     common_contingencies_base: Decimal = Decimal("0.00")
     professional_contingencies_base: Decimal = Decimal("0.00")
     unemployment_training_fogasa_base: Decimal = Decimal("0.00")
     irpf_base: Decimal = Decimal("0.00")
+    daily_common_base: Decimal = Decimal("0.00")
+    daily_professional_base: Decimal = Decimal("0.00")
     employee_common_contingencies: Decimal = Decimal("0.00")
     employee_unemployment: Decimal = Decimal("0.00")
     employee_training: Decimal = Decimal("0.00")
