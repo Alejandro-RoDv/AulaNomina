@@ -1,0 +1,16 @@
+CONTRACT_CODES = [
+    {"contract_code": "100", "contract_code_description": "Indefinido tiempo completo - ordinario", "contract_family": "indefinite"},
+    {"contract_code": "200", "contract_code_description": "Indefinido tiempo parcial - ordinario", "contract_family": "indefinite"},
+    {"contract_code": "300", "contract_code_description": "Indefinido fijo discontinuo", "contract_family": "fixed_discontinuous"},
+    {"contract_code": "402", "contract_code_description": "Temporal tiempo completo - circunstancias de la producción", "contract_family": "temporary"},
+    {"contract_code": "502", "contract_code_description": "Temporal tiempo parcial - circunstancias de la producción", "contract_family": "temporary"},
+    {"contract_code": "410", "contract_code_description": "Temporal tiempo completo - interinidad o sustitución", "contract_family": "replacement"},
+    {"contract_code": "510", "contract_code_description": "Temporal tiempo parcial - interinidad o sustitución", "contract_family": "replacement"},
+    {"contract_code": "420", "contract_code_description": "Temporal tiempo completo - prácticas", "contract_family": "training"},
+    {"contract_code": "520", "contract_code_description": "Temporal tiempo parcial - prácticas", "contract_family": "training"},
+    {"contract_code": "421", "contract_code_description": "Temporal tiempo completo - formación en alternancia", "contract_family": "training"},
+    {"contract_code": "521", "contract_code_description": "Temporal tiempo parcial - formación en alternancia", "contract_family": "training"},
+    {"contract_code": "441", "contract_code_description": "Temporal tiempo completo - relevo", "contract_family": "replacement"},
+    {"contract_code": "541", "contract_code_description": "Temporal tiempo parcial - relevo", "contract_family": "replacement"},
+    {"contract_code": "540", "contract_code_description": "Temporal tiempo parcial - jubilación parcial", "contract_family": "partial_retirement"},
+]
