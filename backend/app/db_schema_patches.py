@@ -97,6 +97,8 @@ def add_missing_payroll_contribution_columns() -> None:
     introduced. It is intentionally narrow and defensive.
     """
 
+    add_missing_contract_labor_columns()
+
     inspector = inspect(engine)
     if "payrolls" not in inspector.get_table_names():
         return
