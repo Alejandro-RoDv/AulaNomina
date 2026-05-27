@@ -12,23 +12,19 @@ import PayrollsPage from "./pages/PayrollsPage";
 
 import { useCompaniesModule } from "./hooks/useCompaniesModule";
 import { useContractsModule } from "./hooks/useContractsModule";
+import { useEmployeesModule } from "./hooks/useEmployeesModule";
 import { fetchContracts, resetDemo } from "./services/api";
-import { createEmployee, deleteEmployee, fetchAllEmployees, fetchNextEmployeeCode, updateEmployee } from "./services/employeeApi";
+import { fetchCompanies } from "./services/companyApi";
+import { fetchAllEmployees, fetchNextEmployeeCode } from "./services/employeeApi";
 import { createIncident, deleteIncident, fetchIncidents, updateIncident } from "./services/incidentApi";
 import { createPayroll, deletePayroll, fetchPayrolls, updatePayroll } from "./services/payrollApi";
-import { fetchCompanies } from "./services/companyApi";
 import { fetchWorkCenters } from "./services/workCenterApi";
 
 const currentYear = new Date().getFullYear();
 const currentMonth = new Date().getMonth() + 1;
 
-const initialEmployeeForm = { employee_code: "", company_id: "", center_id: "", dni: "", naf: "", first_name: "", last_name: "", email: "", phone: "", birth_date: "", address: "", city: "", province: "", postal_code: "" };
 const initialIncidentForm = { employee_id: "", contract_id: "", company_id: "", center_id: "", incident_type: "", start_date: "", end_date: "", description: "", status: "open" };
 const initialPayrollForm = { employee_id: "", contract_id: "", company_id: "", center_id: "", period_month: String(currentMonth), period_year: String(currentYear), salary_supplement_1: "0", salary_supplement_2: "0", salary_supplement_3: "0", irpf_percentage: "10", status: "pending" };
-
-function buildEmployeePayload(form) {
-  return { ...form, company_id: form.company_id ? Number(form.company_id) : null, center_id: form.center_id ? Number(form.center_id) : null, naf: form.naf || null, email: form.email || null, phone: form.phone || null, birth_date: form.birth_date || null, address: form.address || null, city: form.city || null, province: form.province || null, postal_code: form.postal_code || null, is_active: form.is_active ?? true };
-}
 
 function buildIncidentPayload(form) {
   return { employee_id: Number(form.employee_id), contract_id: Number(form.contract_id), company_id: Number(form.company_id), center_id: form.center_id ? Number(form.center_id) : null, incident_type: form.incident_type, start_date: form.start_date, end_date: form.end_date || null, description: form.description || null, status: form.status };
@@ -63,16 +59,12 @@ export default function App() {
   const [resetDemoLoading, setResetDemoLoading] = useState(false);
   const [resetDemoMessage, setResetDemoMessage] = useState("");
   const [resetDemoError, setResetDemoError] = useState("");
-  const [employeeSubmitting, setEmployeeSubmitting] = useState(false);
   const [incidentSubmitting, setIncidentSubmitting] = useState(false);
   const [payrollSubmitting, setPayrollSubmitting] = useState(false);
-  const [employeeError, setEmployeeError] = useState("");
-  const [employeeSuccess, setEmployeeSuccess] = useState("");
   const [incidentError, setIncidentError] = useState("");
   const [incidentSuccess, setIncidentSuccess] = useState("");
   const [payrollError, setPayrollError] = useState("");
   const [payrollSuccess, setPayrollSuccess] = useState("");
-  const [employeeForm, setEmployeeForm] = useState(initialEmployeeForm);
   const [incidentForm, setIncidentForm] = useState(initialIncidentForm);
   const [payrollForm, setPayrollForm] = useState(initialPayrollForm);
 
@@ -109,10 +101,18 @@ export default function App() {
     setWorkCenterError,
   } = useCompaniesModule({ companies, onDataChanged: () => loadData() });
 
-  const loadNextEmployeeCode = async () => {
-    const data = await fetchNextEmployeeCode();
-    setEmployeeForm((prev) => ({ ...prev, employee_code: data.employee_code }));
-  };
+  const {
+    employeeForm,
+    employeeSubmitting,
+    employeeError,
+    employeeSuccess,
+    handleEmployeeChange,
+    handleEmployeeSubmit,
+    handleUpdateEmployee,
+    handleDeleteEmployee,
+    setEmployeeError,
+    setNextEmployeeCode,
+  } = useEmployeesModule({ onDataChanged: () => loadData() });
 
   const loadData = async () => {
     try {
@@ -126,7 +126,7 @@ export default function App() {
       setWorkCenters(workCentersData);
       setIncidents(incidentsData);
       setPayrolls(payrollsData);
-      setEmployeeForm((prev) => ({ ...prev, employee_code: nextEmployeeCodeData.employee_code }));
+      setNextEmployeeCode(nextEmployeeCodeData.employee_code);
     } catch {
       setContractError("Error cargando datos");
       setCompanyError("Error cargando datos");
@@ -158,11 +158,6 @@ export default function App() {
     }
   };
 
-  const handleEmployeeChange = (event) => {
-    const { name, value } = event.target;
-    setEmployeeForm((prev) => name === "company_id" ? { ...prev, company_id: value, center_id: "" } : { ...prev, [name]: value });
-  };
-
   const handleIncidentChange = (event) => {
     const { name, value } = event.target;
     setIncidentForm((prev) => {
@@ -185,21 +180,6 @@ export default function App() {
       }
       return { ...prev, [name]: value };
     });
-  };
-
-  const handleEmployeeSubmit = async (event) => {
-    event.preventDefault(); setEmployeeError(""); setEmployeeSuccess("");
-    try { setEmployeeSubmitting(true); await createEmployee(buildEmployeePayload({ ...employeeForm, is_active: true })); setEmployeeSuccess("Trabajador creado correctamente"); setEmployeeForm(initialEmployeeForm); await loadData(); } catch (err) { setEmployeeError(err.message || "Error al crear trabajador"); await loadNextEmployeeCode(); } finally { setEmployeeSubmitting(false); }
-  };
-
-  const handleUpdateEmployee = async (employeeId, form) => {
-    setEmployeeError(""); setEmployeeSuccess("");
-    try { setEmployeeSubmitting(true); await updateEmployee(employeeId, buildEmployeePayload(form)); setEmployeeSuccess("Trabajador actualizado correctamente"); await loadData(); } catch (err) { setEmployeeError(err.message || "Error al actualizar trabajador"); throw err; } finally { setEmployeeSubmitting(false); }
-  };
-
-  const handleDeleteEmployee = async (employeeId) => {
-    setEmployeeError(""); setEmployeeSuccess("");
-    try { setEmployeeSubmitting(true); await deleteEmployee(employeeId); setEmployeeSuccess("Trabajador desactivado correctamente"); await loadData(); } catch (err) { setEmployeeError(err.message || "Error al desactivar trabajador"); throw err; } finally { setEmployeeSubmitting(false); }
   };
 
   const handleIncidentSubmit = async (event) => {
