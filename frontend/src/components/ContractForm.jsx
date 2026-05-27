@@ -95,6 +95,19 @@ function catalogOrFallback(items, fallback) {
   return items?.length ? items : fallback;
 }
 
+function buildSsPayload(ssForm, form, extraForm) {
+  return {
+    ...ssForm,
+    registration_date: ssForm.registration_date || form.start_date,
+    contribution_group: ssForm.contribution_group || extraForm.contribution_group,
+    monthly_or_daily_contribution: ssForm.monthly_or_daily_contribution || extraForm.monthly_or_daily_contribution,
+    red_contract_key: ssForm.red_contract_key || extraForm.contract_code,
+    red_occupation_code: ssForm.red_occupation_code || extraForm.red_occupation_code,
+    red_contribution_group: ssForm.red_contribution_group || extraForm.contribution_group,
+    red_reduction_code: ssForm.red_reduction_code || extraForm.red_reduction_code,
+  };
+}
+
 export default function ContractForm({
   form,
   employees,
@@ -150,18 +163,8 @@ export default function ContractForm({
     if (success) {
       setExtraForm(EMPTY_EXTRA);
       setSsForm(EMPTY_SS);
-      window.__aulanominaContractForm = EMPTY_EXTRA;
-      window.__aulanominaSocialSecurityForm = EMPTY_SS;
     }
   }, [success]);
-
-  useEffect(() => {
-    window.__aulanominaContractForm = extraForm;
-  }, [extraForm]);
-
-  useEffect(() => {
-    window.__aulanominaSocialSecurityForm = ssForm;
-  }, [ssForm]);
 
   const availableEmployees = useMemo(
     () => mergeEmployees(employees, localEmployees).filter((employee) => employee.is_active !== false),
@@ -187,21 +190,8 @@ export default function ContractForm({
     });
   }, [availableEmployees, contracts, employeeFilters]);
 
-  const updateExtra = (patch) => {
-    setExtraForm((prev) => {
-      const next = { ...prev, ...patch };
-      window.__aulanominaContractForm = next;
-      return next;
-    });
-  };
-
-  const updateSs = (patch) => {
-    setSsForm((prev) => {
-      const next = { ...prev, ...patch };
-      window.__aulanominaSocialSecurityForm = next;
-      return next;
-    });
-  };
+  const updateExtra = (patch) => setExtraForm((prev) => ({ ...prev, ...patch }));
+  const updateSs = (patch) => setSsForm((prev) => ({ ...prev, ...patch }));
 
   const handleBaseChange = (event) => {
     const { name, value } = event.target;
@@ -269,18 +259,10 @@ export default function ContractForm({
   };
 
   const handleSubmit = (event) => {
-    window.__aulanominaContractForm = extraForm;
-    window.__aulanominaSocialSecurityForm = {
-      ...ssForm,
-      registration_date: ssForm.registration_date || form.start_date,
-      contribution_group: ssForm.contribution_group || extraForm.contribution_group,
-      monthly_or_daily_contribution: ssForm.monthly_or_daily_contribution || extraForm.monthly_or_daily_contribution,
-      red_contract_key: ssForm.red_contract_key || extraForm.contract_code,
-      red_occupation_code: ssForm.red_occupation_code || extraForm.red_occupation_code,
-      red_contribution_group: ssForm.red_contribution_group || extraForm.contribution_group,
-      red_reduction_code: ssForm.red_reduction_code || extraForm.red_reduction_code,
-    };
-    onSubmit(event);
+    onSubmit(event, {
+      contractExtra: extraForm,
+      socialSecurity: buildSsPayload(ssForm, form, extraForm),
+    });
   };
 
   return (
