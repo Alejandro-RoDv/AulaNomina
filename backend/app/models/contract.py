@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Date, DateTime, ForeignKey, Numeric
+from sqlalchemy import Column, Integer, String, Date, DateTime, ForeignKey, Numeric, Float
 from sqlalchemy.orm import relationship
 from datetime import datetime
 
@@ -12,12 +12,38 @@ class Contract(Base):
     employee_id = Column(Integer, ForeignKey("employees.id"), nullable=False)
     company_id = Column(Integer, ForeignKey("companies.id"), nullable=True)
     center_id = Column(Integer, ForeignKey("work_centers.id"), nullable=True)
+
+    # Datos contractuales básicos
     contract_type = Column(String, nullable=False)
+    contract_code = Column(String, nullable=True)
+    contract_code_description = Column(String, nullable=True)
+    contract_family = Column(String, nullable=True)
     start_date = Column(Date, nullable=False)
     end_date = Column(Date, nullable=True)
     status = Column(String, default="active", nullable=False)
+
+    # Categoría, puesto y convenio
+    contribution_group = Column(String, nullable=True)
+    professional_category = Column(String, nullable=True)
+    job_position = Column(String, nullable=True)
+    collective_agreement_code = Column(String, nullable=True)
+
+    # Jornada y parcialidad
+    working_day_type = Column(String, nullable=True)
+    weekly_hours = Column(Float, nullable=True)
+    full_time_weekly_hours = Column(Float, default=40)
+    partiality_coefficient = Column(Float, nullable=True)
+
+    # Cotización / RED simulado mínimo en contrato
+    monthly_or_daily_contribution = Column(String, nullable=True)
+    red_occupation_code = Column(String, nullable=True)
+    red_reduction_code = Column(String, nullable=True)
+
+    # Retribución
     salary_base = Column(Numeric(10, 2), nullable=True)
     pay_schedule = Column(String, default="not_prorated_14", nullable=False)
+    gross_annual_salary = Column(Numeric(10, 2), nullable=True)
+
     created_at = Column(DateTime, default=datetime.utcnow)
 
     employee = relationship("Employee", back_populates="contracts")
@@ -25,6 +51,12 @@ class Contract(Base):
     work_center = relationship("WorkCenter", back_populates="contracts")
     incidents = relationship("Incident", back_populates="contract")
     payrolls = relationship("Payroll", back_populates="contract")
+    ss_registration = relationship(
+        "SocialSecurityRegistration",
+        back_populates="contract",
+        uselist=False,
+        cascade="all, delete-orphan",
+    )
 
     @property
     def employee_name(self):
