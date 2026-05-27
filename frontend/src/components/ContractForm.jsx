@@ -26,11 +26,42 @@ const EMPTY_EXTRA = {
   gross_annual_salary: "",
 };
 
+const EMPTY_SS = {
+  situation_code: "1",
+  situation_description: "Alta",
+  registration_date: "",
+  contribution_group: "",
+  monthly_or_daily_contribution: "monthly",
+  disability_degree: "",
+  occupation_code: "",
+  cno: "",
+  worker_collective_code: "",
+  unemployed_condition_code: "",
+  social_exclusion_or_victim_status: "none",
+  is_replacement: false,
+  replacement_cause_code: "",
+  replaced_worker_naf: "",
+  inactivity_type_code: "",
+  working_time_reduction: "",
+  initial_ctp: "",
+  red_contract_key: "",
+  red_occupation_code: "",
+  red_contribution_group: "",
+  red_reduction_code: "",
+  red_special_relation: "",
+};
+
 const DEFAULT_CATALOGS = {
   contracts: [],
   contribution_groups: [],
   working_day_types: [],
   monthly_daily_contribution_types: [],
+  situations: [],
+  worker_collectives: [],
+  unemployed_conditions: [],
+  social_exclusion_victim_statuses: [],
+  substitution_causes: [],
+  inactivity_types: [],
 };
 
 export function formatPaySchedule(value) {
@@ -39,12 +70,10 @@ export function formatPaySchedule(value) {
 
 function mergeEmployees(baseEmployees, extraEmployees) {
   const employeeMap = new Map();
-
   [...baseEmployees, ...extraEmployees].forEach((employee) => {
     if (!employee?.id) return;
     employeeMap.set(String(employee.id), employee);
   });
-
   return Array.from(employeeMap.values());
 }
 
@@ -60,6 +89,10 @@ function calculatePartiality(weeklyHours, fullTimeWeeklyHours) {
   const fullTime = Number(fullTimeWeeklyHours || 40);
   if (!weekly || !fullTime) return "";
   return String(Math.round((weekly / fullTime) * 10000) / 100);
+}
+
+function catalogOrFallback(items, fallback) {
+  return items?.length ? items : fallback;
 }
 
 export default function ContractForm({
@@ -80,6 +113,7 @@ export default function ContractForm({
   const [catalogs, setCatalogs] = useState(DEFAULT_CATALOGS);
   const [catalogError, setCatalogError] = useState("");
   const [extraForm, setExtraForm] = useState(EMPTY_EXTRA);
+  const [ssForm, setSsForm] = useState(EMPTY_SS);
 
   useEffect(() => {
     const addEmployee = (employee) => {
@@ -92,7 +126,6 @@ export default function ContractForm({
 
     const handleEmployeeCreated = (event) => addEmployee(event.detail);
     window.addEventListener("aulanomina:employee-created", handleEmployeeCreated);
-
     return () => window.removeEventListener("aulanomina:employee-created", handleEmployeeCreated);
   }, []);
 
@@ -108,7 +141,6 @@ export default function ContractForm({
         if (!active) return;
         setCatalogError(err.message || "No se pudieron cargar los catálogos laborales");
       });
-
     return () => {
       active = false;
     };
@@ -117,13 +149,19 @@ export default function ContractForm({
   useEffect(() => {
     if (success) {
       setExtraForm(EMPTY_EXTRA);
+      setSsForm(EMPTY_SS);
       window.__aulanominaContractForm = EMPTY_EXTRA;
+      window.__aulanominaSocialSecurityForm = EMPTY_SS;
     }
   }, [success]);
 
   useEffect(() => {
     window.__aulanominaContractForm = extraForm;
   }, [extraForm]);
+
+  useEffect(() => {
+    window.__aulanominaSocialSecurityForm = ssForm;
+  }, [ssForm]);
 
   const availableEmployees = useMemo(
     () => mergeEmployees(employees, localEmployees).filter((employee) => employee.is_active !== false),
@@ -145,12 +183,7 @@ export default function ContractForm({
       const dni = `${emp.dni || ""}`.toLowerCase();
       const employeeCode = `${emp.employee_code || ""}`.toLowerCase();
       const visibleCode = getEmployeeVisibleCode(emp, availableEmployees, contracts).toLowerCase();
-
-      return (
-        (!nameFilter || fullName.includes(nameFilter)) &&
-        (!dniFilter || dni.includes(dniFilter)) &&
-        (!idFilter || employeeCode.includes(idFilter) || visibleCode.includes(idFilter))
-      );
+      return (!nameFilter || fullName.includes(nameFilter)) && (!dniFilter || dni.includes(dniFilter)) && (!idFilter || employeeCode.includes(idFilter) || visibleCode.includes(idFilter));
     });
   }, [availableEmployees, contracts, employeeFilters]);
 
@@ -162,13 +195,19 @@ export default function ContractForm({
     });
   };
 
+  const updateSs = (patch) => {
+    setSsForm((prev) => {
+      const next = { ...prev, ...patch };
+      window.__aulanominaSocialSecurityForm = next;
+      return next;
+    });
+  };
+
   const handleBaseChange = (event) => {
     const { name, value } = event.target;
     onChange(event);
-
-    if (name === "salary_base") {
-      updateExtra({ gross_annual_salary: value });
-    }
+    if (name === "salary_base") updateExtra({ gross_annual_salary: value });
+    if (name === "start_date" && !ssForm.registration_date) updateSs({ registration_date: value });
   };
 
   const handleExtraChange = (event) => {
@@ -178,18 +217,9 @@ export default function ContractForm({
       const selected = catalogs.contracts.find((item) => item.contract_code === value);
       const nextWorkingDay = value.startsWith("5") ? "part_time" : value === "300" ? "fixed_discontinuous" : value.startsWith("4") ? "full_time" : extraForm.working_day_type;
       const nextPartiality = nextWorkingDay === "full_time" ? "100" : extraForm.partiality_coefficient;
-
-      updateExtra({
-        contract_code: value,
-        contract_code_description: selected?.contract_code_description || "",
-        contract_family: selected?.contract_family || "",
-        working_day_type: nextWorkingDay,
-        partiality_coefficient: nextPartiality,
-      });
-
-      if (selected?.contract_family) {
-        onChange({ target: { name: "contract_type", value: inferContractType(selected.contract_family) } });
-      }
+      updateExtra({ contract_code: value, contract_code_description: selected?.contract_code_description || "", contract_family: selected?.contract_family || "", working_day_type: nextWorkingDay, partiality_coefficient: nextPartiality });
+      updateSs({ red_contract_key: value });
+      if (selected?.contract_family) onChange({ target: { name: "contract_type", value: inferContractType(selected.contract_family) } });
       return;
     }
 
@@ -205,14 +235,25 @@ export default function ContractForm({
 
     if (name === "weekly_hours" || name === "full_time_weekly_hours") {
       const next = { ...extraForm, [name]: value };
-      if (next.working_day_type === "part_time") {
-        next.partiality_coefficient = calculatePartiality(next.weekly_hours, next.full_time_weekly_hours);
-      }
+      if (next.working_day_type === "part_time") next.partiality_coefficient = calculatePartiality(next.weekly_hours, next.full_time_weekly_hours);
       updateExtra(next);
       return;
     }
 
     updateExtra({ [name]: value });
+  };
+
+  const handleSsChange = (event) => {
+    const { name, value, type, checked } = event.target;
+    const nextValue = type === "checkbox" ? checked : value;
+
+    if (name === "situation_code") {
+      const selected = catalogs.situations.find((item) => item.code === value);
+      updateSs({ situation_code: value, situation_description: selected?.description || "" });
+      return;
+    }
+
+    updateSs({ [name]: nextValue });
   };
 
   const handleEmployeeFilterChange = (event) => {
@@ -229,6 +270,16 @@ export default function ContractForm({
 
   const handleSubmit = (event) => {
     window.__aulanominaContractForm = extraForm;
+    window.__aulanominaSocialSecurityForm = {
+      ...ssForm,
+      registration_date: ssForm.registration_date || form.start_date,
+      contribution_group: ssForm.contribution_group || extraForm.contribution_group,
+      monthly_or_daily_contribution: ssForm.monthly_or_daily_contribution || extraForm.monthly_or_daily_contribution,
+      red_contract_key: ssForm.red_contract_key || extraForm.contract_code,
+      red_occupation_code: ssForm.red_occupation_code || extraForm.red_occupation_code,
+      red_contribution_group: ssForm.red_contribution_group || extraForm.contribution_group,
+      red_reduction_code: ssForm.red_reduction_code || extraForm.red_reduction_code,
+    };
     onSubmit(event);
   };
 
@@ -244,12 +295,8 @@ export default function ContractForm({
               <label>Trabajador</label>
               <div style={styles.selectorBox}>
                 <div>
-                  <div style={styles.selectorValue}>
-                    {selectedEmployee ? `${selectedEmployee.first_name} ${selectedEmployee.last_name}` : "Selecciona un trabajador"}
-                  </div>
-                  {selectedEmployee && (
-                    <div style={styles.selectorMeta}>Código {getEmployeeCode(selectedEmployee)} · DNI {selectedEmployee.dni || "-"}</div>
-                  )}
+                  <div style={styles.selectorValue}>{selectedEmployee ? `${selectedEmployee.first_name} ${selectedEmployee.last_name}` : "Selecciona un trabajador"}</div>
+                  {selectedEmployee && <div style={styles.selectorMeta}>Código {getEmployeeCode(selectedEmployee)} · DNI {selectedEmployee.dni || "-"}</div>}
                 </div>
                 <button type="button" onClick={() => setEmployeeModalOpen(true)} style={styles.secondaryButton}>Buscar</button>
               </div>
@@ -271,34 +318,11 @@ export default function ContractForm({
         <section style={styles.section}>
           <h3 style={styles.sectionTitle}>Datos contractuales</h3>
           <div style={styles.formGrid}>
-            <Field label="Código contrato">
-              <select name="contract_code" value={extraForm.contract_code} onChange={handleExtraChange} style={styles.input}>
-                <option value="">Selecciona código</option>
-                {catalogs.contracts.map((item) => (
-                  <option key={item.contract_code} value={item.contract_code}>{item.contract_code} · {item.contract_code_description}</option>
-                ))}
-              </select>
-            </Field>
-
-            <Field label="Tipo de contrato">
-              <select name="contract_type" value={form.contract_type} onChange={handleBaseChange} required style={styles.input}>
-                <option value="">Selecciona tipo</option>
-                <option value="indefinido">Indefinido</option>
-                <option value="temporal">Temporal</option>
-                <option value="practicas">Prácticas</option>
-                <option value="formacion">Formación</option>
-                <option value="sustitucion">Sustitución</option>
-              </select>
-            </Field>
-
+            <Field label="Código contrato"><select name="contract_code" value={extraForm.contract_code} onChange={handleExtraChange} style={styles.input}><option value="">Selecciona código</option>{catalogs.contracts.map((item) => <option key={item.contract_code} value={item.contract_code}>{item.contract_code} · {item.contract_code_description}</option>)}</select></Field>
+            <Field label="Tipo de contrato"><select name="contract_type" value={form.contract_type} onChange={handleBaseChange} required style={styles.input}><option value="">Selecciona tipo</option><option value="indefinido">Indefinido</option><option value="temporal">Temporal</option><option value="practicas">Prácticas</option><option value="formacion">Formación</option><option value="sustitucion">Sustitución</option></select></Field>
             <Field label="Fecha inicio"><input type="date" name="start_date" value={form.start_date} onChange={handleBaseChange} required style={styles.input} /></Field>
             <Field label="Fecha fin"><input type="date" name="end_date" value={form.end_date} onChange={handleBaseChange} style={styles.input} /></Field>
-            <Field label="Estado">
-              <select name="status" value={form.status} onChange={handleBaseChange} style={styles.input}>
-                <option value="active">Activo</option>
-                <option value="ended">Finalizado</option>
-              </select>
-            </Field>
+            <Field label="Estado"><select name="status" value={form.status} onChange={handleBaseChange} style={styles.input}><option value="active">Activo</option><option value="ended">Finalizado</option></select></Field>
             <Field label="Convenio colectivo"><input name="collective_agreement_code" value={extraForm.collective_agreement_code} onChange={handleExtraChange} placeholder="Ej. 99008725011994" style={styles.input} /></Field>
           </div>
           {extraForm.contract_code_description && <div style={styles.infoBox}>{extraForm.contract_code_description}</div>}
@@ -307,15 +331,7 @@ export default function ContractForm({
         <section style={styles.section}>
           <h3 style={styles.sectionTitle}>Jornada</h3>
           <div style={styles.formGrid}>
-            <Field label="Tipo jornada">
-              <select name="working_day_type" value={extraForm.working_day_type} onChange={handleExtraChange} style={styles.input}>
-                {(catalogs.working_day_types.length ? catalogs.working_day_types : [
-                  { code: "full_time", description: "Jornada completa" },
-                  { code: "part_time", description: "Jornada parcial" },
-                  { code: "fixed_discontinuous", description: "Fijo discontinuo" },
-                ]).map((item) => <option key={item.code} value={item.code}>{item.description}</option>)}
-              </select>
-            </Field>
+            <Field label="Tipo jornada"><select name="working_day_type" value={extraForm.working_day_type} onChange={handleExtraChange} style={styles.input}>{catalogOrFallback(catalogs.working_day_types, [{ code: "full_time", description: "Jornada completa" }, { code: "part_time", description: "Jornada parcial" }, { code: "fixed_discontinuous", description: "Fijo discontinuo" }]).map((item) => <option key={item.code} value={item.code}>{item.description}</option>)}</select></Field>
             <Field label="Horas semanales"><input type="number" name="weekly_hours" value={extraForm.weekly_hours} onChange={handleExtraChange} style={styles.input} /></Field>
             <Field label="Jornada completa ref."><input type="number" name="full_time_weekly_hours" value={extraForm.full_time_weekly_hours} onChange={handleExtraChange} style={styles.input} /></Field>
             <Field label="Coeficiente parcialidad"><input type="number" name="partiality_coefficient" value={extraForm.partiality_coefficient} onChange={handleExtraChange} style={styles.input} /></Field>
@@ -325,45 +341,53 @@ export default function ContractForm({
         <section style={styles.section}>
           <h3 style={styles.sectionTitle}>Cotización / RED simulado</h3>
           <div style={styles.formGrid}>
-            <Field label="Grupo cotización">
-              <select name="contribution_group" value={extraForm.contribution_group} onChange={handleExtraChange} style={styles.input}>
-                <option value="">Selecciona grupo</option>
-                {catalogs.contribution_groups.map((item) => <option key={item.code} value={item.code}>{item.code} · {item.description}</option>)}
-              </select>
-            </Field>
-            <Field label="Indicador cotización">
-              <select name="monthly_or_daily_contribution" value={extraForm.monthly_or_daily_contribution} onChange={handleExtraChange} style={styles.input}>
-                {(catalogs.monthly_daily_contribution_types.length ? catalogs.monthly_daily_contribution_types : [
-                  { code: "monthly", description: "Cotización mensual" },
-                  { code: "daily", description: "Cotización diaria" },
-                ]).map((item) => <option key={item.code} value={item.code}>{item.description}</option>)}
-              </select>
-            </Field>
+            <Field label="Grupo cotización"><select name="contribution_group" value={extraForm.contribution_group} onChange={(event) => { handleExtraChange(event); updateSs({ contribution_group: event.target.value, red_contribution_group: event.target.value }); }} style={styles.input}><option value="">Selecciona grupo</option>{catalogs.contribution_groups.map((item) => <option key={item.code} value={item.code}>{item.code} · {item.description}</option>)}</select></Field>
+            <Field label="Indicador cotización"><select name="monthly_or_daily_contribution" value={extraForm.monthly_or_daily_contribution} onChange={(event) => { handleExtraChange(event); updateSs({ monthly_or_daily_contribution: event.target.value }); }} style={styles.input}>{catalogOrFallback(catalogs.monthly_daily_contribution_types, [{ code: "monthly", description: "Cotización mensual" }, { code: "daily", description: "Cotización diaria" }]).map((item) => <option key={item.code} value={item.code}>{item.description}</option>)}</select></Field>
             <Field label="Categoría profesional"><input name="professional_category" value={extraForm.professional_category} onChange={handleExtraChange} placeholder="Ej. Oficial administrativo" style={styles.input} /></Field>
             <Field label="Puesto"><input name="job_position" value={extraForm.job_position} onChange={handleExtraChange} placeholder="Ej. Técnico de RRHH" style={styles.input} /></Field>
-            <Field label="Ocupación RED"><input name="red_occupation_code" value={extraForm.red_occupation_code} onChange={handleExtraChange} placeholder="Código ocupación" style={styles.input} /></Field>
-            <Field label="Código reducción"><input name="red_reduction_code" value={extraForm.red_reduction_code} onChange={handleExtraChange} placeholder="Opcional" style={styles.input} /></Field>
+            <Field label="Ocupación RED"><input name="red_occupation_code" value={extraForm.red_occupation_code} onChange={(event) => { handleExtraChange(event); updateSs({ red_occupation_code: event.target.value, occupation_code: event.target.value }); }} placeholder="Código ocupación" style={styles.input} /></Field>
+            <Field label="Código reducción"><input name="red_reduction_code" value={extraForm.red_reduction_code} onChange={(event) => { handleExtraChange(event); updateSs({ red_reduction_code: event.target.value }); }} placeholder="Opcional" style={styles.input} /></Field>
           </div>
+        </section>
+
+        <section style={styles.section}>
+          <h3 style={styles.sectionTitle}>Alta Seguridad Social simulada</h3>
+          <div style={styles.formGrid}>
+            <Field label="Situación"><select name="situation_code" value={ssForm.situation_code} onChange={handleSsChange} style={styles.input}>{catalogOrFallback(catalogs.situations, [{ code: "1", description: "Alta" }]).map((item) => <option key={item.code} value={item.code}>{item.code} · {item.description}</option>)}</select></Field>
+            <Field label="Fecha de alta"><input type="date" name="registration_date" value={ssForm.registration_date || form.start_date} onChange={handleSsChange} style={styles.input} /></Field>
+            <Field label="Grado discapacidad"><input type="number" name="disability_degree" value={ssForm.disability_degree} onChange={handleSsChange} placeholder="Ej. 33" style={styles.input} /></Field>
+            <Field label="CNO"><input name="cno" value={ssForm.cno} onChange={handleSsChange} placeholder="Código CNO" style={styles.input} /></Field>
+            <Field label="Colectivo trabajador"><select name="worker_collective_code" value={ssForm.worker_collective_code} onChange={handleSsChange} style={styles.input}><option value="">No aplica</option>{catalogs.worker_collectives.map((item) => <option key={item.code} value={item.code}>{item.code} · {item.description}</option>)}</select></Field>
+            <Field label="Condición desempleado"><select name="unemployed_condition_code" value={ssForm.unemployed_condition_code} onChange={handleSsChange} style={styles.input}><option value="">No aplica</option>{catalogs.unemployed_conditions.map((item) => <option key={item.code} value={item.code}>{item.code} · {item.description}</option>)}</select></Field>
+            <Field label="Exclusión / víctimas"><select name="social_exclusion_or_victim_status" value={ssForm.social_exclusion_or_victim_status} onChange={handleSsChange} style={styles.input}>{catalogs.social_exclusion_victim_statuses.map((item) => <option key={item.code} value={item.code}>{item.description}</option>)}</select></Field>
+            <Field label="Tipo inactividad"><select name="inactivity_type_code" value={ssForm.inactivity_type_code} onChange={handleSsChange} style={styles.input}><option value="">No aplica</option>{catalogs.inactivity_types.map((item) => <option key={item.code} value={item.code}>{item.code} · {item.description}</option>)}</select></Field>
+            <Field label="Reducción jornada"><input type="number" name="working_time_reduction" value={ssForm.working_time_reduction} onChange={handleSsChange} placeholder="Ej. 25" style={styles.input} /></Field>
+            <Field label="C.T.P. inicial"><input type="number" name="initial_ctp" value={ssForm.initial_ctp} onChange={handleSsChange} placeholder="Debe ser mayor que reducción" style={styles.input} /></Field>
+          </div>
+
+          <div style={styles.checkboxRow}>
+            <label style={styles.checkboxLabel}><input type="checkbox" name="is_replacement" checked={ssForm.is_replacement} onChange={handleSsChange} /> Marcar sustitución / relevo</label>
+          </div>
+
+          {ssForm.is_replacement && (
+            <div style={styles.formGrid}>
+              <Field label="Causa sustitución"><select name="replacement_cause_code" value={ssForm.replacement_cause_code} onChange={handleSsChange} style={styles.input}><option value="">Selecciona causa</option>{catalogs.substitution_causes.map((item) => <option key={item.code} value={item.code}>{item.code} · {item.description}</option>)}</select></Field>
+              <Field label="NAF sustituido"><input name="replaced_worker_naf" value={ssForm.replaced_worker_naf} onChange={handleSsChange} placeholder="NAF de la persona sustituida" style={styles.input} /></Field>
+            </div>
+          )}
         </section>
 
         <section style={styles.section}>
           <h3 style={styles.sectionTitle}>Retribución</h3>
           <div style={styles.formGrid}>
-            <Field label="Salario bruto anual pactado">
-              <input type="number" name="salary_base" value={form.salary_base} onChange={handleBaseChange} placeholder="Ej. 30000" style={styles.input} />
-            </Field>
-            <Field label="Sistema de pagas">
-              <select name="pay_schedule" value={form.pay_schedule || "not_prorated_14"} onChange={handleBaseChange} required style={styles.input}>
-                {PAY_SCHEDULE_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-              </select>
-            </Field>
+            <Field label="Salario bruto anual pactado"><input type="number" name="salary_base" value={form.salary_base} onChange={handleBaseChange} placeholder="Ej. 30000" style={styles.input} /></Field>
+            <Field label="Sistema de pagas"><select name="pay_schedule" value={form.pay_schedule || "not_prorated_14"} onChange={handleBaseChange} required style={styles.input}>{PAY_SCHEDULE_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></Field>
           </div>
         </section>
 
         {error && <div style={styles.error}>{error}</div>}
         {success && <div style={styles.success}>{success}</div>}
-
-        <button type="submit" disabled={submitting} style={styles.button}>{submitting ? "Guardando..." : "Crear contrato"}</button>
+        <button type="submit" disabled={submitting} style={styles.button}>{submitting ? "Guardando..." : "Crear contrato y alta SS"}</button>
       </form>
 
       {employeeModalOpen && (
@@ -385,15 +409,7 @@ export default function ContractForm({
                   {filteredEmployees.map((emp) => {
                     const employeeCompany = companies.find((company) => Number(company.id) === Number(emp.company_id));
                     const employeeCenter = workCenters.find((center) => Number(center.id) === Number(emp.center_id));
-                    return (
-                      <tr key={emp.id}>
-                        <td style={styles.td}>{getEmployeeCode(emp)}</td>
-                        <td style={styles.td}>{emp.first_name} {emp.last_name}</td>
-                        <td style={styles.td}>{emp.dni || "-"}</td>
-                        <td style={styles.td}>{employeeCompany?.name || "-"}{employeeCenter?.name ? ` · ${employeeCenter.name}` : ""}</td>
-                        <td style={styles.tdRight}><button type="button" onClick={() => selectEmployee(emp)} style={styles.smallButton}>Seleccionar</button></td>
-                      </tr>
-                    );
+                    return <tr key={emp.id}><td style={styles.td}>{getEmployeeCode(emp)}</td><td style={styles.td}>{emp.first_name} {emp.last_name}</td><td style={styles.td}>{emp.dni || "-"}</td><td style={styles.td}>{employeeCompany?.name || "-"}{employeeCenter?.name ? ` · ${employeeCenter.name}` : ""}</td><td style={styles.tdRight}><button type="button" onClick={() => selectEmployee(emp)} style={styles.smallButton}>Seleccionar</button></td></tr>;
                   })}
                   {filteredEmployees.length === 0 && <tr><td style={styles.td} colSpan="5">No hay trabajadores con esos filtros.</td></tr>}
                 </tbody>
@@ -427,6 +443,8 @@ const styles = {
   readOnlyMeta: { marginTop: "2px", fontSize: "12px", color: "#6b7280", fontWeight: 600 },
   infoBox: { marginTop: "12px", padding: "10px 12px", borderRadius: "8px", backgroundColor: "#fef3c7", color: "#111827", fontSize: "13px", fontWeight: 700 },
   warning: { backgroundColor: "#fef3c7", color: "#92400e", padding: "10px 12px", borderRadius: "8px" },
+  checkboxRow: { marginTop: "14px", padding: "10px 12px", borderRadius: "8px", backgroundColor: "#f9fafb", border: "1px solid #e5e7eb" },
+  checkboxLabel: { display: "flex", alignItems: "center", gap: "8px", fontWeight: 700, fontSize: "13px" },
   button: { backgroundColor: "#111827", color: "white", border: "none", borderRadius: "8px", padding: "12px 18px", fontSize: "14px", cursor: "pointer", width: "fit-content" },
   secondaryButton: { backgroundColor: "#f3f4f6", color: "#111827", border: "1px solid #d1d5db", borderRadius: "8px", padding: "8px 12px", cursor: "pointer", fontWeight: 600 },
   smallButton: { backgroundColor: "#111827", color: "white", border: "none", borderRadius: "8px", padding: "8px 10px", cursor: "pointer", fontSize: "12px" },
