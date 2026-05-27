@@ -141,11 +141,9 @@ export default function ContractTable({ loading, contracts, employees, companies
 
   useEffect(() => {
     let active = true;
-    fetchCatalogs()
-      .then((data) => {
-        if (active) setCatalogs({ ...DEFAULT_CATALOGS, ...data });
-      })
-      .catch(() => undefined);
+    fetchCatalogs().then((data) => {
+      if (active) setCatalogs({ ...DEFAULT_CATALOGS, ...data });
+    }).catch(() => undefined);
     return () => { active = false; };
   }, []);
 
@@ -231,9 +229,7 @@ export default function ContractTable({ loading, contracts, employees, companies
     setEditError("");
 
     try {
-      window.__aulanominaContractForm = editForm;
-      window.__aulanominaSocialSecurityForm = ssEditForm;
-      await onUpdateContract(editingContract.id, editForm);
+      await onUpdateContract(editingContract.id, editForm, ssEditForm);
       closeEditModal();
     } catch (err) {
       setEditError(err.message || "Error al actualizar contrato");
@@ -259,9 +255,11 @@ export default function ContractTable({ loading, contracts, employees, companies
     }
 
     try {
-      window.__aulanominaContractForm = toEditForm(contractToTerminate);
-      window.__aulanominaSocialSecurityForm = toSocialSecurityForm(contractToTerminate);
-      await onUpdateContract(contractToTerminate.id, { ...toEditForm(contractToTerminate), end_date: terminationForm.end_date, status: "ended" });
+      await onUpdateContract(
+        contractToTerminate.id,
+        { ...toEditForm(contractToTerminate), end_date: terminationForm.end_date, status: "ended" },
+        toSocialSecurityForm(contractToTerminate)
+      );
       closeTerminationModal();
       closeEditModal();
     } catch (err) {
@@ -300,87 +298,38 @@ export default function ContractTable({ loading, contracts, employees, companies
         <div style={styles.modalBackdrop}>
           <div style={styles.modal}>
             <div style={styles.modalHeader}>
-              <div>
-                <h3 style={styles.modalTitle}>Detalle y edición de contrato</h3>
-                <p style={styles.modalSubtitle}>Contrato {getContractCode(editingContract)} · {getEmployeeName(editingContract)} · {formatPaySchedule(editingContract.pay_schedule)}</p>
-              </div>
+              <div><h3 style={styles.modalTitle}>Detalle y edición de contrato</h3><p style={styles.modalSubtitle}>Contrato {getContractCode(editingContract)} · {getEmployeeName(editingContract)} · {formatPaySchedule(editingContract.pay_schedule)}</p></div>
               <button type="button" onClick={closeEditModal} style={styles.closeButton}>×</button>
             </div>
 
             <form onSubmit={handleEditSubmit} style={styles.form}>
               <section style={styles.sectionBox}>
                 <h4 style={styles.sectionTitle}>Datos contractuales</h4>
-                <div style={styles.formRow}>
-                  <div style={styles.formGroup}><label>Trabajador</label><input value={getEmployeeName(editingContract)} readOnly disabled style={{ ...styles.input, ...styles.readOnlyInput }} /></div>
-                  <div style={styles.formGroup}><label>Empresa / centro</label><input value={getCompanyAndCenterName(editingContract)} readOnly disabled style={{ ...styles.input, ...styles.readOnlyInput }} /></div>
-                </div>
-                <div style={styles.formRow}>
-                  <div style={styles.formGroup}><label>Código contrato</label><input name="contract_code" value={editForm.contract_code} onChange={handleEditChange} style={styles.input} /></div>
-                  <div style={styles.formGroup}><label>Tipo de contrato</label><select name="contract_type" value={editForm.contract_type} onChange={handleEditChange} required style={styles.input}><option value="">Selecciona tipo</option><option value="indefinido">Indefinido</option><option value="temporal">Temporal</option><option value="practicas">Prácticas</option><option value="formacion">Formación</option><option value="sustitucion">Sustitución</option></select></div>
-                  <div style={styles.formGroup}><label>Sistema de pagas</label><select name="pay_schedule" value={editForm.pay_schedule} onChange={handleEditChange} required style={styles.input}>{PAY_SCHEDULE_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></div>
-                </div>
-                <div style={styles.formRow}>
-                  <div style={styles.formGroup}><label>Fecha inicio</label><input type="date" name="start_date" value={editForm.start_date} onChange={handleEditChange} required style={styles.input} /></div>
-                  <div style={styles.formGroup}><label>Fecha fin</label><input type="date" name="end_date" value={editForm.end_date} onChange={handleEditChange} style={styles.input} /></div>
-                  <div style={styles.formGroup}><label>Estado</label><select name="status" value={editForm.status} onChange={handleEditChange} style={styles.input}><option value="active">Activo</option><option value="ended">Finalizado</option></select></div>
-                </div>
+                <div style={styles.formRow}><div style={styles.formGroup}><label>Trabajador</label><input value={getEmployeeName(editingContract)} readOnly disabled style={{ ...styles.input, ...styles.readOnlyInput }} /></div><div style={styles.formGroup}><label>Empresa / centro</label><input value={getCompanyAndCenterName(editingContract)} readOnly disabled style={{ ...styles.input, ...styles.readOnlyInput }} /></div></div>
+                <div style={styles.formRow}><div style={styles.formGroup}><label>Código contrato</label><input name="contract_code" value={editForm.contract_code} onChange={handleEditChange} style={styles.input} /></div><div style={styles.formGroup}><label>Tipo de contrato</label><select name="contract_type" value={editForm.contract_type} onChange={handleEditChange} required style={styles.input}><option value="">Selecciona tipo</option><option value="indefinido">Indefinido</option><option value="temporal">Temporal</option><option value="practicas">Prácticas</option><option value="formacion">Formación</option><option value="sustitucion">Sustitución</option></select></div><div style={styles.formGroup}><label>Sistema de pagas</label><select name="pay_schedule" value={editForm.pay_schedule} onChange={handleEditChange} required style={styles.input}>{PAY_SCHEDULE_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></div></div>
+                <div style={styles.formRow}><div style={styles.formGroup}><label>Fecha inicio</label><input type="date" name="start_date" value={editForm.start_date} onChange={handleEditChange} required style={styles.input} /></div><div style={styles.formGroup}><label>Fecha fin</label><input type="date" name="end_date" value={editForm.end_date} onChange={handleEditChange} style={styles.input} /></div><div style={styles.formGroup}><label>Estado</label><select name="status" value={editForm.status} onChange={handleEditChange} style={styles.input}><option value="active">Activo</option><option value="ended">Finalizado</option></select></div></div>
               </section>
 
               <section style={styles.sectionBox}>
                 <h4 style={styles.sectionTitle}>Jornada, cotización y RED</h4>
-                <div style={styles.formRow}>
-                  <div style={styles.formGroup}><label>Grupo cotización</label><select name="contribution_group" value={editForm.contribution_group} onChange={(e) => { handleEditChange(e); setSsEditForm((prev) => ({ ...prev, contribution_group: e.target.value, red_contribution_group: e.target.value })); }} style={styles.input}><option value="">Selecciona grupo</option>{catalogs.contribution_groups.map((item) => <option key={item.code} value={item.code}>{item.code} · {item.description}</option>)}</select></div>
-                  <div style={styles.formGroup}><label>Tipo jornada</label><select name="working_day_type" value={editForm.working_day_type} onChange={handleEditChange} style={styles.input}><option value="">Sin definir</option>{catalogOrFallback(catalogs.working_day_types, [{ code: "full_time", description: "Jornada completa" }, { code: "part_time", description: "Jornada parcial" }, { code: "fixed_discontinuous", description: "Fijo discontinuo" }]).map((item) => <option key={item.code} value={item.code}>{item.description}</option>)}</select></div>
-                  <div style={styles.formGroup}><label>Coeficiente parcialidad</label><input type="number" name="partiality_coefficient" value={editForm.partiality_coefficient} onChange={handleEditChange} style={styles.input} /></div>
-                </div>
-                <div style={styles.formRow}>
-                  <div style={styles.formGroup}><label>Categoría profesional</label><input name="professional_category" value={editForm.professional_category} onChange={handleEditChange} style={styles.input} /></div>
-                  <div style={styles.formGroup}><label>Puesto</label><input name="job_position" value={editForm.job_position} onChange={handleEditChange} style={styles.input} /></div>
-                  <div style={styles.formGroup}><label>Convenio colectivo</label><input name="collective_agreement_code" value={editForm.collective_agreement_code} onChange={handleEditChange} style={styles.input} /></div>
-                </div>
-                <div style={styles.formRow}>
-                  <div style={styles.formGroup}><label>Ocupación RED</label><input name="red_occupation_code" value={editForm.red_occupation_code} onChange={(e) => { handleEditChange(e); setSsEditForm((prev) => ({ ...prev, red_occupation_code: e.target.value, occupation_code: e.target.value })); }} style={styles.input} /></div>
-                  <div style={styles.formGroup}><label>Código reducción</label><input name="red_reduction_code" value={editForm.red_reduction_code} onChange={(e) => { handleEditChange(e); setSsEditForm((prev) => ({ ...prev, red_reduction_code: e.target.value })); }} style={styles.input} /></div>
-                  <div style={styles.formGroup}><label>Salario bruto anual</label><input type="number" name="salary_base" value={editForm.salary_base} onChange={handleEditChange} style={styles.input} /></div>
-                </div>
+                <div style={styles.formRow}><div style={styles.formGroup}><label>Grupo cotización</label><select name="contribution_group" value={editForm.contribution_group} onChange={(e) => { handleEditChange(e); setSsEditForm((prev) => ({ ...prev, contribution_group: e.target.value, red_contribution_group: e.target.value })); }} style={styles.input}><option value="">Selecciona grupo</option>{catalogs.contribution_groups.map((item) => <option key={item.code} value={item.code}>{item.code} · {item.description}</option>)}</select></div><div style={styles.formGroup}><label>Tipo jornada</label><select name="working_day_type" value={editForm.working_day_type} onChange={handleEditChange} style={styles.input}><option value="">Sin definir</option>{catalogOrFallback(catalogs.working_day_types, [{ code: "full_time", description: "Jornada completa" }, { code: "part_time", description: "Jornada parcial" }, { code: "fixed_discontinuous", description: "Fijo discontinuo" }]).map((item) => <option key={item.code} value={item.code}>{item.description}</option>)}</select></div><div style={styles.formGroup}><label>Coeficiente parcialidad</label><input type="number" name="partiality_coefficient" value={editForm.partiality_coefficient} onChange={handleEditChange} style={styles.input} /></div></div>
+                <div style={styles.formRow}><div style={styles.formGroup}><label>Categoría profesional</label><input name="professional_category" value={editForm.professional_category} onChange={handleEditChange} style={styles.input} /></div><div style={styles.formGroup}><label>Puesto</label><input name="job_position" value={editForm.job_position} onChange={handleEditChange} style={styles.input} /></div><div style={styles.formGroup}><label>Convenio colectivo</label><input name="collective_agreement_code" value={editForm.collective_agreement_code} onChange={handleEditChange} style={styles.input} /></div></div>
+                <div style={styles.formRow}><div style={styles.formGroup}><label>Ocupación RED</label><input name="red_occupation_code" value={editForm.red_occupation_code} onChange={(e) => { handleEditChange(e); setSsEditForm((prev) => ({ ...prev, red_occupation_code: e.target.value, occupation_code: e.target.value })); }} style={styles.input} /></div><div style={styles.formGroup}><label>Código reducción</label><input name="red_reduction_code" value={editForm.red_reduction_code} onChange={(e) => { handleEditChange(e); setSsEditForm((prev) => ({ ...prev, red_reduction_code: e.target.value })); }} style={styles.input} /></div><div style={styles.formGroup}><label>Salario bruto anual</label><input type="number" name="salary_base" value={editForm.salary_base} onChange={handleEditChange} style={styles.input} /></div></div>
               </section>
 
               <section style={styles.sectionBox}>
                 <h4 style={styles.sectionTitle}>Alta SS simulada</h4>
-                <div style={styles.ssSummary}>
-                  <div><span>Situación</span><strong>{findLabel(catalogs.situations, ssEditForm.situation_code)}</strong></div>
-                  <div><span>Alta</span><strong>{formatDate(ssEditForm.registration_date)}</strong></div>
-                  <div><span>Colectivo</span><strong>{findLabel(catalogs.worker_collectives, ssEditForm.worker_collective_code)}</strong></div>
-                </div>
-                <div style={styles.formRow}>
-                  <div style={styles.formGroup}><label>Situación</label><select name="situation_code" value={ssEditForm.situation_code} onChange={handleSsEditChange} style={styles.input}>{catalogOrFallback(catalogs.situations, [{ code: "1", description: "Alta" }]).map((item) => <option key={item.code} value={item.code}>{item.code} · {item.description}</option>)}</select></div>
-                  <div style={styles.formGroup}><label>Fecha alta</label><input type="date" name="registration_date" value={ssEditForm.registration_date} onChange={handleSsEditChange} style={styles.input} /></div>
-                  <div style={styles.formGroup}><label>Discapacidad</label><input type="number" name="disability_degree" value={ssEditForm.disability_degree} onChange={handleSsEditChange} style={styles.input} /></div>
-                </div>
-                <div style={styles.formRow}>
-                  <div style={styles.formGroup}><label>Colectivo trabajador</label><select name="worker_collective_code" value={ssEditForm.worker_collective_code} onChange={handleSsEditChange} style={styles.input}><option value="">No aplica</option>{catalogs.worker_collectives.map((item) => <option key={item.code} value={item.code}>{item.code} · {item.description}</option>)}</select></div>
-                  <div style={styles.formGroup}><label>Condición desempleado</label><select name="unemployed_condition_code" value={ssEditForm.unemployed_condition_code} onChange={handleSsEditChange} style={styles.input}><option value="">No aplica</option>{catalogs.unemployed_conditions.map((item) => <option key={item.code} value={item.code}>{item.code} · {item.description}</option>)}</select></div>
-                  <div style={styles.formGroup}><label>Exclusión / víctimas</label><select name="social_exclusion_or_victim_status" value={ssEditForm.social_exclusion_or_victim_status} onChange={handleSsEditChange} style={styles.input}>{catalogs.social_exclusion_victim_statuses.map((item) => <option key={item.code} value={item.code}>{item.description}</option>)}</select></div>
-                </div>
-                <div style={styles.formRow}>
-                  <div style={styles.formGroup}><label>Tipo inactividad</label><select name="inactivity_type_code" value={ssEditForm.inactivity_type_code} onChange={handleSsEditChange} style={styles.input}><option value="">No aplica</option>{catalogs.inactivity_types.map((item) => <option key={item.code} value={item.code}>{item.code} · {item.description}</option>)}</select></div>
-                  <div style={styles.formGroup}><label>CNO</label><input name="cno" value={ssEditForm.cno} onChange={handleSsEditChange} style={styles.input} /></div>
-                  <div style={styles.formGroup}><label>Relación especial RED</label><input name="red_special_relation" value={ssEditForm.red_special_relation} onChange={handleSsEditChange} style={styles.input} /></div>
-                </div>
-                <div style={styles.formRow}>
-                  <div style={styles.formGroup}><label>Reducción jornada</label><input type="number" name="working_time_reduction" value={ssEditForm.working_time_reduction} onChange={handleSsEditChange} style={styles.input} /></div>
-                  <div style={styles.formGroup}><label>C.T.P. inicial</label><input type="number" name="initial_ctp" value={ssEditForm.initial_ctp} onChange={handleSsEditChange} style={styles.input} /></div>
-                  <div style={styles.formGroup}><label>NAF sustituido</label><input name="replaced_worker_naf" value={ssEditForm.replaced_worker_naf} onChange={handleSsEditChange} disabled={!ssEditForm.is_replacement} style={styles.input} /></div>
-                </div>
+                <div style={styles.ssSummary}><div><span>Situación</span><strong>{findLabel(catalogs.situations, ssEditForm.situation_code)}</strong></div><div><span>Alta</span><strong>{formatDate(ssEditForm.registration_date)}</strong></div><div><span>Colectivo</span><strong>{findLabel(catalogs.worker_collectives, ssEditForm.worker_collective_code)}</strong></div></div>
+                <div style={styles.formRow}><div style={styles.formGroup}><label>Situación</label><select name="situation_code" value={ssEditForm.situation_code} onChange={handleSsEditChange} style={styles.input}>{catalogOrFallback(catalogs.situations, [{ code: "1", description: "Alta" }]).map((item) => <option key={item.code} value={item.code}>{item.code} · {item.description}</option>)}</select></div><div style={styles.formGroup}><label>Fecha alta</label><input type="date" name="registration_date" value={ssEditForm.registration_date} onChange={handleSsEditChange} style={styles.input} /></div><div style={styles.formGroup}><label>Discapacidad</label><input type="number" name="disability_degree" value={ssEditForm.disability_degree} onChange={handleSsEditChange} style={styles.input} /></div></div>
+                <div style={styles.formRow}><div style={styles.formGroup}><label>Colectivo trabajador</label><select name="worker_collective_code" value={ssEditForm.worker_collective_code} onChange={handleSsEditChange} style={styles.input}><option value="">No aplica</option>{catalogs.worker_collectives.map((item) => <option key={item.code} value={item.code}>{item.code} · {item.description}</option>)}</select></div><div style={styles.formGroup}><label>Condición desempleado</label><select name="unemployed_condition_code" value={ssEditForm.unemployed_condition_code} onChange={handleSsEditChange} style={styles.input}><option value="">No aplica</option>{catalogs.unemployed_conditions.map((item) => <option key={item.code} value={item.code}>{item.code} · {item.description}</option>)}</select></div><div style={styles.formGroup}><label>Exclusión / víctimas</label><select name="social_exclusion_or_victim_status" value={ssEditForm.social_exclusion_or_victim_status} onChange={handleSsEditChange} style={styles.input}>{catalogs.social_exclusion_victim_statuses.map((item) => <option key={item.code} value={item.code}>{item.description}</option>)}</select></div></div>
+                <div style={styles.formRow}><div style={styles.formGroup}><label>Tipo inactividad</label><select name="inactivity_type_code" value={ssEditForm.inactivity_type_code} onChange={handleSsEditChange} style={styles.input}><option value="">No aplica</option>{catalogs.inactivity_types.map((item) => <option key={item.code} value={item.code}>{item.code} · {item.description}</option>)}</select></div><div style={styles.formGroup}><label>CNO</label><input name="cno" value={ssEditForm.cno} onChange={handleSsEditChange} style={styles.input} /></div><div style={styles.formGroup}><label>Relación especial RED</label><input name="red_special_relation" value={ssEditForm.red_special_relation} onChange={handleSsEditChange} style={styles.input} /></div></div>
+                <div style={styles.formRow}><div style={styles.formGroup}><label>Reducción jornada</label><input type="number" name="working_time_reduction" value={ssEditForm.working_time_reduction} onChange={handleSsEditChange} style={styles.input} /></div><div style={styles.formGroup}><label>C.T.P. inicial</label><input type="number" name="initial_ctp" value={ssEditForm.initial_ctp} onChange={handleSsEditChange} style={styles.input} /></div><div style={styles.formGroup}><label>NAF sustituido</label><input name="replaced_worker_naf" value={ssEditForm.replaced_worker_naf} onChange={handleSsEditChange} disabled={!ssEditForm.is_replacement} style={styles.input} /></div></div>
                 <div style={styles.checkRow}><label style={styles.checkboxLabel}><input type="checkbox" name="is_replacement" checked={ssEditForm.is_replacement} onChange={handleSsEditChange} /> Sustitución / relevo</label></div>
                 {ssEditForm.is_replacement && <div style={styles.formRow}><div style={styles.formGroup}><label>Causa sustitución</label><select name="replacement_cause_code" value={ssEditForm.replacement_cause_code} onChange={handleSsEditChange} style={styles.input}><option value="">Selecciona causa</option>{catalogs.substitution_causes.map((item) => <option key={item.code} value={item.code}>{item.code} · {item.description}</option>)}</select></div></div>}
               </section>
 
               {editError && <div style={styles.error}>{editError}</div>}
-              <div style={styles.modalActionsSplit}>
-                <button type="button" onClick={() => openTerminationModal(editingContract)} style={styles.deleteButton}>Tramitar baja</button>
-                <div style={styles.modalActionsRight}><button type="button" onClick={closeEditModal} style={styles.cancelButton}>Cancelar</button><button type="submit" disabled={submitting} style={styles.saveButton}>{submitting ? "Guardando..." : "Guardar contrato y SS"}</button></div>
-              </div>
+              <div style={styles.modalActionsSplit}><button type="button" onClick={() => openTerminationModal(editingContract)} style={styles.deleteButton}>Tramitar baja</button><div style={styles.modalActionsRight}><button type="button" onClick={closeEditModal} style={styles.cancelButton}>Cancelar</button><button type="submit" disabled={submitting} style={styles.saveButton}>{submitting ? "Guardando..." : "Guardar contrato y SS"}</button></div></div>
             </form>
           </div>
         </div>
