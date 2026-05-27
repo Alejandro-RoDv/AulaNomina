@@ -18,6 +18,33 @@ const CONTRACT_EXTRA_FIELDS = [
   "gross_annual_salary",
 ];
 
+const SS_FIELDS = [
+  "situation_code",
+  "situation_description",
+  "registration_date",
+  "contribution_group",
+  "monthly_or_daily_contribution",
+  "disability_degree",
+  "occupation_code",
+  "cno",
+  "worker_collective_code",
+  "unemployed_condition_code",
+  "social_exclusion_or_victim_status",
+  "is_replacement",
+  "replacement_cause_code",
+  "replaced_worker_naf",
+  "inactivity_type_code",
+  "working_time_reduction",
+  "initial_ctp",
+  "red_contract_key",
+  "red_occupation_code",
+  "red_contribution_group",
+  "red_reduction_code",
+  "red_special_relation",
+];
+
+const NUMERIC_SS_FIELDS = new Set(["disability_degree", "working_time_reduction", "initial_ctp"]);
+
 function enrichContractPayload(payload) {
   const source = window.__aulanominaContractForm || {};
   const enriched = { ...payload };
@@ -34,6 +61,42 @@ function enrichContractPayload(payload) {
   });
 
   return enriched;
+}
+
+function buildSocialSecurityPayload() {
+  const source = window.__aulanominaSocialSecurityForm || {};
+  const payload = {};
+
+  SS_FIELDS.forEach((field) => {
+    const value = source[field];
+    if (value === undefined || value === "") return;
+
+    if (field === "is_replacement") {
+      payload[field] = Boolean(value);
+      return;
+    }
+
+    if (NUMERIC_SS_FIELDS.has(field)) {
+      payload[field] = Number(value);
+      return;
+    }
+
+    payload[field] = value;
+  });
+
+  return Object.keys(payload).length ? payload : null;
+}
+
+async function createSocialSecurityRegistration(contractId, payload) {
+  return apiRequest(
+    `/contracts/${contractId}/social-security-registration`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    },
+    "Error al crear alta SS simulada"
+  );
 }
 
 export async function fetchContracts() {
@@ -57,7 +120,7 @@ export async function resetDemo() {
 }
 
 export async function createContract(payload) {
-  return apiRequest(
+  const contract = await apiRequest(
     "/contracts",
     {
       method: "POST",
@@ -66,6 +129,13 @@ export async function createContract(payload) {
     },
     "Error al crear contrato"
   );
+
+  const socialSecurityPayload = buildSocialSecurityPayload();
+  if (socialSecurityPayload && contract?.id) {
+    await createSocialSecurityRegistration(contract.id, socialSecurityPayload);
+  }
+
+  return contract;
 }
 
 export async function updateContract(contractId, payload) {
