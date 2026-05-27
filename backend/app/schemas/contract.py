@@ -3,6 +3,8 @@ from datetime import date, datetime
 from typing import Optional
 from decimal import Decimal
 
+from app.schemas.social_security_registration import SocialSecurityRegistrationResponse
+
 
 class ContractBase(BaseModel):
     employee_id: int
@@ -212,6 +214,7 @@ class ContractResponse(BaseModel):
     gross_annual_salary: Optional[Decimal] = None
     pay_schedule: str
     created_at: datetime
+    ss_registration: Optional[SocialSecurityRegistrationResponse] = None
 
     class Config:
         from_attributes = True
