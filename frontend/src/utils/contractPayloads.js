@@ -11,6 +11,16 @@ const SOCIAL_SECURITY_NUMERIC_FIELDS = new Set([
   "initial_ctp",
 ]);
 
+function hasValue(value) {
+  return value !== undefined && value !== null && value !== "";
+}
+
+function toNumberOrNull(value) {
+  if (!hasValue(value)) return null;
+  const number = Number(value);
+  return Number.isNaN(number) ? null : number;
+}
+
 export function normalizeContractExtras(extra = {}) {
   return Object.entries(extra).reduce((acc, [key, value]) => {
     if (value === "" || value === undefined) return acc;
@@ -35,6 +45,81 @@ export function normalizeSocialSecurityPayload(payload = null) {
   }, {});
 
   return Object.keys(normalized).length ? normalized : null;
+}
+
+export function validateContractWorkflow(form, contractExtra = {}, socialSecurity = null) {
+  const errors = [];
+  const ss = socialSecurity || {};
+  const contractCode = contractExtra.contract_code || form.contract_code || "";
+  const workingDayType = contractExtra.working_day_type || form.working_day_type;
+  const partialityCoefficient = toNumberOrNull(contractExtra.partiality_coefficient || form.partiality_coefficient);
+  const weeklyHours = toNumberOrNull(contractExtra.weekly_hours || form.weekly_hours);
+  const fullTimeWeeklyHours = toNumberOrNull(contractExtra.full_time_weekly_hours || form.full_time_weekly_hours || 40);
+  const workingTimeReduction = toNumberOrNull(ss.working_time_reduction);
+  const initialCtp = toNumberOrNull(ss.initial_ctp);
+  const registrationDate = ss.registration_date || form.start_date;
+
+  if (form.end_date && form.start_date && form.end_date < form.start_date) {
+    errors.push("La fecha fin del contrato no puede ser anterior a la fecha de inicio.");
+  }
+
+  if (contractCode.startsWith("5") && workingDayType !== "part_time") {
+    errors.push("Los contratos con código 5xx deben estar marcados como jornada parcial.");
+  }
+
+  if (contractCode.startsWith("4") && workingDayType !== "full_time") {
+    errors.push("Los contratos con código 4xx deben estar marcados como jornada completa.");
+  }
+
+  if (contractCode === "300" && workingDayType !== "fixed_discontinuous") {
+    errors.push("El contrato 300 debe estar marcado como fijo discontinuo.");
+  }
+
+  if (workingDayType === "part_time") {
+    if (!hasValue(partialityCoefficient)) {
+      errors.push("La jornada parcial requiere coeficiente de parcialidad.");
+    }
+
+    if (!hasValue(weeklyHours) || !hasValue(fullTimeWeeklyHours)) {
+      errors.push("La jornada parcial requiere horas semanales y jornada completa de referencia.");
+    }
+
+    if (partialityCoefficient !== null && (partialityCoefficient <= 0 || partialityCoefficient >= 100)) {
+      errors.push("En jornada parcial el coeficiente de parcialidad debe ser mayor que 0 y menor que 100.");
+    }
+  }
+
+  if (workingDayType === "full_time" && partialityCoefficient !== null && partialityCoefficient !== 100) {
+    errors.push("En jornada completa el coeficiente de parcialidad debe ser 100.");
+  }
+
+  if (workingTimeReduction !== null) {
+    if (initialCtp === null) {
+      errors.push("Si existe reducción de jornada, debe indicarse el C.T.P. inicial.");
+    } else if (initialCtp <= workingTimeReduction) {
+      errors.push("El C.T.P. inicial debe ser mayor que la reducción de jornada.");
+    }
+  }
+
+  if (ss.is_replacement) {
+    if (!ss.replacement_cause_code) {
+      errors.push("Si se marca sustitución/relevo, debe indicarse la causa de sustitución.");
+    }
+
+    if (!ss.replaced_worker_naf) {
+      errors.push("Si se marca sustitución/relevo, debe indicarse el NAF de la persona sustituida.");
+    }
+  }
+
+  if (ss.situation_code === "1" && !registrationDate) {
+    errors.push("La situación de alta requiere fecha de alta.");
+  }
+
+  if (registrationDate && form.start_date && registrationDate !== form.start_date) {
+    errors.push("La fecha de alta debe coincidir con la fecha de inicio del contrato en esta simulación MVP.");
+  }
+
+  return errors;
 }
 
 export function buildContractPayload(form, extra = {}) {
