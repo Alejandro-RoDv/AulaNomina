@@ -64,6 +64,15 @@ const DEFAULT_CATALOGS = {
   inactivity_types: [],
 };
 
+const DIDACTIC_RULES = [
+  "Contratos 4xx: jornada completa. Contratos 5xx: jornada parcial.",
+  "El contrato 300 debe configurarse como fijo discontinuo.",
+  "La jornada parcial exige horas, jornada de referencia y coeficiente entre 0 y 100.",
+  "Si existe reducción de jornada, el C.T.P. inicial debe ser mayor que la reducción.",
+  "Las sustituciones o relevos requieren causa y NAF de la persona sustituida.",
+  "En el MVP, fecha de alta y fecha de inicio deben coincidir.",
+];
+
 export function formatPaySchedule(value) {
   return PAY_SCHEDULE_OPTIONS.find((option) => option.value === value)?.label || "Nómina no prorrateada 14 pagas";
 }
@@ -269,6 +278,7 @@ export default function ContractForm({
     <>
       <form onSubmit={handleSubmit} style={styles.form}>
         {catalogError && <div style={styles.warning}>{catalogError}</div>}
+        <DidacticRulesPanel />
 
         <section style={styles.section}>
           <h3 style={styles.sectionTitle}>Trabajador y empresa</h3>
@@ -404,6 +414,20 @@ export default function ContractForm({
   );
 }
 
+function DidacticRulesPanel() {
+  return (
+    <section style={styles.rulesPanel}>
+      <div>
+        <h3 style={styles.rulesTitle}>Reglas didácticas activas</h3>
+        <p style={styles.rulesText}>El guardado se bloquea si el contrato o el alta SS simulada incumplen estas reglas básicas.</p>
+      </div>
+      <ul style={styles.rulesList}>
+        {DIDACTIC_RULES.map((rule) => <li key={rule}>{rule}</li>)}
+      </ul>
+    </section>
+  );
+}
+
 function Field({ label, children }) {
   return <div style={styles.formGroup}><label>{label}</label>{children}</div>;
 }
@@ -412,6 +436,10 @@ const styles = {
   form: { display: "flex", flexDirection: "column", gap: "16px" },
   section: { border: "1px solid #e5e7eb", borderRadius: "12px", padding: "16px", backgroundColor: "#ffffff" },
   sectionTitle: { margin: "0 0 14px 0", fontSize: "15px", color: "#111827", fontWeight: 800 },
+  rulesPanel: { border: "1px solid #facc15", borderRadius: "12px", padding: "14px 16px", backgroundColor: "#fffbeb", display: "grid", gridTemplateColumns: "minmax(220px, 0.7fr) minmax(260px, 1.3fr)", gap: "14px", alignItems: "start" },
+  rulesTitle: { margin: 0, fontSize: "14px", fontWeight: 900, color: "#111827" },
+  rulesText: { margin: "4px 0 0", color: "#713f12", fontSize: "13px", fontWeight: 650 },
+  rulesList: { margin: 0, paddingLeft: "18px", color: "#713f12", fontSize: "12px", fontWeight: 700, lineHeight: 1.5 },
   formRow: { display: "flex", gap: "16px", flexWrap: "wrap" },
   formGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "14px" },
   formGroup: { minWidth: "220px", display: "flex", flexDirection: "column", gap: "6px" },
