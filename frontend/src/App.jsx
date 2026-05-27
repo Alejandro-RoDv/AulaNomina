@@ -10,18 +10,17 @@ import EmployeesPage from "./pages/EmployeesPage";
 import IncidentsPage from "./pages/IncidentsPage";
 import PayrollsPage from "./pages/PayrollsPage";
 
-import { createContract, deleteContract, fetchContracts, resetDemo, updateContract } from "./services/api";
+import { useContractsModule } from "./hooks/useContractsModule";
+import { fetchContracts, resetDemo } from "./services/api";
 import { createCompany, deleteCompany, fetchCompanies, updateCompany } from "./services/companyApi";
 import { createEmployee, deleteEmployee, fetchAllEmployees, fetchNextEmployeeCode, updateEmployee } from "./services/employeeApi";
 import { createIncident, deleteIncident, fetchIncidents, updateIncident } from "./services/incidentApi";
 import { createPayroll, deletePayroll, fetchPayrolls, updatePayroll } from "./services/payrollApi";
 import { createWorkCenter, deleteWorkCenter, fetchWorkCenters, updateWorkCenter } from "./services/workCenterApi";
-import { buildContractPayload, normalizeSocialSecurityPayload } from "./utils/contractPayloads";
 
 const currentYear = new Date().getFullYear();
 const currentMonth = new Date().getMonth() + 1;
 
-const initialContractForm = { employee_id: "", company_id: "", center_id: "", contract_type: "", start_date: "", end_date: "", salary_base: "", pay_schedule: "not_prorated_14", status: "active" };
 const initialCompanyForm = { name: "", cif: "", ccc: "", address: "", city: "", province: "" };
 const initialWorkCenterForm = { company_id: "", center_code: "", name: "", general_ccc: "", main_ccc: "", address: "", city: "", province: "" };
 const initialEmployeeForm = { employee_code: "", company_id: "", center_id: "", dni: "", naf: "", first_name: "", last_name: "", email: "", phone: "", birth_date: "", address: "", city: "", province: "", postal_code: "" };
@@ -73,14 +72,11 @@ export default function App() {
   const [resetDemoLoading, setResetDemoLoading] = useState(false);
   const [resetDemoMessage, setResetDemoMessage] = useState("");
   const [resetDemoError, setResetDemoError] = useState("");
-  const [contractSubmitting, setContractSubmitting] = useState(false);
   const [companySubmitting, setCompanySubmitting] = useState(false);
   const [workCenterSubmitting, setWorkCenterSubmitting] = useState(false);
   const [employeeSubmitting, setEmployeeSubmitting] = useState(false);
   const [incidentSubmitting, setIncidentSubmitting] = useState(false);
   const [payrollSubmitting, setPayrollSubmitting] = useState(false);
-  const [contractError, setContractError] = useState("");
-  const [contractSuccess, setContractSuccess] = useState("");
   const [companyError, setCompanyError] = useState("");
   const [companySuccess, setCompanySuccess] = useState("");
   const [workCenterError, setWorkCenterError] = useState("");
@@ -91,12 +87,23 @@ export default function App() {
   const [incidentSuccess, setIncidentSuccess] = useState("");
   const [payrollError, setPayrollError] = useState("");
   const [payrollSuccess, setPayrollSuccess] = useState("");
-  const [contractForm, setContractForm] = useState(initialContractForm);
   const [companyForm, setCompanyForm] = useState(initialCompanyForm);
   const [workCenterForm, setWorkCenterForm] = useState(initialWorkCenterForm);
   const [employeeForm, setEmployeeForm] = useState(initialEmployeeForm);
   const [incidentForm, setIncidentForm] = useState(initialIncidentForm);
   const [payrollForm, setPayrollForm] = useState(initialPayrollForm);
+
+  const {
+    contractForm,
+    contractSubmitting,
+    contractError,
+    contractSuccess,
+    handleContractChange,
+    handleContractSubmit,
+    handleUpdateContract,
+    handleDeleteContract,
+    setContractError,
+  } = useContractsModule({ onDataChanged: () => loadData() });
 
   const loadNextEmployeeCode = async () => {
     const data = await fetchNextEmployeeCode();
@@ -147,7 +154,6 @@ export default function App() {
     }
   };
 
-  const handleContractChange = (event) => setContractForm((prev) => ({ ...prev, [event.target.name]: event.target.value }));
   const handleCompanyChange = (event) => setCompanyForm((prev) => ({ ...prev, [event.target.name]: event.target.value }));
 
   const handleWorkCenterChange = (event) => {
@@ -188,55 +194,6 @@ export default function App() {
       }
       return { ...prev, [name]: value };
     });
-  };
-
-  const handleContractSubmit = async (event, advancedPayload = {}) => {
-    event.preventDefault();
-    setContractError("");
-    setContractSuccess("");
-    try {
-      setContractSubmitting(true);
-      await createContract(buildContractPayload(contractForm, advancedPayload.contractExtra), normalizeSocialSecurityPayload(advancedPayload.socialSecurity));
-      setContractSuccess("Contrato y alta SS creados correctamente");
-      setContractForm(initialContractForm);
-      await loadData();
-    } catch (err) {
-      setContractError(err.message || "Error al crear contrato");
-    } finally {
-      setContractSubmitting(false);
-    }
-  };
-
-  const handleUpdateContract = async (contractId, form, socialSecurityPayload = null) => {
-    setContractError("");
-    setContractSuccess("");
-    try {
-      setContractSubmitting(true);
-      await updateContract(contractId, buildContractPayload(form, form), normalizeSocialSecurityPayload(socialSecurityPayload));
-      setContractSuccess("Contrato y alta SS actualizados correctamente");
-      await loadData();
-    } catch (err) {
-      setContractError(err.message || "Error al actualizar contrato");
-      throw err;
-    } finally {
-      setContractSubmitting(false);
-    }
-  };
-
-  const handleDeleteContract = async (contractId) => {
-    setContractError("");
-    setContractSuccess("");
-    try {
-      setContractSubmitting(true);
-      await deleteContract(contractId);
-      setContractSuccess("Contrato eliminado correctamente");
-      await loadData();
-    } catch (err) {
-      setContractError(err.message || "Error al eliminar contrato");
-      throw err;
-    } finally {
-      setContractSubmitting(false);
-    }
   };
 
   const handleCompanySubmit = async (event) => {
