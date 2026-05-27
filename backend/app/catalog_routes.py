@@ -12,61 +12,63 @@ from app.catalogs.red_catalogs import (
     WORKER_COLLECTIVES,
     WORKING_DAY_TYPES,
 )
+from app.social_security_registration_routes import router as social_security_registration_router
 
-router = APIRouter(prefix="/catalogs", tags=["catalogs"])
+router = APIRouter(tags=["catalogs"])
+router.include_router(social_security_registration_router)
 
 
-@router.get("/contracts")
+@router.get("/catalogs/contracts")
 def get_contract_codes():
     return CONTRACT_CODES
 
 
-@router.get("/contribution-groups")
+@router.get("/catalogs/contribution-groups")
 def get_contribution_groups():
     return CONTRIBUTION_GROUPS
 
 
-@router.get("/situations")
+@router.get("/catalogs/situations")
 def get_situation_codes():
     return SITUATION_CODES
 
 
-@router.get("/unemployed-conditions")
+@router.get("/catalogs/unemployed-conditions")
 def get_unemployed_conditions():
     return UNEMPLOYED_CONDITIONS
 
 
-@router.get("/substitution-causes")
+@router.get("/catalogs/substitution-causes")
 def get_substitution_causes():
     return SUBSTITUTION_CAUSES
 
 
-@router.get("/inactivity-types")
+@router.get("/catalogs/inactivity-types")
 def get_inactivity_types():
     return INACTIVITY_TYPES
 
 
-@router.get("/worker-collectives")
+@router.get("/catalogs/worker-collectives")
 def get_worker_collectives():
     return WORKER_COLLECTIVES
 
 
-@router.get("/social-exclusion-victim-statuses")
+@router.get("/catalogs/social-exclusion-victim-statuses")
 def get_social_exclusion_victim_statuses():
     return SOCIAL_EXCLUSION_VICTIM_STATUSES
 
 
-@router.get("/working-day-types")
+@router.get("/catalogs/working-day-types")
 def get_working_day_types():
     return WORKING_DAY_TYPES
 
 
-@router.get("/monthly-daily-contribution-types")
+@router.get("/catalogs/monthly-daily-contribution-types")
 def get_monthly_daily_contribution_types():
     return MONTHLY_DAILY_CONTRIBUTION_TYPES
 
 
-@router.get("/all")
+@router.get("/catalogs/all")
 def get_all_catalogs():
     return {
         "contracts": CONTRACT_CODES,
