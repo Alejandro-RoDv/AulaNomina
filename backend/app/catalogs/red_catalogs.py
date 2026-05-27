@@ -76,8 +76,8 @@ WORKER_COLLECTIVES = [
 SOCIAL_EXCLUSION_VICTIM_STATUSES = [
     {"code": "none", "description": "No aplica"},
     {"code": "social_exclusion", "description": "Exclusión social"},
-    {"code": "protected_case_1", "description": "Supuesto protegido 1"},
-    {"code": "protected_case_2", "description": "Supuesto protegido 2"},
+    {"code": "human_trafficking_victim", "description": "Víctima de trata de seres humanos"},
+    {"code": "sexual_violence_victim", "description": "Víctima de violencia sexual"},
 ]
 
 WORKING_DAY_TYPES = [
