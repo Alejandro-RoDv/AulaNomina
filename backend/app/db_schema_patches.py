@@ -16,11 +16,78 @@ PAYROLL_CONTRIBUTION_COLUMNS = {
     "daily_professional_base": "NUMERIC(10, 2) DEFAULT 0 NOT NULL",
 }
 
+CONTRACT_LABOR_COLUMNS = {
+    "contract_code_description": "VARCHAR",
+    "contract_family": "VARCHAR",
+    "contribution_group": "VARCHAR",
+    "professional_category": "VARCHAR",
+    "job_position": "VARCHAR",
+    "collective_agreement_code": "VARCHAR",
+    "working_day_type": "VARCHAR",
+    "weekly_hours": "FLOAT",
+    "full_time_weekly_hours": "FLOAT DEFAULT 40",
+    "partiality_coefficient": "FLOAT",
+    "monthly_or_daily_contribution": "VARCHAR",
+    "red_occupation_code": "VARCHAR",
+    "red_reduction_code": "VARCHAR",
+    "gross_annual_salary": "NUMERIC(10, 2)",
+}
+
 BASE_COLUMNS_REQUIRED_FOR_DAILY_BASE_BACKFILL = {
     "gross_salary",
     "common_contingencies_base",
     "professional_contingencies_base",
 }
+
+
+def add_missing_contract_labor_columns() -> None:
+    inspector = inspect(engine)
+    table_names = inspector.get_table_names()
+
+    with engine.begin() as connection:
+        if "contracts" in table_names:
+            existing_columns = {column["name"] for column in inspector.get_columns("contracts")}
+            for column_name, column_definition in CONTRACT_LABOR_COLUMNS.items():
+                if column_name not in existing_columns:
+                    connection.execute(
+                        text("ALTER TABLE contracts ADD COLUMN " + column_name + " " + column_definition)
+                    )
+
+        if "social_security_registrations" not in table_names:
+            connection.execute(
+                text(
+                    """
+                    CREATE TABLE social_security_registrations (
+                        id SERIAL PRIMARY KEY,
+                        contract_id INTEGER NOT NULL UNIQUE REFERENCES contracts(id),
+                        situation_code VARCHAR,
+                        situation_description VARCHAR,
+                        registration_date DATE,
+                        contribution_group VARCHAR,
+                        monthly_or_daily_contribution VARCHAR,
+                        disability_degree FLOAT,
+                        occupation_code VARCHAR,
+                        cno VARCHAR,
+                        worker_collective_code VARCHAR,
+                        unemployed_condition_code VARCHAR,
+                        social_exclusion_or_victim_status VARCHAR,
+                        is_replacement BOOLEAN DEFAULT FALSE NOT NULL,
+                        replacement_cause_code VARCHAR,
+                        replaced_worker_naf VARCHAR,
+                        inactivity_type_code VARCHAR,
+                        working_time_reduction FLOAT,
+                        initial_ctp FLOAT,
+                        red_contract_key VARCHAR,
+                        red_occupation_code VARCHAR,
+                        red_contribution_group VARCHAR,
+                        red_reduction_code VARCHAR,
+                        red_special_relation VARCHAR,
+                        created_at TIMESTAMP,
+                        updated_at TIMESTAMP
+                    )
+                    """
+                )
+            )
 
 
 def add_missing_payroll_contribution_columns() -> None:
