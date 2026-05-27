@@ -8,22 +8,66 @@ from app.models.work_center import WorkCenter
 from app.schemas.contract import ContractCreate, ContractUpdate
 
 
+CONTRACT_RESPONSE_FIELDS = [
+    "id",
+    "employee_id",
+    "company_id",
+    "center_id",
+    "contract_type",
+    "contract_code",
+    "contract_code_description",
+    "contract_family",
+    "start_date",
+    "end_date",
+    "status",
+    "contribution_group",
+    "professional_category",
+    "job_position",
+    "collective_agreement_code",
+    "working_day_type",
+    "weekly_hours",
+    "full_time_weekly_hours",
+    "partiality_coefficient",
+    "monthly_or_daily_contribution",
+    "red_occupation_code",
+    "red_reduction_code",
+    "salary_base",
+    "gross_annual_salary",
+    "pay_schedule",
+    "created_at",
+]
+
+
+CONTRACT_CREATE_FIELDS = [
+    "employee_id",
+    "contract_type",
+    "contract_code",
+    "contract_code_description",
+    "contract_family",
+    "start_date",
+    "end_date",
+    "contribution_group",
+    "professional_category",
+    "job_position",
+    "collective_agreement_code",
+    "working_day_type",
+    "weekly_hours",
+    "full_time_weekly_hours",
+    "partiality_coefficient",
+    "monthly_or_daily_contribution",
+    "red_occupation_code",
+    "red_reduction_code",
+    "salary_base",
+    "gross_annual_salary",
+    "pay_schedule",
+]
+
+
 def contract_to_response(contract: Contract):
-    return {
-        "id": contract.id,
-        "employee_id": contract.employee_id,
-        "company_id": contract.company_id,
-        "center_id": contract.center_id,
-        "employee_name": contract.employee_name,
-        "company_name": contract.company_name,
-        "contract_type": contract.contract_type,
-        "start_date": contract.start_date,
-        "end_date": contract.end_date,
-        "status": contract.status,
-        "salary_base": contract.salary_base,
-        "pay_schedule": contract.pay_schedule,
-        "created_at": contract.created_at,
-    }
+    data = {field: getattr(contract, field) for field in CONTRACT_RESPONSE_FIELDS}
+    data["employee_name"] = contract.employee_name
+    data["company_name"] = contract.company_name
+    return data
 
 
 def _resolve_company_and_center(db: Session, employee: Employee, company_id: int | None, center_id: int | None):
@@ -56,6 +100,20 @@ def _resolve_company_and_center(db: Session, employee: Employee, company_id: int
     return resolved_company_id, resolved_center_id
 
 
+def _validate_contract_red_coherence(contract_data):
+    contract_code = getattr(contract_data, "contract_code", None)
+    working_day_type = getattr(contract_data, "working_day_type", None)
+
+    if contract_code and contract_code.startswith("5") and working_day_type and working_day_type != "part_time":
+        raise HTTPException(status_code=400, detail="Los contratos con código 5xx deben ser de jornada parcial")
+
+    if contract_code and contract_code.startswith("4") and working_day_type and working_day_type != "full_time":
+        raise HTTPException(status_code=400, detail="Los contratos con código 4xx deben ser de jornada completa")
+
+    if contract_code == "300" and working_day_type and working_day_type != "fixed_discontinuous":
+        raise HTTPException(status_code=400, detail="El contrato 300 debe ser fijo discontinuo")
+
+
 def create_contract(db: Session, contract: ContractCreate):
     employee = db.query(Employee).filter(Employee.id == contract.employee_id).first()
     if not employee:
@@ -71,6 +129,8 @@ def create_contract(db: Session, contract: ContractCreate):
     if contract.end_date and contract.end_date < contract.start_date:
         raise HTTPException(status_code=400, detail="end_date no puede ser menor que start_date")
 
+    _validate_contract_red_coherence(contract)
+
     status = contract.status or "active"
 
     if status == "active":
@@ -81,16 +141,12 @@ def create_contract(db: Session, contract: ContractCreate):
         if active_contract:
             raise HTTPException(status_code=400, detail="El empleado ya tiene un contrato activo")
 
+    payload = {field: getattr(contract, field) for field in CONTRACT_CREATE_FIELDS}
     db_contract = Contract(
-        employee_id=contract.employee_id,
+        **payload,
         company_id=company_id,
         center_id=center_id,
-        contract_type=contract.contract_type,
-        start_date=contract.start_date,
-        end_date=contract.end_date,
         status=status,
-        salary_base=contract.salary_base,
-        pay_schedule=contract.pay_schedule,
     )
 
     db.add(db_contract)
@@ -104,6 +160,7 @@ def get_contracts(db: Session):
         joinedload(Contract.employee),
         joinedload(Contract.company),
         joinedload(Contract.work_center),
+        joinedload(Contract.ss_registration),
     ).all()
 
 
@@ -112,6 +169,7 @@ def get_contract(db: Session, contract_id: int):
         joinedload(Contract.employee),
         joinedload(Contract.company),
         joinedload(Contract.work_center),
+        joinedload(Contract.ss_registration),
     ).filter(Contract.id == contract_id).first()
 
 
@@ -120,6 +178,7 @@ def get_contracts_by_employee(db: Session, employee_id: int):
         joinedload(Contract.employee),
         joinedload(Contract.company),
         joinedload(Contract.work_center),
+        joinedload(Contract.ss_registration),
     ).filter(Contract.employee_id == employee_id).all()
 
 
@@ -142,6 +201,15 @@ def update_contract(db: Session, contract_id: int, contract_data: ContractUpdate
 
     if new_end_date and new_end_date < new_start_date:
         raise HTTPException(status_code=400, detail="end_date no puede ser menor que start_date")
+
+    merged_contract_code = contract_data.contract_code if contract_data.contract_code is not None else db_contract.contract_code
+    merged_working_day_type = contract_data.working_day_type if contract_data.working_day_type is not None else db_contract.working_day_type
+    if merged_contract_code and merged_contract_code.startswith("5") and merged_working_day_type and merged_working_day_type != "part_time":
+        raise HTTPException(status_code=400, detail="Los contratos con código 5xx deben ser de jornada parcial")
+    if merged_contract_code and merged_contract_code.startswith("4") and merged_working_day_type and merged_working_day_type != "full_time":
+        raise HTTPException(status_code=400, detail="Los contratos con código 4xx deben ser de jornada completa")
+    if merged_contract_code == "300" and merged_working_day_type and merged_working_day_type != "fixed_discontinuous":
+        raise HTTPException(status_code=400, detail="El contrato 300 debe ser fijo discontinuo")
 
     if new_status == "active":
         active_contract = db.query(Contract).filter(
