@@ -43,6 +43,13 @@ const SS_FIELDS = [
   "red_special_relation",
 ];
 
+const NUMERIC_CONTRACT_FIELDS = new Set([
+  "weekly_hours",
+  "full_time_weekly_hours",
+  "partiality_coefficient",
+  "gross_annual_salary",
+]);
+
 const NUMERIC_SS_FIELDS = new Set(["disability_degree", "working_time_reduction", "initial_ctp"]);
 
 function enrichContractPayload(payload) {
@@ -51,13 +58,7 @@ function enrichContractPayload(payload) {
 
   CONTRACT_EXTRA_FIELDS.forEach((field) => {
     if (source[field] === undefined || source[field] === "") return;
-
-    if (["weekly_hours", "full_time_weekly_hours", "partiality_coefficient", "gross_annual_salary"].includes(field)) {
-      enriched[field] = Number(source[field]);
-      return;
-    }
-
-    enriched[field] = source[field];
+    enriched[field] = NUMERIC_CONTRACT_FIELDS.has(field) ? Number(source[field]) : source[field];
   });
 
   return enriched;
@@ -76,27 +77,10 @@ function buildSocialSecurityPayload() {
       return;
     }
 
-    if (NUMERIC_SS_FIELDS.has(field)) {
-      payload[field] = Number(value);
-      return;
-    }
-
-    payload[field] = value;
+    payload[field] = NUMERIC_SS_FIELDS.has(field) ? Number(value) : value;
   });
 
   return Object.keys(payload).length ? payload : null;
-}
-
-async function createSocialSecurityRegistration(contractId, payload) {
-  return apiRequest(
-    `/contracts/${contractId}/social-security-registration`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    },
-    "Error al crear alta SS simulada"
-  );
 }
 
 export async function fetchContracts() {
@@ -119,6 +103,43 @@ export async function resetDemo() {
   );
 }
 
+export async function createSocialSecurityRegistration(contractId, payload) {
+  return apiRequest(
+    `/contracts/${contractId}/social-security-registration`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    },
+    "Error al crear alta SS simulada"
+  );
+}
+
+export async function updateSocialSecurityRegistration(contractId, payload) {
+  return apiRequest(
+    `/contracts/${contractId}/social-security-registration`,
+    {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    },
+    "Error al actualizar alta SS simulada"
+  );
+}
+
+async function upsertSocialSecurityRegistration(contractId, payload) {
+  if (!payload || !contractId) return null;
+
+  try {
+    return await updateSocialSecurityRegistration(contractId, payload);
+  } catch (error) {
+    if (String(error.message || "").includes("no encontrada")) {
+      return createSocialSecurityRegistration(contractId, payload);
+    }
+    throw error;
+  }
+}
+
 export async function createContract(payload) {
   const contract = await apiRequest(
     "/contracts",
@@ -139,7 +160,7 @@ export async function createContract(payload) {
 }
 
 export async function updateContract(contractId, payload) {
-  return apiRequest(
+  const contract = await apiRequest(
     `/contracts/${contractId}`,
     {
       method: "PUT",
@@ -148,6 +169,13 @@ export async function updateContract(contractId, payload) {
     },
     "Error al actualizar contrato"
   );
+
+  const socialSecurityPayload = buildSocialSecurityPayload();
+  if (socialSecurityPayload) {
+    await upsertSocialSecurityRegistration(contractId, socialSecurityPayload);
+  }
+
+  return contract;
 }
 
 export async function deleteContract(contractId) {
