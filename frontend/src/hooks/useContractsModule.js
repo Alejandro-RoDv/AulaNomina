@@ -20,7 +20,9 @@ const initialContractForm = {
 };
 
 function formatValidationErrors(errors) {
-  return errors.join("\n");
+  return `Validaciones didácticas pendientes: ${errors
+    .map((error, index) => `${index + 1}. ${error}`)
+    .join(" ")}`;
 }
 
 export function useContractsModule({ onDataChanged }) {
