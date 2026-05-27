@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
+from app.catalog_routes import router as catalog_router
 from app.db import SessionLocal
 from app.crud.case_assignment import (
     create_case_assignment,
@@ -62,6 +63,7 @@ from app.schemas.student import StudentCreate, StudentResponse, StudentUpdate
 from app.schemas.student_group import StudentGroupCreate, StudentGroupResponse, StudentGroupUpdate
 
 router = APIRouter(tags=["teaching"])
+router.include_router(catalog_router)
 
 
 def get_db():
