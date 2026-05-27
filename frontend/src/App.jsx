@@ -16,50 +16,20 @@ import { createEmployee, deleteEmployee, fetchAllEmployees, fetchNextEmployeeCod
 import { createIncident, deleteIncident, fetchIncidents, updateIncident } from "./services/incidentApi";
 import { createPayroll, deletePayroll, fetchPayrolls, updatePayroll } from "./services/payrollApi";
 import { createWorkCenter, deleteWorkCenter, fetchWorkCenters, updateWorkCenter } from "./services/workCenterApi";
+import { buildContractPayload, normalizeSocialSecurityPayload } from "./utils/contractPayloads";
 
 const currentYear = new Date().getFullYear();
 const currentMonth = new Date().getMonth() + 1;
 
-const initialContractForm = {
-  employee_id: "",
-  company_id: "",
-  center_id: "",
-  contract_type: "",
-  start_date: "",
-  end_date: "",
-  salary_base: "",
-  pay_schedule: "not_prorated_14",
-  status: "active",
-};
-
+const initialContractForm = { employee_id: "", company_id: "", center_id: "", contract_type: "", start_date: "", end_date: "", salary_base: "", pay_schedule: "not_prorated_14", status: "active" };
 const initialCompanyForm = { name: "", cif: "", ccc: "", address: "", city: "", province: "" };
 const initialWorkCenterForm = { company_id: "", center_code: "", name: "", general_ccc: "", main_ccc: "", address: "", city: "", province: "" };
 const initialEmployeeForm = { employee_code: "", company_id: "", center_id: "", dni: "", naf: "", first_name: "", last_name: "", email: "", phone: "", birth_date: "", address: "", city: "", province: "", postal_code: "" };
 const initialIncidentForm = { employee_id: "", contract_id: "", company_id: "", center_id: "", incident_type: "", start_date: "", end_date: "", description: "", status: "open" };
 const initialPayrollForm = { employee_id: "", contract_id: "", company_id: "", center_id: "", period_month: String(currentMonth), period_year: String(currentYear), salary_supplement_1: "0", salary_supplement_2: "0", salary_supplement_3: "0", irpf_percentage: "10", status: "pending" };
 
-const CONTRACT_NUMERIC_FIELDS = new Set(["weekly_hours", "full_time_weekly_hours", "partiality_coefficient", "gross_annual_salary"]);
-const SOCIAL_SECURITY_NUMERIC_FIELDS = new Set(["disability_degree", "working_time_reduction", "initial_ctp"]);
-
-function normalizeOptional(value) {
-  return value === "" || value === undefined ? null : value;
-}
-
 function buildEmployeePayload(form) {
-  return {
-    ...form,
-    company_id: form.company_id ? Number(form.company_id) : null,
-    center_id: form.center_id ? Number(form.center_id) : null,
-    naf: form.naf || null,
-    email: form.email || null,
-    phone: form.phone || null,
-    birth_date: form.birth_date || null,
-    address: form.address || null,
-    city: form.city || null,
-    province: form.province || null,
-    postal_code: form.postal_code || null,
-    is_active: form.is_active ?? true,
-  };
+  return { ...form, company_id: form.company_id ? Number(form.company_id) : null, center_id: form.center_id ? Number(form.center_id) : null, naf: form.naf || null, email: form.email || null, phone: form.phone || null, birth_date: form.birth_date || null, address: form.address || null, city: form.city || null, province: form.province || null, postal_code: form.postal_code || null, is_active: form.is_active ?? true };
 }
 
 function buildCompanyPayload(form) {
@@ -67,55 +37,7 @@ function buildCompanyPayload(form) {
 }
 
 function buildWorkCenterPayload(form) {
-  return {
-    company_id: Number(form.company_id),
-    center_code: form.center_code,
-    name: form.name,
-    general_ccc: form.general_ccc || null,
-    main_ccc: form.main_ccc || null,
-    address: form.address || null,
-    city: form.city || null,
-    province: form.province || null,
-  };
-}
-
-function normalizeContractExtras(extra = {}) {
-  return Object.entries(extra).reduce((acc, [key, value]) => {
-    if (value === "" || value === undefined) return acc;
-    acc[key] = CONTRACT_NUMERIC_FIELDS.has(key) ? Number(value) : value;
-    return acc;
-  }, {});
-}
-
-function normalizeSocialSecurityPayload(payload = null) {
-  if (!payload) return null;
-
-  const normalized = Object.entries(payload).reduce((acc, [key, value]) => {
-    if (value === "" || value === undefined) return acc;
-    if (key === "is_replacement") {
-      acc[key] = Boolean(value);
-      return acc;
-    }
-    acc[key] = SOCIAL_SECURITY_NUMERIC_FIELDS.has(key) ? Number(value) : value;
-    return acc;
-  }, {});
-
-  return Object.keys(normalized).length ? normalized : null;
-}
-
-function buildContractPayload(form, extra = {}) {
-  return {
-    employee_id: Number(form.employee_id),
-    company_id: form.company_id ? Number(form.company_id) : null,
-    center_id: form.center_id ? Number(form.center_id) : null,
-    contract_type: form.contract_type,
-    start_date: form.start_date,
-    end_date: form.end_date || null,
-    salary_base: form.salary_base ? Number(form.salary_base) : null,
-    pay_schedule: form.pay_schedule || "not_prorated_14",
-    status: form.status,
-    ...normalizeContractExtras(extra),
-  };
+  return { company_id: Number(form.company_id), center_code: form.center_code, name: form.name, general_ccc: form.general_ccc || null, main_ccc: form.main_ccc || null, address: form.address || null, city: form.city || null, province: form.province || null };
 }
 
 function buildIncidentPayload(form) {
@@ -146,20 +68,17 @@ export default function App() {
   const [workCenters, setWorkCenters] = useState([]);
   const [incidents, setIncidents] = useState([]);
   const [payrolls, setPayrolls] = useState([]);
-
   const [loading, setLoading] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [resetDemoLoading, setResetDemoLoading] = useState(false);
   const [resetDemoMessage, setResetDemoMessage] = useState("");
   const [resetDemoError, setResetDemoError] = useState("");
-
   const [contractSubmitting, setContractSubmitting] = useState(false);
   const [companySubmitting, setCompanySubmitting] = useState(false);
   const [workCenterSubmitting, setWorkCenterSubmitting] = useState(false);
   const [employeeSubmitting, setEmployeeSubmitting] = useState(false);
   const [incidentSubmitting, setIncidentSubmitting] = useState(false);
   const [payrollSubmitting, setPayrollSubmitting] = useState(false);
-
   const [contractError, setContractError] = useState("");
   const [contractSuccess, setContractSuccess] = useState("");
   const [companyError, setCompanyError] = useState("");
@@ -172,7 +91,6 @@ export default function App() {
   const [incidentSuccess, setIncidentSuccess] = useState("");
   const [payrollError, setPayrollError] = useState("");
   const [payrollSuccess, setPayrollSuccess] = useState("");
-
   const [contractForm, setContractForm] = useState(initialContractForm);
   const [companyForm, setCompanyForm] = useState(initialCompanyForm);
   const [workCenterForm, setWorkCenterForm] = useState(initialWorkCenterForm);
@@ -229,15 +147,8 @@ export default function App() {
     }
   };
 
-  const handleContractChange = (event) => {
-    const { name, value } = event.target;
-    setContractForm((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const handleCompanyChange = (event) => {
-    const { name, value } = event.target;
-    setCompanyForm((prev) => ({ ...prev, [name]: value }));
-  };
+  const handleContractChange = (event) => setContractForm((prev) => ({ ...prev, [event.target.name]: event.target.value }));
+  const handleCompanyChange = (event) => setCompanyForm((prev) => ({ ...prev, [event.target.name]: event.target.value }));
 
   const handleWorkCenterChange = (event) => {
     const { name, value } = event.target;
@@ -285,10 +196,7 @@ export default function App() {
     setContractSuccess("");
     try {
       setContractSubmitting(true);
-      await createContract(
-        buildContractPayload(contractForm, advancedPayload.contractExtra),
-        normalizeSocialSecurityPayload(advancedPayload.socialSecurity)
-      );
+      await createContract(buildContractPayload(contractForm, advancedPayload.contractExtra), normalizeSocialSecurityPayload(advancedPayload.socialSecurity));
       setContractSuccess("Contrato y alta SS creados correctamente");
       setContractForm(initialContractForm);
       await loadData();
@@ -335,246 +243,77 @@ export default function App() {
     event.preventDefault();
     setCompanyError("");
     setCompanySuccess("");
-    try {
-      setCompanySubmitting(true);
-      await createCompany(buildCompanyPayload(companyForm));
-      setCompanySuccess("Empresa creada correctamente");
-      setCompanyForm(initialCompanyForm);
-      await loadData();
-    } catch (err) {
-      setCompanyError(err.message || "Error al crear empresa");
-    } finally {
-      setCompanySubmitting(false);
-    }
+    try { setCompanySubmitting(true); await createCompany(buildCompanyPayload(companyForm)); setCompanySuccess("Empresa creada correctamente"); setCompanyForm(initialCompanyForm); await loadData(); } catch (err) { setCompanyError(err.message || "Error al crear empresa"); } finally { setCompanySubmitting(false); }
   };
 
   const handleUpdateCompany = async (companyId, form) => {
-    setCompanyError("");
-    setCompanySuccess("");
-    try {
-      setCompanySubmitting(true);
-      await updateCompany(companyId, buildCompanyPayload(form));
-      setCompanySuccess("Empresa actualizada correctamente");
-      await loadData();
-    } catch (err) {
-      setCompanyError(err.message || "Error al actualizar empresa");
-      throw err;
-    } finally {
-      setCompanySubmitting(false);
-    }
+    setCompanyError(""); setCompanySuccess("");
+    try { setCompanySubmitting(true); await updateCompany(companyId, buildCompanyPayload(form)); setCompanySuccess("Empresa actualizada correctamente"); await loadData(); } catch (err) { setCompanyError(err.message || "Error al actualizar empresa"); throw err; } finally { setCompanySubmitting(false); }
   };
 
   const handleDeleteCompany = async (companyId) => {
-    setCompanyError("");
-    setCompanySuccess("");
-    try {
-      setCompanySubmitting(true);
-      await deleteCompany(companyId);
-      setCompanySuccess("Empresa desactivada correctamente");
-      await loadData();
-    } catch (err) {
-      setCompanyError(err.message || "Error al desactivar empresa");
-      throw err;
-    } finally {
-      setCompanySubmitting(false);
-    }
+    setCompanyError(""); setCompanySuccess("");
+    try { setCompanySubmitting(true); await deleteCompany(companyId); setCompanySuccess("Empresa desactivada correctamente"); await loadData(); } catch (err) { setCompanyError(err.message || "Error al desactivar empresa"); throw err; } finally { setCompanySubmitting(false); }
   };
 
   const handleWorkCenterSubmit = async (event) => {
-    event.preventDefault();
-    setWorkCenterError("");
-    setWorkCenterSuccess("");
-    try {
-      setWorkCenterSubmitting(true);
-      await createWorkCenter(buildWorkCenterPayload(workCenterForm));
-      setWorkCenterSuccess("Centro creado correctamente");
-      setWorkCenterForm(initialWorkCenterForm);
-      await loadData();
-    } catch (err) {
-      setWorkCenterError(err.message || "Error al crear centro");
-    } finally {
-      setWorkCenterSubmitting(false);
-    }
+    event.preventDefault(); setWorkCenterError(""); setWorkCenterSuccess("");
+    try { setWorkCenterSubmitting(true); await createWorkCenter(buildWorkCenterPayload(workCenterForm)); setWorkCenterSuccess("Centro creado correctamente"); setWorkCenterForm(initialWorkCenterForm); await loadData(); } catch (err) { setWorkCenterError(err.message || "Error al crear centro"); } finally { setWorkCenterSubmitting(false); }
   };
 
   const handleUpdateWorkCenter = async (workCenterId, form) => {
-    setWorkCenterError("");
-    setWorkCenterSuccess("");
-    try {
-      setWorkCenterSubmitting(true);
-      await updateWorkCenter(workCenterId, buildWorkCenterPayload(form));
-      setWorkCenterSuccess("Centro actualizado correctamente");
-      await loadData();
-    } catch (err) {
-      setWorkCenterError(err.message || "Error al actualizar centro");
-      throw err;
-    } finally {
-      setWorkCenterSubmitting(false);
-    }
+    setWorkCenterError(""); setWorkCenterSuccess("");
+    try { setWorkCenterSubmitting(true); await updateWorkCenter(workCenterId, buildWorkCenterPayload(form)); setWorkCenterSuccess("Centro actualizado correctamente"); await loadData(); } catch (err) { setWorkCenterError(err.message || "Error al actualizar centro"); throw err; } finally { setWorkCenterSubmitting(false); }
   };
 
   const handleDeleteWorkCenter = async (workCenterId) => {
-    setWorkCenterError("");
-    setWorkCenterSuccess("");
-    try {
-      setWorkCenterSubmitting(true);
-      await deleteWorkCenter(workCenterId);
-      setWorkCenterSuccess("Centro desactivado correctamente");
-      await loadData();
-    } catch (err) {
-      setWorkCenterError(err.message || "Error al desactivar centro");
-      throw err;
-    } finally {
-      setWorkCenterSubmitting(false);
-    }
+    setWorkCenterError(""); setWorkCenterSuccess("");
+    try { setWorkCenterSubmitting(true); await deleteWorkCenter(workCenterId); setWorkCenterSuccess("Centro desactivado correctamente"); await loadData(); } catch (err) { setWorkCenterError(err.message || "Error al desactivar centro"); throw err; } finally { setWorkCenterSubmitting(false); }
   };
 
   const handleEmployeeSubmit = async (event) => {
-    event.preventDefault();
-    setEmployeeError("");
-    setEmployeeSuccess("");
-    try {
-      setEmployeeSubmitting(true);
-      await createEmployee(buildEmployeePayload({ ...employeeForm, is_active: true }));
-      setEmployeeSuccess("Trabajador creado correctamente");
-      setEmployeeForm(initialEmployeeForm);
-      await loadData();
-    } catch (err) {
-      setEmployeeError(err.message || "Error al crear trabajador");
-      await loadNextEmployeeCode();
-    } finally {
-      setEmployeeSubmitting(false);
-    }
+    event.preventDefault(); setEmployeeError(""); setEmployeeSuccess("");
+    try { setEmployeeSubmitting(true); await createEmployee(buildEmployeePayload({ ...employeeForm, is_active: true })); setEmployeeSuccess("Trabajador creado correctamente"); setEmployeeForm(initialEmployeeForm); await loadData(); } catch (err) { setEmployeeError(err.message || "Error al crear trabajador"); await loadNextEmployeeCode(); } finally { setEmployeeSubmitting(false); }
   };
 
   const handleUpdateEmployee = async (employeeId, form) => {
-    setEmployeeError("");
-    setEmployeeSuccess("");
-    try {
-      setEmployeeSubmitting(true);
-      await updateEmployee(employeeId, buildEmployeePayload(form));
-      setEmployeeSuccess("Trabajador actualizado correctamente");
-      await loadData();
-    } catch (err) {
-      setEmployeeError(err.message || "Error al actualizar trabajador");
-      throw err;
-    } finally {
-      setEmployeeSubmitting(false);
-    }
+    setEmployeeError(""); setEmployeeSuccess("");
+    try { setEmployeeSubmitting(true); await updateEmployee(employeeId, buildEmployeePayload(form)); setEmployeeSuccess("Trabajador actualizado correctamente"); await loadData(); } catch (err) { setEmployeeError(err.message || "Error al actualizar trabajador"); throw err; } finally { setEmployeeSubmitting(false); }
   };
 
   const handleDeleteEmployee = async (employeeId) => {
-    setEmployeeError("");
-    setEmployeeSuccess("");
-    try {
-      setEmployeeSubmitting(true);
-      await deleteEmployee(employeeId);
-      setEmployeeSuccess("Trabajador desactivado correctamente");
-      await loadData();
-    } catch (err) {
-      setEmployeeError(err.message || "Error al desactivar trabajador");
-      throw err;
-    } finally {
-      setEmployeeSubmitting(false);
-    }
+    setEmployeeError(""); setEmployeeSuccess("");
+    try { setEmployeeSubmitting(true); await deleteEmployee(employeeId); setEmployeeSuccess("Trabajador desactivado correctamente"); await loadData(); } catch (err) { setEmployeeError(err.message || "Error al desactivar trabajador"); throw err; } finally { setEmployeeSubmitting(false); }
   };
 
   const handleIncidentSubmit = async (event) => {
-    event.preventDefault();
-    setIncidentError("");
-    setIncidentSuccess("");
-    try {
-      setIncidentSubmitting(true);
-      await createIncident(buildIncidentPayload(incidentForm));
-      setIncidentSuccess("Incidencia creada correctamente");
-      setIncidentForm(initialIncidentForm);
-      await loadData();
-    } catch (err) {
-      setIncidentError(err.message || "Error al crear incidencia");
-    } finally {
-      setIncidentSubmitting(false);
-    }
+    event.preventDefault(); setIncidentError(""); setIncidentSuccess("");
+    try { setIncidentSubmitting(true); await createIncident(buildIncidentPayload(incidentForm)); setIncidentSuccess("Incidencia creada correctamente"); setIncidentForm(initialIncidentForm); await loadData(); } catch (err) { setIncidentError(err.message || "Error al crear incidencia"); } finally { setIncidentSubmitting(false); }
   };
 
   const handleUpdateIncident = async (incidentId, form) => {
-    setIncidentError("");
-    setIncidentSuccess("");
-    try {
-      setIncidentSubmitting(true);
-      await updateIncident(incidentId, buildIncidentUpdatePayload(form));
-      setIncidentSuccess("Incidencia actualizada correctamente");
-      await loadData();
-    } catch (err) {
-      setIncidentError(err.message || "Error al actualizar incidencia");
-      throw err;
-    } finally {
-      setIncidentSubmitting(false);
-    }
+    setIncidentError(""); setIncidentSuccess("");
+    try { setIncidentSubmitting(true); await updateIncident(incidentId, buildIncidentUpdatePayload(form)); setIncidentSuccess("Incidencia actualizada correctamente"); await loadData(); } catch (err) { setIncidentError(err.message || "Error al actualizar incidencia"); throw err; } finally { setIncidentSubmitting(false); }
   };
 
   const handleDeleteIncident = async (incidentId) => {
-    setIncidentError("");
-    setIncidentSuccess("");
-    try {
-      setIncidentSubmitting(true);
-      await deleteIncident(incidentId);
-      setIncidentSuccess("Incidencia eliminada correctamente");
-      await loadData();
-    } catch (err) {
-      setIncidentError(err.message || "Error al eliminar incidencia");
-      throw err;
-    } finally {
-      setIncidentSubmitting(false);
-    }
+    setIncidentError(""); setIncidentSuccess("");
+    try { setIncidentSubmitting(true); await deleteIncident(incidentId); setIncidentSuccess("Incidencia eliminada correctamente"); await loadData(); } catch (err) { setIncidentError(err.message || "Error al eliminar incidencia"); throw err; } finally { setIncidentSubmitting(false); }
   };
 
   const handlePayrollSubmit = async (event) => {
-    event.preventDefault();
-    setPayrollError("");
-    setPayrollSuccess("");
-    try {
-      setPayrollSubmitting(true);
-      await createPayroll(buildPayrollPayload(payrollForm));
-      setPayrollSuccess("Nómina generada correctamente");
-      setPayrollForm(initialPayrollForm);
-      await loadData();
-    } catch (err) {
-      setPayrollError(err.message || "Error al generar nómina");
-    } finally {
-      setPayrollSubmitting(false);
-    }
+    event.preventDefault(); setPayrollError(""); setPayrollSuccess("");
+    try { setPayrollSubmitting(true); await createPayroll(buildPayrollPayload(payrollForm)); setPayrollSuccess("Nómina generada correctamente"); setPayrollForm(initialPayrollForm); await loadData(); } catch (err) { setPayrollError(err.message || "Error al generar nómina"); } finally { setPayrollSubmitting(false); }
   };
 
   const handleUpdatePayroll = async (payrollId, form) => {
-    setPayrollError("");
-    setPayrollSuccess("");
-    try {
-      setPayrollSubmitting(true);
-      await updatePayroll(payrollId, buildPayrollUpdatePayload(form));
-      setPayrollSuccess("Nómina actualizada correctamente");
-      await loadData();
-    } catch (err) {
-      setPayrollError(err.message || "Error al actualizar nómina");
-      throw err;
-    } finally {
-      setPayrollSubmitting(false);
-    }
+    setPayrollError(""); setPayrollSuccess("");
+    try { setPayrollSubmitting(true); await updatePayroll(payrollId, buildPayrollUpdatePayload(form)); setPayrollSuccess("Nómina actualizada correctamente"); await loadData(); } catch (err) { setPayrollError(err.message || "Error al actualizar nómina"); throw err; } finally { setPayrollSubmitting(false); }
   };
 
   const handleDeletePayroll = async (payrollId) => {
-    setPayrollError("");
-    setPayrollSuccess("");
-    try {
-      setPayrollSubmitting(true);
-      await deletePayroll(payrollId);
-      setPayrollSuccess("Nómina eliminada correctamente");
-      await loadData();
-    } catch (err) {
-      setPayrollError(err.message || "Error al eliminar nómina");
-      throw err;
-    } finally {
-      setPayrollSubmitting(false);
-    }
+    setPayrollError(""); setPayrollSuccess("");
+    try { setPayrollSubmitting(true); await deletePayroll(payrollId); setPayrollSuccess("Nómina eliminada correctamente"); await loadData(); } catch (err) { setPayrollError(err.message || "Error al eliminar nómina"); throw err; } finally { setPayrollSubmitting(false); }
   };
 
   function getTitle() {
@@ -598,30 +337,12 @@ export default function App() {
   }
 
   function renderPage() {
-    if (activePage === "dashboard") {
-      return <Dashboard companies={companies} workCenters={workCenters} employees={employees} contracts={contracts} incidents={incidents} payrolls={payrolls} />;
-    }
-
-    if (activePage === "companies") {
-      return <CompaniesPage loading={loading} companies={companies} workCenters={workCenters} companyForm={companyForm} workCenterForm={workCenterForm} onCompanyChange={handleCompanyChange} onCompanySubmit={handleCompanySubmit} onUpdateCompany={handleUpdateCompany} onDeleteCompany={handleDeleteCompany} onWorkCenterChange={handleWorkCenterChange} onWorkCenterSubmit={handleWorkCenterSubmit} onUpdateWorkCenter={handleUpdateWorkCenter} onDeleteWorkCenter={handleDeleteWorkCenter} companyError={companyError} companySuccess={companySuccess} workCenterError={workCenterError} workCenterSuccess={workCenterSuccess} companySubmitting={companySubmitting} workCenterSubmitting={workCenterSubmitting} />;
-    }
-
-    if (activePage === "employees") {
-      return <EmployeesPage loading={loading} employees={employees} companies={companies.filter((company) => company.is_active)} workCenters={workCenters.filter((center) => center.is_active)} contracts={contracts} incidents={incidents} payrolls={payrolls} employeeForm={employeeForm} onEmployeeChange={handleEmployeeChange} onEmployeeSubmit={handleEmployeeSubmit} onUpdateEmployee={handleUpdateEmployee} onDeleteEmployee={handleDeleteEmployee} employeeError={employeeError} employeeSuccess={employeeSuccess} employeeSubmitting={employeeSubmitting} />;
-    }
-
-    if (activePage === "contracts") {
-      return <ContractsPage loading={loading} contracts={contracts} employees={employees.filter((employee) => employee.is_active)} companies={companies.filter((company) => company.is_active)} workCenters={workCenters.filter((center) => center.is_active)} contractForm={contractForm} onContractChange={handleContractChange} onContractSubmit={handleContractSubmit} onUpdateContract={handleUpdateContract} onDeleteContract={handleDeleteContract} contractError={contractError} contractSuccess={contractSuccess} contractSubmitting={contractSubmitting} />;
-    }
-
-    if (activePage === "payrolls") {
-      return <PayrollsPage loading={loading} payrolls={payrolls} employees={employees.filter((employee) => employee.is_active)} contracts={contracts} companies={companies.filter((company) => company.is_active)} workCenters={workCenters.filter((center) => center.is_active)} payrollForm={payrollForm} onPayrollChange={handlePayrollChange} onPayrollSubmit={handlePayrollSubmit} onUpdatePayroll={handleUpdatePayroll} onDeletePayroll={handleDeletePayroll} payrollError={payrollError} payrollSuccess={payrollSuccess} payrollSubmitting={payrollSubmitting} />;
-    }
-
-    if (activePage === "incidents") {
-      return <IncidentsPage loading={loading} incidents={incidents} employees={employees.filter((employee) => employee.is_active)} contracts={contracts} companies={companies.filter((company) => company.is_active)} workCenters={workCenters.filter((center) => center.is_active)} incidentForm={incidentForm} onIncidentChange={handleIncidentChange} onIncidentSubmit={handleIncidentSubmit} onUpdateIncident={handleUpdateIncident} onDeleteIncident={handleDeleteIncident} incidentError={incidentError} incidentSuccess={incidentSuccess} incidentSubmitting={incidentSubmitting} />;
-    }
-
+    if (activePage === "dashboard") return <Dashboard companies={companies} workCenters={workCenters} employees={employees} contracts={contracts} incidents={incidents} payrolls={payrolls} />;
+    if (activePage === "companies") return <CompaniesPage loading={loading} companies={companies} workCenters={workCenters} companyForm={companyForm} workCenterForm={workCenterForm} onCompanyChange={handleCompanyChange} onCompanySubmit={handleCompanySubmit} onUpdateCompany={handleUpdateCompany} onDeleteCompany={handleDeleteCompany} onWorkCenterChange={handleWorkCenterChange} onWorkCenterSubmit={handleWorkCenterSubmit} onUpdateWorkCenter={handleUpdateWorkCenter} onDeleteWorkCenter={handleDeleteWorkCenter} companyError={companyError} companySuccess={companySuccess} workCenterError={workCenterError} workCenterSuccess={workCenterSuccess} companySubmitting={companySubmitting} workCenterSubmitting={workCenterSubmitting} />;
+    if (activePage === "employees") return <EmployeesPage loading={loading} employees={employees} companies={companies.filter((company) => company.is_active)} workCenters={workCenters.filter((center) => center.is_active)} contracts={contracts} incidents={incidents} payrolls={payrolls} employeeForm={employeeForm} onEmployeeChange={handleEmployeeChange} onEmployeeSubmit={handleEmployeeSubmit} onUpdateEmployee={handleUpdateEmployee} onDeleteEmployee={handleDeleteEmployee} employeeError={employeeError} employeeSuccess={employeeSuccess} employeeSubmitting={employeeSubmitting} />;
+    if (activePage === "contracts") return <ContractsPage loading={loading} contracts={contracts} employees={employees.filter((employee) => employee.is_active)} companies={companies.filter((company) => company.is_active)} workCenters={workCenters.filter((center) => center.is_active)} contractForm={contractForm} onContractChange={handleContractChange} onContractSubmit={handleContractSubmit} onUpdateContract={handleUpdateContract} onDeleteContract={handleDeleteContract} contractError={contractError} contractSuccess={contractSuccess} contractSubmitting={contractSubmitting} />;
+    if (activePage === "payrolls") return <PayrollsPage loading={loading} payrolls={payrolls} employees={employees.filter((employee) => employee.is_active)} contracts={contracts} companies={companies.filter((company) => company.is_active)} workCenters={workCenters.filter((center) => center.is_active)} payrollForm={payrollForm} onPayrollChange={handlePayrollChange} onPayrollSubmit={handlePayrollSubmit} onUpdatePayroll={handleUpdatePayroll} onDeletePayroll={handleDeletePayroll} payrollError={payrollError} payrollSuccess={payrollSuccess} payrollSubmitting={payrollSubmitting} />;
+    if (activePage === "incidents") return <IncidentsPage loading={loading} incidents={incidents} employees={employees.filter((employee) => employee.is_active)} contracts={contracts} companies={companies.filter((company) => company.is_active)} workCenters={workCenters.filter((center) => center.is_active)} incidentForm={incidentForm} onIncidentChange={handleIncidentChange} onIncidentSubmit={handleIncidentSubmit} onUpdateIncident={handleUpdateIncident} onDeleteIncident={handleDeleteIncident} incidentError={incidentError} incidentSuccess={incidentSuccess} incidentSubmitting={incidentSubmitting} />;
     return <p>Módulo en preparación</p>;
   }
 
