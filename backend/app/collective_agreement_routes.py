@@ -25,7 +25,6 @@ from app.crud.collective_agreement import (
     get_professional_group,
     get_professional_groups,
     get_salary_table,
-    get_salary_table_row,
     get_salary_table_rows,
     get_salary_tables,
     get_vacation_rules,
@@ -71,6 +70,7 @@ from app.schemas.collective_agreement import (
     WorkTimeRuleResponse,
     WorkTimeRuleUpdate,
 )
+from app.seed_demo_agreements import seed_demo_collective_agreements
 
 router = APIRouter(prefix="/collective-agreements", tags=["collective-agreements"])
 
@@ -95,6 +95,12 @@ def ensure_salary_table_exists(db: Session, salary_table_id: int):
     if not salary_table:
         raise HTTPException(status_code=404, detail="Tabla salarial no encontrada")
     return salary_table
+
+
+@router.post("/seed-demo")
+def seed_demo_collective_agreements_endpoint(db: Session = Depends(get_db)):
+    agreement = seed_demo_collective_agreements(db)
+    return {"ok": True, "agreement_id": agreement.id, "message": "Convenio demo cargado"}
 
 
 @router.get("", response_model=list[CollectiveAgreementResponse])
