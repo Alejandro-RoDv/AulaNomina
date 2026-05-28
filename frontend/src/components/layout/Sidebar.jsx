@@ -3,9 +3,6 @@ import { useEffect, useState } from "react";
 import logo from "../../assets/aulanomina-logo.svg";
 
 const overlayPages = [
-  "company-companies",
-  "company-centers",
-  "employee-admissions",
   "employee-record",
   "documents",
   "alerts",
@@ -21,8 +18,6 @@ const overlayPages = [
   "progress",
 ];
 
-const companyPages = ["company-companies", "company-centers"];
-const employeePages = ["employee-admissions", "employee-record"];
 const teachingPages = ["teacher-dashboard", "teaching-alerts", "case-studies", "assignments", "corrections", "student-demo", "students", "groups", "progress"];
 const overlayHashes = overlayPages.map((page) => `#${page}`);
 const IRPF_HASH = "#irpf-module";
@@ -35,7 +30,6 @@ function getOverlayPageFromHash() {
 
 export default function Sidebar({ activePage, setActivePage }) {
   const [hashActivePage, setHashActivePage] = useState(getOverlayPageFromHash());
-  const [companyMenuOpen, setCompanyMenuOpen] = useState(true);
   const [employeeMenuOpen, setEmployeeMenuOpen] = useState(true);
 
   useEffect(() => {
@@ -43,13 +37,7 @@ export default function Sidebar({ activePage, setActivePage }) {
       const overlayPage = getOverlayPageFromHash();
       setHashActivePage(overlayPage);
 
-      if (companyPages.includes(overlayPage)) {
-        setCompanyMenuOpen(true);
-        setActivePage("companies");
-        return;
-      }
-
-      if (employeePages.includes(overlayPage)) {
+      if (overlayPage === "employee-record") {
         setEmployeeMenuOpen(true);
         setActivePage("employees");
         return;
@@ -82,17 +70,7 @@ export default function Sidebar({ activePage, setActivePage }) {
       title: "Datos",
       items: [
         { id: "dashboard", label: "Panel", enabled: true },
-        {
-          id: "company-menu",
-          label: "Empresa",
-          enabled: true,
-          menu: "company",
-          children: [
-            { id: "companies", label: "Empresas / Centros", enabled: true },
-            { id: "company-companies", label: "Empresas", enabled: true },
-            { id: "company-centers", label: "Centros", enabled: true },
-          ],
-        },
+        { id: "companies", label: "Empresas / Centros", enabled: true },
         {
           id: "employee-menu",
           label: "Trabajador",
@@ -100,7 +78,6 @@ export default function Sidebar({ activePage, setActivePage }) {
           menu: "employee",
           children: [
             { id: "employees", label: "Trabajadores", enabled: true },
-            { id: "employee-admissions", label: "Alta / baja", enabled: true },
             { id: "employee-record", label: "Expediente", enabled: true },
           ],
         },
@@ -160,35 +137,21 @@ export default function Sidebar({ activePage, setActivePage }) {
     window.dispatchEvent(new Event("aulanomina-route-change"));
   };
 
+  const activateMainRoute = (routeId) => {
+    setHashActivePage(null);
+    clearHashIfNeeded();
+    setActivePage(routeId);
+  };
+
   const handleNavClick = (item) => {
     if (!item.enabled) return;
 
     if (item.children) {
-      if (item.menu === "company") setCompanyMenuOpen((prev) => !prev);
       if (item.menu === "employee") setEmployeeMenuOpen((prev) => !prev);
       return;
     }
 
-    if (item.id === "companies") {
-      setActivePage("companies");
-      setHashActivePage(null);
-      clearHashIfNeeded();
-      return;
-    }
-
-    if (companyPages.includes(item.id)) {
-      activateHashRoute(item.id, "companies");
-      return;
-    }
-
-    if (item.id === "employees") {
-      setActivePage("employees");
-      setHashActivePage(null);
-      clearHashIfNeeded();
-      return;
-    }
-
-    if (employeePages.includes(item.id)) {
+    if (item.id === "employee-record") {
       activateHashRoute(item.id, "employees");
       return;
     }
@@ -203,9 +166,7 @@ export default function Sidebar({ activePage, setActivePage }) {
       return;
     }
 
-    setActivePage(item.id);
-    setHashActivePage(null);
-    clearHashIfNeeded();
+    activateMainRoute(item.id);
   };
 
   return (
@@ -221,8 +182,8 @@ export default function Sidebar({ activePage, setActivePage }) {
             <p style={styles.groupTitle}>{group.title}</p>
             <div style={styles.groupItems}>
               {group.items.map((item) => {
-                const submenuOpen = item.children && (item.menu === "company" ? companyMenuOpen : employeeMenuOpen);
-                const childPages = item.menu === "company" ? [...companyPages, "companies"] : [...employeePages, "employees"];
+                const submenuOpen = item.children && employeeMenuOpen;
+                const childPages = item.children ? ["employees", "employee-record"] : [];
                 const isActive = currentActivePage === item.id || (item.id === "irpf" && currentActivePage === "irpf-module") || (item.children && childPages.includes(currentActivePage));
 
                 return (
