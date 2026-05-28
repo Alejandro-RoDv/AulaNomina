@@ -184,6 +184,7 @@ export default function App() {
           contracts={contracts}
           incidents={incidents}
           payrolls={payrolls}
+          collectiveAgreements={collectiveAgreements}
         />
       );
     }
