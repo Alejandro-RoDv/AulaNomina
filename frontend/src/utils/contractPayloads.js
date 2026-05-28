@@ -3,6 +3,9 @@ const CONTRACT_NUMERIC_FIELDS = new Set([
   "full_time_weekly_hours",
   "partiality_coefficient",
   "gross_annual_salary",
+  "collective_agreement_id",
+  "professional_category_id",
+  "salary_table_row_id",
 ]);
 
 const SOCIAL_SECURITY_NUMERIC_FIELDS = new Set([
@@ -23,7 +26,7 @@ function toNumberOrNull(value) {
 
 export function normalizeContractExtras(extra = {}) {
   return Object.entries(extra).reduce((acc, [key, value]) => {
-    if (value === "" || value === undefined) return acc;
+    if (value === "" || value === undefined || value === null) return acc;
     acc[key] = CONTRACT_NUMERIC_FIELDS.has(key) ? Number(value) : value;
     return acc;
   }, {});
