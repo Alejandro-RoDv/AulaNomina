@@ -39,6 +39,7 @@ export default function ContractsPage({
   employees,
   companies,
   workCenters,
+  collectiveAgreements = [],
   contractForm,
   onContractChange,
   onContractSubmit,
@@ -126,6 +127,7 @@ export default function ContractsPage({
           companies={companies}
           workCenters={workCenters}
           contracts={contracts}
+          collectiveAgreements={collectiveAgreements}
           onChange={onContractChange}
           onSubmit={onContractSubmit}
           error={contractError}
@@ -138,45 +140,19 @@ export default function ContractsPage({
         <div style={styles.filters}>
           <div style={styles.filterGroupCode}>
             <label>Código</label>
-            <input
-              name="id"
-              value={filters.id}
-              onChange={handleFilterChange}
-              placeholder="Ej. 1.1"
-              style={styles.input}
-            />
+            <input name="id" value={filters.id} onChange={handleFilterChange} placeholder="Ej. 1.1" style={styles.input} />
           </div>
-
           <div style={styles.filterGroupEmployee}>
             <label>Empleado</label>
-            <input
-              name="employee"
-              value={filters.employee}
-              onChange={handleFilterChange}
-              placeholder="Nombre, DNI o ID"
-              style={styles.input}
-            />
+            <input name="employee" value={filters.employee} onChange={handleFilterChange} placeholder="Nombre, DNI o ID" style={styles.input} />
           </div>
-
           <div style={styles.filterGroupCompany}>
             <label>Empresa / centro / CCC</label>
-            <input
-              name="company"
-              value={filters.company}
-              onChange={handleFilterChange}
-              placeholder="Empresa, centro, CIF o CCC"
-              style={styles.input}
-            />
+            <input name="company" value={filters.company} onChange={handleFilterChange} placeholder="Empresa, centro, CIF o CCC" style={styles.input} />
           </div>
-
           <div style={styles.filterGroupType}>
             <label>Tipo</label>
-            <select
-              name="contractType"
-              value={filters.contractType}
-              onChange={handleFilterChange}
-              style={styles.input}
-            >
+            <select name="contractType" value={filters.contractType} onChange={handleFilterChange} style={styles.input}>
               <option value="">Todos</option>
               <option value="indefinido">Indefinido</option>
               <option value="temporal">Temporal</option>
@@ -184,24 +160,15 @@ export default function ContractsPage({
               <option value="formacion">Formación</option>
             </select>
           </div>
-
           <div style={styles.filterGroupStatus}>
             <label>Estado</label>
-            <select
-              name="status"
-              value={filters.status}
-              onChange={handleFilterChange}
-              style={styles.input}
-            >
+            <select name="status" value={filters.status} onChange={handleFilterChange} style={styles.input}>
               <option value="">Todos</option>
               <option value="active">Activo</option>
               <option value="ended">Finalizado</option>
             </select>
           </div>
-
-          <button type="button" onClick={clearFilters} style={styles.clearButton}>
-            Limpiar filtros
-          </button>
+          <button type="button" onClick={clearFilters} style={styles.clearButton}>Limpiar filtros</button>
         </div>
 
         <ContractTable
@@ -220,65 +187,13 @@ export default function ContractsPage({
 }
 
 const styles = {
-  wrapper: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "20px",
-  },
-  filters: {
-    display: "grid",
-    gridTemplateColumns: "86px 250px minmax(300px, 1fr) 150px 150px 124px",
-    columnGap: "14px",
-    rowGap: "10px",
-    alignItems: "end",
-    marginBottom: "18px",
-  },
-  filterGroupCode: {
-    minWidth: 0,
-    display: "flex",
-    flexDirection: "column",
-    gap: "6px",
-  },
-  filterGroupEmployee: {
-    minWidth: 0,
-    display: "flex",
-    flexDirection: "column",
-    gap: "6px",
-  },
-  filterGroupCompany: {
-    minWidth: 0,
-    display: "flex",
-    flexDirection: "column",
-    gap: "6px",
-  },
-  filterGroupType: {
-    minWidth: 0,
-    display: "flex",
-    flexDirection: "column",
-    gap: "6px",
-  },
-  filterGroupStatus: {
-    minWidth: 0,
-    display: "flex",
-    flexDirection: "column",
-    gap: "6px",
-  },
-  input: {
-    width: "100%",
-    boxSizing: "border-box",
-    padding: "10px 12px",
-    border: "1px solid #ccc",
-    borderRadius: "8px",
-    fontSize: "14px",
-  },
-  clearButton: {
-    width: "100%",
-    backgroundColor: "#f3f4f6",
-    color: "#111827",
-    border: "1px solid #d1d5db",
-    borderRadius: "8px",
-    padding: "10px 14px",
-    cursor: "pointer",
-    fontWeight: 700,
-  },
+  wrapper: { display: "flex", flexDirection: "column", gap: "20px" },
+  filters: { display: "grid", gridTemplateColumns: "86px 250px minmax(300px, 1fr) 150px 150px 124px", columnGap: "14px", rowGap: "10px", alignItems: "end", marginBottom: "18px" },
+  filterGroupCode: { minWidth: 0, display: "flex", flexDirection: "column", gap: "6px" },
+  filterGroupEmployee: { minWidth: 0, display: "flex", flexDirection: "column", gap: "6px" },
+  filterGroupCompany: { minWidth: 0, display: "flex", flexDirection: "column", gap: "6px" },
+  filterGroupType: { minWidth: 0, display: "flex", flexDirection: "column", gap: "6px" },
+  filterGroupStatus: { minWidth: 0, display: "flex", flexDirection: "column", gap: "6px" },
+  input: { width: "100%", boxSizing: "border-box", padding: "10px 12px", border: "1px solid #ccc", borderRadius: "8px", fontSize: "14px" },
+  clearButton: { width: "100%", backgroundColor: "#f3f4f6", color: "#111827", border: "1px solid #d1d5db", borderRadius: "8px", padding: "10px 14px", cursor: "pointer", fontWeight: 700 },
 };
