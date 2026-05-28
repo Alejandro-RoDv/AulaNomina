@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
+
 import { fetchCatalogs } from "../services/api";
-import { formatPaySchedule, PAY_SCHEDULE_OPTIONS } from "./ContractForm";
 import { getContractVisibleCode } from "../utils/visibleCodes";
 import { getSortLabel, nextSortConfig, sortRows } from "../utils/tableSorting";
+import { formatPaySchedule, PAY_SCHEDULE_OPTIONS } from "./ContractForm";
 
 const TERMINATION_REASONS = [
   { value: "fin_contrato_temporal", label: "Fin de contrato temporal" },
@@ -57,6 +58,16 @@ function formatSalary(value) {
   return new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(Number(value));
 }
 
+function catalogOrFallback(items, fallback) {
+  return items?.length ? items : fallback;
+}
+
+function findLabel(items, code) {
+  if (!code) return "-";
+  const item = items.find((entry) => String(entry.code) === String(code));
+  return item ? `${item.code} · ${item.description}` : code;
+}
+
 function toEditForm(contract) {
   return {
     employee_id: contract.employee_id ? String(contract.employee_id) : "",
@@ -76,6 +87,9 @@ function toEditForm(contract) {
     professional_category: contract.professional_category || "",
     job_position: contract.job_position || "",
     collective_agreement_code: contract.collective_agreement_code || "",
+    collective_agreement_id: contract.collective_agreement_id ? String(contract.collective_agreement_id) : "",
+    professional_category_id: contract.professional_category_id ? String(contract.professional_category_id) : "",
+    salary_table_row_id: contract.salary_table_row_id ? String(contract.salary_table_row_id) : "",
     working_day_type: contract.working_day_type || "",
     weekly_hours: contract.weekly_hours ?? "",
     full_time_weekly_hours: contract.full_time_weekly_hours ?? "40",
@@ -115,17 +129,13 @@ function toSocialSecurityForm(contract) {
 }
 
 function toTerminationForm(contract) {
-  return { end_date: contract.end_date || "", reason: "fin_contrato_temporal", severance_ready: false, settlement_ready: false, observations: "" };
-}
-
-function findLabel(items, code) {
-  if (!code) return "-";
-  const item = items.find((entry) => String(entry.code) === String(code));
-  return item ? `${item.code} · ${item.description}` : code;
-}
-
-function catalogOrFallback(items, fallback) {
-  return items?.length ? items : fallback;
+  return {
+    end_date: contract.end_date || "",
+    reason: "fin_contrato_temporal",
+    severance_ready: false,
+    settlement_ready: false,
+    observations: "",
+  };
 }
 
 export default function ContractTable({ loading, contracts, employees, companies, workCenters = [], onUpdateContract, submitting }) {
@@ -141,14 +151,21 @@ export default function ContractTable({ loading, contracts, employees, companies
 
   useEffect(() => {
     let active = true;
-    fetchCatalogs().then((data) => {
-      if (active) setCatalogs({ ...DEFAULT_CATALOGS, ...data });
-    }).catch(() => undefined);
-    return () => { active = false; };
+    fetchCatalogs()
+      .then((data) => {
+        if (active) setCatalogs({ ...DEFAULT_CATALOGS, ...data });
+      })
+      .catch(() => undefined);
+    return () => {
+      active = false;
+    };
   }, []);
 
   const getEmployee = (contract) => employees.find((employee) => Number(employee.id) === Number(contract.employee_id));
-  const getEmployeeName = (contract) => contract.employee_name || (() => { const emp = getEmployee(contract); return emp ? `${emp.first_name} ${emp.last_name}` : contract.employee_id; })();
+  const getEmployeeName = (contract) => contract.employee_name || (() => {
+    const emp = getEmployee(contract);
+    return emp ? `${emp.first_name} ${emp.last_name}` : contract.employee_id;
+  })();
   const getContractCode = (contract) => getContractVisibleCode(contract, employees, contracts);
   const getCompany = (contract) => companies.find((item) => Number(item.id) === Number(contract.company_id));
   const getCenter = (contract) => workCenters.find((item) => Number(item.id) === Number(contract.center_id));
@@ -158,13 +175,18 @@ export default function ContractTable({ loading, contracts, employees, companies
     const center = getCenter(contract);
     return center?.name ? `${companyName} · ${center.name}` : companyName;
   };
-  const getCompanyCcc = (contract) => getCompany(contract)?.ccc || "-";
+  const getAgreementText = (contract) => {
+    if (contract.collective_agreement_name) return contract.collective_agreement_name;
+    if (contract.collective_agreement_code) return contract.collective_agreement_code;
+    return "-";
+  };
 
   const sortedContracts = useMemo(() => sortRows(contracts, sortConfig, {
     code: (contract) => getContractCode(contract),
     employee: (contract) => getEmployeeName(contract),
     company: (contract) => getCompanyAndCenterName(contract),
-    ccc: (contract) => getCompanyCcc(contract),
+    agreement: (contract) => getAgreementText(contract),
+    category: (contract) => contract.professional_category || "",
     type: (contract) => formatContractType(contract.contract_type),
     start: (contract) => contract.start_date,
     end: (contract) => contract.end_date,
@@ -174,7 +196,11 @@ export default function ContractTable({ loading, contracts, employees, companies
 
   const handleSort = (key) => setSortConfig((current) => nextSortConfig(current, key));
   const sortHeader = (key, label, style) => (
-    <th style={style}><button type="button" onClick={() => handleSort(key)} style={styles.sortButton}><span>{label}</span><span style={styles.sortIcon}>{getSortLabel(sortConfig, key)}</span></button></th>
+    <th style={style}>
+      <button type="button" onClick={() => handleSort(key)} style={styles.sortButton}>
+        <span>{label}</span><span style={styles.sortIcon}>{getSortLabel(sortConfig, key)}</span>
+      </button>
+    </th>
   );
 
   const openEditModal = (contract) => {
@@ -227,7 +253,6 @@ export default function ContractTable({ loading, contracts, employees, companies
   const handleEditSubmit = async (event) => {
     event.preventDefault();
     setEditError("");
-
     try {
       await onUpdateContract(editingContract.id, editForm, ssEditForm);
       closeEditModal();
@@ -238,22 +263,18 @@ export default function ContractTable({ loading, contracts, employees, companies
 
   const handleConfirmTermination = async () => {
     setTerminationError("");
-
     if (!terminationForm.end_date) {
       setTerminationError("Debes indicar la fecha fin de la baja.");
       return;
     }
-
     if (contractToTerminate.end_date && terminationForm.end_date !== contractToTerminate.end_date) {
       setTerminationError("La fecha de baja debe coincidir con la fecha fin indicada en el contrato.");
       return;
     }
-
     if (terminationForm.end_date < contractToTerminate.start_date) {
       setTerminationError("La fecha fin no puede ser anterior a la fecha de inicio del contrato.");
       return;
     }
-
     try {
       await onUpdateContract(
         contractToTerminate.id,
@@ -273,14 +294,29 @@ export default function ContractTable({ loading, contracts, employees, companies
     <>
       <div style={styles.tableWrapper}>
         <table style={styles.table}>
-          <thead><tr>{sortHeader("code", "Código", styles.thCode)}{sortHeader("employee", "Trabajador", styles.thEmployee)}{sortHeader("company", "Empresa / centro", styles.thCompany)}{sortHeader("ccc", "CCC", styles.thCcc)}{sortHeader("type", "Tipo", styles.thType)}{sortHeader("start", "Inicio", styles.thDate)}{sortHeader("end", "Fin", styles.thDate)}{sortHeader("status", "Estado", styles.thStatus)}{sortHeader("salary", "Salario", styles.thSalary)}<th style={styles.thActions}>Acciones</th></tr></thead>
+          <thead>
+            <tr>
+              {sortHeader("code", "Código", styles.thCode)}
+              {sortHeader("employee", "Trabajador", styles.thEmployee)}
+              {sortHeader("company", "Empresa / centro", styles.thCompany)}
+              {sortHeader("agreement", "Convenio", styles.thAgreement)}
+              {sortHeader("category", "Categoría", styles.thCategory)}
+              {sortHeader("type", "Tipo", styles.thType)}
+              {sortHeader("start", "Inicio", styles.thDate)}
+              {sortHeader("end", "Fin", styles.thDate)}
+              {sortHeader("status", "Estado", styles.thStatus)}
+              {sortHeader("salary", "Salario", styles.thSalary)}
+              <th style={styles.thActions}>Acciones</th>
+            </tr>
+          </thead>
           <tbody>
             {sortedContracts.map((contract) => (
               <tr key={contract.id}>
                 <td style={styles.tdCode}>{getContractCode(contract)}</td>
                 <td style={styles.td}>{getEmployeeName(contract)}</td>
                 <td style={styles.td}>{getCompanyAndCenterName(contract)}</td>
-                <td style={styles.tdCcc}>{getCompanyCcc(contract)}</td>
+                <td style={styles.tdAgreement}>{getAgreementText(contract)}</td>
+                <td style={styles.tdCategory}>{contract.professional_category || "-"}</td>
                 <td style={styles.tdType}>{contract.contract_code ? `${contract.contract_code} · ${formatContractType(contract.contract_type)}` : formatContractType(contract.contract_type)}</td>
                 <td style={styles.tdDate}>{formatDate(contract.start_date)}</td>
                 <td style={styles.tdDate}>{formatDate(contract.end_date)}</td>
@@ -289,7 +325,7 @@ export default function ContractTable({ loading, contracts, employees, companies
                 <td style={styles.tdActions}><button type="button" onClick={() => openEditModal(contract)} style={styles.editButton}>Detalles</button></td>
               </tr>
             ))}
-            {contracts.length === 0 && <tr><td style={styles.td} colSpan="10">No hay contratos registrados.</td></tr>}
+            {contracts.length === 0 && <tr><td style={styles.td} colSpan="11">No hay contratos registrados.</td></tr>}
           </tbody>
         </table>
       </div>
@@ -298,23 +334,61 @@ export default function ContractTable({ loading, contracts, employees, companies
         <div style={styles.modalBackdrop}>
           <div style={styles.modal}>
             <div style={styles.modalHeader}>
-              <div><h3 style={styles.modalTitle}>Detalle y edición de contrato</h3><p style={styles.modalSubtitle}>Contrato {getContractCode(editingContract)} · {getEmployeeName(editingContract)} · {formatPaySchedule(editingContract.pay_schedule)}</p></div>
+              <div>
+                <h3 style={styles.modalTitle}>Detalle y edición de contrato</h3>
+                <p style={styles.modalSubtitle}>Contrato {getContractCode(editingContract)} · {getEmployeeName(editingContract)} · {formatPaySchedule(editingContract.pay_schedule)}</p>
+              </div>
               <button type="button" onClick={closeEditModal} style={styles.closeButton}>×</button>
             </div>
 
             <form onSubmit={handleEditSubmit} style={styles.form}>
               <section style={styles.sectionBox}>
                 <h4 style={styles.sectionTitle}>Datos contractuales</h4>
-                <div style={styles.formRow}><div style={styles.formGroup}><label>Trabajador</label><input value={getEmployeeName(editingContract)} readOnly disabled style={{ ...styles.input, ...styles.readOnlyInput }} /></div><div style={styles.formGroup}><label>Empresa / centro</label><input value={getCompanyAndCenterName(editingContract)} readOnly disabled style={{ ...styles.input, ...styles.readOnlyInput }} /></div></div>
-                <div style={styles.formRow}><div style={styles.formGroup}><label>Código contrato</label><input name="contract_code" value={editForm.contract_code} onChange={handleEditChange} style={styles.input} /></div><div style={styles.formGroup}><label>Tipo de contrato</label><select name="contract_type" value={editForm.contract_type} onChange={handleEditChange} required style={styles.input}><option value="">Selecciona tipo</option><option value="indefinido">Indefinido</option><option value="temporal">Temporal</option><option value="practicas">Prácticas</option><option value="formacion">Formación</option><option value="sustitucion">Sustitución</option></select></div><div style={styles.formGroup}><label>Sistema de pagas</label><select name="pay_schedule" value={editForm.pay_schedule} onChange={handleEditChange} required style={styles.input}>{PAY_SCHEDULE_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></div></div>
-                <div style={styles.formRow}><div style={styles.formGroup}><label>Fecha inicio</label><input type="date" name="start_date" value={editForm.start_date} onChange={handleEditChange} required style={styles.input} /></div><div style={styles.formGroup}><label>Fecha fin</label><input type="date" name="end_date" value={editForm.end_date} onChange={handleEditChange} style={styles.input} /></div><div style={styles.formGroup}><label>Estado</label><select name="status" value={editForm.status} onChange={handleEditChange} style={styles.input}><option value="active">Activo</option><option value="ended">Finalizado</option></select></div></div>
+                <div style={styles.formRow}>
+                  <div style={styles.formGroup}><label>Trabajador</label><input value={getEmployeeName(editingContract)} readOnly disabled style={{ ...styles.input, ...styles.readOnlyInput }} /></div>
+                  <div style={styles.formGroup}><label>Empresa / centro</label><input value={getCompanyAndCenterName(editingContract)} readOnly disabled style={{ ...styles.input, ...styles.readOnlyInput }} /></div>
+                </div>
+                <div style={styles.formRow}>
+                  <div style={styles.formGroup}><label>Código contrato</label><input name="contract_code" value={editForm.contract_code} onChange={handleEditChange} style={styles.input} /></div>
+                  <div style={styles.formGroup}><label>Tipo de contrato</label><select name="contract_type" value={editForm.contract_type} onChange={handleEditChange} required style={styles.input}><option value="">Selecciona tipo</option><option value="indefinido">Indefinido</option><option value="temporal">Temporal</option><option value="practicas">Prácticas</option><option value="formacion">Formación</option><option value="sustitucion">Sustitución</option></select></div>
+                  <div style={styles.formGroup}><label>Sistema de pagas</label><select name="pay_schedule" value={editForm.pay_schedule} onChange={handleEditChange} required style={styles.input}>{PAY_SCHEDULE_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></div>
+                </div>
+                <div style={styles.formRow}>
+                  <div style={styles.formGroup}><label>Fecha inicio</label><input type="date" name="start_date" value={editForm.start_date} onChange={handleEditChange} required style={styles.input} /></div>
+                  <div style={styles.formGroup}><label>Fecha fin</label><input type="date" name="end_date" value={editForm.end_date} onChange={handleEditChange} style={styles.input} /></div>
+                  <div style={styles.formGroup}><label>Estado</label><select name="status" value={editForm.status} onChange={handleEditChange} style={styles.input}><option value="active">Activo</option><option value="ended">Finalizado</option></select></div>
+                </div>
+              </section>
+
+              <section style={styles.sectionBox}>
+                <h4 style={styles.sectionTitle}>Convenio, categoría y retribución</h4>
+                <div style={styles.formRow}>
+                  <div style={styles.formGroup}><label>Convenio</label><input name="collective_agreement_code" value={editForm.collective_agreement_code} onChange={handleEditChange} style={styles.input} /></div>
+                  <div style={styles.formGroup}><label>Categoría profesional</label><input name="professional_category" value={editForm.professional_category} onChange={handleEditChange} style={styles.input} /></div>
+                  <div style={styles.formGroup}><label>Puesto</label><input name="job_position" value={editForm.job_position} onChange={handleEditChange} style={styles.input} /></div>
+                </div>
+                <div style={styles.formRow}>
+                  <div style={styles.formGroup}><label>ID convenio</label><input name="collective_agreement_id" value={editForm.collective_agreement_id} onChange={handleEditChange} placeholder="Opcional" style={styles.input} /></div>
+                  <div style={styles.formGroup}><label>ID categoría convenio</label><input name="professional_category_id" value={editForm.professional_category_id} onChange={handleEditChange} placeholder="Opcional" style={styles.input} /></div>
+                  <div style={styles.formGroup}><label>ID fila salarial</label><input name="salary_table_row_id" value={editForm.salary_table_row_id} onChange={handleEditChange} placeholder="Opcional" style={styles.input} /></div>
+                </div>
+                <div style={styles.formRow}>
+                  <div style={styles.formGroup}><label>Salario base</label><input type="number" name="salary_base" value={editForm.salary_base} onChange={handleEditChange} style={styles.input} /></div>
+                </div>
               </section>
 
               <section style={styles.sectionBox}>
                 <h4 style={styles.sectionTitle}>Jornada, cotización y RED</h4>
-                <div style={styles.formRow}><div style={styles.formGroup}><label>Grupo cotización</label><select name="contribution_group" value={editForm.contribution_group} onChange={(e) => { handleEditChange(e); setSsEditForm((prev) => ({ ...prev, contribution_group: e.target.value, red_contribution_group: e.target.value })); }} style={styles.input}><option value="">Selecciona grupo</option>{catalogs.contribution_groups.map((item) => <option key={item.code} value={item.code}>{item.code} · {item.description}</option>)}</select></div><div style={styles.formGroup}><label>Tipo jornada</label><select name="working_day_type" value={editForm.working_day_type} onChange={handleEditChange} style={styles.input}><option value="">Sin definir</option>{catalogOrFallback(catalogs.working_day_types, [{ code: "full_time", description: "Jornada completa" }, { code: "part_time", description: "Jornada parcial" }, { code: "fixed_discontinuous", description: "Fijo discontinuo" }]).map((item) => <option key={item.code} value={item.code}>{item.description}</option>)}</select></div><div style={styles.formGroup}><label>Coeficiente parcialidad</label><input type="number" name="partiality_coefficient" value={editForm.partiality_coefficient} onChange={handleEditChange} style={styles.input} /></div></div>
-                <div style={styles.formRow}><div style={styles.formGroup}><label>Categoría profesional</label><input name="professional_category" value={editForm.professional_category} onChange={handleEditChange} style={styles.input} /></div><div style={styles.formGroup}><label>Puesto</label><input name="job_position" value={editForm.job_position} onChange={handleEditChange} style={styles.input} /></div><div style={styles.formGroup}><label>Convenio colectivo</label><input name="collective_agreement_code" value={editForm.collective_agreement_code} onChange={handleEditChange} style={styles.input} /></div></div>
-                <div style={styles.formRow}><div style={styles.formGroup}><label>Ocupación RED</label><input name="red_occupation_code" value={editForm.red_occupation_code} onChange={(e) => { handleEditChange(e); setSsEditForm((prev) => ({ ...prev, red_occupation_code: e.target.value, occupation_code: e.target.value })); }} style={styles.input} /></div><div style={styles.formGroup}><label>Código reducción</label><input name="red_reduction_code" value={editForm.red_reduction_code} onChange={(e) => { handleEditChange(e); setSsEditForm((prev) => ({ ...prev, red_reduction_code: e.target.value })); }} style={styles.input} /></div><div style={styles.formGroup}><label>Salario bruto anual</label><input type="number" name="salary_base" value={editForm.salary_base} onChange={handleEditChange} style={styles.input} /></div></div>
+                <div style={styles.formRow}>
+                  <div style={styles.formGroup}><label>Grupo cotización</label><select name="contribution_group" value={editForm.contribution_group} onChange={(e) => { handleEditChange(e); setSsEditForm((prev) => ({ ...prev, contribution_group: e.target.value, red_contribution_group: e.target.value })); }} style={styles.input}><option value="">Selecciona grupo</option>{catalogs.contribution_groups.map((item) => <option key={item.code} value={item.code}>{item.code} · {item.description}</option>)}</select></div>
+                  <div style={styles.formGroup}><label>Tipo jornada</label><select name="working_day_type" value={editForm.working_day_type} onChange={handleEditChange} style={styles.input}><option value="">Sin definir</option>{catalogOrFallback(catalogs.working_day_types, [{ code: "full_time", description: "Jornada completa" }, { code: "part_time", description: "Jornada parcial" }, { code: "fixed_discontinuous", description: "Fijo discontinuo" }]).map((item) => <option key={item.code} value={item.code}>{item.description}</option>)}</select></div>
+                  <div style={styles.formGroup}><label>Coeficiente parcialidad</label><input type="number" name="partiality_coefficient" value={editForm.partiality_coefficient} onChange={handleEditChange} style={styles.input} /></div>
+                </div>
+                <div style={styles.formRow}>
+                  <div style={styles.formGroup}><label>Ocupación RED</label><input name="red_occupation_code" value={editForm.red_occupation_code} onChange={(e) => { handleEditChange(e); setSsEditForm((prev) => ({ ...prev, red_occupation_code: e.target.value, occupation_code: e.target.value })); }} style={styles.input} /></div>
+                  <div style={styles.formGroup}><label>Código reducción</label><input name="red_reduction_code" value={editForm.red_reduction_code} onChange={(e) => { handleEditChange(e); setSsEditForm((prev) => ({ ...prev, red_reduction_code: e.target.value })); }} style={styles.input} /></div>
+                  <div style={styles.formGroup}><label>Indicador cotización</label><select name="monthly_or_daily_contribution" value={editForm.monthly_or_daily_contribution} onChange={handleEditChange} style={styles.input}>{catalogOrFallback(catalogs.monthly_daily_contribution_types, [{ code: "monthly", description: "Cotización mensual" }, { code: "daily", description: "Cotización diaria" }]).map((item) => <option key={item.code} value={item.code}>{item.description}</option>)}</select></div>
+                </div>
               </section>
 
               <section style={styles.sectionBox}>
@@ -356,23 +430,25 @@ export default function ContractTable({ loading, contracts, employees, companies
 
 const styles = {
   tableWrapper: { overflowX: "auto", width: "100%" },
-  table: { width: "100%", minWidth: "1120px", borderCollapse: "collapse", tableLayout: "fixed" },
+  table: { width: "100%", minWidth: "1320px", borderCollapse: "collapse", tableLayout: "fixed" },
   sortButton: { width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px", padding: 0, border: "none", backgroundColor: "transparent", color: "inherit", font: "inherit", fontWeight: 900, cursor: "pointer", textAlign: "left" },
   sortIcon: { color: "#6b7280", fontSize: "12px" },
-  thEmployee: { width: "230px", textAlign: "left", padding: "12px 10px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb", whiteSpace: "nowrap" },
-  thCompany: { width: "260px", textAlign: "left", padding: "12px 10px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb", whiteSpace: "nowrap" },
-  thCode: { width: "90px", textAlign: "left", padding: "12px 8px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb", whiteSpace: "nowrap" },
-  thCcc: { width: "110px", textAlign: "left", padding: "12px 10px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb", whiteSpace: "nowrap" },
+  thEmployee: { width: "200px", textAlign: "left", padding: "12px 10px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb", whiteSpace: "nowrap" },
+  thCompany: { width: "220px", textAlign: "left", padding: "12px 10px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb", whiteSpace: "nowrap" },
+  thCode: { width: "84px", textAlign: "left", padding: "12px 8px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb", whiteSpace: "nowrap" },
+  thAgreement: { width: "190px", textAlign: "left", padding: "12px 10px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb", whiteSpace: "nowrap" },
+  thCategory: { width: "170px", textAlign: "left", padding: "12px 10px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb", whiteSpace: "nowrap" },
   thType: { width: "124px", textAlign: "left", padding: "12px 10px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb", whiteSpace: "nowrap" },
-  thDate: { width: "104px", textAlign: "left", padding: "12px 10px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb", whiteSpace: "nowrap" },
+  thDate: { width: "96px", textAlign: "left", padding: "12px 10px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb", whiteSpace: "nowrap" },
   thStatus: { width: "104px", textAlign: "left", padding: "12px 10px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb", whiteSpace: "nowrap" },
   thSalary: { width: "98px", textAlign: "right", padding: "12px 10px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb", whiteSpace: "nowrap" },
   thActions: { width: "86px", textAlign: "left", padding: "12px 10px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb", whiteSpace: "nowrap" },
   td: { padding: "12px 10px", borderBottom: "1px solid #eee", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" },
-  tdCode: { width: "90px", padding: "12px 8px", borderBottom: "1px solid #eee", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", fontWeight: 900 },
-  tdCcc: { width: "110px", padding: "12px 10px", borderBottom: "1px solid #eee", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" },
+  tdCode: { width: "84px", padding: "12px 8px", borderBottom: "1px solid #eee", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", fontWeight: 900 },
+  tdAgreement: { width: "190px", padding: "12px 10px", borderBottom: "1px solid #eee", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" },
+  tdCategory: { width: "170px", padding: "12px 10px", borderBottom: "1px solid #eee", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" },
   tdType: { width: "124px", padding: "12px 10px", borderBottom: "1px solid #eee", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" },
-  tdDate: { width: "104px", padding: "12px 10px", borderBottom: "1px solid #eee", whiteSpace: "nowrap" },
+  tdDate: { width: "96px", padding: "12px 10px", borderBottom: "1px solid #eee", whiteSpace: "nowrap" },
   tdStatus: { width: "104px", padding: "12px 10px", borderBottom: "1px solid #eee", whiteSpace: "nowrap" },
   tdSalary: { width: "98px", padding: "12px 10px", borderBottom: "1px solid #eee", whiteSpace: "nowrap", textAlign: "right" },
   tdActions: { width: "86px", padding: "12px 10px", borderBottom: "1px solid #eee", whiteSpace: "nowrap" },
