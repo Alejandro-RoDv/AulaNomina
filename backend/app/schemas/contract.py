@@ -24,6 +24,9 @@ class ContractBase(BaseModel):
     professional_category: Optional[str] = None
     job_position: Optional[str] = None
     collective_agreement_code: Optional[str] = None
+    collective_agreement_id: Optional[int] = None
+    professional_category_id: Optional[int] = None
+    salary_table_row_id: Optional[int] = None
 
     working_day_type: Optional[str] = None
     weekly_hours: Optional[float] = None
@@ -124,6 +127,9 @@ class ContractUpdate(BaseModel):
     professional_category: Optional[str] = None
     job_position: Optional[str] = None
     collective_agreement_code: Optional[str] = None
+    collective_agreement_id: Optional[int] = None
+    professional_category_id: Optional[int] = None
+    salary_table_row_id: Optional[int] = None
 
     working_day_type: Optional[str] = None
     weekly_hours: Optional[float] = None
@@ -200,6 +206,10 @@ class ContractResponse(BaseModel):
     professional_category: Optional[str] = None
     job_position: Optional[str] = None
     collective_agreement_code: Optional[str] = None
+    collective_agreement_id: Optional[int] = None
+    collective_agreement_name: Optional[str] = None
+    professional_category_id: Optional[int] = None
+    salary_table_row_id: Optional[int] = None
 
     working_day_type: Optional[str] = None
     weekly_hours: Optional[float] = None
