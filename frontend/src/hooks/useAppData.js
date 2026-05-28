@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { fetchContracts, resetDemo } from "../services/api";
 import { fetchCollectiveAgreements } from "../services/collectiveAgreementApi";
@@ -21,6 +21,17 @@ export function useAppData({ onLoadError, onNextEmployeeCode } = {}) {
   const [resetDemoLoading, setResetDemoLoading] = useState(false);
   const [resetDemoMessage, setResetDemoMessage] = useState("");
   const [resetDemoError, setResetDemoError] = useState("");
+
+  const onLoadErrorRef = useRef(onLoadError);
+  const onNextEmployeeCodeRef = useRef(onNextEmployeeCode);
+
+  useEffect(() => {
+    onLoadErrorRef.current = onLoadError;
+  }, [onLoadError]);
+
+  useEffect(() => {
+    onNextEmployeeCodeRef.current = onNextEmployeeCode;
+  }, [onNextEmployeeCode]);
 
   const loadData = useCallback(async () => {
     try {
@@ -52,13 +63,13 @@ export function useAppData({ onLoadError, onNextEmployeeCode } = {}) {
       setIncidents(incidentsData);
       setPayrolls(payrollsData);
       setCollectiveAgreements(collectiveAgreementsData);
-      onNextEmployeeCode?.(nextEmployeeCodeData.employee_code);
+      onNextEmployeeCodeRef.current?.(nextEmployeeCodeData.employee_code);
     } catch (err) {
-      onLoadError?.(err);
+      onLoadErrorRef.current?.(err);
     } finally {
       setLoading(false);
     }
-  }, [onLoadError, onNextEmployeeCode]);
+  }, []);
 
   useEffect(() => {
     loadData();
