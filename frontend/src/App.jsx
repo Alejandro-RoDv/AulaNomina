@@ -2,6 +2,11 @@ import { useCallback, useState } from "react";
 
 import Sidebar from "./components/layout/Sidebar";
 import Header from "./components/layout/Header";
+import AlertsRoute from "./components/alerts/AlertsRoute";
+import CaseStudiesRoute from "./components/case-studies/CaseStudiesRoute";
+import DocumentsRoute from "./components/documents/DocumentsRoute";
+import EmployeesRoute from "./components/employees/EmployeesRoute";
+import ReportsRoute from "./components/reports/ReportsRoute";
 
 import Dashboard from "./pages/Dashboard";
 import CollectiveAgreementsPage from "./pages/CollectiveAgreementsPage";
@@ -17,6 +22,23 @@ import { useContractsModule } from "./hooks/useContractsModule";
 import { useEmployeesModule } from "./hooks/useEmployeesModule";
 import { useIncidentsModule } from "./hooks/useIncidentsModule";
 import { usePayrollsModule } from "./hooks/usePayrollsModule";
+
+const overlayPages = new Set([
+  "employee-admissions",
+  "employee-record",
+  "documents",
+  "alerts",
+  "reports",
+  "teacher-dashboard",
+  "teaching-alerts",
+  "case-studies",
+  "assignments",
+  "corrections",
+  "student-demo",
+  "students",
+  "groups",
+  "progress",
+]);
 
 export default function App() {
   const [activePage, setActivePage] = useState("dashboard");
@@ -129,6 +151,10 @@ export default function App() {
     if (activePage === "collective-agreements") return "Convenios";
     if (activePage === "payrolls") return "Nóminas";
     if (activePage === "incidents") return "Incidencias laborales";
+    if (activePage === "documents") return "Documentos";
+    if (activePage === "alerts") return "Alertas laborales";
+    if (activePage === "reports") return "Informes";
+    if (overlayPages.has(activePage)) return "AulaNomina";
     return "AulaNomina";
   }
 
@@ -140,10 +166,15 @@ export default function App() {
     if (activePage === "collective-agreements") return "Parámetros de convenio para consulta didáctica y salario base mínimo";
     if (activePage === "payrolls") return "Generación y consulta de nóminas simuladas";
     if (activePage === "incidents") return "Gestión de IT, recaídas, vacaciones, ausencias y permisos";
+    if (activePage === "documents") return "Gestión documental del expediente laboral";
+    if (activePage === "alerts") return "Vencimientos, pendientes y revisiones laborales";
+    if (activePage === "reports") return "Listados e informes del entorno de simulación";
     return "";
   }
 
   function renderPage() {
+    if (overlayPages.has(activePage)) return null;
+
     if (activePage === "dashboard") {
       return (
         <Dashboard
@@ -300,6 +331,11 @@ export default function App() {
           resetDemoError={resetDemoError}
         />
         <main style={styles.main}>{renderPage()}</main>
+        <EmployeesRoute />
+        <DocumentsRoute />
+        <AlertsRoute />
+        <ReportsRoute />
+        <CaseStudiesRoute />
         <footer style={styles.footer}>AulaNomina · Entorno educativo de simulación laboral · Demo MVP</footer>
       </div>
     </div>
