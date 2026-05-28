@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import { getEmployeeVisibleCode } from "../utils/visibleCodes";
-import { consumeLastCreatedEmployee } from "../services/employeeApi";
+
 import { fetchCatalogs } from "../services/api";
+import { fetchCollectiveAgreement } from "../services/collectiveAgreementApi";
+import { consumeLastCreatedEmployee } from "../services/employeeApi";
+import { buildContractPayload } from "../utils/contractPayloads";
+import { getEmployeeVisibleCode } from "../utils/visibleCodes";
 
 export const PAY_SCHEDULE_OPTIONS = [
   { value: "prorated_12", label: "Nómina prorrateada 12 pagas" },
@@ -16,6 +19,9 @@ const EMPTY_EXTRA = {
   professional_category: "",
   job_position: "",
   collective_agreement_code: "",
+  collective_agreement_id: "",
+  professional_category_id: "",
+  salary_table_row_id: "",
   working_day_type: "full_time",
   weekly_hours: "40",
   full_time_weekly_hours: "40",
@@ -32,23 +38,13 @@ const EMPTY_SS = {
   registration_date: "",
   contribution_group: "",
   monthly_or_daily_contribution: "monthly",
-  disability_degree: "",
-  occupation_code: "",
-  cno: "",
-  worker_collective_code: "",
-  unemployed_condition_code: "",
-  social_exclusion_or_victim_status: "none",
-  is_replacement: false,
-  replacement_cause_code: "",
-  replaced_worker_naf: "",
-  inactivity_type_code: "",
-  working_time_reduction: "",
-  initial_ctp: "",
   red_contract_key: "",
   red_occupation_code: "",
   red_contribution_group: "",
   red_reduction_code: "",
-  red_special_relation: "",
+  is_replacement: false,
+  replacement_cause_code: "",
+  replaced_worker_naf: "",
 };
 
 const DEFAULT_CATALOGS = {
@@ -57,20 +53,14 @@ const DEFAULT_CATALOGS = {
   working_day_types: [],
   monthly_daily_contribution_types: [],
   situations: [],
-  worker_collectives: [],
-  unemployed_conditions: [],
-  social_exclusion_victim_statuses: [],
   substitution_causes: [],
-  inactivity_types: [],
 };
 
 const DIDACTIC_RULES = [
+  "El convenio solo propone salario base mínimo. No calcula nóminas ni complementos.",
   "Contratos 4xx: jornada completa. Contratos 5xx: jornada parcial.",
-  "El contrato 300 debe configurarse como fijo discontinuo.",
-  "La jornada parcial exige horas, jornada de referencia y coeficiente entre 0 y 100.",
-  "Si existe reducción de jornada, el C.T.P. inicial debe ser mayor que la reducción.",
-  "Las sustituciones o relevos requieren causa y NAF de la persona sustituida.",
-  "En el MVP, fecha de alta y fecha de inicio deben coincidir.",
+  "La categoría profesional puede elegirse desde convenio o introducirse manualmente.",
+  "El alumno debe calcular manualmente vacaciones, IT, pagas extra y regularizaciones.",
 ];
 
 export function formatPaySchedule(value) {
@@ -100,6 +90,11 @@ function calculatePartiality(weeklyHours, fullTimeWeeklyHours) {
   return String(Math.round((weekly / fullTime) * 10000) / 100);
 }
 
+function money(value) {
+  if (value === null || value === undefined || value === "") return "—";
+  return `${Number(value).toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`;
+}
+
 function catalogOrFallback(items, fallback) {
   return items?.length ? items : fallback;
 }
@@ -123,6 +118,7 @@ export default function ContractForm({
   companies,
   workCenters,
   contracts = [],
+  collectiveAgreements = [],
   onChange,
   onSubmit,
   error,
@@ -136,6 +132,8 @@ export default function ContractForm({
   const [catalogError, setCatalogError] = useState("");
   const [extraForm, setExtraForm] = useState(EMPTY_EXTRA);
   const [ssForm, setSsForm] = useState(EMPTY_SS);
+  const [agreementDetail, setAgreementDetail] = useState(null);
+  const [agreementLoading, setAgreementLoading] = useState(false);
 
   useEffect(() => {
     const addEmployee = (employee) => {
@@ -172,8 +170,35 @@ export default function ContractForm({
     if (success) {
       setExtraForm(EMPTY_EXTRA);
       setSsForm(EMPTY_SS);
+      setAgreementDetail(null);
     }
   }, [success]);
+
+  useEffect(() => {
+    if (!extraForm.collective_agreement_id) {
+      setAgreementDetail(null);
+      return;
+    }
+
+    let active = true;
+    setAgreementLoading(true);
+    fetchCollectiveAgreement(extraForm.collective_agreement_id)
+      .then((data) => {
+        if (!active) return;
+        setAgreementDetail(data);
+      })
+      .catch(() => {
+        if (!active) return;
+        setAgreementDetail(null);
+      })
+      .finally(() => {
+        if (active) setAgreementLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [extraForm.collective_agreement_id]);
 
   const availableEmployees = useMemo(
     () => mergeEmployees(employees, localEmployees).filter((employee) => employee.is_active !== false),
@@ -184,6 +209,11 @@ export default function ContractForm({
   const selectedCompany = companies.find((company) => String(company.id) === String(form.company_id));
   const selectedCenter = workCenters.find((center) => String(center.id) === String(form.center_id));
   const getEmployeeCode = (employee) => getEmployeeVisibleCode(employee, availableEmployees, contracts);
+
+  const agreementCategories = agreementDetail?.professional_categories || [];
+  const salaryTables = agreementDetail?.salary_tables || [];
+  const salaryRows = salaryTables.flatMap((table) => (table.rows || []).map((row) => ({ ...row, table_name: table.name })));
+  const selectedSalaryRow = salaryRows.find((row) => String(row.id) === String(extraForm.salary_table_row_id));
 
   const filteredEmployees = useMemo(() => {
     const nameFilter = employeeFilters.name.trim().toLowerCase();
@@ -207,6 +237,41 @@ export default function ContractForm({
     onChange(event);
     if (name === "salary_base") updateExtra({ gross_annual_salary: value });
     if (name === "start_date" && !ssForm.registration_date) updateSs({ registration_date: value });
+  };
+
+  const handleAgreementChange = (event) => {
+    const agreementId = event.target.value;
+    const selected = collectiveAgreements.find((agreement) => String(agreement.id) === String(agreementId));
+    updateExtra({
+      collective_agreement_id: agreementId,
+      collective_agreement_code: selected?.agreement_code || "",
+      professional_category_id: "",
+      salary_table_row_id: "",
+      professional_category: "",
+    });
+  };
+
+  const handleCategoryChange = (event) => {
+    const categoryId = event.target.value;
+    const selected = agreementCategories.find((category) => String(category.id) === String(categoryId));
+    updateExtra({
+      professional_category_id: categoryId,
+      professional_category: selected?.name || "",
+      salary_table_row_id: "",
+    });
+  };
+
+  const handleSalaryRowChange = (event) => {
+    const rowId = event.target.value;
+    const row = salaryRows.find((item) => String(item.id) === String(rowId));
+    updateExtra({
+      salary_table_row_id: rowId,
+      professional_category_id: row?.professional_category_id ? String(row.professional_category_id) : extraForm.professional_category_id,
+      professional_category: row?.category_name || extraForm.professional_category,
+    });
+    if (row?.base_salary && !form.salary_base) {
+      onChange({ target: { name: "salary_base", value: String(row.base_salary) } });
+    }
   };
 
   const handleExtraChange = (event) => {
@@ -255,11 +320,6 @@ export default function ContractForm({
     updateSs({ [name]: nextValue });
   };
 
-  const handleEmployeeFilterChange = (event) => {
-    const { name, value } = event.target;
-    setEmployeeFilters((prev) => ({ ...prev, [name]: value }));
-  };
-
   const selectEmployee = (employee) => {
     onChange({ target: { name: "employee_id", value: String(employee.id) } });
     onChange({ target: { name: "company_id", value: employee.company_id ? String(employee.company_id) : "" } });
@@ -269,14 +329,16 @@ export default function ContractForm({
 
   const handleSubmit = (event) => {
     onSubmit(event, {
-      contractExtra: extraForm,
+      contractExtra: buildContractPayload({}, extraForm),
       socialSecurity: buildSsPayload(ssForm, form, extraForm),
     });
   };
 
+  const contractExtraForSubmit = extraForm;
+
   return (
     <>
-      <form onSubmit={handleSubmit} style={styles.form}>
+      <form onSubmit={(event) => onSubmit(event, { contractExtra: contractExtraForSubmit, socialSecurity: buildSsPayload(ssForm, form, extraForm) })} style={styles.form}>
         {catalogError && <div style={styles.warning}>{catalogError}</div>}
         <DidacticRulesPanel />
 
@@ -315,9 +377,22 @@ export default function ContractForm({
             <Field label="Fecha inicio"><input type="date" name="start_date" value={form.start_date} onChange={handleBaseChange} required style={styles.input} /></Field>
             <Field label="Fecha fin"><input type="date" name="end_date" value={form.end_date} onChange={handleBaseChange} style={styles.input} /></Field>
             <Field label="Estado"><select name="status" value={form.status} onChange={handleBaseChange} style={styles.input}><option value="active">Activo</option><option value="ended">Finalizado</option></select></Field>
-            <Field label="Convenio colectivo"><input name="collective_agreement_code" value={extraForm.collective_agreement_code} onChange={handleExtraChange} placeholder="Ej. 99008725011994" style={styles.input} /></Field>
           </div>
           {extraForm.contract_code_description && <div style={styles.infoBox}>{extraForm.contract_code_description}</div>}
+        </section>
+
+        <section style={styles.section}>
+          <h3 style={styles.sectionTitle}>Convenio y salario mínimo</h3>
+          <div style={styles.formGrid}>
+            <Field label="Convenio colectivo"><select value={extraForm.collective_agreement_id} onChange={handleAgreementChange} style={styles.input}><option value="">Sin convenio</option>{collectiveAgreements.map((agreement) => <option key={agreement.id} value={agreement.id}>{agreement.name} · {agreement.agreement_code || "sin código"}</option>)}</select></Field>
+            <Field label="Categoría convenio"><select value={extraForm.professional_category_id} onChange={handleCategoryChange} disabled={!agreementDetail} style={styles.input}><option value="">Seleccionar categoría</option>{agreementCategories.map((category) => <option key={category.id} value={category.id}>{category.name}{category.level ? ` · ${category.level}` : ""}</option>)}</select></Field>
+            <Field label="Fila salarial"><select value={extraForm.salary_table_row_id} onChange={handleSalaryRowChange} disabled={!agreementDetail} style={styles.input}><option value="">Sin fila salarial</option>{salaryRows.filter((row) => !extraForm.professional_category_id || String(row.professional_category_id) === String(extraForm.professional_category_id)).map((row) => <option key={row.id} value={row.id}>{row.table_name} · {row.category_name || "Categoría"} · {money(row.base_salary)}</option>)}</select></Field>
+            <Field label="Código convenio"><input name="collective_agreement_code" value={extraForm.collective_agreement_code} onChange={handleExtraChange} placeholder="Código oficial o interno" style={styles.input} /></Field>
+            <Field label="Categoría manual"><input name="professional_category" value={extraForm.professional_category} onChange={handleExtraChange} placeholder="Ej. Oficial administrativo" style={styles.input} /></Field>
+            <Field label="Puesto"><input name="job_position" value={extraForm.job_position} onChange={handleExtraChange} placeholder="Ej. Técnico de RRHH" style={styles.input} /></Field>
+          </div>
+          {agreementLoading && <div style={styles.infoBox}>Cargando detalle del convenio...</div>}
+          {selectedSalaryRow && <div style={styles.infoBox}>Salario base mínimo propuesto: {money(selectedSalaryRow.base_salary)}. El alumno puede modificarlo manualmente.</div>}
         </section>
 
         <section style={styles.section}>
@@ -335,9 +410,7 @@ export default function ContractForm({
           <div style={styles.formGrid}>
             <Field label="Grupo cotización"><select name="contribution_group" value={extraForm.contribution_group} onChange={(event) => { handleExtraChange(event); updateSs({ contribution_group: event.target.value, red_contribution_group: event.target.value }); }} style={styles.input}><option value="">Selecciona grupo</option>{catalogs.contribution_groups.map((item) => <option key={item.code} value={item.code}>{item.code} · {item.description}</option>)}</select></Field>
             <Field label="Indicador cotización"><select name="monthly_or_daily_contribution" value={extraForm.monthly_or_daily_contribution} onChange={(event) => { handleExtraChange(event); updateSs({ monthly_or_daily_contribution: event.target.value }); }} style={styles.input}>{catalogOrFallback(catalogs.monthly_daily_contribution_types, [{ code: "monthly", description: "Cotización mensual" }, { code: "daily", description: "Cotización diaria" }]).map((item) => <option key={item.code} value={item.code}>{item.description}</option>)}</select></Field>
-            <Field label="Categoría profesional"><input name="professional_category" value={extraForm.professional_category} onChange={handleExtraChange} placeholder="Ej. Oficial administrativo" style={styles.input} /></Field>
-            <Field label="Puesto"><input name="job_position" value={extraForm.job_position} onChange={handleExtraChange} placeholder="Ej. Técnico de RRHH" style={styles.input} /></Field>
-            <Field label="Ocupación RED"><input name="red_occupation_code" value={extraForm.red_occupation_code} onChange={(event) => { handleExtraChange(event); updateSs({ red_occupation_code: event.target.value, occupation_code: event.target.value }); }} placeholder="Código ocupación" style={styles.input} /></Field>
+            <Field label="Ocupación RED"><input name="red_occupation_code" value={extraForm.red_occupation_code} onChange={(event) => { handleExtraChange(event); updateSs({ red_occupation_code: event.target.value }); }} placeholder="Código ocupación" style={styles.input} /></Field>
             <Field label="Código reducción"><input name="red_reduction_code" value={extraForm.red_reduction_code} onChange={(event) => { handleExtraChange(event); updateSs({ red_reduction_code: event.target.value }); }} placeholder="Opcional" style={styles.input} /></Field>
           </div>
         </section>
@@ -347,32 +420,15 @@ export default function ContractForm({
           <div style={styles.formGrid}>
             <Field label="Situación"><select name="situation_code" value={ssForm.situation_code} onChange={handleSsChange} style={styles.input}>{catalogOrFallback(catalogs.situations, [{ code: "1", description: "Alta" }]).map((item) => <option key={item.code} value={item.code}>{item.code} · {item.description}</option>)}</select></Field>
             <Field label="Fecha de alta"><input type="date" name="registration_date" value={ssForm.registration_date || form.start_date} onChange={handleSsChange} style={styles.input} /></Field>
-            <Field label="Grado discapacidad"><input type="number" name="disability_degree" value={ssForm.disability_degree} onChange={handleSsChange} placeholder="Ej. 33" style={styles.input} /></Field>
-            <Field label="CNO"><input name="cno" value={ssForm.cno} onChange={handleSsChange} placeholder="Código CNO" style={styles.input} /></Field>
-            <Field label="Colectivo trabajador"><select name="worker_collective_code" value={ssForm.worker_collective_code} onChange={handleSsChange} style={styles.input}><option value="">No aplica</option>{catalogs.worker_collectives.map((item) => <option key={item.code} value={item.code}>{item.code} · {item.description}</option>)}</select></Field>
-            <Field label="Condición desempleado"><select name="unemployed_condition_code" value={ssForm.unemployed_condition_code} onChange={handleSsChange} style={styles.input}><option value="">No aplica</option>{catalogs.unemployed_conditions.map((item) => <option key={item.code} value={item.code}>{item.code} · {item.description}</option>)}</select></Field>
-            <Field label="Exclusión / víctimas"><select name="social_exclusion_or_victim_status" value={ssForm.social_exclusion_or_victim_status} onChange={handleSsChange} style={styles.input}>{catalogs.social_exclusion_victim_statuses.map((item) => <option key={item.code} value={item.code}>{item.description}</option>)}</select></Field>
-            <Field label="Tipo inactividad"><select name="inactivity_type_code" value={ssForm.inactivity_type_code} onChange={handleSsChange} style={styles.input}><option value="">No aplica</option>{catalogs.inactivity_types.map((item) => <option key={item.code} value={item.code}>{item.code} · {item.description}</option>)}</select></Field>
-            <Field label="Reducción jornada"><input type="number" name="working_time_reduction" value={ssForm.working_time_reduction} onChange={handleSsChange} placeholder="Ej. 25" style={styles.input} /></Field>
-            <Field label="C.T.P. inicial"><input type="number" name="initial_ctp" value={ssForm.initial_ctp} onChange={handleSsChange} placeholder="Debe ser mayor que reducción" style={styles.input} /></Field>
           </div>
-
-          <div style={styles.checkboxRow}>
-            <label style={styles.checkboxLabel}><input type="checkbox" name="is_replacement" checked={ssForm.is_replacement} onChange={handleSsChange} /> Marcar sustitución / relevo</label>
-          </div>
-
-          {ssForm.is_replacement && (
-            <div style={styles.formGrid}>
-              <Field label="Causa sustitución"><select name="replacement_cause_code" value={ssForm.replacement_cause_code} onChange={handleSsChange} style={styles.input}><option value="">Selecciona causa</option>{catalogs.substitution_causes.map((item) => <option key={item.code} value={item.code}>{item.code} · {item.description}</option>)}</select></Field>
-              <Field label="NAF sustituido"><input name="replaced_worker_naf" value={ssForm.replaced_worker_naf} onChange={handleSsChange} placeholder="NAF de la persona sustituida" style={styles.input} /></Field>
-            </div>
-          )}
+          <div style={styles.checkboxRow}><label style={styles.checkboxLabel}><input type="checkbox" name="is_replacement" checked={ssForm.is_replacement} onChange={handleSsChange} /> Marcar sustitución / relevo</label></div>
+          {ssForm.is_replacement && <div style={styles.formGrid}><Field label="Causa sustitución"><select name="replacement_cause_code" value={ssForm.replacement_cause_code} onChange={handleSsChange} style={styles.input}><option value="">Selecciona causa</option>{catalogs.substitution_causes.map((item) => <option key={item.code} value={item.code}>{item.code} · {item.description}</option>)}</select></Field><Field label="NAF sustituido"><input name="replaced_worker_naf" value={ssForm.replaced_worker_naf} onChange={handleSsChange} placeholder="NAF de la persona sustituida" style={styles.input} /></Field></div>}
         </section>
 
         <section style={styles.section}>
           <h3 style={styles.sectionTitle}>Retribución</h3>
           <div style={styles.formGrid}>
-            <Field label="Salario bruto anual pactado"><input type="number" name="salary_base" value={form.salary_base} onChange={handleBaseChange} placeholder="Ej. 30000" style={styles.input} /></Field>
+            <Field label="Salario base / mínimo convenio"><input type="number" name="salary_base" value={form.salary_base} onChange={handleBaseChange} placeholder="Ej. 1525" style={styles.input} /></Field>
             <Field label="Sistema de pagas"><select name="pay_schedule" value={form.pay_schedule || "not_prorated_14"} onChange={handleBaseChange} required style={styles.input}>{PAY_SCHEDULE_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></Field>
           </div>
         </section>
@@ -383,32 +439,16 @@ export default function ContractForm({
       </form>
 
       {employeeModalOpen && (
-        <div style={styles.modalOverlay}>
-          <div style={styles.modal}>
-            <div style={styles.modalHeader}>
-              <div><h3 style={styles.modalTitle}>Seleccionar trabajador</h3><p style={styles.modalSubtitle}>Filtra por código visible, nombre o DNI.</p></div>
-              <button type="button" onClick={() => setEmployeeModalOpen(false)} style={styles.closeButton}>Cerrar</button>
-            </div>
-            <div style={styles.filterRow}>
-              <div style={styles.filterGroupId}><label>Código</label><input name="id" value={employeeFilters.id} onChange={handleEmployeeFilterChange} placeholder="Ej. 1.2" style={styles.input} /></div>
-              <div style={styles.filterGroupName}><label>Nombre y apellidos</label><input name="name" value={employeeFilters.name} onChange={handleEmployeeFilterChange} placeholder="Nombre o apellidos" style={styles.input} /></div>
-              <div style={styles.filterGroupDni}><label>DNI</label><input name="dni" value={employeeFilters.dni} onChange={handleEmployeeFilterChange} placeholder="DNI" style={styles.input} /></div>
-            </div>
-            <div style={styles.modalTableWrapper}>
-              <table style={styles.table}>
-                <thead><tr><th style={styles.th}>Código</th><th style={styles.th}>Trabajador</th><th style={styles.th}>DNI</th><th style={styles.th}>Empresa / centro</th><th style={styles.th}></th></tr></thead>
-                <tbody>
-                  {filteredEmployees.map((emp) => {
-                    const employeeCompany = companies.find((company) => Number(company.id) === Number(emp.company_id));
-                    const employeeCenter = workCenters.find((center) => Number(center.id) === Number(emp.center_id));
-                    return <tr key={emp.id}><td style={styles.td}>{getEmployeeCode(emp)}</td><td style={styles.td}>{emp.first_name} {emp.last_name}</td><td style={styles.td}>{emp.dni || "-"}</td><td style={styles.td}>{employeeCompany?.name || "-"}{employeeCenter?.name ? ` · ${employeeCenter.name}` : ""}</td><td style={styles.tdRight}><button type="button" onClick={() => selectEmployee(emp)} style={styles.smallButton}>Seleccionar</button></td></tr>;
-                  })}
-                  {filteredEmployees.length === 0 && <tr><td style={styles.td} colSpan="5">No hay trabajadores con esos filtros.</td></tr>}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
+        <EmployeeModal
+          employees={filteredEmployees}
+          companies={companies}
+          workCenters={workCenters}
+          employeeFilters={employeeFilters}
+          onFilterChange={(event) => setEmployeeFilters((prev) => ({ ...prev, [event.target.name]: event.target.value }))}
+          onSelect={selectEmployee}
+          onClose={() => setEmployeeModalOpen(false)}
+          getEmployeeCode={getEmployeeCode}
+        />
       )}
     </>
   );
@@ -419,17 +459,46 @@ function DidacticRulesPanel() {
     <section style={styles.rulesPanel}>
       <div>
         <h3 style={styles.rulesTitle}>Reglas didácticas activas</h3>
-        <p style={styles.rulesText}>El guardado se bloquea si el contrato o el alta SS simulada incumplen estas reglas básicas.</p>
+        <p style={styles.rulesText}>El convenio es una guía de consulta. El cálculo final sigue siendo manual.</p>
       </div>
-      <ul style={styles.rulesList}>
-        {DIDACTIC_RULES.map((rule) => <li key={rule}>{rule}</li>)}
-      </ul>
+      <ul style={styles.rulesList}>{DIDACTIC_RULES.map((rule) => <li key={rule}>{rule}</li>)}</ul>
     </section>
   );
 }
 
 function Field({ label, children }) {
   return <div style={styles.formGroup}><label>{label}</label>{children}</div>;
+}
+
+function EmployeeModal({ employees, companies, workCenters, employeeFilters, onFilterChange, onSelect, onClose, getEmployeeCode }) {
+  return (
+    <div style={styles.modalOverlay}>
+      <div style={styles.modal}>
+        <div style={styles.modalHeader}>
+          <div><h3 style={styles.modalTitle}>Seleccionar trabajador</h3><p style={styles.modalSubtitle}>Filtra por código visible, nombre o DNI.</p></div>
+          <button type="button" onClick={onClose} style={styles.closeButton}>Cerrar</button>
+        </div>
+        <div style={styles.filterRow}>
+          <div style={styles.filterGroupId}><label>Código</label><input name="id" value={employeeFilters.id} onChange={onFilterChange} placeholder="Ej. 1.2" style={styles.input} /></div>
+          <div style={styles.filterGroupName}><label>Nombre y apellidos</label><input name="name" value={employeeFilters.name} onChange={onFilterChange} placeholder="Nombre o apellidos" style={styles.input} /></div>
+          <div style={styles.filterGroupDni}><label>DNI</label><input name="dni" value={employeeFilters.dni} onChange={onFilterChange} placeholder="DNI" style={styles.input} /></div>
+        </div>
+        <div style={styles.modalTableWrapper}>
+          <table style={styles.table}>
+            <thead><tr><th style={styles.th}>Código</th><th style={styles.th}>Trabajador</th><th style={styles.th}>DNI</th><th style={styles.th}>Empresa / centro</th><th style={styles.th}></th></tr></thead>
+            <tbody>
+              {employees.map((emp) => {
+                const employeeCompany = companies.find((company) => Number(company.id) === Number(emp.company_id));
+                const employeeCenter = workCenters.find((center) => Number(center.id) === Number(emp.center_id));
+                return <tr key={emp.id}><td style={styles.td}>{getEmployeeCode(emp)}</td><td style={styles.td}>{emp.first_name} {emp.last_name}</td><td style={styles.td}>{emp.dni || "-"}</td><td style={styles.td}>{employeeCompany?.name || "-"}{employeeCenter?.name ? ` · ${employeeCenter.name}` : ""}</td><td style={styles.tdRight}><button type="button" onClick={() => onSelect(emp)} style={styles.smallButton}>Seleccionar</button></td></tr>;
+              })}
+              {employees.length === 0 && <tr><td style={styles.td} colSpan="5">No hay trabajadores con esos filtros.</td></tr>}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 const styles = {
