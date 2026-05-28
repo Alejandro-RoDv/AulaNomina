@@ -12,8 +12,11 @@ def create_work_center(db: Session, work_center: WorkCenterCreate):
     return db_work_center
 
 
-def get_work_centers(db: Session):
-    return db.query(WorkCenter).filter(WorkCenter.is_active == True).all()
+def get_work_centers(db: Session, include_inactive: bool = False):
+    query = db.query(WorkCenter)
+    if not include_inactive:
+        query = query.filter(WorkCenter.is_active == True)
+    return query.all()
 
 
 def get_work_centers_all(db: Session):
