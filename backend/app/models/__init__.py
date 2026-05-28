@@ -14,3 +14,14 @@ from app.models.correction import Correction
 from app.models.student import Student
 from app.models.student_group import StudentGroup
 from app.models.case_assignment import CaseAssignment
+from app.models.collective_agreement import (
+    AgreementComplement,
+    CollectiveAgreement,
+    LeaveRule,
+    ProfessionalCategory,
+    ProfessionalGroup,
+    SalaryTable,
+    SalaryTableRow,
+    VacationRule,
+    WorkTimeRule,
+)
