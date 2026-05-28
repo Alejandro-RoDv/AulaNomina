@@ -7,6 +7,7 @@ from app.db_init import init_database
 from app.models import User, Employee, Company, Incident, Payroll, Document
 from app.models.contract import Contract
 from app.seed_demo import seed_demo_data
+from app.seed_demo_agreements import seed_demo_collective_agreements
 from app.seed_demo_documents import seed_demo_documents
 from app.case_study_routes import router as case_study_router
 from app.irpf_summary_routes import router as irpf_summary_router
@@ -144,6 +145,7 @@ def root():
 def seed_demo(db: Session = Depends(get_db)):
     seed_demo_data(db)
     seed_demo_documents(db)
+    seed_demo_collective_agreements(db)
     seed_demo_student_groups(db)
     seed_demo_students(db)
     seed_demo_case_studies(db)
