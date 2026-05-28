@@ -3,7 +3,6 @@ import { useEffect, useMemo, useState } from "react";
 import { fetchCatalogs } from "../services/api";
 import { fetchCollectiveAgreement } from "../services/collectiveAgreementApi";
 import { consumeLastCreatedEmployee } from "../services/employeeApi";
-import { buildContractPayload } from "../utils/contractPayloads";
 import { getEmployeeVisibleCode } from "../utils/visibleCodes";
 
 export const PAY_SCHEDULE_OPTIONS = [
@@ -329,16 +328,14 @@ export default function ContractForm({
 
   const handleSubmit = (event) => {
     onSubmit(event, {
-      contractExtra: buildContractPayload({}, extraForm),
+      contractExtra: extraForm,
       socialSecurity: buildSsPayload(ssForm, form, extraForm),
     });
   };
 
-  const contractExtraForSubmit = extraForm;
-
   return (
     <>
-      <form onSubmit={(event) => onSubmit(event, { contractExtra: contractExtraForSubmit, socialSecurity: buildSsPayload(ssForm, form, extraForm) })} style={styles.form}>
+      <form onSubmit={handleSubmit} style={styles.form}>
         {catalogError && <div style={styles.warning}>{catalogError}</div>}
         <DidacticRulesPanel />
 
