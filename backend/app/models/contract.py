@@ -27,6 +27,9 @@ class Contract(Base):
     professional_category = Column(String, nullable=True)
     job_position = Column(String, nullable=True)
     collective_agreement_code = Column(String, nullable=True)
+    collective_agreement_id = Column(Integer, ForeignKey("collective_agreements.id"), nullable=True)
+    professional_category_id = Column(Integer, ForeignKey("professional_categories.id"), nullable=True)
+    salary_table_row_id = Column(Integer, ForeignKey("salary_table_rows.id"), nullable=True)
 
     # Jornada y parcialidad
     working_day_type = Column(String, nullable=True)
@@ -49,6 +52,9 @@ class Contract(Base):
     employee = relationship("Employee", back_populates="contracts")
     company = relationship("Company", back_populates="contracts")
     work_center = relationship("WorkCenter", back_populates="contracts")
+    collective_agreement = relationship("CollectiveAgreement")
+    agreement_professional_category = relationship("ProfessionalCategory")
+    salary_table_row = relationship("SalaryTableRow")
     incidents = relationship("Incident", back_populates="contract")
     payrolls = relationship("Payroll", back_populates="contract")
     ss_registration = relationship(
@@ -69,3 +75,9 @@ class Contract(Base):
         if not self.company:
             return None
         return self.company.name
+
+    @property
+    def collective_agreement_name(self):
+        if not self.collective_agreement:
+            return None
+        return self.collective_agreement.name
