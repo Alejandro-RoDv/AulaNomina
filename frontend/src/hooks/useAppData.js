@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { fetchContracts, resetDemo } from "../services/api";
+import { fetchCollectiveAgreements } from "../services/collectiveAgreementApi";
 import { fetchCompanies } from "../services/companyApi";
 import { fetchAllEmployees, fetchNextEmployeeCode } from "../services/employeeApi";
 import { fetchIncidents } from "../services/incidentApi";
@@ -14,6 +15,7 @@ export function useAppData({ onLoadError, onNextEmployeeCode } = {}) {
   const [workCenters, setWorkCenters] = useState([]);
   const [incidents, setIncidents] = useState([]);
   const [payrolls, setPayrolls] = useState([]);
+  const [collectiveAgreements, setCollectiveAgreements] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const [resetDemoLoading, setResetDemoLoading] = useState(false);
@@ -30,6 +32,7 @@ export function useAppData({ onLoadError, onNextEmployeeCode } = {}) {
         workCentersData,
         incidentsData,
         payrollsData,
+        collectiveAgreementsData,
         nextEmployeeCodeData,
       ] = await Promise.all([
         fetchContracts(),
@@ -38,6 +41,7 @@ export function useAppData({ onLoadError, onNextEmployeeCode } = {}) {
         fetchWorkCenters(),
         fetchIncidents(),
         fetchPayrolls(),
+        fetchCollectiveAgreements(),
         fetchNextEmployeeCode(),
       ]);
 
@@ -47,6 +51,7 @@ export function useAppData({ onLoadError, onNextEmployeeCode } = {}) {
       setWorkCenters(workCentersData);
       setIncidents(incidentsData);
       setPayrolls(payrollsData);
+      setCollectiveAgreements(collectiveAgreementsData);
       onNextEmployeeCode?.(nextEmployeeCodeData.employee_code);
     } catch (err) {
       onLoadError?.(err);
@@ -92,6 +97,7 @@ export function useAppData({ onLoadError, onNextEmployeeCode } = {}) {
     workCenters,
     incidents,
     payrolls,
+    collectiveAgreements,
     loading,
     loadData,
     resetDemoLoading,
