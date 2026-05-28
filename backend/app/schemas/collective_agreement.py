@@ -268,6 +268,10 @@ class SalaryTableRowResponse(SalaryTableRowBase):
         from_attributes = True
 
 
+class SalaryTableDetailResponse(SalaryTableResponse):
+    rows: list[SalaryTableRowResponse] = []
+
+
 class AgreementComplementBase(BaseModel):
     professional_category_id: Optional[int] = None
     name: str
@@ -462,7 +466,7 @@ class CollectiveAgreementResponse(CollectiveAgreementBase):
 class CollectiveAgreementDetailResponse(CollectiveAgreementResponse):
     professional_groups: list[ProfessionalGroupResponse] = []
     professional_categories: list[ProfessionalCategoryResponse] = []
-    salary_tables: list[SalaryTableResponse] = []
+    salary_tables: list[SalaryTableDetailResponse] = []
     complements: list[AgreementComplementResponse] = []
     work_time_rules: list[WorkTimeRuleResponse] = []
     vacation_rules: list[VacationRuleResponse] = []
