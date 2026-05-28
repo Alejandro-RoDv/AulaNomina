@@ -4,6 +4,7 @@ import Sidebar from "./components/layout/Sidebar";
 import Header from "./components/layout/Header";
 
 import Dashboard from "./pages/Dashboard";
+import CollectiveAgreementsPage from "./pages/CollectiveAgreementsPage";
 import CompaniesPage from "./pages/CompaniesPage";
 import ContractsPage from "./pages/ContractsPage";
 import EmployeesPage from "./pages/EmployeesPage";
@@ -50,6 +51,7 @@ export default function App() {
     workCenters,
     incidents,
     payrolls,
+    collectiveAgreements,
     loading,
     loadData,
     resetDemoLoading,
@@ -124,6 +126,7 @@ export default function App() {
     if (activePage === "companies") return "Empresas / Centros";
     if (activePage === "employees") return "Trabajadores";
     if (activePage === "contracts") return "Contratos";
+    if (activePage === "collective-agreements") return "Convenios";
     if (activePage === "payrolls") return "Nóminas";
     if (activePage === "incidents") return "Incidencias laborales";
     return "AulaNomina";
@@ -134,6 +137,7 @@ export default function App() {
     if (activePage === "companies") return "Gestión de empresas madre y centros de trabajo";
     if (activePage === "employees") return "Gestión de trabajadores";
     if (activePage === "contracts") return "Gestión de contratos laborales";
+    if (activePage === "collective-agreements") return "Parámetros de convenio para consulta didáctica y salario base mínimo";
     if (activePage === "payrolls") return "Generación y consulta de nóminas simuladas";
     if (activePage === "incidents") return "Gestión de IT, recaídas, vacaciones, ausencias y permisos";
     return "";
@@ -149,6 +153,16 @@ export default function App() {
           contracts={contracts}
           incidents={incidents}
           payrolls={payrolls}
+        />
+      );
+    }
+
+    if (activePage === "collective-agreements") {
+      return (
+        <CollectiveAgreementsPage
+          loading={loading}
+          collectiveAgreements={collectiveAgreements}
+          onDataChanged={loadData}
         />
       );
     }
@@ -209,6 +223,7 @@ export default function App() {
           employees={employees.filter((employee) => employee.is_active)}
           companies={companies.filter((company) => company.is_active)}
           workCenters={workCenters.filter((center) => center.is_active)}
+          collectiveAgreements={collectiveAgreements}
           contractForm={contractForm}
           onContractChange={handleContractChange}
           onContractSubmit={handleContractSubmit}
