@@ -14,6 +14,12 @@ function getPayrollPeriod(payroll) {
   return `${String(payroll.period_month || "").padStart(2, "0")}/${payroll.period_year || ""}`;
 }
 
+function getStatusLevel(done, warning = false) {
+  if (done) return "ok";
+  if (warning) return "warning";
+  return "pending";
+}
+
 export default function Dashboard({
   companies = [],
   workCenters = [],
@@ -21,12 +27,16 @@ export default function Dashboard({
   contracts = [],
   incidents = [],
   payrolls = [],
+  collectiveAgreements = [],
 }) {
   const activeCompanies = companies.filter((company) => company.is_active !== false).length;
   const activeCenters = workCenters.filter((center) => center.is_active !== false).length;
   const activeEmployees = employees.filter((employee) => employee.is_active !== false).length;
   const activeContracts = contracts.filter((contract) => contract.status === "active").length;
   const openIncidents = incidents.filter((incident) => incident.status === "open").length;
+  const activeAgreements = collectiveAgreements.filter((agreement) => agreement.is_active !== false).length;
+  const contractsWithAgreement = contracts.filter((contract) => contract.collective_agreement_id || contract.collective_agreement_code).length;
+  const contractsWithSalary = contracts.filter((contract) => contract.salary_base !== null && contract.salary_base !== undefined && contract.salary_base !== "").length;
   const pendingPayrolls = payrolls.filter((payroll) => ["draft", "pending", "calculated"].includes(payroll.status)).length;
   const closedPayrolls = payrolls.filter((payroll) => payroll.status === "closed").length;
   const totalNetPayroll = payrolls.reduce((acc, payroll) => acc + Number(payroll.net_salary || 0), 0);
@@ -58,9 +68,9 @@ export default function Dashboard({
       description: "Relaciones laborales vigentes",
     },
     {
-      label: "Incidencias abiertas",
-      value: openIncidents,
-      description: "IT, ausencias o permisos pendientes",
+      label: "Convenios activos",
+      value: activeAgreements,
+      description: "Parámetros didácticos de convenio",
     },
     {
       label: "Nóminas pendientes",
@@ -81,6 +91,11 @@ export default function Dashboard({
       description: "Trabajadores vinculados a contratos y centros.",
     },
     {
+      title: "Convenios",
+      status: activeAgreements > 0 ? "Con datos" : "Sin datos",
+      description: "Convenios disponibles como referencia para contratos y casos prácticos.",
+    },
+    {
       title: "Incidencias",
       status: incidents.length > 0 ? "Con datos" : "Sin datos",
       description: "Registro de bajas, ausencias, vacaciones y permisos.",
@@ -97,8 +112,43 @@ export default function Dashboard({
     { label: "Centros configurados", done: activeCenters > 0 },
     { label: "Trabajadores disponibles", done: activeEmployees > 0 },
     { label: "Contratos activos", done: activeContracts > 0 },
+    { label: "Convenio demo cargado", done: activeAgreements > 0 },
+    { label: "Contratos con salario base", done: contractsWithSalary > 0 },
     { label: "Incidencias registradas", done: incidents.length > 0 },
     { label: "Nóminas generadas", done: payrolls.length > 0 },
+  ];
+
+  const systemChecks = [
+    {
+      label: "Carga global de datos",
+      status: getStatusLevel(companies.length + employees.length + contracts.length + payrolls.length > 0),
+      value: `${companies.length + employees.length + contracts.length + payrolls.length} registros base`,
+      hint: "Si queda a cero tras reset demo, revisar endpoints base.",
+    },
+    {
+      label: "Estructura empresa-centro",
+      status: getStatusLevel(activeCompanies > 0 && activeCenters > 0),
+      value: `${activeCompanies} empresas · ${activeCenters} centros`,
+      hint: "Necesario para crear trabajadores y contratos coherentes.",
+    },
+    {
+      label: "Trabajadores y contratos",
+      status: getStatusLevel(activeEmployees > 0 && contracts.length > 0),
+      value: `${activeEmployees} trabajadores · ${contracts.length} contratos`,
+      hint: "Base del ciclo laboral del MVP.",
+    },
+    {
+      label: "Convenios",
+      status: getStatusLevel(activeAgreements > 0),
+      value: `${activeAgreements} convenios · ${contractsWithAgreement} contratos vinculados`,
+      hint: "Debe existir al menos el convenio demo SIM-ADM-2026.",
+    },
+    {
+      label: "Nómina e incidencias",
+      status: getStatusLevel(payrolls.length > 0 || incidents.length > 0, true),
+      value: `${payrolls.length} nóminas · ${incidents.length} incidencias`,
+      hint: "No bloquea la demo, pero conviene tener datos visibles.",
+    },
   ];
 
   return (
@@ -108,7 +158,7 @@ export default function Dashboard({
           <p style={styles.kicker}>Demo comercial AulaNomina</p>
           <h2 style={styles.heroTitle}>Panel ERP de simulación laboral</h2>
           <p style={styles.heroText}>
-            Vista rápida del entorno docente: estructura empresarial, trabajadores, contratos, incidencias y nóminas simuladas.
+            Vista rápida del entorno docente: estructura empresarial, trabajadores, contratos, convenios, incidencias y nóminas simuladas.
           </p>
         </div>
         <div style={styles.heroMetrics}>
@@ -136,6 +186,23 @@ export default function Dashboard({
           </PageCard>
         ))}
       </div>
+
+      <PageCard title="Estado del sistema" subtitle="Control rápido de regresión antes de enseñar la demo">
+        <div style={styles.systemGrid}>
+          {systemChecks.map((item) => (
+            <div key={item.label} style={styles.systemItem}>
+              <div style={styles.systemHeader}>
+                <span style={styles.systemLabel}>{item.label}</span>
+                <span style={item.status === "ok" ? styles.okBadge : item.status === "warning" ? styles.warningBadge : styles.neutralBadge}>
+                  {item.status === "ok" ? "OK" : item.status === "warning" ? "Revisar" : "Pendiente"}
+                </span>
+              </div>
+              <strong style={styles.systemValue}>{item.value}</strong>
+              <p style={styles.systemHint}>{item.hint}</p>
+            </div>
+          ))}
+        </div>
+      </PageCard>
 
       <div style={styles.columns}>
         <PageCard title="Estado del flujo principal" subtitle="Lectura rápida de la demo funcional">
@@ -254,6 +321,44 @@ const styles = {
     color: "#6b7280",
     lineHeight: 1.35,
   },
+  systemGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(5, minmax(0, 1fr))",
+    gap: "12px",
+  },
+  systemItem: {
+    border: "1px solid #e5e7eb",
+    borderRadius: "12px",
+    padding: "13px",
+    backgroundColor: "#f9fafb",
+  },
+  systemHeader: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: "8px",
+    marginBottom: "8px",
+  },
+  systemLabel: {
+    color: "#374151",
+    fontSize: "12px",
+    fontWeight: 900,
+    textTransform: "uppercase",
+    letterSpacing: "0.03em",
+  },
+  systemValue: {
+    display: "block",
+    color: "#111827",
+    fontSize: "15px",
+    fontWeight: 900,
+  },
+  systemHint: {
+    margin: "6px 0 0",
+    color: "#6b7280",
+    fontSize: "12px",
+    lineHeight: 1.35,
+    fontWeight: 650,
+  },
   columns: {
     display: "grid",
     gridTemplateColumns: "2fr 1fr",
@@ -306,6 +411,16 @@ const styles = {
     backgroundColor: "#dcfce7",
     color: "#166534",
     border: "1px solid #bbf7d0",
+    borderRadius: "999px",
+    padding: "4px 9px",
+    fontSize: "11px",
+    fontWeight: 900,
+    whiteSpace: "nowrap",
+  },
+  warningBadge: {
+    backgroundColor: "#fef3c7",
+    color: "#92400e",
+    border: "1px solid #fde68a",
     borderRadius: "999px",
     padding: "4px 9px",
     fontSize: "11px",
