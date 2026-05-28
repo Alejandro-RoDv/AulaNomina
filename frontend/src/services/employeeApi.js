@@ -31,7 +31,7 @@ export async function fetchEmployees() {
 }
 
 export async function fetchAllEmployees() {
-  return apiRequest("/employees/all", {}, "Error al cargar trabajadores");
+  return apiRequest("/employees?include_inactive=true", {}, "Error al cargar trabajadores");
 }
 
 export async function fetchNextEmployeeCode() {
