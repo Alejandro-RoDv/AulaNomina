@@ -42,3 +42,23 @@ class PayrollItem(Base):
 
     payroll = relationship("Payroll", back_populates="items")
     concept = relationship("PayrollConcept", back_populates="payroll_items")
+
+    @property
+    def concept_name(self):
+        return self.concept.name if self.concept else None
+
+    @property
+    def concept_code(self):
+        return self.concept.code if self.concept else None
+
+    @property
+    def concept_type(self):
+        return self.concept.concept_type if self.concept else None
+
+    @property
+    def category(self):
+        return self.concept.category if self.concept else None
+
+    @property
+    def salary_nature(self):
+        return self.concept.salary_nature if self.concept else None
