@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 from typing import Optional
 
@@ -171,6 +171,82 @@ class PayrollConceptResponse(PayrollConceptBase):
         from_attributes = True
 
 
+class ContractPayrollConceptBase(BaseModel):
+    concept_id: int
+    description: Optional[str] = None
+    quantity: Decimal = Decimal("1.00")
+    unit_price: Decimal = Decimal("0.00")
+    amount: Optional[Decimal] = None
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
+    is_active: bool = True
+    display_order: int = 0
+    notes: Optional[str] = None
+
+    @field_validator("quantity", "unit_price", "amount")
+    @classmethod
+    def validate_amounts(cls, value):
+        if value is not None and value < 0:
+            raise ValueError("Los importes y unidades no pueden ser negativos")
+        return value
+
+
+class ContractPayrollConceptCreate(ContractPayrollConceptBase):
+    pass
+
+
+class ContractPayrollConceptUpdate(BaseModel):
+    concept_id: Optional[int] = None
+    description: Optional[str] = None
+    quantity: Optional[Decimal] = None
+    unit_price: Optional[Decimal] = None
+    amount: Optional[Decimal] = None
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
+    is_active: Optional[bool] = None
+    display_order: Optional[int] = None
+    notes: Optional[str] = None
+
+    @field_validator("quantity", "unit_price", "amount")
+    @classmethod
+    def validate_optional_amounts(cls, value):
+        if value is not None and value < 0:
+            raise ValueError("Los importes y unidades no pueden ser negativos")
+        return value
+
+
+class ContractPayrollConceptResponse(BaseModel):
+    id: int
+    contract_id: int
+    concept_id: int
+    concept_name: Optional[str] = None
+    concept_code: Optional[str] = None
+    concept_type: Optional[str] = None
+    category: Optional[str] = None
+    salary_nature: Optional[str] = None
+    description: Optional[str] = None
+    quantity: Decimal
+    unit_price: Decimal
+    amount: Decimal
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
+    is_active: bool
+    display_order: int = 0
+    notes: Optional[str] = None
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+class LoadContractConceptsResponse(BaseModel):
+    payroll_id: int
+    contract_id: int
+    created_items: int
+    skipped_items: int
+
+
 class PayrollItemBase(BaseModel):
     concept_id: int
     description: Optional[str] = None
@@ -182,7 +258,7 @@ class PayrollItemBase(BaseModel):
 
     @field_validator("quantity", "unit_price", "amount")
     @classmethod
-    def validate_amounts(cls, value):
+    def validate_payroll_amounts(cls, value):
         if value is not None and value < 0:
             raise ValueError("Los importes y unidades no pueden ser negativos")
         return value
@@ -203,7 +279,7 @@ class PayrollItemUpdate(BaseModel):
 
     @field_validator("quantity", "unit_price", "amount")
     @classmethod
-    def validate_optional_amounts(cls, value):
+    def validate_payroll_optional_amounts(cls, value):
         if value is not None and value < 0:
             raise ValueError("Los importes y unidades no pueden ser negativos")
         return value
