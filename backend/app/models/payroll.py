@@ -68,6 +68,7 @@ class Payroll(Base):
     contract = relationship("Contract", back_populates="payrolls")
     company = relationship("Company", back_populates="payrolls")
     work_center = relationship("WorkCenter", back_populates="payrolls")
+    items = relationship("PayrollItem", back_populates="payroll")
 
     @property
     def employee_name(self):
