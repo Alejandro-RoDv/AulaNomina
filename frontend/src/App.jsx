@@ -15,7 +15,11 @@ import ContractsPage from "./pages/ContractsPage";
 import EmployeesPage from "./pages/EmployeesPage";
 import IncidentsPage from "./pages/IncidentsPage";
 import PayrollConceptsPage from "./pages/PayrollConceptsPage";
+import PayrollHistoryPage from "./pages/PayrollHistoryPage";
+import PayrollIndividualPage from "./pages/PayrollIndividualPage";
+import PayrollMonthlyPreparationPage from "./pages/PayrollMonthlyPreparationPage";
 import PayrollsPage from "./pages/PayrollsPage";
+import PayrollSimulationPage from "./pages/PayrollSimulationPage";
 import PermanentPayrollConceptsPage from "./pages/PermanentPayrollConceptsPage";
 
 import { useAppData } from "./hooks/useAppData";
@@ -153,6 +157,10 @@ export default function App() {
     if (activePage === "collective-agreements") return "Convenios";
     if (activePage === "payroll-concepts") return "Historial de conceptos";
     if (activePage === "permanent-payroll-concepts") return "Conceptos permanentes";
+    if (activePage === "payroll-monthly-preparation") return "Preparar nóminas";
+    if (activePage === "payroll-individual") return "Nómina individual";
+    if (activePage === "payroll-simulation") return "Simulación de nóminas";
+    if (activePage === "payroll-history") return "Histórico de nóminas";
     if (activePage === "payrolls") return "Nóminas";
     if (activePage === "incidents") return "Incidencias laborales";
     if (activePage === "documents") return "Documentos";
@@ -170,6 +178,10 @@ export default function App() {
     if (activePage === "collective-agreements") return "Parámetros de convenio para consulta didáctica y salario base mínimo";
     if (activePage === "payroll-concepts") return "Catálogo general de conceptos de sistema, personalizados y de convenio";
     if (activePage === "permanent-payroll-concepts") return "Conceptos recurrentes asociados a contratos";
+    if (activePage === "payroll-monthly-preparation") return "Preparación masiva mensual por empresa y centro";
+    if (activePage === "payroll-individual") return "Creación manual de una nómina concreta";
+    if (activePage === "payroll-simulation") return "Previsión y escenarios sin generar nóminas reales";
+    if (activePage === "payroll-history") return "Consulta, revisión y desglose de nóminas generadas";
     if (activePage === "payrolls") return "Generación y consulta de nóminas simuladas";
     if (activePage === "incidents") return "Gestión de IT, recaídas, vacaciones, ausencias y permisos";
     if (activePage === "documents") return "Gestión documental del expediente laboral";
@@ -205,9 +217,7 @@ export default function App() {
       );
     }
 
-    if (activePage === "payroll-concepts") {
-      return <PayrollConceptsPage />;
-    }
+    if (activePage === "payroll-concepts") return <PayrollConceptsPage />;
 
     if (activePage === "permanent-payroll-concepts") {
       return (
@@ -216,6 +226,58 @@ export default function App() {
           employees={employees.filter((employee) => employee.is_active)}
           companies={companies.filter((company) => company.is_active)}
           workCenters={workCenters.filter((center) => center.is_active)}
+        />
+      );
+    }
+
+    if (activePage === "payroll-monthly-preparation") {
+      return (
+        <PayrollMonthlyPreparationPage
+          companies={companies.filter((company) => company.is_active)}
+          workCenters={workCenters.filter((center) => center.is_active)}
+          onPrepared={loadData}
+        />
+      );
+    }
+
+    if (activePage === "payroll-individual") {
+      return (
+        <PayrollIndividualPage
+          payrollForm={payrollForm}
+          employees={employees.filter((employee) => employee.is_active)}
+          contracts={contracts}
+          companies={companies.filter((company) => company.is_active)}
+          workCenters={workCenters.filter((center) => center.is_active)}
+          onPayrollChange={handlePayrollChange}
+          onPayrollSubmit={handlePayrollSubmit}
+          payrollError={payrollError}
+          payrollSuccess={payrollSuccess}
+          payrollSubmitting={payrollSubmitting}
+        />
+      );
+    }
+
+    if (activePage === "payroll-simulation") {
+      return (
+        <PayrollSimulationPage
+          employees={employees.filter((employee) => employee.is_active)}
+          contracts={contracts}
+        />
+      );
+    }
+
+    if (activePage === "payroll-history") {
+      return (
+        <PayrollHistoryPage
+          loading={loading}
+          payrolls={payrolls}
+          employees={employees}
+          contracts={contracts}
+          companies={companies}
+          workCenters={workCenters}
+          onUpdatePayroll={handleUpdatePayroll}
+          onDeletePayroll={handleDeletePayroll}
+          payrollSubmitting={payrollSubmitting}
         />
       );
     }
