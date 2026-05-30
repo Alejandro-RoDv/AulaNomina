@@ -5,6 +5,17 @@ import { formatCurrency } from "./PayrollForm";
 
 const EMPTY_FORM = { concept_id: "", description: "", quantity: "1", unit_price: "0", amount: "" };
 
+function getCalculationLabel(item) {
+  const quantity = Number(item.quantity || 0);
+  const unitPrice = Number(item.unit_price || 0);
+
+  if (item.concept_type === "BASE_INFORMATIVA") return "Base informativa";
+  if (unitPrice > 0 && quantity > 0) {
+    return `${quantity.toLocaleString("es-ES")} × ${formatCurrency(unitPrice)}`;
+  }
+  return "Importe directo";
+}
+
 function ConceptTable({ title, items }) {
   return (
     <div style={styles.box}>
@@ -14,9 +25,8 @@ function ConceptTable({ title, items }) {
           <thead>
             <tr>
               <th style={styles.left}>Concepto</th>
-              <th style={styles.right}>Uds.</th>
-              <th style={styles.right}>Precio</th>
-              <th style={styles.right}>Importe</th>
+              <th style={styles.calcHeader}>Cálculo</th>
+              <th style={styles.amountHeader}>Total línea</th>
             </tr>
           </thead>
           <tbody>
@@ -26,8 +36,7 @@ function ConceptTable({ title, items }) {
                   <strong style={styles.conceptName}>{item.concept_name}</strong>
                   {item.description && <small style={styles.note}>{item.description}</small>}
                 </td>
-                <td style={styles.num}>{Number(item.quantity || 0).toLocaleString("es-ES")}</td>
-                <td style={styles.num}>{formatCurrency(item.unit_price)}</td>
+                <td style={styles.calcCell}>{getCalculationLabel(item)}</td>
                 <td style={styles.amount}>{formatCurrency(item.amount)}</td>
               </tr>
             ))}
@@ -35,6 +44,16 @@ function ConceptTable({ title, items }) {
         </table>
       )}
     </div>
+  );
+}
+
+function Field({ label, children, hint }) {
+  return (
+    <label style={styles.field}>
+      <span style={styles.fieldLabel}>{label}</span>
+      {children}
+      {hint && <small style={styles.fieldHint}>{hint}</small>}
+    </label>
   );
 }
 
@@ -100,7 +119,7 @@ export default function PayrollConceptBreakdown({ payrollId }) {
       <div style={styles.header}>
         <div>
           <h4 style={styles.title}>Desglose de conceptos</h4>
-          <p style={styles.subtitle}>Devengos, deducciones y bases informativas. Edición manual para simulación docente.</p>
+          <p style={styles.subtitle}>Vista manual para explicar de dónde sale cada concepto. No recalcula todavía la nómina principal.</p>
         </div>
         <button type="button" onClick={loadData} style={styles.secondaryButton}>{loading ? "Cargando..." : "Actualizar"}</button>
       </div>
@@ -110,9 +129,9 @@ export default function PayrollConceptBreakdown({ payrollId }) {
       {breakdown && (
         <>
           <div style={styles.summary}>
-            <div style={styles.summaryCard}><span>Total devengos</span><strong>{formatCurrency(breakdown.total_devengos)}</strong></div>
-            <div style={styles.summaryCard}><span>Total deducciones</span><strong>{formatCurrency(breakdown.total_deducciones)}</strong></div>
-            <div style={styles.netCard}><span>Neto manual</span><strong>{formatCurrency(breakdown.neto_manual)}</strong></div>
+            <div style={styles.summaryCard}><span>Devengos introducidos</span><strong>{formatCurrency(breakdown.total_devengos)}</strong></div>
+            <div style={styles.summaryCard}><span>Deducciones introducidas</span><strong>{formatCurrency(breakdown.total_deducciones)}</strong></div>
+            <div style={styles.netCard}><span>Neto según desglose</span><strong>{formatCurrency(breakdown.neto_manual)}</strong></div>
           </div>
           <div style={styles.grid}>
             <ConceptTable title="Devengos salariales" items={breakdown.devengos_salariales} />
@@ -125,15 +144,26 @@ export default function PayrollConceptBreakdown({ payrollId }) {
 
       <form onSubmit={handleSubmit} style={styles.form}>
         <h5 style={styles.formTitle}>Añadir línea manual</h5>
+        <p style={styles.formHelp}>Para conceptos normales puedes usar importe directo. Para horas o kilometraje usa cantidad y precio unitario y deja el importe directo vacío.</p>
         <div style={styles.formGrid}>
-          <select name="concept_id" value={form.concept_id} onChange={handleChange} style={styles.selectInput}>
-            <option value="">Concepto</option>
-            {concepts.map((concept) => <option key={concept.id} value={concept.id}>{concept.name}</option>)}
-          </select>
-          <input name="description" value={form.description} onChange={handleChange} placeholder="Descripción" style={styles.descriptionInput} />
-          <input type="number" step="0.01" name="quantity" value={form.quantity} onChange={handleChange} placeholder="Uds." style={styles.smallInput} />
-          <input type="number" step="0.01" name="unit_price" value={form.unit_price} onChange={handleChange} placeholder="Precio" style={styles.smallInput} />
-          <input type="number" step="0.01" name="amount" value={form.amount} onChange={handleChange} placeholder="Importe directo" style={styles.amountInput} />
+          <Field label="Concepto">
+            <select name="concept_id" value={form.concept_id} onChange={handleChange} style={styles.selectInput}>
+              <option value="">Seleccionar</option>
+              {concepts.map((concept) => <option key={concept.id} value={concept.id}>{concept.name}</option>)}
+            </select>
+          </Field>
+          <Field label="Descripción">
+            <input name="description" value={form.description} onChange={handleChange} placeholder="Ej. Caso práctico" style={styles.descriptionInput} />
+          </Field>
+          <Field label="Cantidad" hint="Horas, km o 1 si no aplica">
+            <input type="number" step="0.01" name="quantity" value={form.quantity} onChange={handleChange} style={styles.smallInput} />
+          </Field>
+          <Field label="Precio unitario" hint="€/hora, €/km, etc.">
+            <input type="number" step="0.01" name="unit_price" value={form.unit_price} onChange={handleChange} style={styles.smallInput} />
+          </Field>
+          <Field label="Importe directo" hint="Opcional; si lo rellenas manda sobre cantidad × precio">
+            <input type="number" step="0.01" name="amount" value={form.amount} onChange={handleChange} placeholder="Ej. 120" style={styles.amountInput} />
+          </Field>
           <button type="submit" disabled={saving} style={styles.primaryButton}>{saving ? "Añadiendo..." : "Añadir"}</button>
         </div>
       </form>
@@ -141,7 +171,7 @@ export default function PayrollConceptBreakdown({ payrollId }) {
   );
 }
 
-const baseInput = { border: "2px solid #d1d5db", borderRadius: "8px", padding: "8px", fontWeight: 700, minWidth: 0 };
+const baseInput = { border: "2px solid #d1d5db", borderRadius: "8px", padding: "8px", fontWeight: 700, minWidth: 0, width: "100%", boxSizing: "border-box" };
 
 const styles = {
   wrapper: { width: "100%", boxSizing: "border-box", margin: "0", padding: "14px", border: "2px solid #111827", borderRadius: "14px", backgroundColor: "#ffffff", boxShadow: "3px 3px 0 #e6d85c", overflow: "hidden" },
@@ -157,20 +187,25 @@ const styles = {
   boxTitle: { margin: 0, padding: "8px 10px", backgroundColor: "#f3f4f6", borderBottom: "1px solid #d1d5db", fontWeight: 900, fontSize: "14px" },
   table: { width: "100%", borderCollapse: "collapse", tableLayout: "auto" },
   left: { textAlign: "left", padding: "7px 8px", fontSize: "11px", color: "#4b5563" },
-  right: { width: "96px", textAlign: "right", padding: "7px 8px", fontSize: "11px", color: "#4b5563", whiteSpace: "nowrap" },
+  calcHeader: { width: "190px", textAlign: "right", padding: "7px 8px", fontSize: "11px", color: "#4b5563", whiteSpace: "nowrap" },
+  amountHeader: { width: "130px", textAlign: "right", padding: "7px 8px", fontSize: "11px", color: "#4b5563", whiteSpace: "nowrap" },
   cell: { padding: "8px", borderTop: "1px solid #f3f4f6", minWidth: "260px" },
   conceptName: { display: "block", fontSize: "13px", lineHeight: 1.25 },
-  num: { width: "96px", padding: "8px", borderTop: "1px solid #f3f4f6", textAlign: "right", whiteSpace: "nowrap" },
-  amount: { width: "110px", padding: "8px", borderTop: "1px solid #f3f4f6", textAlign: "right", fontWeight: 900, whiteSpace: "nowrap" },
+  calcCell: { width: "190px", padding: "8px", borderTop: "1px solid #f3f4f6", textAlign: "right", whiteSpace: "nowrap", color: "#4b5563", fontWeight: 700 },
+  amount: { width: "130px", padding: "8px", borderTop: "1px solid #f3f4f6", textAlign: "right", fontWeight: 900, whiteSpace: "nowrap" },
   note: { display: "block", color: "#6b7280", marginTop: "3px", lineHeight: 1.35 },
   empty: { margin: 0, padding: "10px", color: "#6b7280", fontSize: "12px", fontWeight: 700 },
   form: { marginTop: "14px", paddingTop: "12px", borderTop: "1px solid #e5e7eb" },
-  formTitle: { margin: "0 0 10px", fontSize: "15px", fontWeight: 900 },
-  formGrid: { display: "flex", flexWrap: "wrap", gap: "8px", alignItems: "center" },
-  selectInput: { ...baseInput, flex: "1 1 220px" },
-  descriptionInput: { ...baseInput, flex: "2 1 260px" },
-  smallInput: { ...baseInput, flex: "0 1 110px" },
-  amountInput: { ...baseInput, flex: "0 1 160px" },
-  primaryButton: { backgroundColor: "#111827", color: "#ffffff", border: "2px solid #111827", borderRadius: "8px", padding: "8px 14px", fontWeight: 900, cursor: "pointer", flex: "0 0 auto" },
+  formTitle: { margin: "0 0 4px", fontSize: "15px", fontWeight: 900 },
+  formHelp: { margin: "0 0 10px", color: "#6b7280", fontSize: "12px", fontWeight: 700 },
+  formGrid: { display: "flex", flexWrap: "wrap", gap: "10px", alignItems: "flex-start" },
+  field: { display: "flex", flexDirection: "column", gap: "4px" },
+  fieldLabel: { fontSize: "12px", fontWeight: 900, color: "#374151" },
+  fieldHint: { fontSize: "10px", fontWeight: 700, color: "#6b7280", maxWidth: "190px" },
+  selectInput: { ...baseInput, minWidth: "220px" },
+  descriptionInput: { ...baseInput, minWidth: "260px" },
+  smallInput: { ...baseInput, width: "120px" },
+  amountInput: { ...baseInput, width: "170px" },
+  primaryButton: { alignSelf: "flex-end", backgroundColor: "#111827", color: "#ffffff", border: "2px solid #111827", borderRadius: "8px", padding: "9px 16px", fontWeight: 900, cursor: "pointer", flex: "0 0 auto" },
   error: { marginBottom: "12px", padding: "10px", borderRadius: "10px", border: "1px solid #fecaca", backgroundColor: "#fef2f2", color: "#991b1b", fontWeight: 800 },
 };
