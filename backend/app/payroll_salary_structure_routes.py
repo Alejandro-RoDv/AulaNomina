@@ -8,6 +8,7 @@ from app.crud.payroll_salary_structure import (
     create_payroll_item,
     deactivate_contract_payroll_concept,
     deactivate_payroll_concept,
+    delete_payroll_item,
     get_contract_payroll_concepts,
     get_payroll_concept,
     get_payroll_concepts,
@@ -151,6 +152,14 @@ def update_payroll_item_endpoint(
     if not updated_item:
         raise HTTPException(status_code=404, detail="Línea de nómina no encontrada")
     return updated_item
+
+
+@router.delete("/payroll-items/{item_id}")
+def delete_payroll_item_endpoint(item_id: int, db: Session = Depends(get_db)):
+    deleted_item = delete_payroll_item(db, item_id)
+    if not deleted_item:
+        raise HTTPException(status_code=404, detail="Línea de nómina no encontrada")
+    return {"ok": True, "deleted_id": item_id}
 
 
 @router.get("/payrolls/{payroll_id}/breakdown", response_model=PayrollBreakdownResponse)
