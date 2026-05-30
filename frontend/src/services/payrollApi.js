@@ -186,3 +186,11 @@ export async function updatePayrollItem(itemId, payload) {
     "Error al actualizar concepto de nómina"
   );
 }
+
+export async function deletePayrollItem(itemId) {
+  return apiRequest(
+    `/payroll-items/${itemId}`,
+    { method: "DELETE" },
+    "Error al eliminar concepto de nómina"
+  );
+}
