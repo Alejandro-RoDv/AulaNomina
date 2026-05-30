@@ -1,5 +1,6 @@
-import { useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 
+import { fetchPayrollBreakdown } from "../../services/payrollApi";
 import { PAYROLL_STATUS_OPTIONS, MONTH_OPTIONS, formatCurrency } from "./PayrollForm";
 
 function formatPeriod(payroll) {
@@ -40,6 +41,13 @@ function calculatePercentage(amount, base) {
   return `${percentage.toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} %`;
 }
 
+function getItemDetail(item) {
+  const quantity = Number(item.quantity || 0);
+  const unitPrice = Number(item.unit_price || 0);
+  if (unitPrice > 0 && quantity > 0) return `${quantity.toLocaleString("es-ES")} × ${formatCurrency(unitPrice)}`;
+  return item.description || "Importe directo";
+}
+
 function AmountRow({ label, amount, detail, bold = false }) {
   return (
     <tr style={bold ? styles.totalRow : undefined}>
@@ -48,6 +56,17 @@ function AmountRow({ label, amount, detail, bold = false }) {
       <td style={styles.tableAmount}>{formatCurrency(amount)}</td>
     </tr>
   );
+}
+
+function ConceptAmountRows({ items }) {
+  return items.map((item) => (
+    <AmountRow
+      key={item.id}
+      label={item.concept_name || "Concepto"}
+      detail={getItemDetail(item)}
+      amount={item.amount}
+    />
+  ));
 }
 
 function PrintStyles() {
@@ -94,6 +113,10 @@ export default function PayrollDetailsModal({
   onCancelDelete,
   showDeleteConfirm,
 }) {
+  const [breakdown, setBreakdown] = useState(null);
+  const [breakdownError, setBreakdownError] = useState("");
+  const [breakdownLoading, setBreakdownLoading] = useState(false);
+
   useEffect(() => {
     if (!payroll) return undefined;
 
@@ -111,6 +134,59 @@ export default function PayrollDetailsModal({
     };
   }, [payroll, onClose]);
 
+  useEffect(() => {
+    if (!payroll?.id) return undefined;
+    let active = true;
+
+    async function loadBreakdown() {
+      setBreakdownLoading(true);
+      setBreakdownError("");
+      try {
+        const data = await fetchPayrollBreakdown(payroll.id);
+        if (active) setBreakdown(data);
+      } catch (err) {
+        if (active) setBreakdownError(err.message || "No se ha podido cargar el desglose manual.");
+      } finally {
+        if (active) setBreakdownLoading(false);
+      }
+    }
+
+    loadBreakdown();
+    return () => { active = false; };
+  }, [payroll?.id]);
+
+  const manualData = useMemo(() => {
+    if (!breakdown) {
+      return {
+        hasManualItems: false,
+        devengos: [],
+        deducciones: [],
+        bases: [],
+        totalDevengos: 0,
+        totalDeducciones: 0,
+        netoManual: 0,
+      };
+    }
+
+    const devengos = [
+      ...(breakdown.devengos_salariales || []),
+      ...(breakdown.devengos_extrasalariales || []),
+    ];
+    const deducciones = breakdown.deducciones || [];
+    const bases = breakdown.bases_informativas || [];
+    const hasManualItems = devengos.length > 0 || deducciones.length > 0 || bases.length > 0;
+
+    return {
+      hasManualItems,
+      devengos,
+      deducciones,
+      bases,
+      totalDevengos: Number(breakdown.total_devengos || 0),
+      totalDeducciones: Number(breakdown.total_deducciones || 0),
+      netoManual: Number(breakdown.neto_manual || 0),
+    };
+  }, [breakdown]);
+
   if (!payroll || !editForm) return null;
 
   const periodLabel = formatPeriod(payroll);
@@ -121,6 +197,9 @@ export default function PayrollDetailsModal({
   const incidentDays = Number(payroll.incident_days ?? 0);
   const nonContributionDays = Number(payroll.non_contribution_days ?? 0);
   const irpfPercentage = calculatePercentage(payroll.irpf, payroll.irpf_base || payroll.gross_salary);
+  const receiptGross = manualData.hasManualItems ? manualData.totalDevengos : Number(payroll.gross_salary || 0);
+  const receiptDeductions = manualData.hasManualItems ? manualData.totalDeducciones : Number(payroll.total_deductions || 0);
+  const receiptNet = manualData.hasManualItems ? manualData.netoManual : Number(payroll.net_salary || 0);
 
   const handlePrint = () => window.print();
   const handleBackdropMouseDown = (event) => {
@@ -150,6 +229,8 @@ export default function PayrollDetailsModal({
             <button type="button" onClick={onClose} style={styles.closeButton}>Cerrar</button>
           </div>
         </div>
+
+        {breakdownError && <div style={styles.error} className="no-print">{breakdownError}</div>}
 
         <section id="payroll-printable-receipt" style={styles.receiptDocument}>
           <div style={styles.receiptTopBar}>
@@ -186,16 +267,32 @@ export default function PayrollDetailsModal({
             <span><strong>Estado:</strong> {getStatusLabel(payroll.status)}</span>
           </div>
 
+          {manualData.hasManualItems && (
+            <div style={styles.manualNotice}>
+              Recibo basado en el desglose manual de conceptos. Los importes pueden diferir de la nómina clásica calculada.
+            </div>
+          )}
+
           <div style={styles.tablesGrid}>
             <section style={styles.tableBox}>
               <h4 style={styles.tableTitle}>Devengos</h4>
               <table style={styles.table}>
                 <tbody>
-                  <AmountRow label="Salario base" detail={`${formatDays(workedDays || contributionDays, 30)} días`} amount={payroll.base_salary} />
-                  <AmountRow label="Prorrata pagas extra" amount={payroll.extra_pay_proration} />
-                  <AmountRow label="Complementos salariales" amount={payroll.salary_supplements} />
-                  <AmountRow label="Variables / incentivos" amount={payroll.variable_incentives} />
-                  <AmountRow label="Total devengado" amount={payroll.gross_salary} bold />
+                  {manualData.hasManualItems ? (
+                    <>
+                      <ConceptAmountRows items={manualData.devengos} />
+                      {manualData.devengos.length === 0 && <AmountRow label="Sin devengos manuales" amount={0} />}
+                      <AmountRow label="Total devengado según desglose" amount={receiptGross} bold />
+                    </>
+                  ) : (
+                    <>
+                      <AmountRow label="Salario base" detail={`${formatDays(workedDays || contributionDays, 30)} días`} amount={payroll.base_salary} />
+                      <AmountRow label="Prorrata pagas extra" amount={payroll.extra_pay_proration} />
+                      <AmountRow label="Complementos salariales" amount={payroll.salary_supplements} />
+                      <AmountRow label="Variables / incentivos" amount={payroll.variable_incentives} />
+                      <AmountRow label="Total devengado" amount={payroll.gross_salary} bold />
+                    </>
+                  )}
                 </tbody>
               </table>
             </section>
@@ -204,17 +301,27 @@ export default function PayrollDetailsModal({
               <h4 style={styles.tableTitle}>Deducciones</h4>
               <table style={styles.table}>
                 <tbody>
-                  <AmountRow label="Contingencias comunes" detail="4,70 %" amount={payroll.employee_common_contingencies} />
-                  <AmountRow label="Desempleo" detail="1,55 %" amount={payroll.employee_unemployment} />
-                  <AmountRow label="Formación profesional" detail="0,10 %" amount={payroll.employee_training} />
-                  <AmountRow label="MEI trabajador" detail="0,13 %" amount={payroll.employee_mei} />
-                  <AmountRow label="IRPF" detail={irpfPercentage} amount={payroll.irpf} />
-                  <AmountRow label="Total deducciones" amount={payroll.total_deductions} bold />
+                  {manualData.hasManualItems ? (
+                    <>
+                      <ConceptAmountRows items={manualData.deducciones} />
+                      {manualData.deducciones.length === 0 && <AmountRow label="Sin deducciones manuales" amount={0} />}
+                      <AmountRow label="Total deducciones según desglose" amount={receiptDeductions} bold />
+                    </>
+                  ) : (
+                    <>
+                      <AmountRow label="Contingencias comunes" detail="4,70 %" amount={payroll.employee_common_contingencies} />
+                      <AmountRow label="Desempleo" detail="1,55 %" amount={payroll.employee_unemployment} />
+                      <AmountRow label="Formación profesional" detail="0,10 %" amount={payroll.employee_training} />
+                      <AmountRow label="MEI trabajador" detail="0,13 %" amount={payroll.employee_mei} />
+                      <AmountRow label="IRPF" detail={irpfPercentage} amount={payroll.irpf} />
+                      <AmountRow label="Total deducciones" amount={payroll.total_deductions} bold />
+                    </>
+                  )}
                 </tbody>
               </table>
               <div style={styles.netReceiptBox}>
                 <span>Líquido a percibir</span>
-                <strong>{formatCurrency(payroll.net_salary)}</strong>
+                <strong>{formatCurrency(receiptNet)}</strong>
               </div>
             </section>
           </div>
@@ -229,9 +336,15 @@ export default function PayrollDetailsModal({
                   <AmountRow label="Días trabajados" detail="" amount={workedDays} />
                   <AmountRow label="Días incidencia" detail="" amount={incidentDays} />
                   <AmountRow label="Días no cotizados" detail="" amount={nonContributionDays} />
-                  <AmountRow label="Base CC" amount={payroll.common_contingencies_base} />
-                  <AmountRow label="Base CP" amount={payroll.professional_contingencies_base} />
-                  <AmountRow label="Base IRPF" amount={payroll.irpf_base} />
+                  {manualData.hasManualItems && manualData.bases.length > 0 ? (
+                    <ConceptAmountRows items={manualData.bases} />
+                  ) : (
+                    <>
+                      <AmountRow label="Base CC" amount={payroll.common_contingencies_base} />
+                      <AmountRow label="Base CP" amount={payroll.professional_contingencies_base} />
+                      <AmountRow label="Base IRPF" amount={payroll.irpf_base} />
+                    </>
+                  )}
                 </tbody>
               </table>
             </section>
@@ -253,6 +366,7 @@ export default function PayrollDetailsModal({
             </section>
           </div>
 
+          {breakdownLoading && <p style={styles.receiptFooter}>Cargando desglose manual...</p>}
           <p style={styles.receiptFooter}>Recibo generado para fines formativos. No sustituye a una nómina oficial ni a documentación laboral real.</p>
         </section>
 
@@ -410,12 +524,13 @@ const styles = {
   identityBlock: { padding: "14px", border: "2px solid #111827", borderRadius: "14px", backgroundColor: "#ffffff", boxShadow: "3px 3px 0 #e5e7eb" },
   identityHeader: { margin: "-14px -14px 10px", padding: "8px 12px", backgroundColor: "#f3f4f6", borderBottom: "1px solid #d1d5db", borderRadius: "12px 12px 0 0", fontWeight: 900, color: "#111827" },
   periodRow: { display: "grid", gridTemplateColumns: "2fr 2fr 1fr 1fr", gap: "10px", border: "2px solid #111827", borderRadius: "14px", backgroundColor: "#fffdf0", padding: "12px 14px", marginBottom: "18px", boxShadow: "3px 3px 0 #e5e7eb" },
+  manualNotice: { border: "1px solid #bbf7d0", borderRadius: "10px", backgroundColor: "#f0fdf4", color: "#166534", padding: "10px 12px", fontWeight: 900, marginBottom: "18px" },
   tablesGrid: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "18px", marginBottom: "18px" },
   tableBox: { border: "2px solid #111827", borderRadius: "14px", overflow: "hidden", backgroundColor: "#ffffff", boxShadow: "3px 3px 0 #e5e7eb" },
   tableTitle: { margin: 0, padding: "9px 10px", backgroundColor: "#f3f4f6", borderBottom: "1px solid #d1d5db", color: "#111827", fontWeight: 900 },
   table: { width: "100%", borderCollapse: "collapse" },
   tableCell: { padding: "8px 10px", borderBottom: "1px solid #e5e7eb", verticalAlign: "top" },
-  tableCellMuted: { width: "90px", padding: "8px 10px", borderBottom: "1px solid #e5e7eb", textAlign: "right", color: "#6b7280", verticalAlign: "top" },
+  tableCellMuted: { width: "130px", padding: "8px 10px", borderBottom: "1px solid #e5e7eb", textAlign: "right", color: "#6b7280", verticalAlign: "top", fontSize: "12px" },
   tableAmount: { width: "115px", padding: "8px 10px", borderBottom: "1px solid #e5e7eb", textAlign: "right", verticalAlign: "top", fontWeight: 800 },
   totalRow: { backgroundColor: "#fffdf0", fontWeight: 900 },
   netReceiptBox: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px", borderTop: "2px solid #111827", backgroundColor: "#fef3c7", padding: "11px 12px", fontSize: "17px", fontWeight: 900 },
