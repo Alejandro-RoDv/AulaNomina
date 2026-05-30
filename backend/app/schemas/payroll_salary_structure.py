@@ -7,6 +7,7 @@ from pydantic import BaseModel, field_validator
 
 CONCEPT_TYPE_VALUES = {"DEVENGO", "DEDUCCION", "BASE_INFORMATIVA"}
 SALARY_NATURE_VALUES = {"SALARIAL", "EXTRASALARIAL", "INFORMATIVA"}
+CONCEPT_SOURCE_VALUES = {"SYSTEM", "CUSTOM", "AGREEMENT"}
 CONCEPT_CATEGORY_VALUES = {
     "BASE",
     "COMPLEMENTO",
@@ -29,6 +30,9 @@ class PayrollConceptBase(BaseModel):
     category: str = "OTRO"
     concept_type: str = "DEVENGO"
     salary_nature: str = "SALARIAL"
+    source_type: str = "CUSTOM"
+    agreement_id: Optional[int] = None
+    is_system: bool = False
     is_taxable: bool = True
     is_contribution_base: bool = True
     is_active: bool = True
@@ -72,6 +76,14 @@ class PayrollConceptBase(BaseModel):
             raise ValueError("Naturaleza salarial no válida")
         return value
 
+    @field_validator("source_type")
+    @classmethod
+    def validate_source_type(cls, value):
+        value = value.upper()
+        if value not in CONCEPT_SOURCE_VALUES:
+            raise ValueError("Origen de concepto no válido")
+        return value
+
 
 class PayrollConceptCreate(PayrollConceptBase):
     pass
@@ -83,6 +95,9 @@ class PayrollConceptUpdate(BaseModel):
     category: Optional[str] = None
     concept_type: Optional[str] = None
     salary_nature: Optional[str] = None
+    source_type: Optional[str] = None
+    agreement_id: Optional[int] = None
+    is_system: Optional[bool] = None
     is_taxable: Optional[bool] = None
     is_contribution_base: Optional[bool] = None
     is_active: Optional[bool] = None
@@ -134,6 +149,16 @@ class PayrollConceptUpdate(BaseModel):
         value = value.upper()
         if value not in SALARY_NATURE_VALUES:
             raise ValueError("Naturaleza salarial no válida")
+        return value
+
+    @field_validator("source_type")
+    @classmethod
+    def validate_optional_source_type(cls, value):
+        if value is None:
+            return value
+        value = value.upper()
+        if value not in CONCEPT_SOURCE_VALUES:
+            raise ValueError("Origen de concepto no válido")
         return value
 
 
