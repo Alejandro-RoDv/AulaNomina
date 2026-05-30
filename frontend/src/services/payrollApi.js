@@ -72,3 +72,39 @@ export async function deletePayroll(payrollId) {
     "Error al eliminar nómina"
   );
 }
+
+export async function fetchPayrollConcepts() {
+  return apiRequest("/payroll-concepts", {}, "Error al cargar conceptos salariales");
+}
+
+export async function fetchPayrollItems(payrollId) {
+  return apiRequest(`/payrolls/${payrollId}/items`, {}, "Error al cargar líneas de nómina");
+}
+
+export async function fetchPayrollBreakdown(payrollId) {
+  return apiRequest(`/payrolls/${payrollId}/breakdown`, {}, "Error al cargar desglose de nómina");
+}
+
+export async function createPayrollItem(payrollId, payload) {
+  return apiRequest(
+    `/payrolls/${payrollId}/items`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    },
+    "Error al añadir concepto a la nómina"
+  );
+}
+
+export async function updatePayrollItem(itemId, payload) {
+  return apiRequest(
+    `/payroll-items/${itemId}`,
+    {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    },
+    "Error al actualizar concepto de nómina"
+  );
+}
