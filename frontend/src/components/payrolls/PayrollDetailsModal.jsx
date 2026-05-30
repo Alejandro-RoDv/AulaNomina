@@ -1,3 +1,5 @@
+import { useEffect } from "react";
+
 import { PAYROLL_STATUS_OPTIONS, MONTH_OPTIONS, formatCurrency } from "./PayrollForm";
 
 function formatPeriod(payroll) {
@@ -38,23 +40,12 @@ function calculatePercentage(amount, base) {
   return `${percentage.toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} %`;
 }
 
-function ReceiptRow({ label, quantity = "", price = "", amount, bold = false }) {
+function AmountRow({ label, amount, detail, bold = false }) {
   return (
-    <tr style={bold ? styles.receiptTotalRow : undefined}>
-      <td style={styles.receiptConceptCell}>{label}</td>
-      <td style={styles.receiptQtyCell}>{quantity}</td>
-      <td style={styles.receiptPriceCell}>{price}</td>
-      <td style={styles.receiptAmountCell}>{formatCurrency(amount)}</td>
-    </tr>
-  );
-}
-
-function ReceiptDeductionRow({ label, percentage = "", amount, bold = false }) {
-  return (
-    <tr style={bold ? styles.receiptTotalRow : undefined}>
-      <td style={styles.receiptConceptCell}>{label}</td>
-      <td style={styles.receiptDeductionPercentCell}>{percentage}</td>
-      <td style={styles.receiptAmountCell}>{formatCurrency(amount)}</td>
+    <tr style={bold ? styles.totalRow : undefined}>
+      <td style={styles.tableCell}>{label}</td>
+      <td style={styles.tableCellMuted}>{detail || ""}</td>
+      <td style={styles.tableAmount}>{formatCurrency(amount)}</td>
     </tr>
   );
 }
@@ -76,31 +67,8 @@ function PrintStyles() {
           border: none !important;
           box-shadow: none !important;
           background: #ffffff !important;
-          font-size: 9.2px !important;
-          line-height: 1.15 !important;
+          font-size: 10px !important;
         }
-        #payroll-printable-receipt .payroll-main-grid,
-        #payroll-printable-receipt .payroll-lower-grid {
-          grid-template-columns: 1fr 1fr !important;
-          gap: 8px !important;
-        }
-        #payroll-printable-receipt .payroll-identity-grid {
-          grid-template-columns: 1fr 1fr !important;
-          gap: 0 !important;
-          border: 2px solid #111827 !important;
-          background: #ffffff !important;
-          padding: 0 !important;
-        }
-        #payroll-printable-receipt .payroll-identity-block {
-          border: none !important;
-          border-right: 1px solid #111827 !important;
-          border-radius: 0 !important;
-          box-shadow: none !important;
-          background: #ffffff !important;
-          padding: 7px 9px !important;
-        }
-        #payroll-printable-receipt table { page-break-inside: avoid !important; }
-        #payroll-printable-receipt section { break-inside: avoid !important; }
         .no-print { display: none !important; }
         @page { size: A4 portrait; margin: 9mm; }
       }
@@ -126,23 +94,47 @@ export default function PayrollDetailsModal({
   onCancelDelete,
   showDeleteConfirm,
 }) {
+  useEffect(() => {
+    if (!payroll) return undefined;
+
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") onClose();
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [payroll, onClose]);
+
   if (!payroll || !editForm) return null;
 
-  const editSupplementsTotal = getEditSupplementsTotal(editForm);
-  const isCancelled = payroll.status === "cancelled";
   const periodLabel = formatPeriod(payroll);
-  const irpfPercentage = calculatePercentage(payroll.irpf, payroll.irpf_base || payroll.gross_salary);
+  const isCancelled = payroll.status === "cancelled";
+  const editSupplementsTotal = getEditSupplementsTotal(editForm);
   const contributionDays = Number(payroll.contribution_days ?? 30);
   const workedDays = Number(payroll.worked_days ?? 30);
   const incidentDays = Number(payroll.incident_days ?? 0);
   const nonContributionDays = Number(payroll.non_contribution_days ?? 0);
+  const irpfPercentage = calculatePercentage(payroll.irpf, payroll.irpf_base || payroll.gross_salary);
 
   const handlePrint = () => window.print();
+  const handleBackdropMouseDown = (event) => {
+    if (event.target === event.currentTarget) onClose();
+  };
 
   return (
-    <div style={styles.modalBackdrop}>
+    <div style={styles.modalBackdrop} onMouseDown={handleBackdropMouseDown}>
       <PrintStyles />
-      <div style={styles.modal}>
+      <div style={styles.modal} onMouseDown={(event) => event.stopPropagation()} role="dialog" aria-modal="true">
+        <button type="button" onClick={onClose} style={styles.floatingCloseButton} className="no-print" aria-label="Cerrar detalle de nómina">
+          ×
+        </button>
+
         <div style={styles.modalHeader} className="no-print">
           <div>
             <div style={styles.modalTitleRow}>
@@ -155,7 +147,7 @@ export default function PayrollDetailsModal({
           </div>
           <div style={styles.headerActions}>
             <button type="button" onClick={handlePrint} style={styles.printButton}>Imprimir recibo</button>
-            <button type="button" onClick={onClose} style={styles.closeButton}>×</button>
+            <button type="button" onClick={onClose} style={styles.closeButton}>Cerrar</button>
           </div>
         </div>
 
@@ -172,147 +164,94 @@ export default function PayrollDetailsModal({
             </div>
           </div>
 
-          <section style={styles.identityGrid} className="payroll-identity-grid">
-            <div style={styles.identityBlock} className="payroll-identity-block">
-              <div style={styles.identityHeader}>EMPRESA</div>
+          <div style={styles.identityGrid}>
+            <div style={styles.identityBlock}>
+              <div style={styles.identityHeader}>Empresa</div>
               <p><strong>Nombre:</strong> {payroll.company_name || payroll.company_id || "-"}</p>
-              <p><strong>Domicilio:</strong> Domicilio simulado</p>
+              <p><strong>CCC:</strong> CCC simulado</p>
               <p><strong>CIF:</strong> CIF simulado</p>
-              <p><strong>Código cuenta cotización S.S.:</strong> CCC simulado</p>
             </div>
-            <div style={styles.identityBlock} className="payroll-identity-block">
-              <div style={styles.identityHeader}>TRABAJADOR/A</div>
+            <div style={styles.identityBlock}>
+              <div style={styles.identityHeader}>Trabajador/a</div>
               <p><strong>Nombre:</strong> {payroll.employee_name || payroll.employee_id || "-"}</p>
               <p><strong>DNI:</strong> Dato no informado</p>
-              <p><strong>Número afiliación a la S.S.:</strong> NAF simulado</p>
-              <p><strong>Categoría o grupo profesional:</strong> Categoría simulada</p>
-              <p><strong>Grupo de cotización:</strong> Grupo simulado</p>
+              <p><strong>Grupo:</strong> Grupo simulado</p>
             </div>
-          </section>
+          </div>
 
-          <section style={styles.periodRow}>
-            <span><strong>Periodo de liquidación:</strong> {periodLabel}</span>
+          <div style={styles.periodRow}>
+            <span><strong>Periodo:</strong> {periodLabel}</span>
             <span><strong>Contrato:</strong> {payroll.contract_id ? `Contrato ${payroll.contract_id}` : "No informado"}</span>
             <span><strong>Días cotizados:</strong> {formatDays(contributionDays, 30)}</span>
             <span><strong>Estado:</strong> {getStatusLabel(payroll.status)}</span>
-          </section>
+          </div>
 
-          <section style={styles.mainPayrollGrid} className="payroll-main-grid">
-            <div style={styles.receiptTableBox}>
-              <table style={styles.receiptTable}>
-                <thead>
-                  <tr>
-                    <th style={styles.receiptHeaderConcept}>DEVENGOS</th>
-                    <th style={styles.receiptHeaderSmall}>CANTIDAD</th>
-                    <th style={styles.receiptHeaderSmall}>PRECIO</th>
-                    <th style={styles.receiptHeaderAmount}>TOTALES</th>
-                  </tr>
-                </thead>
+          <div style={styles.tablesGrid}>
+            <section style={styles.tableBox}>
+              <h4 style={styles.tableTitle}>Devengos</h4>
+              <table style={styles.table}>
                 <tbody>
-                  <tr><td colSpan="4" style={styles.subsectionLabel}>Percepciones salariales:</td></tr>
-                  <ReceiptRow label="Salario base" quantity={formatDays(workedDays || contributionDays, 30)} amount={payroll.base_salary} />
-                  <ReceiptRow label="Prorrata pagas extraordinarias" amount={payroll.extra_pay_proration} />
-                  <ReceiptRow label="Complementos salariales" amount={payroll.salary_supplements} />
-                  <ReceiptRow label="Variables / incentivos" amount={payroll.variable_incentives} />
-                  <tr><td colSpan="4" style={styles.subsectionLabel}>Percepciones no salariales:</td></tr>
-                  <ReceiptRow label="Dietas" amount={0} />
-                  <ReceiptRow label="Plus de transporte" amount={0} />
-                  <ReceiptRow label="Pagos por incapacidad temporal" amount={0} />
-                  <ReceiptRow label="TOTAL DEVENGADO" amount={payroll.gross_salary} bold />
+                  <AmountRow label="Salario base" detail={`${formatDays(workedDays || contributionDays, 30)} días`} amount={payroll.base_salary} />
+                  <AmountRow label="Prorrata pagas extra" amount={payroll.extra_pay_proration} />
+                  <AmountRow label="Complementos salariales" amount={payroll.salary_supplements} />
+                  <AmountRow label="Variables / incentivos" amount={payroll.variable_incentives} />
+                  <AmountRow label="Total devengado" amount={payroll.gross_salary} bold />
                 </tbody>
               </table>
-            </div>
+            </section>
 
-            <div style={styles.receiptTableBox}>
-              <table style={styles.receiptTable}>
-                <thead>
-                  <tr>
-                    <th style={styles.receiptHeaderConcept}>DEDUCCIONES</th>
-                    <th style={styles.receiptHeaderSmall}>TIPO</th>
-                    <th style={styles.receiptHeaderAmount}>TOTALES</th>
-                  </tr>
-                </thead>
+            <section style={styles.tableBox}>
+              <h4 style={styles.tableTitle}>Deducciones</h4>
+              <table style={styles.table}>
                 <tbody>
-                  <tr><td colSpan="3" style={styles.subsectionLabel}>Aportación del trabajador a la Seguridad Social:</td></tr>
-                  <ReceiptDeductionRow label="Contingencias comunes" percentage="4,70 %" amount={payroll.employee_common_contingencies} />
-                  <ReceiptDeductionRow label="Desempleo" percentage="1,55 %" amount={payroll.employee_unemployment} />
-                  <ReceiptDeductionRow label="Formación Profesional" percentage="0,10 %" amount={payroll.employee_training} />
-                  <ReceiptDeductionRow label="MEI trabajador" percentage="0,13 %" amount={payroll.employee_mei} />
-                  <ReceiptDeductionRow label="Retenciones a cuenta de IRPF" percentage={irpfPercentage} amount={payroll.irpf} />
-                  <ReceiptDeductionRow label="TOTAL A DEDUCIR" amount={payroll.total_deductions} bold />
+                  <AmountRow label="Contingencias comunes" detail="4,70 %" amount={payroll.employee_common_contingencies} />
+                  <AmountRow label="Desempleo" detail="1,55 %" amount={payroll.employee_unemployment} />
+                  <AmountRow label="Formación profesional" detail="0,10 %" amount={payroll.employee_training} />
+                  <AmountRow label="MEI trabajador" detail="0,13 %" amount={payroll.employee_mei} />
+                  <AmountRow label="IRPF" detail={irpfPercentage} amount={payroll.irpf} />
+                  <AmountRow label="Total deducciones" amount={payroll.total_deductions} bold />
                 </tbody>
               </table>
-
               <div style={styles.netReceiptBox}>
-                <span>LÍQUIDO A PERCIBIR</span>
+                <span>Líquido a percibir</span>
                 <strong>{formatCurrency(payroll.net_salary)}</strong>
               </div>
-            </div>
-          </section>
+            </section>
+          </div>
 
-          <section style={styles.lowerGrid} className="payroll-lower-grid">
-            <div style={styles.receiptTableBox}>
-              <table style={styles.receiptTable}>
-                <thead>
-                  <tr><th colSpan="2" style={styles.receiptHeaderConcept}>DATOS DE COTIZACIÓN</th></tr>
-                </thead>
+          <div style={styles.tablesGrid}>
+            <section style={styles.tableBox}>
+              <h4 style={styles.tableTitle}>Bases y días</h4>
+              <table style={styles.table}>
                 <tbody>
-                  <tr><td style={styles.receiptConceptCell}>Días periodo</td><td style={styles.receiptAmountCell}>30</td></tr>
-                  <tr><td style={styles.receiptConceptCell}>Días cotizados</td><td style={styles.receiptAmountCell}>{formatDays(contributionDays, 30)}</td></tr>
-                  <tr><td style={styles.receiptConceptCell}>Días trabajados</td><td style={styles.receiptAmountCell}>{formatDays(workedDays, 30)}</td></tr>
-                  <tr><td style={styles.receiptConceptCell}>Días incidencia</td><td style={styles.receiptAmountCell}>{formatDays(incidentDays, 0)}</td></tr>
-                  <tr><td style={styles.receiptConceptCell}>Días no cotizados</td><td style={styles.receiptAmountCell}>{formatDays(nonContributionDays, 0)}</td></tr>
-                  <tr><td style={styles.receiptConceptCell}>Base diaria CC</td><td style={styles.receiptAmountCell}>{formatCurrency(payroll.daily_common_base)}</td></tr>
-                  <tr><td style={styles.receiptConceptCell}>Base diaria CP</td><td style={styles.receiptAmountCell}>{formatCurrency(payroll.daily_professional_base)}</td></tr>
+                  <AmountRow label="Días periodo" detail="" amount={30} />
+                  <AmountRow label="Días cotizados" detail="" amount={contributionDays} />
+                  <AmountRow label="Días trabajados" detail="" amount={workedDays} />
+                  <AmountRow label="Días incidencia" detail="" amount={incidentDays} />
+                  <AmountRow label="Días no cotizados" detail="" amount={nonContributionDays} />
+                  <AmountRow label="Base CC" amount={payroll.common_contingencies_base} />
+                  <AmountRow label="Base CP" amount={payroll.professional_contingencies_base} />
+                  <AmountRow label="Base IRPF" amount={payroll.irpf_base} />
                 </tbody>
               </table>
-            </div>
+            </section>
 
-            <div style={styles.receiptTableBox}>
-              <table style={styles.receiptTable}>
-                <thead>
-                  <tr><th colSpan="2" style={styles.receiptHeaderConcept}>DETERMINACIÓN BASES COTIZACIÓN A LA SEGURIDAD SOCIAL</th></tr>
-                </thead>
+            <section style={styles.tableBox}>
+              <h4 style={styles.tableTitle}>Coste empresa</h4>
+              <table style={styles.table}>
                 <tbody>
-                  <tr><td style={styles.receiptConceptCell}>Base contingencias comunes</td><td style={styles.receiptAmountCell}>{formatCurrency(payroll.common_contingencies_base)}</td></tr>
-                  <tr><td style={styles.receiptConceptCell}>Base contingencias profesionales</td><td style={styles.receiptAmountCell}>{formatCurrency(payroll.professional_contingencies_base)}</td></tr>
-                  <tr><td style={styles.receiptConceptCell}>Base desempleo / formación / FOGASA</td><td style={styles.receiptAmountCell}>{formatCurrency(payroll.unemployment_training_fogasa_base)}</td></tr>
-                  <tr><td style={styles.receiptConceptCell}>Base sujeta a retención del IRPF</td><td style={styles.receiptAmountCell}>{formatCurrency(payroll.irpf_base)}</td></tr>
+                  <AmountRow label="Contingencias comunes empresa" detail="23,60 %" amount={payroll.company_common_contingencies} />
+                  <AmountRow label="Desempleo empresa" detail="5,50 %" amount={payroll.company_unemployment} />
+                  <AmountRow label="FOGASA" detail="0,20 %" amount={payroll.company_fogasa} />
+                  <AmountRow label="Formación empresa" detail="0,60 %" amount={payroll.company_training} />
+                  <AmountRow label="AT/EP" detail="1,50 %" amount={payroll.company_at_ep} />
+                  <AmountRow label="MEI empresa" detail="0,67 %" amount={payroll.company_mei} />
+                  <AmountRow label="Total Seguridad Social empresa" amount={payroll.company_total_social_security} bold />
+                  <AmountRow label="Coste empresa total" amount={payroll.company_total_cost} bold />
                 </tbody>
               </table>
-            </div>
-          </section>
-
-          <section style={styles.receiptTableBox}>
-            <table style={styles.receiptTable}>
-              <thead>
-                <tr>
-                  <th style={styles.receiptHeaderConcept}>COSTE EMPRESA</th>
-                  <th style={styles.receiptHeaderSmall}>TIPO</th>
-                  <th style={styles.receiptHeaderAmount}>TOTALES</th>
-                </tr>
-              </thead>
-              <tbody>
-                <ReceiptDeductionRow label="Contingencias comunes empresa" percentage="23,60 %" amount={payroll.company_common_contingencies} />
-                <ReceiptDeductionRow label="Desempleo empresa" percentage="5,50 %" amount={payroll.company_unemployment} />
-                <ReceiptDeductionRow label="FOGASA" percentage="0,20 %" amount={payroll.company_fogasa} />
-                <ReceiptDeductionRow label="Formación profesional empresa" percentage="0,60 %" amount={payroll.company_training} />
-                <ReceiptDeductionRow label="AT/EP" percentage="1,50 %" amount={payroll.company_at_ep} />
-                <ReceiptDeductionRow label="MEI empresa" percentage="0,67 %" amount={payroll.company_mei} />
-                <ReceiptDeductionRow label="Total Seguridad Social empresa" amount={payroll.company_total_social_security} bold />
-                <ReceiptDeductionRow label="Coste empresa total" amount={payroll.company_total_cost} bold />
-              </tbody>
-            </table>
-          </section>
-
-          <section style={styles.signatureGrid}>
-            <div>
-              <p><strong>Fecha de ingreso de la nómina:</strong></p>
-              <p><strong>Entidad financiera:</strong></p>
-              <p><strong>Número de cuenta:</strong></p>
-            </div>
-            <div style={styles.signatureBox}>Firma del trabajador</div>
-          </section>
+            </section>
+          </div>
 
           <p style={styles.receiptFooter}>Recibo generado para fines formativos. No sustituye a una nómina oficial ni a documentación laboral real.</p>
         </section>
@@ -321,7 +260,7 @@ export default function PayrollDetailsModal({
           <div style={styles.editHeader}>
             <div>
               <h4 style={styles.editTitle}>Edición básica</h4>
-              <p style={styles.editSubtitle}>El salario base, las bases, deducciones, coste empresa y prorrata extra se recalculan automáticamente desde el contrato.</p>
+              <p style={styles.editSubtitle}>El salario base, bases, deducciones, coste empresa y prorrata extra se recalculan automáticamente desde el contrato.</p>
             </div>
             {!isEditing && !isCancelled && <button type="button" onClick={onEnableEditing} style={styles.secondaryButton}>Editar</button>}
           </div>
@@ -330,23 +269,17 @@ export default function PayrollDetailsModal({
             <div style={styles.formGroupSmall}>
               <label>Periodo</label>
               <select name="period_month" value={editForm.period_month} onChange={onEditChange} disabled={!isEditing} style={{ ...styles.input, ...(!isEditing ? styles.readOnlyInput : {}) }}>
-                {MONTH_OPTIONS.map((month) => (
-                  <option key={month.value} value={month.value}>{month.label}</option>
-                ))}
+                {MONTH_OPTIONS.map((month) => <option key={month.value} value={month.value}>{month.label}</option>)}
               </select>
             </div>
-
             <div style={styles.formGroupSmall}>
               <label>Año</label>
               <input type="number" name="period_year" min="2000" max="2100" value={editForm.period_year} onChange={onEditChange} disabled={!isEditing} style={{ ...styles.input, ...(!isEditing ? styles.readOnlyInput : {}) }} />
             </div>
-
             <div style={styles.formGroupSmall}>
               <label>Estado</label>
               <select name="status" value={editForm.status} onChange={onEditChange} disabled={!isEditing} style={{ ...styles.input, ...(!isEditing ? styles.readOnlyInput : {}) }}>
-                {PAYROLL_STATUS_OPTIONS.map((status) => (
-                  <option key={status.value} value={status.value}>{status.label}</option>
-                ))}
+                {PAYROLL_STATUS_OPTIONS.map((status) => <option key={status.value} value={status.value}>{status.label}</option>)}
               </select>
             </div>
           </div>
@@ -371,7 +304,6 @@ export default function PayrollDetailsModal({
               <label>Variables / incentivos</label>
               <input type="number" step="0.01" name="variable_incentives" value={editForm.variable_incentives ?? "0"} onChange={onEditChange} disabled={!isEditing} style={{ ...styles.input, ...(!isEditing ? styles.readOnlyInput : {}) }} />
             </div>
-
             <div style={styles.formGroupSmall}>
               <label>IRPF %</label>
               <input type="number" step="0.01" name="irpf_percentage" value={editForm.irpf_percentage} onChange={onEditChange} disabled={!isEditing} style={{ ...styles.input, ...(!isEditing ? styles.readOnlyInput : {}) }} />
@@ -415,15 +347,58 @@ export default function PayrollDetailsModal({
   );
 }
 
+const badge = { padding: "4px 8px", borderRadius: "999px", fontSize: "12px", fontWeight: 800 };
+
 const styles = {
-  modalBackdrop: { position: "fixed", inset: 0, backgroundColor: "rgba(17, 24, 39, 0.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, padding: "20px" },
-  modal: { width: "min(1180px, 100%)", maxHeight: "92vh", overflowY: "auto", backgroundColor: "#ffffff", border: "3px solid #111111", borderRadius: "12px", boxShadow: "8px 8px 0 #e6d85c", padding: "20px" },
-  modalHeader: { display: "flex", justifyContent: "space-between", alignItems: "start", gap: "16px", marginBottom: "14px", borderBottom: "1px solid #e5e7eb", paddingBottom: "12px" },
-  headerActions: { display: "flex", alignItems: "center", gap: "10px" },
+  modalBackdrop: {
+    position: "fixed",
+    inset: 0,
+    backgroundColor: "rgba(17, 24, 39, 0.55)",
+    display: "flex",
+    alignItems: "flex-start",
+    justifyContent: "center",
+    zIndex: 2000,
+    padding: "88px 24px 32px",
+    boxSizing: "border-box",
+    overflowY: "auto",
+  },
+  modal: {
+    position: "relative",
+    width: "min(1180px, 100%)",
+    maxHeight: "calc(100vh - 120px)",
+    overflowY: "auto",
+    backgroundColor: "#ffffff",
+    border: "3px solid #111111",
+    borderRadius: "12px",
+    boxShadow: "8px 8px 0 #e6d85c",
+    padding: "20px",
+    boxSizing: "border-box",
+  },
+  floatingCloseButton: {
+    position: "sticky",
+    top: 0,
+    float: "right",
+    zIndex: 3,
+    width: "38px",
+    height: "38px",
+    marginTop: "-6px",
+    marginRight: "-6px",
+    border: "2px solid #111827",
+    borderRadius: "999px",
+    backgroundColor: "#ffffff",
+    color: "#111827",
+    cursor: "pointer",
+    fontSize: "26px",
+    lineHeight: 1,
+    fontWeight: 900,
+    boxShadow: "2px 2px 0 #e6d85c",
+  },
+  modalHeader: { display: "flex", justifyContent: "space-between", alignItems: "start", gap: "16px", marginBottom: "14px", borderBottom: "1px solid #e5e7eb", paddingBottom: "12px", paddingRight: "44px" },
+  headerActions: { display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" },
   modalTitleRow: { display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" },
   modalTitle: { margin: 0, fontSize: "20px", fontWeight: 900, color: "#111827" },
   modalSubtitle: { margin: "4px 0 0", color: "#6b7280", fontSize: "13px", fontWeight: 700 },
-  closeButton: { border: "none", backgroundColor: "transparent", fontSize: "28px", lineHeight: 1, cursor: "pointer", color: "#111827" },
+  closeButton: { backgroundColor: "#ffffff", color: "#111827", border: "2px solid #111827", borderRadius: "8px", padding: "9px 12px", cursor: "pointer", fontWeight: 900 },
   printButton: { backgroundColor: "#e6d85c", color: "#111827", border: "2px solid #111827", borderRadius: "8px", padding: "9px 12px", cursor: "pointer", fontWeight: 900 },
   receiptDocument: { maxWidth: "1040px", margin: "0 auto 18px", border: "1px solid #e5e7eb", borderRadius: "16px", padding: "22px", backgroundColor: "#f8fafc", color: "#1f2937" },
   receiptTopBar: { display: "flex", justifyContent: "space-between", gap: "16px", alignItems: "start", border: "2px solid #111827", borderRadius: "14px", backgroundColor: "#ffffff", padding: "16px", marginBottom: "18px", boxShadow: "4px 4px 0 #fef3c7" },
@@ -432,26 +407,18 @@ const styles = {
   receiptSubtitle: { margin: 0, color: "#6b7280", fontSize: "11px", fontWeight: 700 },
   receiptCodeBox: { border: "2px solid #111827", borderRadius: "10px", padding: "10px 13px", minWidth: "138px", textAlign: "right", backgroundColor: "#fef3c7", display: "flex", flexDirection: "column", gap: "2px" },
   identityGrid: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "16px" },
-  identityBlock: { padding: "14px", border: "2px solid #111827", borderRadius: "14px", minHeight: "92px", backgroundColor: "#ffffff", boxShadow: "3px 3px 0 #e5e7eb" },
-  identityHeader: { margin: "-14px -14px 10px", padding: "8px 12px", backgroundColor: "#f3f4f6", borderBottom: "1px solid #d1d5db", borderRadius: "12px 12px 0 0", textAlign: "left", fontWeight: 900, color: "#111827" },
+  identityBlock: { padding: "14px", border: "2px solid #111827", borderRadius: "14px", backgroundColor: "#ffffff", boxShadow: "3px 3px 0 #e5e7eb" },
+  identityHeader: { margin: "-14px -14px 10px", padding: "8px 12px", backgroundColor: "#f3f4f6", borderBottom: "1px solid #d1d5db", borderRadius: "12px 12px 0 0", fontWeight: 900, color: "#111827" },
   periodRow: { display: "grid", gridTemplateColumns: "2fr 2fr 1fr 1fr", gap: "10px", border: "2px solid #111827", borderRadius: "14px", backgroundColor: "#fffdf0", padding: "12px 14px", marginBottom: "18px", boxShadow: "3px 3px 0 #e5e7eb" },
-  mainPayrollGrid: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "18px", marginBottom: "18px" },
-  lowerGrid: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "18px", marginBottom: "18px" },
-  receiptTableBox: { border: "2px solid #111827", borderRadius: "14px", overflow: "hidden", backgroundColor: "#ffffff", breakInside: "avoid", boxShadow: "3px 3px 0 #e5e7eb", marginBottom: "18px" },
-  receiptTable: { width: "100%", borderCollapse: "collapse", tableLayout: "fixed" },
-  receiptHeaderConcept: { textAlign: "left", padding: "9px 10px", backgroundColor: "#f3f4f6", color: "#111827", fontWeight: 900, borderBottom: "1px solid #d1d5db" },
-  receiptHeaderSmall: { width: "72px", textAlign: "right", padding: "9px 10px", backgroundColor: "#f3f4f6", color: "#111827", fontWeight: 900, borderBottom: "1px solid #d1d5db" },
-  receiptHeaderAmount: { width: "100px", textAlign: "right", padding: "9px 10px", backgroundColor: "#f3f4f6", color: "#111827", fontWeight: 900, borderBottom: "1px solid #d1d5db" },
-  subsectionLabel: { padding: "8px 10px 3px", fontWeight: 900, color: "#111827" },
-  receiptConceptCell: { padding: "7px 10px", borderBottom: "1px solid #e5e7eb", verticalAlign: "top" },
-  receiptQtyCell: { padding: "7px 10px", borderBottom: "1px solid #e5e7eb", textAlign: "right", verticalAlign: "top" },
-  receiptPriceCell: { padding: "7px 10px", borderBottom: "1px solid #e5e7eb", textAlign: "right", verticalAlign: "top" },
-  receiptDeductionPercentCell: { width: "72px", padding: "7px 10px", borderBottom: "1px solid #e5e7eb", textAlign: "right", verticalAlign: "top" },
-  receiptAmountCell: { padding: "7px 10px", borderBottom: "1px solid #e5e7eb", textAlign: "right", verticalAlign: "top", fontWeight: 800 },
-  receiptTotalRow: { backgroundColor: "#fffdf0", fontWeight: 900 },
+  tablesGrid: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "18px", marginBottom: "18px" },
+  tableBox: { border: "2px solid #111827", borderRadius: "14px", overflow: "hidden", backgroundColor: "#ffffff", boxShadow: "3px 3px 0 #e5e7eb" },
+  tableTitle: { margin: 0, padding: "9px 10px", backgroundColor: "#f3f4f6", borderBottom: "1px solid #d1d5db", color: "#111827", fontWeight: 900 },
+  table: { width: "100%", borderCollapse: "collapse" },
+  tableCell: { padding: "8px 10px", borderBottom: "1px solid #e5e7eb", verticalAlign: "top" },
+  tableCellMuted: { width: "90px", padding: "8px 10px", borderBottom: "1px solid #e5e7eb", textAlign: "right", color: "#6b7280", verticalAlign: "top" },
+  tableAmount: { width: "115px", padding: "8px 10px", borderBottom: "1px solid #e5e7eb", textAlign: "right", verticalAlign: "top", fontWeight: 800 },
+  totalRow: { backgroundColor: "#fffdf0", fontWeight: 900 },
   netReceiptBox: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px", borderTop: "2px solid #111827", backgroundColor: "#fef3c7", padding: "11px 12px", fontSize: "17px", fontWeight: 900 },
-  signatureGrid: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "18px", border: "2px solid #111827", borderRadius: "14px", backgroundColor: "#ffffff", padding: "12px 14px", marginBottom: "10px", boxShadow: "3px 3px 0 #e5e7eb" },
-  signatureBox: { display: "flex", alignItems: "end", justifyContent: "center", minHeight: "52px", color: "#374151" },
   receiptFooter: { borderTop: "1px solid #e5e7eb", paddingTop: "8px", margin: 0, color: "#6b7280", fontSize: "10px", fontWeight: 700 },
   form: { display: "flex", flexDirection: "column", gap: "16px", borderTop: "1px solid #e5e7eb", paddingTop: "16px" },
   editHeader: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px" },
@@ -464,11 +431,11 @@ const styles = {
   input: { padding: "10px 12px", border: "1px solid #ccc", borderRadius: "8px", fontSize: "14px" },
   readOnlyInput: { backgroundColor: "#f3f4f6", color: "#111827", cursor: "not-allowed", opacity: 1 },
   totalSupplementsBox: { flex: 1, minWidth: "220px", border: "1px solid #e5e7eb", borderRadius: "10px", backgroundColor: "#f9fafb", padding: "10px 12px", display: "flex", justifyContent: "space-between", alignItems: "center", fontWeight: 800 },
-  draftBadge: { backgroundColor: "#e5e7eb", color: "#374151", padding: "4px 8px", borderRadius: "999px", fontSize: "12px", fontWeight: 800 },
-  calculatedBadge: { backgroundColor: "#dbeafe", color: "#1e40af", padding: "4px 8px", borderRadius: "999px", fontSize: "12px", fontWeight: 800 },
-  reviewedBadge: { backgroundColor: "#fef3c7", color: "#92400e", padding: "4px 8px", borderRadius: "999px", fontSize: "12px", fontWeight: 800 },
-  closedBadge: { backgroundColor: "#dcfce7", color: "#166534", padding: "4px 8px", borderRadius: "999px", fontSize: "12px", fontWeight: 800 },
-  cancelledBadge: { backgroundColor: "#fee2e2", color: "#991b1b", padding: "4px 8px", borderRadius: "999px", fontSize: "12px", fontWeight: 800 },
+  draftBadge: { ...badge, backgroundColor: "#e5e7eb", color: "#374151" },
+  calculatedBadge: { ...badge, backgroundColor: "#dbeafe", color: "#1e40af" },
+  reviewedBadge: { ...badge, backgroundColor: "#fef3c7", color: "#92400e" },
+  closedBadge: { ...badge, backgroundColor: "#dcfce7", color: "#166534" },
+  cancelledBadge: { ...badge, backgroundColor: "#fee2e2", color: "#991b1b" },
   error: { backgroundColor: "#fee2e2", color: "#991b1b", padding: "10px 12px", borderRadius: "8px" },
   modalActionsSplit: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: "10px", marginTop: "6px" },
   modalActionsRight: { display: "flex", justifyContent: "flex-end", gap: "10px", flexWrap: "wrap" },
