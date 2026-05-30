@@ -47,12 +47,11 @@ function ConceptTable({ title, items }) {
   );
 }
 
-function Field({ label, children, hint, style }) {
+function Field({ label, children, style }) {
   return (
     <label style={{ ...styles.field, ...style }}>
       <span style={styles.fieldLabel}>{label}</span>
       {children}
-      {hint && <small style={styles.fieldHint}>{hint}</small>}
     </label>
   );
 }
@@ -144,7 +143,7 @@ export default function PayrollConceptBreakdown({ payrollId }) {
 
       <form onSubmit={handleSubmit} style={styles.form}>
         <h5 style={styles.formTitle}>Añadir línea manual</h5>
-        <p style={styles.formHelp}>Para conceptos normales puedes usar importe directo. Para horas o kilometraje usa cantidad y precio unitario y deja el importe directo vacío.</p>
+        <p style={styles.formHelp}>Para horas o kilometraje, usa cantidad y precio unitario. Para un importe fijo, usa importe directo.</p>
         <div style={styles.formGrid}>
           <Field label="Concepto" style={styles.conceptField}>
             <select name="concept_id" value={form.concept_id} onChange={handleChange} style={styles.input}>
@@ -155,13 +154,13 @@ export default function PayrollConceptBreakdown({ payrollId }) {
           <Field label="Descripción" style={styles.descriptionField}>
             <input name="description" value={form.description} onChange={handleChange} placeholder="Ej. Caso práctico" style={styles.input} />
           </Field>
-          <Field label="Cantidad" hint="Horas, km o 1 si no aplica" style={styles.numberField}>
+          <Field label="Cantidad" style={styles.numberField}>
             <input type="number" step="0.01" name="quantity" value={form.quantity} onChange={handleChange} style={styles.input} />
           </Field>
-          <Field label="Precio unitario" hint="€/hora, €/km, etc." style={styles.numberField}>
+          <Field label="Precio unitario" style={styles.numberField}>
             <input type="number" step="0.01" name="unit_price" value={form.unit_price} onChange={handleChange} style={styles.input} />
           </Field>
-          <Field label="Importe directo" hint="Opcional; manda sobre cantidad × precio" style={styles.amountField}>
+          <Field label="Importe directo" style={styles.amountField}>
             <input type="number" step="0.01" name="amount" value={form.amount} onChange={handleChange} placeholder="Ej. 120" style={styles.input} />
           </Field>
           <button type="submit" disabled={saving} style={styles.primaryButton}>{saving ? "Añadiendo..." : "Añadir"}</button>
@@ -203,7 +202,6 @@ const styles = {
   numberField: { gridColumn: "auto" },
   amountField: { gridColumn: "auto" },
   fieldLabel: { fontSize: "12px", fontWeight: 900, color: "#374151" },
-  fieldHint: { fontSize: "10px", fontWeight: 700, color: "#6b7280", lineHeight: 1.35 },
   input: { border: "2px solid #d1d5db", borderRadius: "8px", padding: "8px", fontWeight: 700, minWidth: 0, width: "100%", boxSizing: "border-box" },
   primaryButton: { alignSelf: "end", backgroundColor: "#111827", color: "#ffffff", border: "2px solid #111827", borderRadius: "8px", padding: "9px 18px", fontWeight: 900, cursor: "pointer", minHeight: "38px", whiteSpace: "nowrap" },
   error: { marginBottom: "12px", padding: "10px", borderRadius: "10px", border: "1px solid #fecaca", backgroundColor: "#fef2f2", color: "#991b1b", fontWeight: 800 },
