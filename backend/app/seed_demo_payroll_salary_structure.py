@@ -202,7 +202,16 @@ DEMO_EXTRA_ITEMS_BY_EMPLOYEE = {
 }
 
 
+def normalize_seed_concept(concept_data: dict):
+    return {
+        **concept_data,
+        "source_type": concept_data.get("source_type", "SYSTEM"),
+        "is_system": concept_data.get("is_system", True),
+    }
+
+
 def get_or_create_payroll_concept(db: Session, concept_data: dict):
+    concept_data = normalize_seed_concept(concept_data)
     concept = db.query(PayrollConcept).filter(PayrollConcept.code == concept_data["code"]).first()
     if concept:
         for key, value in concept_data.items():
