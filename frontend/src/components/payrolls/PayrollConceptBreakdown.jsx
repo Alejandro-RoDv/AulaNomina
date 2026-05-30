@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { createPayrollItem, fetchPayrollBreakdown, fetchPayrollConcepts } from "../../services/payrollApi";
 import { formatCurrency } from "./PayrollForm";
@@ -14,6 +14,12 @@ function getCalculationLabel(item) {
     return `${quantity.toLocaleString("es-ES")} × ${formatCurrency(unitPrice)}`;
   }
   return "Importe directo";
+}
+
+function getSourceLabel(sourceType) {
+  if (sourceType === "AGREEMENT") return "Convenio";
+  if (sourceType === "CUSTOM") return "Personalizado";
+  return "Sistema";
 }
 
 function ConceptTable({ title, items }) {
@@ -63,6 +69,16 @@ export default function PayrollConceptBreakdown({ payrollId }) {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+
+  const groupedConcepts = useMemo(() => {
+    const groups = { SYSTEM: [], AGREEMENT: [], CUSTOM: [] };
+    concepts.forEach((concept) => {
+      const source = concept.source_type || "SYSTEM";
+      if (!groups[source]) groups[source] = [];
+      groups[source].push(concept);
+    });
+    return groups;
+  }, [concepts]);
 
   async function loadData() {
     if (!payrollId) return;
@@ -148,7 +164,15 @@ export default function PayrollConceptBreakdown({ payrollId }) {
           <Field label="Concepto" style={styles.conceptField}>
             <select name="concept_id" value={form.concept_id} onChange={handleChange} style={styles.input}>
               <option value="">Seleccionar</option>
-              {concepts.map((concept) => <option key={concept.id} value={concept.id}>{concept.name}</option>)}
+              {["SYSTEM", "AGREEMENT", "CUSTOM"].map((source) => (
+                groupedConcepts[source]?.length ? (
+                  <optgroup key={source} label={getSourceLabel(source)}>
+                    {groupedConcepts[source].map((concept) => (
+                      <option key={concept.id} value={concept.id}>{concept.name}</option>
+                    ))}
+                  </optgroup>
+                ) : null
+              ))}
             </select>
           </Field>
           <Field label="Descripción" style={styles.descriptionField}>
