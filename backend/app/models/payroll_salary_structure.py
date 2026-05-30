@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, Numeric, String, Text
+from sqlalchemy import Boolean, Column, Date, DateTime, ForeignKey, Integer, Numeric, String, Text
 from sqlalchemy.orm import relationship
 
 from app.db import Base
@@ -27,7 +27,50 @@ class PayrollConcept(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     payroll_items = relationship("PayrollItem", back_populates="concept")
+    contract_concepts = relationship("ContractPayrollConcept", back_populates="concept")
     agreement = relationship("CollectiveAgreement")
+
+
+class ContractPayrollConcept(Base):
+    __tablename__ = "contract_payroll_concepts"
+
+    id = Column(Integer, primary_key=True, index=True)
+    contract_id = Column(Integer, ForeignKey("contracts.id"), nullable=False, index=True)
+    concept_id = Column(Integer, ForeignKey("payroll_concepts.id"), nullable=False)
+    description = Column(String, nullable=True)
+    quantity = Column(Numeric(10, 2), default=1, nullable=False)
+    unit_price = Column(Numeric(10, 2), default=0, nullable=False)
+    amount = Column(Numeric(10, 2), default=0, nullable=False)
+    start_date = Column(Date, nullable=True)
+    end_date = Column(Date, nullable=True)
+    is_active = Column(Boolean, default=True, nullable=False)
+    display_order = Column(Integer, default=0, nullable=False)
+    notes = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    contract = relationship("Contract", back_populates="payroll_concepts")
+    concept = relationship("PayrollConcept", back_populates="contract_concepts")
+
+    @property
+    def concept_name(self):
+        return self.concept.name if self.concept else None
+
+    @property
+    def concept_code(self):
+        return self.concept.code if self.concept else None
+
+    @property
+    def concept_type(self):
+        return self.concept.concept_type if self.concept else None
+
+    @property
+    def category(self):
+        return self.concept.category if self.concept else None
+
+    @property
+    def salary_nature(self):
+        return self.concept.salary_nature if self.concept else None
 
 
 class PayrollItem(Base):
