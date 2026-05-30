@@ -83,6 +83,10 @@ def init_database() -> None:
             concept_columns = {
                 "source_type": "VARCHAR DEFAULT 'SYSTEM' NOT NULL",
                 "agreement_id": "INTEGER REFERENCES collective_agreements(id)",
+                "calculation_type": "VARCHAR DEFAULT 'FIXED_AMOUNT' NOT NULL",
+                "default_amount": "NUMERIC(10, 2) DEFAULT 0 NOT NULL",
+                "default_unit_price": "NUMERIC(10, 2) DEFAULT 0 NOT NULL",
+                "applies_workday_percentage": "BOOLEAN DEFAULT TRUE NOT NULL",
                 "is_system": "BOOLEAN DEFAULT FALSE NOT NULL",
             }
             for column_name, column_definition in concept_columns.items():
@@ -94,6 +98,10 @@ def init_database() -> None:
                     """
                     UPDATE payroll_concepts
                     SET source_type = COALESCE(source_type, 'SYSTEM'),
+                        calculation_type = COALESCE(calculation_type, 'FIXED_AMOUNT'),
+                        default_amount = COALESCE(default_amount, 0),
+                        default_unit_price = COALESCE(default_unit_price, 0),
+                        applies_workday_percentage = COALESCE(applies_workday_percentage, TRUE),
                         is_system = COALESCE(is_system, TRUE)
                     """
                 )
@@ -225,25 +233,12 @@ def init_database() -> None:
                     text(
                         """
                         UPDATE students
-                        SET group_id = student_groups.id
-                        FROM student_groups
-                        WHERE students.group_id IS NULL
-                          AND students.group_name IS NOT NULL
-                          AND students.group_name = student_groups.name
+                        SET group_id = (
+                            SELECT id FROM student_groups
+                            WHERE student_groups.code = students.group_code
+                            LIMIT 1
+                        )
+                        WHERE group_id IS NULL AND group_code IS NOT NULL
                         """
                     )
                 )
-
-        if "corrections" in table_names:
-            existing_correction_columns = {column["name"] for column in inspector.get_columns("corrections")}
-            correction_columns = {"assignment_id": "INTEGER REFERENCES case_assignments(id)"}
-            for column_name, column_definition in correction_columns.items():
-                if column_name not in existing_correction_columns:
-                    connection.execute(text(f"ALTER TABLE corrections ADD COLUMN {column_name} {column_definition}"))
-
-            try:
-                connection.execute(text("ALTER TABLE corrections ALTER COLUMN case_study_id DROP NOT NULL"))
-                connection.execute(text("ALTER TABLE corrections ALTER COLUMN student_name DROP NOT NULL"))
-                connection.execute(text("ALTER TABLE corrections ALTER COLUMN submitted_at DROP NOT NULL"))
-            except Exception:
-                pass
