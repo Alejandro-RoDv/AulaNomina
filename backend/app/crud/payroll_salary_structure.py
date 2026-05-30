@@ -221,7 +221,6 @@ def load_contract_concepts_into_payroll(db: Session, payroll_id: int):
         existing = db.query(PayrollItem).filter(
             PayrollItem.payroll_id == payroll_id,
             PayrollItem.concept_id == contract_item.concept_id,
-            PayrollItem.description == contract_item.description,
         ).first()
         if existing:
             skipped_items += 1
