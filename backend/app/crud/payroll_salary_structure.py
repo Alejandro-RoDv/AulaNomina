@@ -301,7 +301,7 @@ def build_payroll_breakdown(db: Session, payroll_id: int):
 
         if concept_type == "DEDUCCION":
             breakdown["deducciones"].append(item)
-            breakdown["total_deductions"] += money(item.amount)
+            breakdown["total_deducciones"] += money(item.amount)
         elif concept_type == "BASE_INFORMATIVA":
             breakdown["bases_informativas"].append(item)
         elif salary_nature == "EXTRASALARIAL":
