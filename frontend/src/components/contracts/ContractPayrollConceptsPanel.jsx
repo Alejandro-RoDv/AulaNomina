@@ -1,0 +1,219 @@
+import { useEffect, useMemo, useState } from "react";
+
+import {
+  createContractPayrollConcept,
+  deactivateContractPayrollConcept,
+  fetchContractPayrollConcepts,
+  fetchPayrollConcepts,
+} from "../../services/payrollApi";
+import { formatCurrency } from "../payrolls/PayrollForm";
+
+const EMPTY_FORM = {
+  concept_id: "",
+  description: "",
+  quantity: "1",
+  unit_price: "0",
+  amount: "",
+  start_date: "",
+  end_date: "",
+};
+
+function getSourceLabel(sourceType) {
+  if (sourceType === "AGREEMENT") return "Convenio";
+  if (sourceType === "CUSTOM") return "Personalizado";
+  return "Sistema";
+}
+
+function getCalculationLabel(item) {
+  const quantity = Number(item.quantity || 0);
+  const unitPrice = Number(item.unit_price || 0);
+  if (unitPrice > 0 && quantity > 0) return `${quantity.toLocaleString("es-ES")} × ${formatCurrency(unitPrice)}`;
+  return "Importe mensual";
+}
+
+export default function ContractPayrollConceptsPanel({ contract }) {
+  const [concepts, setConcepts] = useState([]);
+  const [items, setItems] = useState([]);
+  const [form, setForm] = useState(EMPTY_FORM);
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+
+  const groupedConcepts = useMemo(() => {
+    const groups = { SYSTEM: [], AGREEMENT: [], CUSTOM: [] };
+    concepts.forEach((concept) => {
+      const source = concept.source_type || "SYSTEM";
+      if (!groups[source]) groups[source] = [];
+      groups[source].push(concept);
+    });
+    return groups;
+  }, [concepts]);
+
+  async function loadData() {
+    if (!contract?.id) return;
+    setLoading(true);
+    setError("");
+    try {
+      const [conceptData, itemData] = await Promise.all([
+        fetchPayrollConcepts(),
+        fetchContractPayrollConcepts(contract.id),
+      ]);
+      setConcepts(conceptData || []);
+      setItems(itemData || []);
+    } catch (err) {
+      setError(err.message || "No se han podido cargar los conceptos permanentes.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => { loadData(); }, [contract?.id]);
+
+  function handleChange(event) {
+    const { name, value } = event.target;
+    setForm((current) => ({ ...current, [name]: value }));
+    setMessage("");
+  }
+
+  async function handleSubmit(event) {
+    event.preventDefault();
+    if (!form.concept_id) {
+      setError("Selecciona un concepto.");
+      return;
+    }
+
+    setSaving(true);
+    setError("");
+    setMessage("");
+    try {
+      await createContractPayrollConcept(contract.id, {
+        concept_id: Number(form.concept_id),
+        description: form.description || null,
+        quantity: Number(form.quantity || 0),
+        unit_price: Number(form.unit_price || 0),
+        amount: form.amount === "" ? null : Number(form.amount),
+        start_date: form.start_date || null,
+        end_date: form.end_date || null,
+        is_active: true,
+      });
+      setForm(EMPTY_FORM);
+      setMessage("Concepto permanente añadido al contrato.");
+      await loadData();
+    } catch (err) {
+      setError(err.message || "No se ha podido añadir el concepto permanente.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleDeactivate(item) {
+    setError("");
+    setMessage("");
+    try {
+      await deactivateContractPayrollConcept(item.id);
+      setMessage("Concepto permanente desactivado.");
+      await loadData();
+    } catch (err) {
+      setError(err.message || "No se ha podido desactivar el concepto.");
+    }
+  }
+
+  if (!contract) return null;
+
+  return (
+    <section style={styles.wrapper}>
+      <div style={styles.header}>
+        <div>
+          <h3 style={styles.title}>Conceptos permanentes del contrato</h3>
+          <p style={styles.subtitle}>Importes recurrentes que podrán cargarse en las nóminas mensuales.</p>
+        </div>
+        <button type="button" onClick={loadData} style={styles.secondaryButton}>{loading ? "Cargando..." : "Actualizar"}</button>
+      </div>
+
+      {error && <div style={styles.error}>{error}</div>}
+      {message && <div style={styles.success}>{message}</div>}
+
+      <form onSubmit={handleSubmit} style={styles.form}>
+        <div style={styles.formGrid}>
+          <label style={styles.field}>Concepto
+            <select name="concept_id" value={form.concept_id} onChange={handleChange} style={styles.input}>
+              <option value="">Seleccionar</option>
+              {["SYSTEM", "AGREEMENT", "CUSTOM"].map((source) => (
+                groupedConcepts[source]?.length ? (
+                  <optgroup key={source} label={getSourceLabel(source)}>
+                    {groupedConcepts[source].map((concept) => <option key={concept.id} value={concept.id}>{concept.name}</option>)}
+                  </optgroup>
+                ) : null
+              ))}
+            </select>
+          </label>
+          <label style={styles.field}>Descripción
+            <input name="description" value={form.description} onChange={handleChange} placeholder="Ej. Antigüedad mensual" style={styles.input} />
+          </label>
+          <label style={styles.field}>Cantidad
+            <input type="number" step="0.01" name="quantity" value={form.quantity} onChange={handleChange} style={styles.input} />
+          </label>
+          <label style={styles.field}>Precio unitario
+            <input type="number" step="0.01" name="unit_price" value={form.unit_price} onChange={handleChange} style={styles.input} />
+          </label>
+          <label style={styles.field}>Importe mensual
+            <input type="number" step="0.01" name="amount" value={form.amount} onChange={handleChange} placeholder="Ej. 95" style={styles.input} />
+          </label>
+          <button type="submit" disabled={saving} style={styles.primaryButton}>{saving ? "Añadiendo..." : "Añadir"}</button>
+        </div>
+      </form>
+
+      <div style={styles.tableWrap}>
+        <table style={styles.table}>
+          <thead>
+            <tr>
+              <th style={styles.th}>Concepto</th>
+              <th style={styles.th}>Cálculo</th>
+              <th style={styles.thRight}>Importe</th>
+              <th style={styles.th}>Vigencia</th>
+              <th style={styles.thActions}>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            {items.map((item) => (
+              <tr key={item.id}>
+                <td style={styles.td}><strong>{item.concept_name}</strong>{item.description && <span style={styles.note}>{item.description}</span>}</td>
+                <td style={styles.td}>{getCalculationLabel(item)}</td>
+                <td style={styles.tdRight}>{formatCurrency(item.amount)}</td>
+                <td style={styles.td}>{item.start_date || "-"} / {item.end_date || "sin fin"}</td>
+                <td style={styles.tdActions}><button type="button" onClick={() => handleDeactivate(item)} style={styles.dangerButton}>Desactivar</button></td>
+              </tr>
+            ))}
+            {items.length === 0 && <tr><td colSpan="5" style={styles.td}>Este contrato no tiene conceptos permanentes.</td></tr>}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
+const styles = {
+  wrapper: { marginTop: "16px", border: "2px solid #111827", borderRadius: "14px", padding: "14px", backgroundColor: "#fffdf0", boxShadow: "3px 3px 0 #111827" },
+  header: { display: "flex", justifyContent: "space-between", gap: "12px", alignItems: "start", marginBottom: "12px" },
+  title: { margin: 0, fontSize: "18px", fontWeight: 900, color: "#111827" },
+  subtitle: { margin: "4px 0 0", color: "#6b7280", fontSize: "12px", fontWeight: 700 },
+  form: { marginBottom: "14px" },
+  formGrid: { display: "grid", gridTemplateColumns: "minmax(210px, 1.2fr) minmax(240px, 1.4fr) 110px 130px 140px auto", gap: "10px", alignItems: "end" },
+  field: { display: "flex", flexDirection: "column", gap: "5px", fontSize: "12px", fontWeight: 900, color: "#374151" },
+  input: { border: "2px solid #d1d5db", borderRadius: "8px", padding: "8px", fontWeight: 700, width: "100%", boxSizing: "border-box" },
+  primaryButton: { backgroundColor: "#111827", color: "#ffffff", border: "2px solid #111827", borderRadius: "8px", padding: "9px 16px", fontWeight: 900, cursor: "pointer" },
+  secondaryButton: { backgroundColor: "#ffffff", color: "#111827", border: "2px solid #111827", borderRadius: "8px", padding: "8px 12px", fontWeight: 900, cursor: "pointer" },
+  dangerButton: { backgroundColor: "#fee2e2", color: "#991b1b", border: "1px solid #991b1b", borderRadius: "8px", padding: "7px 10px", fontWeight: 800, cursor: "pointer" },
+  tableWrap: { overflowX: "auto" },
+  table: { width: "100%", borderCollapse: "collapse", backgroundColor: "#ffffff" },
+  th: { textAlign: "left", padding: "8px", backgroundColor: "#f3f4f6", borderBottom: "1px solid #d1d5db", fontSize: "12px" },
+  thRight: { textAlign: "right", padding: "8px", backgroundColor: "#f3f4f6", borderBottom: "1px solid #d1d5db", fontSize: "12px" },
+  thActions: { width: "110px", textAlign: "left", padding: "8px", backgroundColor: "#f3f4f6", borderBottom: "1px solid #d1d5db", fontSize: "12px" },
+  td: { padding: "9px 8px", borderBottom: "1px solid #e5e7eb", verticalAlign: "top" },
+  tdRight: { padding: "9px 8px", borderBottom: "1px solid #e5e7eb", textAlign: "right", fontWeight: 900 },
+  tdActions: { padding: "9px 8px", borderBottom: "1px solid #e5e7eb" },
+  note: { display: "block", color: "#6b7280", fontSize: "11px", fontWeight: 700, marginTop: "3px" },
+  error: { marginBottom: "10px", padding: "10px", borderRadius: "10px", backgroundColor: "#fef2f2", color: "#991b1b", border: "1px solid #fecaca", fontWeight: 800 },
+  success: { marginBottom: "10px", padding: "10px", borderRadius: "10px", backgroundColor: "#f0fdf4", color: "#166534", border: "1px solid #bbf7d0", fontWeight: 800 },
+};
