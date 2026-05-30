@@ -4,6 +4,7 @@ from decimal import Decimal
 
 from app.db import Base, SessionLocal, engine
 from app.models import Company, Contract, Employee, Incident, Payroll, WorkCenter
+from app.seed_demo_payroll_salary_structure import seed_demo_payroll_items
 
 
 DEMO_COMPANY_CIF = "G14999999"
@@ -464,6 +465,8 @@ def seed_demo_data(reset=False):
         get_or_create_payroll(db, employees["carmen"], contracts["carmen"], company, trinidad, Decimal("120.00"), Decimal("0.14"))
         get_or_create_payroll(db, employees["ana"], contracts["ana"], company, trinidad, Decimal("40.00"), Decimal("0.11"))
 
+        payroll_seed_result = seed_demo_payroll_items(db)
+
         db.commit()
 
         action = "reiniciada" if reset else "insertada/actualizada"
@@ -475,6 +478,7 @@ def seed_demo_data(reset=False):
         print("Contratos demo: 6")
         print("Incidencias demo: 3")
         print("Nóminas demo mayo 2026: 4")
+        print(f"Conceptos salariales demo: {payroll_seed_result['concepts']}")
     except Exception:
         db.rollback()
         raise
