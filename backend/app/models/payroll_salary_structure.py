@@ -15,6 +15,9 @@ class PayrollConcept(Base):
     category = Column(String, default="OTRO", nullable=False)
     concept_type = Column(String, default="DEVENGO", nullable=False)
     salary_nature = Column(String, default="SALARIAL", nullable=False)
+    source_type = Column(String, default="SYSTEM", nullable=False)
+    agreement_id = Column(Integer, ForeignKey("collective_agreements.id"), nullable=True)
+    is_system = Column(Boolean, default=False, nullable=False)
     is_taxable = Column(Boolean, default=True, nullable=False)
     is_contribution_base = Column(Boolean, default=True, nullable=False)
     is_active = Column(Boolean, default=True, nullable=False)
@@ -24,6 +27,7 @@ class PayrollConcept(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     payroll_items = relationship("PayrollItem", back_populates="concept")
+    agreement = relationship("CollectiveAgreement")
 
 
 class PayrollItem(Base):
