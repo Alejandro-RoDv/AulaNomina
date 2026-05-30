@@ -2,9 +2,11 @@ import { useEffect, useMemo, useState } from "react";
 
 import {
   createPayrollItem,
+  deletePayrollItem,
   fetchPayrollBreakdown,
   fetchPayrollConcepts,
   loadContractConceptsIntoPayroll,
+  updatePayrollItem,
 } from "../../services/payrollApi";
 import { formatCurrency } from "./PayrollForm";
 
@@ -27,7 +29,16 @@ function getSourceLabel(sourceType) {
   return "Sistema";
 }
 
-function ConceptTable({ title, items }) {
+function Field({ label, children, style }) {
+  return (
+    <label style={{ ...styles.field, ...style }}>
+      <span style={styles.fieldLabel}>{label}</span>
+      {children}
+    </label>
+  );
+}
+
+function ConceptTable({ title, items, editingItemId, editLineForm, onStartEdit, onCancelEdit, onEditChange, onSaveEdit, onDelete }) {
   return (
     <div style={styles.box}>
       <h5 style={styles.boxTitle}>{title}</h5>
@@ -38,19 +49,51 @@ function ConceptTable({ title, items }) {
               <th style={styles.left}>Concepto</th>
               <th style={styles.calcHeader}>Cálculo</th>
               <th style={styles.amountHeader}>Total línea</th>
+              <th style={styles.actionsHeader}>Acciones</th>
             </tr>
           </thead>
           <tbody>
-            {items.map((item) => (
-              <tr key={item.id}>
-                <td style={styles.cell}>
-                  <strong style={styles.conceptName}>{item.concept_name}</strong>
-                  {item.description && <small style={styles.note}>{item.description}</small>}
-                </td>
-                <td style={styles.calcCell}>{getCalculationLabel(item)}</td>
-                <td style={styles.amount}>{formatCurrency(item.amount)}</td>
-              </tr>
-            ))}
+            {items.map((item) => {
+              const isEditing = editingItemId === item.id;
+              return (
+                <tr key={item.id}>
+                  <td style={styles.cell}>
+                    <strong style={styles.conceptName}>{item.concept_name}</strong>
+                    {isEditing ? (
+                      <input name="description" value={editLineForm.description} onChange={onEditChange} placeholder="Descripción" style={styles.lineInput} />
+                    ) : (
+                      item.description && <small style={styles.note}>{item.description}</small>
+                    )}
+                  </td>
+                  <td style={styles.calcCell}>
+                    {isEditing ? (
+                      <div style={styles.inlineEditGrid}>
+                        <input type="number" step="0.01" name="quantity" value={editLineForm.quantity} onChange={onEditChange} style={styles.lineInput} />
+                        <input type="number" step="0.01" name="unit_price" value={editLineForm.unit_price} onChange={onEditChange} style={styles.lineInput} />
+                      </div>
+                    ) : getCalculationLabel(item)}
+                  </td>
+                  <td style={styles.amount}>
+                    {isEditing ? (
+                      <input type="number" step="0.01" name="amount" value={editLineForm.amount} onChange={onEditChange} style={styles.lineInput} />
+                    ) : formatCurrency(item.amount)}
+                  </td>
+                  <td style={styles.actionsCell}>
+                    {isEditing ? (
+                      <>
+                        <button type="button" onClick={() => onSaveEdit(item)} style={styles.smallPrimaryButton}>Guardar</button>
+                        <button type="button" onClick={onCancelEdit} style={styles.smallButton}>Cancelar</button>
+                      </>
+                    ) : (
+                      <>
+                        <button type="button" onClick={() => onStartEdit(item)} style={styles.smallButton}>Editar</button>
+                        <button type="button" onClick={() => onDelete(item)} style={styles.smallDangerButton}>Eliminar</button>
+                      </>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       )}
@@ -58,19 +101,12 @@ function ConceptTable({ title, items }) {
   );
 }
 
-function Field({ label, children, style }) {
-  return (
-    <label style={{ ...styles.field, ...style }}>
-      <span style={styles.fieldLabel}>{label}</span>
-      {children}
-    </label>
-  );
-}
-
 export default function PayrollConceptBreakdown({ payrollId }) {
   const [concepts, setConcepts] = useState([]);
   const [breakdown, setBreakdown] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
+  const [editingItemId, setEditingItemId] = useState(null);
+  const [editLineForm, setEditLineForm] = useState({ description: "", quantity: "1", unit_price: "0", amount: "" });
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [loadingContractConcepts, setLoadingContractConcepts] = useState(false);
@@ -110,6 +146,65 @@ export default function PayrollConceptBreakdown({ payrollId }) {
   function handleChange(event) {
     setForm((current) => ({ ...current, [event.target.name]: event.target.value }));
     setMessage("");
+  }
+
+  function handleEditLineChange(event) {
+    setEditLineForm((current) => ({ ...current, [event.target.name]: event.target.value }));
+    setMessage("");
+  }
+
+  function handleStartEdit(item) {
+    setEditingItemId(item.id);
+    setEditLineForm({
+      description: item.description || "",
+      quantity: String(item.quantity ?? "1"),
+      unit_price: String(item.unit_price ?? "0"),
+      amount: String(item.amount ?? ""),
+    });
+    setError("");
+    setMessage("");
+  }
+
+  function handleCancelEdit() {
+    setEditingItemId(null);
+    setEditLineForm({ description: "", quantity: "1", unit_price: "0", amount: "" });
+  }
+
+  async function handleSaveEdit(item) {
+    setSaving(true);
+    setError("");
+    setMessage("");
+    try {
+      await updatePayrollItem(item.id, {
+        description: editLineForm.description || null,
+        quantity: Number(editLineForm.quantity || 0),
+        unit_price: Number(editLineForm.unit_price || 0),
+        amount: editLineForm.amount === "" ? null : Number(editLineForm.amount),
+      });
+      setMessage("Línea de nómina actualizada.");
+      handleCancelEdit();
+      await loadData();
+    } catch (err) {
+      setError(err.message || "Error al actualizar la línea de nómina.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleDeleteItem(item) {
+    setSaving(true);
+    setError("");
+    setMessage("");
+    try {
+      await deletePayrollItem(item.id);
+      setMessage("Línea de nómina eliminada.");
+      if (editingItemId === item.id) handleCancelEdit();
+      await loadData();
+    } catch (err) {
+      setError(err.message || "Error al eliminar la línea de nómina.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function handleLoadContractConcepts() {
@@ -153,6 +248,16 @@ export default function PayrollConceptBreakdown({ payrollId }) {
     }
   }
 
+  const tableProps = {
+    editingItemId,
+    editLineForm,
+    onStartEdit: handleStartEdit,
+    onCancelEdit: handleCancelEdit,
+    onEditChange: handleEditLineChange,
+    onSaveEdit: handleSaveEdit,
+    onDelete: handleDeleteItem,
+  };
+
   return (
     <section style={styles.wrapper} className="no-print">
       <div style={styles.header}>
@@ -161,7 +266,7 @@ export default function PayrollConceptBreakdown({ payrollId }) {
           <p style={styles.subtitle}>Vista manual para explicar de dónde sale cada concepto. No recalcula todavía la nómina principal.</p>
         </div>
         <div style={styles.headerActions}>
-          <button type="button" onClick={handleLoadContractConcepts} style={styles.contractButton} disabled={loadingContractConcepts}>
+          <button type="button" onClick={handleLoadContractConcepts} style={styles.contractButton} disabled={loadingContractConcepts || saving}>
             {loadingContractConcepts ? "Cargando..." : "Cargar permanentes"}
           </button>
           <button type="button" onClick={loadData} style={styles.secondaryButton}>{loading ? "Cargando..." : "Actualizar"}</button>
@@ -179,10 +284,10 @@ export default function PayrollConceptBreakdown({ payrollId }) {
             <div style={styles.netCard}><span>Neto según desglose</span><strong>{formatCurrency(breakdown.neto_manual)}</strong></div>
           </div>
           <div style={styles.grid}>
-            <ConceptTable title="Devengos salariales" items={breakdown.devengos_salariales} />
-            <ConceptTable title="Devengos extrasalariales" items={breakdown.devengos_extrasalariales} />
-            <ConceptTable title="Deducciones" items={breakdown.deducciones} />
-            <ConceptTable title="Bases informativas" items={breakdown.bases_informativas} />
+            <ConceptTable title="Devengos salariales" items={breakdown.devengos_salariales} {...tableProps} />
+            <ConceptTable title="Devengos extrasalariales" items={breakdown.devengos_extrasalariales} {...tableProps} />
+            <ConceptTable title="Deducciones" items={breakdown.deducciones} {...tableProps} />
+            <ConceptTable title="Bases informativas" items={breakdown.bases_informativas} {...tableProps} />
           </div>
         </>
       )}
@@ -217,7 +322,7 @@ export default function PayrollConceptBreakdown({ payrollId }) {
           <Field label="Importe directo" style={styles.amountField}>
             <input type="number" step="0.01" name="amount" value={form.amount} onChange={handleChange} placeholder="Ej. 120" style={styles.input} />
           </Field>
-          <button type="submit" disabled={saving} style={styles.primaryButton}>{saving ? "Añadiendo..." : "Añadir"}</button>
+          <button type="submit" disabled={saving} style={styles.primaryButton}>{saving ? "Guardando..." : "Añadir"}</button>
         </div>
       </form>
     </section>
@@ -242,12 +347,19 @@ const styles = {
   left: { textAlign: "left", padding: "7px 8px", fontSize: "11px", color: "#4b5563" },
   calcHeader: { width: "190px", textAlign: "right", padding: "7px 8px", fontSize: "11px", color: "#4b5563", whiteSpace: "nowrap" },
   amountHeader: { width: "130px", textAlign: "right", padding: "7px 8px", fontSize: "11px", color: "#4b5563", whiteSpace: "nowrap" },
+  actionsHeader: { width: "150px", textAlign: "right", padding: "7px 8px", fontSize: "11px", color: "#4b5563", whiteSpace: "nowrap" },
   cell: { padding: "8px", borderTop: "1px solid #f3f4f6", minWidth: "260px" },
   conceptName: { display: "block", fontSize: "13px", lineHeight: 1.25 },
   calcCell: { width: "190px", padding: "8px", borderTop: "1px solid #f3f4f6", textAlign: "right", whiteSpace: "nowrap", color: "#4b5563", fontWeight: 700 },
   amount: { width: "130px", padding: "8px", borderTop: "1px solid #f3f4f6", textAlign: "right", fontWeight: 900, whiteSpace: "nowrap" },
+  actionsCell: { width: "150px", padding: "8px", borderTop: "1px solid #f3f4f6", textAlign: "right", display: "flex", justifyContent: "flex-end", gap: "6px", flexWrap: "wrap" },
   note: { display: "block", color: "#6b7280", marginTop: "3px", lineHeight: 1.35 },
   empty: { margin: 0, padding: "10px", color: "#6b7280", fontSize: "12px", fontWeight: 700 },
+  inlineEditGrid: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px" },
+  lineInput: { width: "100%", boxSizing: "border-box", border: "1px solid #d1d5db", borderRadius: "6px", padding: "6px", fontWeight: 700 },
+  smallButton: { backgroundColor: "#ffffff", color: "#111827", border: "1px solid #111827", borderRadius: "7px", padding: "6px 8px", fontWeight: 800, cursor: "pointer" },
+  smallPrimaryButton: { backgroundColor: "#111827", color: "#ffffff", border: "1px solid #111827", borderRadius: "7px", padding: "6px 8px", fontWeight: 800, cursor: "pointer" },
+  smallDangerButton: { backgroundColor: "#fee2e2", color: "#991b1b", border: "1px solid #991b1b", borderRadius: "7px", padding: "6px 8px", fontWeight: 800, cursor: "pointer" },
   form: { marginTop: "14px", paddingTop: "12px", borderTop: "1px solid #e5e7eb", width: "100%" },
   formTitle: { margin: "0 0 4px", fontSize: "15px", fontWeight: 900 },
   formHelp: { margin: "0 0 10px", color: "#6b7280", fontSize: "12px", fontWeight: 700 },
