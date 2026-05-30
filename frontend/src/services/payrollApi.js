@@ -110,6 +110,51 @@ export async function deactivatePayrollConcept(conceptId) {
   );
 }
 
+export async function fetchContractPayrollConcepts(contractId, includeInactive = false) {
+  const query = includeInactive ? "?include_inactive=true" : "";
+  return apiRequest(`/contracts/${contractId}/payroll-concepts${query}`, {}, "Error al cargar conceptos permanentes");
+}
+
+export async function createContractPayrollConcept(contractId, payload) {
+  return apiRequest(
+    `/contracts/${contractId}/payroll-concepts`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    },
+    "Error al crear concepto permanente"
+  );
+}
+
+export async function updateContractPayrollConcept(lineId, payload) {
+  return apiRequest(
+    `/contract-payroll-concepts/${lineId}`,
+    {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    },
+    "Error al actualizar concepto permanente"
+  );
+}
+
+export async function deactivateContractPayrollConcept(lineId) {
+  return apiRequest(
+    `/contract-payroll-concepts/${lineId}/deactivate`,
+    { method: "POST" },
+    "Error al desactivar concepto permanente"
+  );
+}
+
+export async function loadContractConceptsIntoPayroll(payrollId) {
+  return apiRequest(
+    `/payrolls/${payrollId}/load-contract-concepts`,
+    { method: "POST" },
+    "Error al cargar conceptos permanentes en nómina"
+  );
+}
+
 export async function fetchPayrollItems(payrollId) {
   return apiRequest(`/payrolls/${payrollId}/items`, {}, "Error al cargar líneas de nómina");
 }
