@@ -22,6 +22,7 @@ const overlayPages = [
 
 const companyPages = ["company-companies", "company-centers"];
 const conceptPages = ["payroll-concepts", "permanent-payroll-concepts"];
+const payrollPages = ["payroll-monthly-preparation", "payroll-individual", "payroll-simulation", "payroll-history"];
 const teachingPages = ["teacher-dashboard", "teaching-alerts", "case-studies", "assignments", "corrections", "student-demo", "students", "groups", "progress"];
 const overlayHashes = overlayPages.map((page) => `#${page}`);
 const IRPF_HASH = "#irpf-module";
@@ -37,6 +38,7 @@ export default function Sidebar({ activePage, setActivePage }) {
   const [companyMenuOpen, setCompanyMenuOpen] = useState(true);
   const [employeeMenuOpen, setEmployeeMenuOpen] = useState(true);
   const [conceptMenuOpen, setConceptMenuOpen] = useState(true);
+  const [payrollMenuOpen, setPayrollMenuOpen] = useState(true);
 
   useEffect(() => {
     const syncActivePageFromHash = () => {
@@ -56,7 +58,7 @@ export default function Sidebar({ activePage, setActivePage }) {
       }
 
       if (overlayPage === "irpf-module") {
-        setActivePage("payrolls");
+        setActivePage("payroll-history");
         return;
       }
 
@@ -122,7 +124,18 @@ export default function Sidebar({ activePage, setActivePage }) {
             { id: "permanent-payroll-concepts", label: "Conceptos permanentes", enabled: true },
           ],
         },
-        { id: "payrolls", label: "Cálculo nóminas", enabled: true },
+        {
+          id: "payroll-menu",
+          label: "Nóminas",
+          enabled: true,
+          menu: "payroll",
+          children: [
+            { id: "payroll-monthly-preparation", label: "Preparar mensuales", enabled: true },
+            { id: "payroll-individual", label: "Nómina individual", enabled: true },
+            { id: "payroll-simulation", label: "Simulación", enabled: true },
+            { id: "payroll-history", label: "Histórico nóminas", enabled: true },
+          ],
+        },
         { id: "irpf", label: "IRPF", enabled: true },
         { id: "tax", label: "Mod. 111/190", enabled: false },
         { id: "social-security", label: "Seguros sociales", enabled: false },
@@ -181,6 +194,7 @@ export default function Sidebar({ activePage, setActivePage }) {
       if (item.menu === "company") setCompanyMenuOpen((prev) => !prev);
       if (item.menu === "employee") setEmployeeMenuOpen((prev) => !prev);
       if (item.menu === "concepts") setConceptMenuOpen((prev) => !prev);
+      if (item.menu === "payroll") setPayrollMenuOpen((prev) => !prev);
       return;
     }
 
@@ -195,7 +209,7 @@ export default function Sidebar({ activePage, setActivePage }) {
     }
 
     if (item.id === "irpf") {
-      activateHashRoute("irpf-module", "payrolls");
+      activateHashRoute("irpf-module", "payroll-history");
       return;
     }
 
@@ -221,9 +235,18 @@ export default function Sidebar({ activePage, setActivePage }) {
             <div style={styles.groupItems}>
               {group.items.map((item) => {
                 const submenuOpen = item.children && (
-                  item.menu === "company" ? companyMenuOpen : item.menu === "employee" ? employeeMenuOpen : conceptMenuOpen
+                  item.menu === "company" ? companyMenuOpen :
+                  item.menu === "employee" ? employeeMenuOpen :
+                  item.menu === "payroll" ? payrollMenuOpen :
+                  conceptMenuOpen
                 );
-                const childPages = item.menu === "company" ? companyPages : item.menu === "employee" ? ["employees", "employee-record"] : conceptPages;
+                const childPages = item.menu === "company"
+                  ? companyPages
+                  : item.menu === "employee"
+                    ? ["employees", "employee-record"]
+                    : item.menu === "payroll"
+                      ? payrollPages
+                      : conceptPages;
                 const isActive = currentActivePage === item.id || (item.id === "irpf" && currentActivePage === "irpf-module") || (item.children && childPages.includes(currentActivePage));
 
                 return (
