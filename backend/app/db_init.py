@@ -78,6 +78,27 @@ def init_database() -> None:
                 if column_name not in existing_incident_columns:
                     connection.execute(text(f"ALTER TABLE incidents ADD COLUMN {column_name} {column_definition}"))
 
+        if "payroll_concepts" in table_names:
+            existing_concept_columns = {column["name"] for column in inspector.get_columns("payroll_concepts")}
+            concept_columns = {
+                "source_type": "VARCHAR DEFAULT 'SYSTEM' NOT NULL",
+                "agreement_id": "INTEGER REFERENCES collective_agreements(id)",
+                "is_system": "BOOLEAN DEFAULT FALSE NOT NULL",
+            }
+            for column_name, column_definition in concept_columns.items():
+                if column_name not in existing_concept_columns:
+                    connection.execute(text(f"ALTER TABLE payroll_concepts ADD COLUMN {column_name} {column_definition}"))
+
+            connection.execute(
+                text(
+                    """
+                    UPDATE payroll_concepts
+                    SET source_type = COALESCE(source_type, 'SYSTEM'),
+                        is_system = COALESCE(is_system, TRUE)
+                    """
+                )
+            )
+
         if "payrolls" in table_names:
             existing_payroll_columns = {column["name"] for column in inspector.get_columns("payrolls")}
             payroll_columns = {
@@ -220,10 +241,9 @@ def init_database() -> None:
                 if column_name not in existing_correction_columns:
                     connection.execute(text(f"ALTER TABLE corrections ADD COLUMN {column_name} {column_definition}"))
 
-            # PostgreSQL only. This local bridge loosens legacy NOT NULL constraints
-            # because corrections now primarily depend on case assignments.
             try:
                 connection.execute(text("ALTER TABLE corrections ALTER COLUMN case_study_id DROP NOT NULL"))
                 connection.execute(text("ALTER TABLE corrections ALTER COLUMN student_name DROP NOT NULL"))
+                connection.execute(text("ALTER TABLE corrections ALTER COLUMN submitted_at DROP NOT NULL"))
             except Exception:
                 pass
