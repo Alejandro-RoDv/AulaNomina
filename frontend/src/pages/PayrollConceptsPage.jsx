@@ -28,6 +28,20 @@ const EMPTY_FORM = {
   notes: "",
 };
 
+const EMPTY_FILTERS = {
+  search: "",
+  source: "ALL",
+  agreement: "ALL",
+  category: "ALL",
+  conceptType: "ALL",
+  salaryNature: "ALL",
+  calculationType: "ALL",
+  workday: "ALL",
+  taxable: "ALL",
+  contribution: "ALL",
+  status: "ALL",
+};
+
 const CATEGORY_OPTIONS = [
   ["BASE", "Base"],
   ["COMPLEMENTO", "Complemento"],
@@ -74,6 +88,14 @@ function normalizeCode(value) {
   return value.trim().toUpperCase().replaceAll(" ", "_");
 }
 
+function normalizeText(value) {
+  return String(value || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim();
+}
+
 function formatMoney(value) {
   return Number(value || 0).toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " €";
 }
@@ -89,8 +111,7 @@ export default function PayrollConceptsPage() {
   const [agreements, setAgreements] = useState([]);
   const [form, setForm] = useState(EMPTY_FORM);
   const [editingId, setEditingId] = useState(null);
-  const [filter, setFilter] = useState("ALL");
-  const [search, setSearch] = useState("");
+  const [filters, setFilters] = useState(EMPTY_FILTERS);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState("");
@@ -123,15 +144,35 @@ export default function PayrollConceptsPage() {
   }, [agreements]);
 
   const filteredConcepts = useMemo(() => {
-    const query = search.trim().toLowerCase();
+    const query = normalizeText(filters.search);
+
     return concepts.filter((concept) => {
-      if (filter !== "ALL" && concept.source_type !== filter) return false;
-      if (!query) return true;
       const agreementName = concept.agreement_id ? agreementById[concept.agreement_id]?.name : "";
-      return [concept.name, concept.code, concept.category, concept.concept_type, agreementName]
-        .some((value) => String(value || "").toLowerCase().includes(query));
+      const searchableText = normalizeText([
+        concept.name,
+        concept.code,
+        concept.category,
+        concept.concept_type,
+        concept.salary_nature,
+        concept.source_type,
+        concept.calculation_type,
+        agreementName,
+      ].join(" "));
+
+      if (query && !searchableText.includes(query)) return false;
+      if (filters.source !== "ALL" && concept.source_type !== filters.source) return false;
+      if (filters.agreement !== "ALL" && String(concept.agreement_id || "") !== String(filters.agreement)) return false;
+      if (filters.category !== "ALL" && concept.category !== filters.category) return false;
+      if (filters.conceptType !== "ALL" && concept.concept_type !== filters.conceptType) return false;
+      if (filters.salaryNature !== "ALL" && concept.salary_nature !== filters.salaryNature) return false;
+      if (filters.calculationType !== "ALL" && concept.calculation_type !== filters.calculationType) return false;
+      if (filters.workday !== "ALL" && String(concept.applies_workday_percentage) !== filters.workday) return false;
+      if (filters.taxable !== "ALL" && String(concept.is_taxable) !== filters.taxable) return false;
+      if (filters.contribution !== "ALL" && String(concept.is_contribution_base) !== filters.contribution) return false;
+      if (filters.status !== "ALL" && String(concept.is_active) !== filters.status) return false;
+      return true;
     });
-  }, [concepts, filter, search, agreementById]);
+  }, [concepts, filters, agreementById]);
 
   function handleChange(event) {
     const { name, value, type, checked } = event.target;
@@ -139,6 +180,15 @@ export default function PayrollConceptsPage() {
       ...current,
       [name]: type === "checkbox" ? checked : value,
     }));
+  }
+
+  function handleFilterChange(event) {
+    const { name, value } = event.target;
+    setFilters((current) => ({ ...current, [name]: value }));
+  }
+
+  function resetFilters() {
+    setFilters(EMPTY_FILTERS);
   }
 
   function startEdit(concept) {
@@ -223,6 +273,7 @@ export default function PayrollConceptsPage() {
     system: concepts.filter((concept) => concept.source_type === "SYSTEM").length,
     custom: concepts.filter((concept) => concept.source_type === "CUSTOM").length,
     agreement: concepts.filter((concept) => concept.source_type === "AGREEMENT").length,
+    filtered: filteredConcepts.length,
   };
 
   return (
@@ -233,6 +284,7 @@ export default function PayrollConceptsPage() {
           <div style={styles.kpi}><span>Sistema</span><strong>{totals.system}</strong></div>
           <div style={styles.kpi}><span>Personalizados</span><strong>{totals.custom}</strong></div>
           <div style={styles.kpi}><span>Convenio</span><strong>{totals.agreement}</strong></div>
+          <div style={styles.kpi}><span>Filtrados</span><strong>{totals.filtered}</strong></div>
         </div>
 
         <form onSubmit={handleSubmit} style={styles.form}>
@@ -287,14 +339,47 @@ export default function PayrollConceptsPage() {
       </PageCard>
 
       <PageCard title="Conceptos disponibles" subtitle="Listado usado por los desplegables de nómina.">
-        <div style={styles.filters}>
-          <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar por nombre, código, categoría o convenio" style={styles.searchInput} />
-          <select value={filter} onChange={(event) => setFilter(event.target.value)} style={styles.filterSelect}>
-            <option value="ALL">Todos los orígenes</option>
-            {SOURCE_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-          </select>
-          <button type="button" onClick={loadConcepts} style={styles.secondaryButton}>{loading ? "Cargando..." : "Actualizar"}</button>
+        <div style={styles.filtersBox}>
+          <div style={styles.filtersHeader}>
+            <h3 style={styles.filterTitle}>Filtros del catálogo</h3>
+            <div style={styles.filterActions}>
+              <button type="button" onClick={resetFilters} style={styles.secondaryButton}>Limpiar filtros</button>
+              <button type="button" onClick={loadConcepts} style={styles.secondaryButton}>{loading ? "Cargando..." : "Actualizar"}</button>
+            </div>
+          </div>
+
+          <div style={styles.mainFiltersGrid}>
+            <label style={styles.field}>Buscar
+              <input name="search" value={filters.search} onChange={handleFilterChange} placeholder="Nombre, código, categoría o convenio" style={styles.input} />
+            </label>
+            <label style={styles.field}>Convenio
+              <select name="agreement" value={filters.agreement} onChange={handleFilterChange} style={styles.input}>
+                <option value="ALL">Todos los convenios</option>
+                <option value="">Sin convenio asociado</option>
+                {agreements.map((agreement) => <option key={agreement.id} value={agreement.id}>{agreement.name}</option>)}
+              </select>
+            </label>
+            <label style={styles.field}>Origen
+              <select name="source" value={filters.source} onChange={handleFilterChange} style={styles.input}>
+                <option value="ALL">Todos los orígenes</option>
+                {SOURCE_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+              </select>
+            </label>
+          </div>
+
+          <div style={styles.compactFiltersGrid}>
+            <label style={styles.field}>Categoría<select name="category" value={filters.category} onChange={handleFilterChange} style={styles.input}><option value="ALL">Todas</option>{CATEGORY_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+            <label style={styles.field}>Tipo<select name="conceptType" value={filters.conceptType} onChange={handleFilterChange} style={styles.input}><option value="ALL">Todos</option>{TYPE_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+            <label style={styles.field}>Naturaleza<select name="salaryNature" value={filters.salaryNature} onChange={handleFilterChange} style={styles.input}><option value="ALL">Todas</option>{NATURE_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+            <label style={styles.field}>Cálculo<select name="calculationType" value={filters.calculationType} onChange={handleFilterChange} style={styles.input}><option value="ALL">Todos</option>{CALCULATION_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+            <label style={styles.field}>Jornada<select name="workday" value={filters.workday} onChange={handleFilterChange} style={styles.input}><option value="ALL">Todas</option><option value="true">Proporcional</option><option value="false">Íntegro</option></select></label>
+            <label style={styles.field}>Cotiza<select name="contribution" value={filters.contribution} onChange={handleFilterChange} style={styles.input}><option value="ALL">Todos</option><option value="true">Sí</option><option value="false">No</option></select></label>
+            <label style={styles.field}>Tributa<select name="taxable" value={filters.taxable} onChange={handleFilterChange} style={styles.input}><option value="ALL">Todos</option><option value="true">Sí</option><option value="false">No</option></select></label>
+            <label style={styles.field}>Estado<select name="status" value={filters.status} onChange={handleFilterChange} style={styles.input}><option value="ALL">Todos</option><option value="true">Activo</option><option value="false">Inactivo</option></select></label>
+          </div>
         </div>
+
+        <div style={styles.resultInfo}>Mostrando {filteredConcepts.length} de {concepts.length} conceptos.</div>
 
         <div style={styles.tableWrap}>
           <table style={styles.table}>
@@ -344,7 +429,7 @@ const badge = { display: "inline-block", padding: "4px 8px", borderRadius: "999p
 
 const styles = {
   wrapper: { display: "flex", flexDirection: "column", gap: "20px" },
-  kpiGrid: { display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: "12px", marginBottom: "18px" },
+  kpiGrid: { display: "grid", gridTemplateColumns: "repeat(5, minmax(0, 1fr))", gap: "12px", marginBottom: "18px" },
   kpi: { border: "2px solid #111827", borderRadius: "12px", padding: "12px", backgroundColor: "#fffdf0", display: "flex", justifyContent: "space-between", fontWeight: 900 },
   form: { border: "2px solid #111827", borderRadius: "14px", padding: "16px", backgroundColor: "#ffffff", boxShadow: "3px 3px 0 #e6d85c" },
   formHeader: { display: "flex", justifyContent: "space-between", gap: "12px", marginBottom: "14px" },
@@ -357,16 +442,20 @@ const styles = {
   flagGrid: { display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: "12px", marginBottom: "12px" },
   field: { display: "flex", flexDirection: "column", gap: "5px", fontSize: "12px", fontWeight: 900, color: "#374151" },
   checkField: { display: "flex", alignItems: "center", gap: "8px", fontSize: "13px", fontWeight: 900, minHeight: "40px" },
-  input: { border: "2px solid #d1d5db", borderRadius: "8px", padding: "9px", fontWeight: 700, minWidth: 0 },
+  input: { border: "2px solid #d1d5db", borderRadius: "8px", padding: "9px", fontWeight: 700, minWidth: 0, width: "100%", boxSizing: "border-box" },
   textarea: { border: "2px solid #d1d5db", borderRadius: "8px", padding: "9px", fontWeight: 700, minHeight: "70px" },
   actions: { display: "flex", justifyContent: "flex-end", marginTop: "14px" },
   primaryButton: { backgroundColor: "#111827", color: "#ffffff", border: "2px solid #111827", borderRadius: "8px", padding: "9px 16px", fontWeight: 900, cursor: "pointer" },
   secondaryButton: { backgroundColor: "#ffffff", color: "#111827", border: "2px solid #111827", borderRadius: "8px", padding: "8px 12px", fontWeight: 900, cursor: "pointer" },
   smallButton: { backgroundColor: "#111827", color: "#ffffff", border: "1px solid #111827", borderRadius: "8px", padding: "7px 10px", fontWeight: 800, cursor: "pointer" },
   dangerButton: { backgroundColor: "#fee2e2", color: "#991b1b", border: "1px solid #991b1b", borderRadius: "8px", padding: "7px 10px", fontWeight: 800, cursor: "pointer" },
-  filters: { display: "flex", gap: "10px", marginBottom: "14px" },
-  searchInput: { flex: 1, border: "2px solid #d1d5db", borderRadius: "8px", padding: "9px", fontWeight: 700 },
-  filterSelect: { width: "220px", border: "2px solid #d1d5db", borderRadius: "8px", padding: "9px", fontWeight: 700 },
+  filtersBox: { border: "2px solid #111827", borderRadius: "14px", padding: "14px", backgroundColor: "#ffffff", boxShadow: "3px 3px 0 #e6d85c", marginBottom: "14px" },
+  filtersHeader: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px", marginBottom: "12px" },
+  filterTitle: { margin: 0, fontSize: "16px", fontWeight: 900, color: "#111827" },
+  filterActions: { display: "flex", gap: "8px", alignItems: "center" },
+  mainFiltersGrid: { display: "grid", gridTemplateColumns: "1.5fr 1.2fr 220px", gap: "12px", marginBottom: "12px" },
+  compactFiltersGrid: { display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: "12px" },
+  resultInfo: { marginBottom: "12px", color: "#6b7280", fontSize: "13px", fontWeight: 800 },
   tableWrap: { overflowX: "auto" },
   table: { width: "100%", borderCollapse: "collapse", minWidth: "1180px" },
   th: { textAlign: "left", padding: "10px", backgroundColor: "#f3f4f6", borderBottom: "1px solid #d1d5db", fontSize: "12px" },
