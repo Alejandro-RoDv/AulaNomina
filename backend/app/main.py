@@ -146,7 +146,7 @@ def root():
 @app.post("/seed-demo")
 def seed_demo(db: Session = Depends(get_db)):
     seed_demo_data()
-    seed_demo_documents(db)
+    seed_demo_documents()
     seed_demo_collective_agreements(db)
     seed_demo_student_groups(db)
     seed_demo_students(db)
