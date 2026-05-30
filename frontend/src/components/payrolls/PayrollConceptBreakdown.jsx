@@ -1,6 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 
-import { createPayrollItem, fetchPayrollBreakdown, fetchPayrollConcepts } from "../../services/payrollApi";
+import {
+  createPayrollItem,
+  fetchPayrollBreakdown,
+  fetchPayrollConcepts,
+  loadContractConceptsIntoPayroll,
+} from "../../services/payrollApi";
 import { formatCurrency } from "./PayrollForm";
 
 const EMPTY_FORM = { concept_id: "", description: "", quantity: "1", unit_price: "0", amount: "" };
@@ -68,6 +73,8 @@ export default function PayrollConceptBreakdown({ payrollId }) {
   const [form, setForm] = useState(EMPTY_FORM);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [loadingContractConcepts, setLoadingContractConcepts] = useState(false);
+  const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
   const groupedConcepts = useMemo(() => {
@@ -102,6 +109,22 @@ export default function PayrollConceptBreakdown({ payrollId }) {
 
   function handleChange(event) {
     setForm((current) => ({ ...current, [event.target.name]: event.target.value }));
+    setMessage("");
+  }
+
+  async function handleLoadContractConcepts() {
+    setLoadingContractConcepts(true);
+    setError("");
+    setMessage("");
+    try {
+      const result = await loadContractConceptsIntoPayroll(payrollId);
+      setMessage(`Conceptos permanentes cargados: ${result.created_items}. Omitidos por duplicado: ${result.skipped_items}.`);
+      await loadData();
+    } catch (err) {
+      setError(err.message || "Error al cargar los conceptos permanentes del contrato.");
+    } finally {
+      setLoadingContractConcepts(false);
+    }
   }
 
   async function handleSubmit(event) {
@@ -112,6 +135,7 @@ export default function PayrollConceptBreakdown({ payrollId }) {
     }
     setSaving(true);
     setError("");
+    setMessage("");
     try {
       await createPayrollItem(payrollId, {
         concept_id: Number(form.concept_id),
@@ -136,10 +160,16 @@ export default function PayrollConceptBreakdown({ payrollId }) {
           <h4 style={styles.title}>Desglose de conceptos</h4>
           <p style={styles.subtitle}>Vista manual para explicar de dónde sale cada concepto. No recalcula todavía la nómina principal.</p>
         </div>
-        <button type="button" onClick={loadData} style={styles.secondaryButton}>{loading ? "Cargando..." : "Actualizar"}</button>
+        <div style={styles.headerActions}>
+          <button type="button" onClick={handleLoadContractConcepts} style={styles.contractButton} disabled={loadingContractConcepts}>
+            {loadingContractConcepts ? "Cargando..." : "Cargar permanentes"}
+          </button>
+          <button type="button" onClick={loadData} style={styles.secondaryButton}>{loading ? "Cargando..." : "Actualizar"}</button>
+        </div>
       </div>
 
       {error && <div style={styles.error}>{error}</div>}
+      {message && <div style={styles.success}>{message}</div>}
 
       {breakdown && (
         <>
@@ -197,9 +227,11 @@ export default function PayrollConceptBreakdown({ payrollId }) {
 const styles = {
   wrapper: { width: "100%", boxSizing: "border-box", margin: "0", padding: "14px", border: "2px solid #111827", borderRadius: "14px", backgroundColor: "#ffffff", boxShadow: "3px 3px 0 #e6d85c", overflow: "hidden" },
   header: { display: "flex", justifyContent: "space-between", gap: "16px", marginBottom: "12px", alignItems: "start" },
+  headerActions: { display: "flex", gap: "8px", alignItems: "center" },
   title: { margin: 0, fontSize: "17px", fontWeight: 900, color: "#111827" },
   subtitle: { margin: "4px 0 0", fontSize: "12px", fontWeight: 700, color: "#6b7280" },
   secondaryButton: { backgroundColor: "#ffffff", border: "2px solid #111827", borderRadius: "8px", padding: "8px 12px", fontWeight: 900, cursor: "pointer", whiteSpace: "nowrap" },
+  contractButton: { backgroundColor: "#e6d85c", border: "2px solid #111827", color: "#111827", borderRadius: "8px", padding: "8px 12px", fontWeight: 900, cursor: "pointer", whiteSpace: "nowrap" },
   summary: { display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: "10px", marginBottom: "12px" },
   summaryCard: { border: "1px solid #d1d5db", borderRadius: "10px", padding: "10px", backgroundColor: "#f9fafb", display: "flex", justifyContent: "space-between", gap: "8px" },
   netCard: { border: "2px solid #111827", borderRadius: "10px", padding: "10px", backgroundColor: "#fffdf0", display: "flex", justifyContent: "space-between", gap: "8px" },
@@ -229,4 +261,5 @@ const styles = {
   input: { border: "2px solid #d1d5db", borderRadius: "8px", padding: "8px", fontWeight: 700, minWidth: 0, width: "100%", boxSizing: "border-box" },
   primaryButton: { alignSelf: "end", backgroundColor: "#111827", color: "#ffffff", border: "2px solid #111827", borderRadius: "8px", padding: "9px 18px", fontWeight: 900, cursor: "pointer", minHeight: "38px", whiteSpace: "nowrap" },
   error: { marginBottom: "12px", padding: "10px", borderRadius: "10px", border: "1px solid #fecaca", backgroundColor: "#fef2f2", color: "#991b1b", fontWeight: 800 },
+  success: { marginBottom: "12px", padding: "10px", borderRadius: "10px", border: "1px solid #bbf7d0", backgroundColor: "#f0fdf4", color: "#166534", fontWeight: 800 },
 };
