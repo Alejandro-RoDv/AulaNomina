@@ -21,6 +21,7 @@ const overlayPages = [
 ];
 
 const companyPages = ["company-companies", "company-centers"];
+const conceptPages = ["payroll-concepts", "permanent-payroll-concepts"];
 const teachingPages = ["teacher-dashboard", "teaching-alerts", "case-studies", "assignments", "corrections", "student-demo", "students", "groups", "progress"];
 const overlayHashes = overlayPages.map((page) => `#${page}`);
 const IRPF_HASH = "#irpf-module";
@@ -35,6 +36,7 @@ export default function Sidebar({ activePage, setActivePage }) {
   const [hashActivePage, setHashActivePage] = useState(getOverlayPageFromHash());
   const [companyMenuOpen, setCompanyMenuOpen] = useState(true);
   const [employeeMenuOpen, setEmployeeMenuOpen] = useState(true);
+  const [conceptMenuOpen, setConceptMenuOpen] = useState(true);
 
   useEffect(() => {
     const syncActivePageFromHash = () => {
@@ -110,7 +112,16 @@ export default function Sidebar({ activePage, setActivePage }) {
     {
       title: "Acciones",
       items: [
-        { id: "payroll-concepts", label: "Conceptos", enabled: true },
+        {
+          id: "concepts-menu",
+          label: "Conceptos",
+          enabled: true,
+          menu: "concepts",
+          children: [
+            { id: "payroll-concepts", label: "Historial conceptos", enabled: true },
+            { id: "permanent-payroll-concepts", label: "Conceptos permanentes", enabled: true },
+          ],
+        },
         { id: "payrolls", label: "Cálculo nóminas", enabled: true },
         { id: "irpf", label: "IRPF", enabled: true },
         { id: "tax", label: "Mod. 111/190", enabled: false },
@@ -169,6 +180,7 @@ export default function Sidebar({ activePage, setActivePage }) {
     if (item.children) {
       if (item.menu === "company") setCompanyMenuOpen((prev) => !prev);
       if (item.menu === "employee") setEmployeeMenuOpen((prev) => !prev);
+      if (item.menu === "concepts") setConceptMenuOpen((prev) => !prev);
       return;
     }
 
@@ -208,8 +220,10 @@ export default function Sidebar({ activePage, setActivePage }) {
             <p style={styles.groupTitle}>{group.title}</p>
             <div style={styles.groupItems}>
               {group.items.map((item) => {
-                const submenuOpen = item.children && (item.menu === "company" ? companyMenuOpen : employeeMenuOpen);
-                const childPages = item.menu === "company" ? companyPages : ["employees", "employee-record"];
+                const submenuOpen = item.children && (
+                  item.menu === "company" ? companyMenuOpen : item.menu === "employee" ? employeeMenuOpen : conceptMenuOpen
+                );
+                const childPages = item.menu === "company" ? companyPages : item.menu === "employee" ? ["employees", "employee-record"] : conceptPages;
                 const isActive = currentActivePage === item.id || (item.id === "irpf" && currentActivePage === "irpf-module") || (item.children && childPages.includes(currentActivePage));
 
                 return (
