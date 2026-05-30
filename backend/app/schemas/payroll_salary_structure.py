@@ -314,4 +314,8 @@ class PayrollBreakdownResponse(BaseModel):
     bases_informativas: list[PayrollItemResponse] = []
     total_devengos: Decimal = Decimal("0.00")
     total_deducciones: Decimal = Decimal("0.00")
+    base_irpf_manual: Decimal = Decimal("0.00")
+    irpf_percentage: Decimal = Decimal("0.00")
+    irpf_manual: Decimal = Decimal("0.00")
     neto_manual: Decimal = Decimal("0.00")
+    neto_manual_con_irpf: Decimal = Decimal("0.00")
