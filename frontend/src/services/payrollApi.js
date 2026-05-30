@@ -73,8 +73,41 @@ export async function deletePayroll(payrollId) {
   );
 }
 
-export async function fetchPayrollConcepts() {
-  return apiRequest("/payroll-concepts", {}, "Error al cargar conceptos salariales");
+export async function fetchPayrollConcepts(includeInactive = false) {
+  const query = includeInactive ? "?include_inactive=true" : "";
+  return apiRequest(`/payroll-concepts${query}`, {}, "Error al cargar conceptos salariales");
+}
+
+export async function createPayrollConcept(payload) {
+  return apiRequest(
+    "/payroll-concepts",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    },
+    "Error al crear concepto retributivo"
+  );
+}
+
+export async function updatePayrollConcept(conceptId, payload) {
+  return apiRequest(
+    `/payroll-concepts/${conceptId}`,
+    {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    },
+    "Error al actualizar concepto retributivo"
+  );
+}
+
+export async function deactivatePayrollConcept(conceptId) {
+  return apiRequest(
+    `/payroll-concepts/${conceptId}/deactivate`,
+    { method: "POST" },
+    "Error al desactivar concepto retributivo"
+  );
 }
 
 export async function fetchPayrollItems(payrollId) {
