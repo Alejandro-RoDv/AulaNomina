@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import PageCard from "../components/layout/PageCard";
 import ContractForm from "../components/ContractForm";
 import ContractTable from "../components/ContractTable";
+import ContractPayrollConceptsPanel from "../components/contracts/ContractPayrollConceptsPanel";
 
 function normalizeText(value) {
   return String(value || "")
@@ -56,10 +57,16 @@ export default function ContractsPage({
     contractType: "",
     status: "",
   });
+  const [selectedContractId, setSelectedContractId] = useState("");
 
   const contractsWithDisplayCodes = useMemo(
     () => buildContractsWithDisplayCodes(contracts, employees),
     [contracts, employees]
+  );
+
+  const selectedContract = useMemo(
+    () => contractsWithDisplayCodes.find((contract) => String(contract.id) === String(selectedContractId)) || null,
+    [contractsWithDisplayCodes, selectedContractId]
   );
 
   const handleFilterChange = (event) => {
@@ -92,6 +99,11 @@ export default function ContractsPage({
     const companyCcc = company?.ccc || "";
     const companyCif = company?.cif || "";
     return `${companyName} ${centerName} ${companyCcc} ${companyCif} ${contract.company_id || ""} ${contract.center_id || ""}`;
+  };
+
+  const getContractOptionLabel = (contract) => {
+    const employeeText = contract.employee_name || getEmployeeText(contract).trim();
+    return `${contract.contract_display_code} · ${employeeText} · ${contract.contract_type || "Contrato"}`;
   };
 
   const filteredContracts = useMemo(() => {
@@ -134,6 +146,25 @@ export default function ContractsPage({
           success={contractSuccess}
           submitting={contractSubmitting}
         />
+      </PageCard>
+
+      <PageCard title="Conceptos permanentes por contrato" subtitle="Configura conceptos recurrentes: antigüedad, complemento convenio, mejora voluntaria, pluses fijos, etc.">
+        <div style={styles.selectorRow}>
+          <label style={styles.selectorGroup}>
+            Contrato
+            <select value={selectedContractId} onChange={(event) => setSelectedContractId(event.target.value)} style={styles.input}>
+              <option value="">Selecciona un contrato</option>
+              {contractsWithDisplayCodes.map((contract) => (
+                <option key={contract.id} value={contract.id}>{getContractOptionLabel(contract)}</option>
+              ))}
+            </select>
+          </label>
+        </div>
+        {selectedContract ? (
+          <ContractPayrollConceptsPanel contract={selectedContract} />
+        ) : (
+          <p style={styles.emptyPermanent}>Selecciona un contrato para ver o añadir sus conceptos permanentes.</p>
+        )}
       </PageCard>
 
       <PageCard title="Listado de contratos" subtitle="Contratos creados en el sistema.">
@@ -188,6 +219,9 @@ export default function ContractsPage({
 
 const styles = {
   wrapper: { display: "flex", flexDirection: "column", gap: "20px" },
+  selectorRow: { display: "grid", gridTemplateColumns: "minmax(300px, 1fr)", gap: "12px" },
+  selectorGroup: { display: "flex", flexDirection: "column", gap: "6px", fontWeight: 900, color: "#374151" },
+  emptyPermanent: { margin: "12px 0 0", color: "#6b7280", fontWeight: 700 },
   filters: { display: "grid", gridTemplateColumns: "86px 250px minmax(300px, 1fr) 150px 150px 124px", columnGap: "14px", rowGap: "10px", alignItems: "end", marginBottom: "18px" },
   filterGroupCode: { minWidth: 0, display: "flex", flexDirection: "column", gap: "6px" },
   filterGroupEmployee: { minWidth: 0, display: "flex", flexDirection: "column", gap: "6px" },
