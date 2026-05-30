@@ -33,8 +33,12 @@ function buildContractsWithDisplayCodes(contracts, employees) {
 }
 
 export default function PermanentPayrollConceptsPage({ contracts = [], employees = [], companies = [], workCenters = [] }) {
+  const [selectedCompanyId, setSelectedCompanyId] = useState("");
+  const [selectedCenterId, setSelectedCenterId] = useState("");
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState("");
   const [selectedContractId, setSelectedContractId] = useState("");
-  const [filters, setFilters] = useState({ employee: "", company: "", contractType: "", status: "" });
+  const [quickSearch, setQuickSearch] = useState("");
+  const [contractStatus, setContractStatus] = useState("active");
 
   const contractsWithDisplayCodes = useMemo(
     () => buildContractsWithDisplayCodes(contracts, employees),
@@ -66,20 +70,32 @@ export default function PermanentPayrollConceptsPage({ contracts = [], employees
     return `${getCompanyAndCenterName(contract)} ${company?.cif || ""} ${company?.ccc || ""} ${center?.center_code || ""}`;
   }
 
-  const filteredContracts = useMemo(() => {
-    const employeeFilter = normalizeText(filters.employee);
-    const companyFilter = normalizeText(filters.company);
-    const typeFilter = normalizeText(filters.contractType);
-    const statusFilter = normalizeText(filters.status);
+  const availableCenters = useMemo(() => {
+    if (!selectedCompanyId) return [];
+    return workCenters.filter((center) => String(center.company_id) === String(selectedCompanyId));
+  }, [workCenters, selectedCompanyId]);
 
+  const contractsAfterCompany = useMemo(() => {
     return contractsWithDisplayCodes.filter((contract) => {
-      const matchesEmployee = !employeeFilter || normalizeText(getEmployeeSearchText(contract)).includes(employeeFilter);
-      const matchesCompany = !companyFilter || normalizeText(getCompanySearchText(contract)).includes(companyFilter);
-      const matchesType = !typeFilter || normalizeText(contract.contract_type) === typeFilter;
-      const matchesStatus = !statusFilter || normalizeText(contract.status) === statusFilter;
-      return matchesEmployee && matchesCompany && matchesType && matchesStatus;
+      const matchesCompany = !selectedCompanyId || String(contract.company_id) === String(selectedCompanyId);
+      const matchesCenter = !selectedCenterId || String(contract.center_id) === String(selectedCenterId);
+      const matchesStatus = !contractStatus || contract.status === contractStatus;
+      const query = normalizeText(quickSearch);
+      const matchesSearch = !query || normalizeText(`${getEmployeeSearchText(contract)} ${getCompanySearchText(contract)} ${contract.contract_display_code}`).includes(query);
+      return matchesCompany && matchesCenter && matchesStatus && matchesSearch;
     });
-  }, [contractsWithDisplayCodes, employees, companies, workCenters, filters]);
+  }, [contractsWithDisplayCodes, selectedCompanyId, selectedCenterId, contractStatus, quickSearch]);
+
+  const availableEmployees = useMemo(() => {
+    const ids = new Set(contractsAfterCompany.map((contract) => Number(contract.employee_id)));
+    return employees
+      .filter((employee) => ids.has(Number(employee.id)))
+      .sort((a, b) => `${a.last_name || ""} ${a.first_name || ""}`.localeCompare(`${b.last_name || ""} ${b.first_name || ""}`));
+  }, [employees, contractsAfterCompany]);
+
+  const filteredContracts = useMemo(() => {
+    return contractsAfterCompany.filter((contract) => !selectedEmployeeId || String(contract.employee_id) === String(selectedEmployeeId));
+  }, [contractsAfterCompany, selectedEmployeeId]);
 
   const selectedContract = useMemo(
     () => filteredContracts.find((contract) => String(contract.id) === String(selectedContractId)) || null,
@@ -90,15 +106,43 @@ export default function PermanentPayrollConceptsPage({ contracts = [], employees
     return `${contract.contract_display_code} · ${getEmployeeName(contract)} · ${contract.contract_type || "Contrato"}`;
   }
 
-  function handleFilterChange(event) {
-    const { name, value } = event.target;
-    setFilters((current) => ({ ...current, [name]: value }));
+  function handleCompanyChange(event) {
+    setSelectedCompanyId(event.target.value);
+    setSelectedCenterId("");
+    setSelectedEmployeeId("");
+    setSelectedContractId("");
+  }
+
+  function handleCenterChange(event) {
+    setSelectedCenterId(event.target.value);
+    setSelectedEmployeeId("");
+    setSelectedContractId("");
+  }
+
+  function handleEmployeeChange(event) {
+    setSelectedEmployeeId(event.target.value);
+    setSelectedContractId("");
+  }
+
+  function handleContractStatusChange(event) {
+    setContractStatus(event.target.value);
+    setSelectedEmployeeId("");
+    setSelectedContractId("");
+  }
+
+  function handleQuickSearchChange(event) {
+    setQuickSearch(event.target.value);
+    setSelectedEmployeeId("");
     setSelectedContractId("");
   }
 
   function clearFilters() {
-    setFilters({ employee: "", company: "", contractType: "", status: "" });
+    setSelectedCompanyId("");
+    setSelectedCenterId("");
+    setSelectedEmployeeId("");
     setSelectedContractId("");
+    setQuickSearch("");
+    setContractStatus("active");
   }
 
   return (
@@ -113,40 +157,55 @@ export default function PermanentPayrollConceptsPage({ contracts = [], employees
           <div style={styles.kpi}><span>Seleccionado</span><strong>{selectedContract ? selectedContract.contract_display_code : "-"}</strong></div>
         </div>
 
-        <div style={styles.filtersBox}>
+        <div style={styles.guidedBox}>
           <div style={styles.filtersHeader}>
-            <h3 style={styles.blockTitle}>Buscar contrato</h3>
-            <button type="button" onClick={clearFilters} style={styles.clearButton}>Limpiar filtros</button>
+            <h3 style={styles.blockTitle}>Selección guiada</h3>
+            <button type="button" onClick={clearFilters} style={styles.clearButton}>Limpiar selección</button>
           </div>
-          <div style={styles.filtersGrid}>
-            <label style={styles.field}>Trabajador
-              <input name="employee" value={filters.employee} onChange={handleFilterChange} placeholder="Nombre, DNI o código" style={styles.input} />
-            </label>
-            <label style={styles.field}>Empresa / centro
-              <input name="company" value={filters.company} onChange={handleFilterChange} placeholder="Empresa, centro, CIF o CCC" style={styles.input} />
-            </label>
-            <label style={styles.field}>Tipo contrato
-              <select name="contractType" value={filters.contractType} onChange={handleFilterChange} style={styles.input}>
-                <option value="">Todos</option>
-                <option value="indefinido">Indefinido</option>
-                <option value="temporal">Temporal</option>
-                <option value="practicas">Prácticas</option>
-                <option value="formacion">Formación</option>
+
+          <div style={styles.stepGrid}>
+            <label style={styles.field}>1. Empresa
+              <select value={selectedCompanyId} onChange={handleCompanyChange} style={styles.input}>
+                <option value="">Todas las empresas</option>
+                {companies.map((company) => <option key={company.id} value={company.id}>{company.name}</option>)}
               </select>
             </label>
-            <label style={styles.field}>Estado
-              <select name="status" value={filters.status} onChange={handleFilterChange} style={styles.input}>
-                <option value="">Todos</option>
-                <option value="active">Activo</option>
-                <option value="ended">Finalizado</option>
+
+            <label style={styles.field}>2. Centro
+              <select value={selectedCenterId} onChange={handleCenterChange} style={styles.input} disabled={!selectedCompanyId}>
+                <option value="">Todos los centros</option>
+                {availableCenters.map((center) => <option key={center.id} value={center.id}>{center.name}</option>)}
               </select>
+            </label>
+
+            <label style={styles.field}>Estado contrato
+              <select value={contractStatus} onChange={handleContractStatusChange} style={styles.input}>
+                <option value="active">Activos</option>
+                <option value="ended">Finalizados</option>
+                <option value="">Todos</option>
+              </select>
+            </label>
+          </div>
+
+          <div style={styles.stepGridSecond}>
+            <label style={styles.field}>3. Trabajador
+              <select value={selectedEmployeeId} onChange={handleEmployeeChange} style={styles.input}>
+                <option value="">Todos los trabajadores filtrados</option>
+                {availableEmployees.map((employee) => (
+                  <option key={employee.id} value={employee.id}>{employee.employee_code || employee.id} · {employee.first_name} {employee.last_name}</option>
+                ))}
+              </select>
+            </label>
+
+            <label style={styles.field}>Búsqueda rápida
+              <input value={quickSearch} onChange={handleQuickSearchChange} placeholder="Nombre, DNI, empresa, CCC o código" style={styles.input} />
             </label>
           </div>
         </div>
 
         <div style={styles.selectorBlock}>
           <label style={styles.selectorGroup}>
-            Contrato filtrado
+            4. Contrato
             <select value={selectedContractId} onChange={(event) => setSelectedContractId(event.target.value)} style={styles.contractSelect}>
               <option value="">Selecciona un contrato</option>
               {filteredContracts.map((contract) => (
@@ -168,7 +227,7 @@ export default function PermanentPayrollConceptsPage({ contracts = [], employees
         {selectedContract ? (
           <ContractPayrollConceptsPanel contract={selectedContract} />
         ) : (
-          <p style={styles.empty}>Selecciona un contrato para ver o añadir sus conceptos permanentes.</p>
+          <p style={styles.empty}>Selecciona empresa, trabajador y contrato para ver o añadir sus conceptos permanentes.</p>
         )}
       </PageCard>
     </div>
@@ -179,10 +238,11 @@ const styles = {
   wrapper: { display: "flex", flexDirection: "column", gap: "20px" },
   kpiGrid: { display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: "12px", marginBottom: "16px" },
   kpi: { border: "2px solid #111827", borderRadius: "12px", padding: "11px 12px", backgroundColor: "#fffdf0", display: "flex", justifyContent: "space-between", gap: "12px", fontWeight: 900 },
-  filtersBox: { border: "2px solid #111827", borderRadius: "14px", padding: "14px", backgroundColor: "#ffffff", marginBottom: "16px", boxShadow: "3px 3px 0 #e6d85c" },
+  guidedBox: { border: "2px solid #111827", borderRadius: "14px", padding: "14px", backgroundColor: "#ffffff", marginBottom: "16px", boxShadow: "3px 3px 0 #e6d85c" },
   filtersHeader: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px", marginBottom: "12px" },
   blockTitle: { margin: 0, fontSize: "17px", fontWeight: 900, color: "#111827" },
-  filtersGrid: { display: "grid", gridTemplateColumns: "1.2fr 1.4fr 160px 150px", gap: "12px", alignItems: "end" },
+  stepGrid: { display: "grid", gridTemplateColumns: "1.4fr 1.4fr 180px", gap: "12px", alignItems: "end", marginBottom: "12px" },
+  stepGridSecond: { display: "grid", gridTemplateColumns: "1.3fr 1.7fr", gap: "12px", alignItems: "end" },
   selectorBlock: { display: "flex", flexDirection: "column", gap: "12px" },
   selectorGroup: { display: "flex", flexDirection: "column", gap: "6px", fontWeight: 900, color: "#374151" },
   field: { display: "flex", flexDirection: "column", gap: "6px", fontSize: "12px", fontWeight: 900, color: "#374151" },
