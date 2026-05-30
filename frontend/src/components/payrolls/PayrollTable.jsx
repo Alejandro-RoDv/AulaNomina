@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { PAYROLL_STATUS_OPTIONS, formatCurrency } from "./PayrollForm";
 import PayrollDetailsModal from "./PayrollDetailsModal";
+import PayrollConceptBreakdown from "./PayrollConceptBreakdown";
 import { getPayrollVisibleCode } from "../../utils/visibleCodes";
 
 function formatPeriod(payroll) {
@@ -45,6 +46,7 @@ export default function PayrollTable({
   submitting,
 }) {
   const [selectedPayroll, setSelectedPayroll] = useState(null);
+  const [expandedPayroll, setExpandedPayroll] = useState(null);
   const [editForm, setEditForm] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -60,6 +62,10 @@ export default function PayrollTable({
     setShowDeleteConfirm(false);
     setEditError("");
     setDeleteError("");
+  };
+
+  const toggleBreakdown = (payroll) => {
+    setExpandedPayroll((current) => current?.id === payroll.id ? null : payroll);
   };
 
   const closeDetailsModal = () => {
@@ -156,9 +162,12 @@ export default function PayrollTable({
                 <td style={styles.td}>
                   <span style={getStatusStyle(payroll.status)}>{getStatusLabel(payroll.status)}</span>
                 </td>
-                <td style={styles.td}>
+                <td style={styles.tdActions}>
                   <button type="button" onClick={() => openDetailsModal(payroll)} style={styles.detailsButton}>
                     Detalles
+                  </button>
+                  <button type="button" onClick={() => toggleBreakdown(payroll)} style={styles.breakdownButton}>
+                    Conceptos
                   </button>
                 </td>
               </tr>
@@ -171,6 +180,19 @@ export default function PayrollTable({
           </tbody>
         </table>
       </div>
+
+      {expandedPayroll && (
+        <div style={styles.breakdownPanel}>
+          <div style={styles.breakdownHeader}>
+            <div>
+              <h3 style={styles.breakdownTitle}>Conceptos de nómina</h3>
+              <p style={styles.breakdownSubtitle}>Nómina {getPayrollCode(expandedPayroll)} · {expandedPayroll.employee_name || expandedPayroll.employee_id}</p>
+            </div>
+            <button type="button" onClick={() => setExpandedPayroll(null)} style={styles.closePanelButton}>Cerrar</button>
+          </div>
+          <PayrollConceptBreakdown payrollId={expandedPayroll.id} />
+        </div>
+      )}
 
       <PayrollDetailsModal
         payroll={selectedPayroll}
@@ -202,8 +224,9 @@ const styles = {
   thPeriod: { width: "96px", textAlign: "left", padding: "12px 10px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb" },
   thAmount: { width: "118px", textAlign: "right", padding: "12px 10px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb" },
   thStatus: { width: "96px", textAlign: "left", padding: "12px 10px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb" },
-  thActions: { width: "96px", textAlign: "left", padding: "12px 10px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb" },
+  thActions: { width: "180px", textAlign: "left", padding: "12px 10px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb" },
   td: { padding: "12px 10px", borderBottom: "1px solid #eee", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" },
+  tdActions: { padding: "12px 10px", borderBottom: "1px solid #eee", display: "flex", gap: "8px", alignItems: "center" },
   tdCode: { padding: "12px 10px", borderBottom: "1px solid #eee", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", fontWeight: 900 },
   tdAmount: { padding: "12px 10px", borderBottom: "1px solid #eee", textAlign: "right", whiteSpace: "nowrap" },
   tdAmountStrong: { padding: "12px 10px", borderBottom: "1px solid #eee", textAlign: "right", whiteSpace: "nowrap", fontWeight: 900 },
@@ -213,4 +236,10 @@ const styles = {
   closedBadge: { backgroundColor: "#dcfce7", color: "#166534", padding: "4px 8px", borderRadius: "999px", fontSize: "12px", fontWeight: 800 },
   cancelledBadge: { backgroundColor: "#fee2e2", color: "#991b1b", padding: "4px 8px", borderRadius: "999px", fontSize: "12px", fontWeight: 800 },
   detailsButton: { backgroundColor: "#111827", color: "#ffffff", border: "1px solid #111827", borderRadius: "8px", padding: "7px 10px", cursor: "pointer", fontWeight: 700 },
+  breakdownButton: { backgroundColor: "#e6d85c", color: "#111827", border: "1px solid #111827", borderRadius: "8px", padding: "7px 10px", cursor: "pointer", fontWeight: 800 },
+  breakdownPanel: { marginTop: "18px", border: "2px solid #111827", borderRadius: "16px", backgroundColor: "#fffdf0", padding: "16px", boxShadow: "4px 4px 0 #111827" },
+  breakdownHeader: { display: "flex", justifyContent: "space-between", gap: "16px", alignItems: "start", marginBottom: "12px" },
+  breakdownTitle: { margin: 0, fontSize: "20px", fontWeight: 900, color: "#111827" },
+  breakdownSubtitle: { margin: "4px 0 0", color: "#6b7280", fontSize: "13px", fontWeight: 700 },
+  closePanelButton: { backgroundColor: "#ffffff", color: "#111827", border: "2px solid #111827", borderRadius: "8px", padding: "8px 12px", cursor: "pointer", fontWeight: 900 },
 };
