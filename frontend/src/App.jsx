@@ -16,6 +16,7 @@ import EmployeesPage from "./pages/EmployeesPage";
 import IncidentsPage from "./pages/IncidentsPage";
 import PayrollConceptsPage from "./pages/PayrollConceptsPage";
 import PayrollsPage from "./pages/PayrollsPage";
+import PermanentPayrollConceptsPage from "./pages/PermanentPayrollConceptsPage";
 
 import { useAppData } from "./hooks/useAppData";
 import { useCompaniesModule } from "./hooks/useCompaniesModule";
@@ -150,7 +151,8 @@ export default function App() {
     if (activePage === "employees") return "Trabajadores";
     if (activePage === "contracts") return "Contratos";
     if (activePage === "collective-agreements") return "Convenios";
-    if (activePage === "payroll-concepts") return "Conceptos retributivos";
+    if (activePage === "payroll-concepts") return "Historial de conceptos";
+    if (activePage === "permanent-payroll-concepts") return "Conceptos permanentes";
     if (activePage === "payrolls") return "Nóminas";
     if (activePage === "incidents") return "Incidencias laborales";
     if (activePage === "documents") return "Documentos";
@@ -166,7 +168,8 @@ export default function App() {
     if (activePage === "employees") return "Gestión de trabajadores";
     if (activePage === "contracts") return "Gestión de contratos laborales";
     if (activePage === "collective-agreements") return "Parámetros de convenio para consulta didáctica y salario base mínimo";
-    if (activePage === "payroll-concepts") return "Catálogo de conceptos de sistema, personalizados y de convenio";
+    if (activePage === "payroll-concepts") return "Catálogo general de conceptos de sistema, personalizados y de convenio";
+    if (activePage === "permanent-payroll-concepts") return "Conceptos recurrentes asociados a contratos";
     if (activePage === "payrolls") return "Generación y consulta de nóminas simuladas";
     if (activePage === "incidents") return "Gestión de IT, recaídas, vacaciones, ausencias y permisos";
     if (activePage === "documents") return "Gestión documental del expediente laboral";
@@ -204,6 +207,17 @@ export default function App() {
 
     if (activePage === "payroll-concepts") {
       return <PayrollConceptsPage />;
+    }
+
+    if (activePage === "permanent-payroll-concepts") {
+      return (
+        <PermanentPayrollConceptsPage
+          contracts={contracts}
+          employees={employees.filter((employee) => employee.is_active)}
+          companies={companies.filter((company) => company.is_active)}
+          workCenters={workCenters.filter((center) => center.is_active)}
+        />
+      );
     }
 
     if (activePage === "companies") {
