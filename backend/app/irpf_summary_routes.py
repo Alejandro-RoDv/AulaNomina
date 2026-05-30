@@ -1,8 +1,10 @@
+from calendar import monthrange
+from datetime import date
 from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app.db import SessionLocal
 from app.crud.payroll import (
@@ -13,6 +15,7 @@ from app.crud.payroll import (
 from app.models.contract import Contract
 from app.models.employee import Employee
 from app.models.payroll import Payroll
+from app.models.payroll_salary_structure import ContractPayrollConcept, PayrollItem
 from app.models.tax_profile import TaxProfile
 from app.services.irpf_calculator import calculate_irpf_2026
 from app.services.payroll_amounts import calculate_payroll_amounts
@@ -95,6 +98,127 @@ def build_incentive_map(incentives: list[IrpfAnnualIncentive]):
     return result, details
 
 
+def get_month_period(month: int, year: int):
+    return date(year, month, 1), date(year, month, monthrange(year, month)[1])
+
+
+def line_applies_to_month(line, month: int, year: int):
+    period_start, period_end = get_month_period(month, year)
+    if line.start_date and line.start_date > period_end:
+        return False
+    if line.end_date and line.end_date < period_start:
+        return False
+    return True
+
+
+def summarize_concept_lines(lines):
+    totals = {
+        "gross_devengos": Decimal("0.00"),
+        "taxable_devengos": Decimal("0.00"),
+        "contribution_devengos": Decimal("0.00"),
+        "manual_deductions": Decimal("0.00"),
+    }
+
+    for line in lines:
+        concept = getattr(line, "concept", None)
+        if not concept:
+            continue
+
+        amount = money(getattr(line, "amount", 0))
+        if concept.concept_type == "DEDUCCION":
+            totals["manual_deductions"] += amount
+            continue
+
+        if concept.concept_type != "DEVENGO":
+            continue
+
+        totals["gross_devengos"] += amount
+        if concept.is_taxable:
+            totals["taxable_devengos"] += amount
+        if concept.is_contribution_base:
+            totals["contribution_devengos"] += amount
+
+    return {key: money(value) for key, value in totals.items()}
+
+
+def apply_concept_totals_to_snapshot(snapshot: dict | None, concept_totals: dict, irpf_percentage: Decimal):
+    if not snapshot:
+        snapshot = build_empty_snapshot(irpf_percentage)
+
+    gross_devengos = money(concept_totals.get("gross_devengos", 0))
+    taxable_devengos = money(concept_totals.get("taxable_devengos", 0))
+    contribution_devengos = money(concept_totals.get("contribution_devengos", 0))
+    manual_deductions = money(concept_totals.get("manual_deductions", 0))
+
+    if gross_devengos == Decimal("0.00") and manual_deductions == Decimal("0.00"):
+        return snapshot
+
+    extra_amounts = calculate_payroll_amounts(
+        gross_salary=gross_devengos,
+        common_contingencies_base=contribution_devengos,
+        professional_contingencies_base=contribution_devengos,
+        unemployment_training_fogasa_base=contribution_devengos,
+        irpf_base=taxable_devengos,
+        irpf_percentage=irpf_percentage,
+    )
+
+    return {
+        "base_salary": decimal_to_float(snapshot.get("base_salary")),
+        "salary_supplements": round(decimal_to_float(snapshot.get("salary_supplements")) + decimal_to_float(gross_devengos), 2),
+        "extra_pay_proration": decimal_to_float(snapshot.get("extra_pay_proration")),
+        "gross_salary": round(decimal_to_float(snapshot.get("gross_salary")) + decimal_to_float(extra_amounts["gross_salary"]), 2),
+        "employee_social_security": round(decimal_to_float(snapshot.get("employee_social_security")) + decimal_to_float(extra_amounts["employee_social_security"]), 2),
+        "irpf_percentage": decimal_to_float(irpf_percentage),
+        "suggested_irpf_percentage": decimal_to_float(irpf_percentage),
+        "irpf": round(decimal_to_float(snapshot.get("irpf")) + decimal_to_float(extra_amounts["irpf"]), 2),
+        "total_deductions": round(
+            decimal_to_float(snapshot.get("total_deductions"))
+            + decimal_to_float(extra_amounts["total_deductions"])
+            + decimal_to_float(manual_deductions),
+            2,
+        ),
+        "net_salary": round(
+            decimal_to_float(snapshot.get("net_salary"))
+            + decimal_to_float(extra_amounts["net_salary"])
+            - decimal_to_float(manual_deductions),
+            2,
+        ),
+    }
+
+
+def get_payroll_concept_totals(db: Session, payroll_id: int):
+    lines = db.query(PayrollItem).options(joinedload(PayrollItem.concept)).filter(
+        PayrollItem.payroll_id == payroll_id,
+    ).all()
+    return summarize_concept_lines(lines)
+
+
+def get_contract_concept_totals(db: Session, contract_id: int, month: int, year: int):
+    lines = db.query(ContractPayrollConcept).options(joinedload(ContractPayrollConcept.concept)).filter(
+        ContractPayrollConcept.contract_id == contract_id,
+        ContractPayrollConcept.is_active == True,
+    ).all()
+    active_lines = [line for line in lines if line_applies_to_month(line, month, year)]
+    return summarize_concept_lines(active_lines)
+
+
+def get_contract_annual_concept_totals(db: Session, contract: Contract | None, year: int):
+    if not contract:
+        return summarize_concept_lines([])
+
+    annual_totals = {
+        "gross_devengos": Decimal("0.00"),
+        "taxable_devengos": Decimal("0.00"),
+        "contribution_devengos": Decimal("0.00"),
+        "manual_deductions": Decimal("0.00"),
+    }
+    for month in MONTHS:
+        monthly_totals = get_contract_concept_totals(db, contract.id, month, year)
+        for key in annual_totals:
+            annual_totals[key] += money(monthly_totals.get(key, 0))
+    return {key: money(value) for key, value in annual_totals.items()}
+
+
 def build_empty_snapshot(irpf_percentage: Decimal):
     return {
         "base_salary": 0,
@@ -160,6 +284,7 @@ def merge_snapshots(primary: dict | None, extra: dict | None):
 
 
 def build_forecast_snapshot(
+    db: Session,
     contract: Contract | None,
     month: int,
     year: int,
@@ -185,6 +310,9 @@ def build_forecast_snapshot(
         irpf_percentage=irpf_percentage,
     )
 
+    contract_concept_totals = get_contract_concept_totals(db, contract.id, month, year)
+    snapshot = apply_concept_totals_to_snapshot(snapshot, contract_concept_totals, irpf_percentage)
+
     # For 14-pay contracts, the annual forecast shown in the IRPF screen must include
     # the two extra pays. They are merged into July and December so the annual total
     # matches the agreed gross annual salary without requiring separate visible rows.
@@ -202,35 +330,39 @@ def build_forecast_snapshot(
     return snapshot
 
 
-def build_real_snapshot(payroll: Payroll, contract: Contract | None = None):
+def build_real_snapshot(db: Session, payroll: Payroll, contract: Contract | None = None):
     # Existing payrolls generated before a formula correction may contain stale stored
     # amounts. Rebuild the displayed snapshot from the current contract rules so IRPF
     # annual views remain coherent with the current payroll engine.
     if contract:
         base_salary = calculate_contract_base_salary(contract, payroll.period_month)
         extra_pay_proration = calculate_extra_pay_proration(contract, payroll.period_month)
-        return build_snapshot_from_amounts(
+        snapshot = build_snapshot_from_amounts(
             base_salary=base_salary,
             salary_supplements=money(payroll.salary_supplements),
             extra_pay_proration=extra_pay_proration,
             irpf_percentage=money(payroll.irpf_percentage),
         )
+    else:
+        snapshot = {
+            "base_salary": decimal_to_float(payroll.base_salary),
+            "salary_supplements": decimal_to_float(payroll.salary_supplements),
+            "extra_pay_proration": decimal_to_float(payroll.extra_pay_proration),
+            "gross_salary": decimal_to_float(payroll.gross_salary),
+            "employee_social_security": decimal_to_float(payroll.employee_social_security),
+            "irpf_percentage": decimal_to_float(payroll.irpf_percentage),
+            "suggested_irpf_percentage": decimal_to_float(payroll.suggested_irpf_percentage),
+            "irpf": decimal_to_float(payroll.irpf),
+            "total_deductions": decimal_to_float(payroll.total_deductions),
+            "net_salary": decimal_to_float(payroll.net_salary),
+        }
 
-    return {
-        "base_salary": decimal_to_float(payroll.base_salary),
-        "salary_supplements": decimal_to_float(payroll.salary_supplements),
-        "extra_pay_proration": decimal_to_float(payroll.extra_pay_proration),
-        "gross_salary": decimal_to_float(payroll.gross_salary),
-        "employee_social_security": decimal_to_float(payroll.employee_social_security),
-        "irpf_percentage": decimal_to_float(payroll.irpf_percentage),
-        "suggested_irpf_percentage": decimal_to_float(payroll.suggested_irpf_percentage),
-        "irpf": decimal_to_float(payroll.irpf),
-        "total_deductions": decimal_to_float(payroll.total_deductions),
-        "net_salary": decimal_to_float(payroll.net_salary),
-    }
+    concept_totals = get_payroll_concept_totals(db, payroll.id)
+    return apply_concept_totals_to_snapshot(snapshot, concept_totals, money(payroll.irpf_percentage))
 
 
 def build_month_row(
+    db: Session,
     month: int,
     year: int,
     real_payroll: Payroll | None,
@@ -240,8 +372,8 @@ def build_month_row(
     forecast_status: str,
     incentive_details: list[dict],
 ):
-    real_snapshot = build_real_snapshot(real_payroll, contract) if real_payroll else None
-    extra_snapshot = build_real_snapshot(real_extra_payroll, contract) if real_extra_payroll else None
+    real_snapshot = build_real_snapshot(db, real_payroll, contract) if real_payroll else None
+    extra_snapshot = build_real_snapshot(db, real_extra_payroll, contract) if real_extra_payroll else None
     real_snapshot = merge_snapshots(real_snapshot, extra_snapshot)
     projected_snapshot = real_snapshot if real_snapshot else forecast_snapshot
     status = "Cobrado" if real_snapshot else forecast_status
@@ -324,14 +456,16 @@ def build_irpf_annual_summary(db: Session, employee_id: int, year: int, incentiv
     incentive_map, incentive_details = build_incentive_map(incentives)
 
     expected_annual_salary = money(contract.salary_base if contract else 0)
+    permanent_annual_totals = get_contract_annual_concept_totals(db, contract, year)
     forecast_variables_total = sum(incentive_map.values(), Decimal("0.00")) + (salary_increase * Decimal("12"))
-    expected_annual_salary_with_variables = expected_annual_salary + forecast_variables_total
+    expected_annual_salary_with_variables = expected_annual_salary + forecast_variables_total + permanent_annual_totals["gross_devengos"]
+    irpf_expected_annual_salary = expected_annual_salary + forecast_variables_total + permanent_annual_totals["taxable_devengos"]
 
     if contract:
-        payload = tax_profile_to_calculation_payload(tax_profile, employee, contract, expected_annual_salary_with_variables)
-        payload["expected_annual_salary"] = expected_annual_salary_with_variables
+        payload = tax_profile_to_calculation_payload(tax_profile, employee, contract, irpf_expected_annual_salary)
+        payload["expected_annual_salary"] = irpf_expected_annual_salary
     else:
-        payload = build_fallback_payload(employee, tax_profile, expected_annual_salary_with_variables)
+        payload = build_fallback_payload(employee, tax_profile, irpf_expected_annual_salary)
 
     calculation = calculate_irpf_2026(payload)
     suggested_irpf = Decimal(str(calculation.get("suggested_irpf", 0))).quantize(Decimal("0.01"))
@@ -360,6 +494,7 @@ def build_irpf_annual_summary(db: Session, employee_id: int, year: int, incentiv
         incentive_amount = incentive_map.get(month, Decimal("0.00"))
         monthly_supplements = money(salary_increase) + money(incentive_amount)
         forecast_snapshot = build_forecast_snapshot(
+            db=db,
             contract=contract,
             month=month,
             year=year,
@@ -368,6 +503,7 @@ def build_irpf_annual_summary(db: Session, employee_id: int, year: int, incentiv
             incentive_amount=incentive_amount,
         )
         rows.append(build_month_row(
+            db=db,
             month=month,
             year=year,
             real_payroll=real_by_month.get(month),
@@ -382,6 +518,16 @@ def build_irpf_annual_summary(db: Session, employee_id: int, year: int, incentiv
     pending_projected_snapshots = [row["projected"] for row in rows if row["source"] == "forecast"]
     annual_projected_snapshots = [row["projected"] for row in rows]
 
+    real_totals = build_totals_from_snapshots(real_snapshots)
+    forecast_totals = build_totals_from_snapshots(pending_projected_snapshots)
+    annual_totals = build_totals_from_snapshots(annual_projected_snapshots)
+
+    # Avoid showing 59.999,94 € for a 60.000,00 € annual salary only because each
+    # monthly/extra pay is rounded to cents. The annual gross shown in the IRPF module
+    # must respect the agreed annual figure plus taxable/non-taxable permanent concepts.
+    if contract:
+        annual_totals["gross"] = decimal_to_float(money(expected_annual_salary_with_variables))
+
     return {
         "employee_id": employee.id,
         "employee_name": f"{employee.first_name} {employee.last_name}".strip(),
@@ -392,6 +538,8 @@ def build_irpf_annual_summary(db: Session, employee_id: int, year: int, incentiv
         "expected_annual_salary": decimal_to_float(expected_annual_salary),
         "expected_annual_salary_with_variables": decimal_to_float(expected_annual_salary_with_variables),
         "future_variables_total": decimal_to_float(forecast_variables_total),
+        "permanent_concepts_annual_gross": decimal_to_float(permanent_annual_totals["gross_devengos"]),
+        "permanent_concepts_annual_taxable": decimal_to_float(permanent_annual_totals["taxable_devengos"]),
         "salary_increase": decimal_to_float(salary_increase),
         "current_irpf": decimal_to_float(applied_irpf),
         "suggested_irpf": decimal_to_float(suggested_irpf),
@@ -399,9 +547,9 @@ def build_irpf_annual_summary(db: Session, employee_id: int, year: int, incentiv
         "irpf_mode": "voluntary" if voluntary_irpf is not None else "auto",
         "calculation": calculation,
         "totals": {
-            "real": build_totals_from_snapshots(real_snapshots),
-            "forecast": build_totals_from_snapshots(pending_projected_snapshots),
-            "annual": build_totals_from_snapshots(annual_projected_snapshots),
+            "real": real_totals,
+            "forecast": forecast_totals,
+            "annual": annual_totals,
         },
         "future_incentives": [
             {
