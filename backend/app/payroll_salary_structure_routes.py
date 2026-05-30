@@ -3,17 +3,26 @@ from sqlalchemy.orm import Session
 
 from app.crud.payroll_salary_structure import (
     build_payroll_breakdown,
+    create_contract_payroll_concept,
     create_payroll_concept,
     create_payroll_item,
+    deactivate_contract_payroll_concept,
     deactivate_payroll_concept,
+    get_contract_payroll_concepts,
     get_payroll_concept,
     get_payroll_concepts,
     get_payroll_items,
+    load_contract_concepts_into_payroll,
+    update_contract_payroll_concept,
     update_payroll_concept,
     update_payroll_item,
 )
 from app.db import SessionLocal
 from app.schemas.payroll_salary_structure import (
+    ContractPayrollConceptCreate,
+    ContractPayrollConceptResponse,
+    ContractPayrollConceptUpdate,
+    LoadContractConceptsResponse,
     PayrollBreakdownResponse,
     PayrollConceptCreate,
     PayrollConceptResponse,
@@ -75,6 +84,44 @@ def deactivate_payroll_concept_endpoint(concept_id: int, db: Session = Depends(g
     return {"ok": True, "deactivated_id": concept_id}
 
 
+@router.get("/contracts/{contract_id}/payroll-concepts", response_model=list[ContractPayrollConceptResponse])
+def list_contract_payroll_concepts(
+    contract_id: int,
+    include_inactive: bool = Query(default=False),
+    db: Session = Depends(get_db),
+):
+    return get_contract_payroll_concepts(db, contract_id, include_inactive=include_inactive)
+
+
+@router.post("/contracts/{contract_id}/payroll-concepts", response_model=ContractPayrollConceptResponse)
+def create_contract_payroll_concept_endpoint(
+    contract_id: int,
+    item: ContractPayrollConceptCreate,
+    db: Session = Depends(get_db),
+):
+    return create_contract_payroll_concept(db, contract_id, item)
+
+
+@router.put("/contract-payroll-concepts/{concept_line_id}", response_model=ContractPayrollConceptResponse)
+def update_contract_payroll_concept_endpoint(
+    concept_line_id: int,
+    item: ContractPayrollConceptUpdate,
+    db: Session = Depends(get_db),
+):
+    updated_item = update_contract_payroll_concept(db, concept_line_id, item)
+    if not updated_item:
+        raise HTTPException(status_code=404, detail="Concepto permanente no encontrado")
+    return updated_item
+
+
+@router.post("/contract-payroll-concepts/{concept_line_id}/deactivate")
+def deactivate_contract_payroll_concept_endpoint(concept_line_id: int, db: Session = Depends(get_db)):
+    deactivated_item = deactivate_contract_payroll_concept(db, concept_line_id)
+    if not deactivated_item:
+        raise HTTPException(status_code=404, detail="Concepto permanente no encontrado")
+    return {"ok": True, "deactivated_id": concept_line_id}
+
+
 @router.get("/payrolls/{payroll_id}/items", response_model=list[PayrollItemResponse])
 def list_payroll_items(payroll_id: int, db: Session = Depends(get_db)):
     return get_payroll_items(db, payroll_id)
@@ -87,6 +134,11 @@ def create_payroll_item_endpoint(
     db: Session = Depends(get_db),
 ):
     return create_payroll_item(db, payroll_id, item)
+
+
+@router.post("/payrolls/{payroll_id}/load-contract-concepts", response_model=LoadContractConceptsResponse)
+def load_contract_concepts_into_payroll_endpoint(payroll_id: int, db: Session = Depends(get_db)):
+    return load_contract_concepts_into_payroll(db, payroll_id)
 
 
 @router.put("/payroll-items/{item_id}", response_model=PayrollItemResponse)
