@@ -3,9 +3,17 @@ from decimal import Decimal
 from fastapi import HTTPException
 from sqlalchemy.orm import Session, joinedload
 
+from app.models.contract import Contract
 from app.models.payroll import Payroll
-from app.models.payroll_salary_structure import PayrollConcept, PayrollItem
-from app.schemas.payroll_salary_structure import PayrollConceptCreate, PayrollConceptUpdate, PayrollItemCreate, PayrollItemUpdate
+from app.models.payroll_salary_structure import ContractPayrollConcept, PayrollConcept, PayrollItem
+from app.schemas.payroll_salary_structure import (
+    ContractPayrollConceptCreate,
+    ContractPayrollConceptUpdate,
+    PayrollConceptCreate,
+    PayrollConceptUpdate,
+    PayrollItemCreate,
+    PayrollItemUpdate,
+)
 from app.services.payroll_amounts import money
 
 
@@ -65,6 +73,87 @@ def deactivate_payroll_concept(db: Session, concept_id: int):
     return db_concept
 
 
+def ensure_contract_exists(db: Session, contract_id: int):
+    contract = db.query(Contract).filter(Contract.id == contract_id).first()
+    if not contract:
+        raise HTTPException(status_code=404, detail="Contrato no encontrado")
+    return contract
+
+
+def get_contract_payroll_concepts(db: Session, contract_id: int, include_inactive: bool = False):
+    ensure_contract_exists(db, contract_id)
+    query = db.query(ContractPayrollConcept).options(joinedload(ContractPayrollConcept.concept)).filter(
+        ContractPayrollConcept.contract_id == contract_id
+    )
+    if not include_inactive:
+        query = query.filter(ContractPayrollConcept.is_active == True)
+    return query.order_by(ContractPayrollConcept.display_order, ContractPayrollConcept.id).all()
+
+
+def get_contract_payroll_concept(db: Session, concept_line_id: int):
+    return db.query(ContractPayrollConcept).options(joinedload(ContractPayrollConcept.concept)).filter(
+        ContractPayrollConcept.id == concept_line_id
+    ).first()
+
+
+def create_contract_payroll_concept(db: Session, contract_id: int, item: ContractPayrollConceptCreate):
+    ensure_contract_exists(db, contract_id)
+    concept = ensure_active_concept(db, item.concept_id)
+    quantity = money(item.quantity)
+    unit_price = money(item.unit_price)
+    amount = resolve_item_amount(quantity, unit_price, item.amount)
+
+    db_item = ContractPayrollConcept(
+        contract_id=contract_id,
+        concept_id=item.concept_id,
+        description=item.description,
+        quantity=quantity,
+        unit_price=unit_price,
+        amount=amount,
+        start_date=item.start_date,
+        end_date=item.end_date,
+        is_active=item.is_active,
+        display_order=item.display_order or concept.display_order,
+        notes=item.notes,
+    )
+    db.add(db_item)
+    db.commit()
+    db.refresh(db_item)
+    return get_contract_payroll_concept(db, db_item.id)
+
+
+def update_contract_payroll_concept(db: Session, concept_line_id: int, item: ContractPayrollConceptUpdate):
+    db_item = get_contract_payroll_concept(db, concept_line_id)
+    if not db_item:
+        return None
+
+    update_data = item.model_dump(exclude_unset=True)
+    if "concept_id" in update_data:
+        ensure_active_concept(db, update_data["concept_id"])
+
+    for key, value in update_data.items():
+        if key in {"quantity", "unit_price", "amount"} and value is not None:
+            value = money(value)
+        setattr(db_item, key, value)
+
+    if "amount" not in update_data:
+        db_item.amount = resolve_item_amount(db_item.quantity, db_item.unit_price, None)
+
+    db.commit()
+    db.refresh(db_item)
+    return get_contract_payroll_concept(db, db_item.id)
+
+
+def deactivate_contract_payroll_concept(db: Session, concept_line_id: int):
+    db_item = get_contract_payroll_concept(db, concept_line_id)
+    if not db_item:
+        return None
+    db_item.is_active = False
+    db.commit()
+    db.refresh(db_item)
+    return db_item
+
+
 def get_payroll_items(db: Session, payroll_id: int):
     return db.query(PayrollItem).options(joinedload(PayrollItem.concept)).filter(
         PayrollItem.payroll_id == payroll_id
@@ -122,6 +211,44 @@ def create_payroll_item(db: Session, payroll_id: int, item: PayrollItemCreate):
     return get_payroll_item(db, db_item.id)
 
 
+def load_contract_concepts_into_payroll(db: Session, payroll_id: int):
+    payroll = ensure_payroll_exists(db, payroll_id)
+    contract_items = get_contract_payroll_concepts(db, payroll.contract_id)
+    created_items = 0
+    skipped_items = 0
+
+    for contract_item in contract_items:
+        existing = db.query(PayrollItem).filter(
+            PayrollItem.payroll_id == payroll_id,
+            PayrollItem.concept_id == contract_item.concept_id,
+            PayrollItem.description == contract_item.description,
+        ).first()
+        if existing:
+            skipped_items += 1
+            continue
+
+        db_item = PayrollItem(
+            payroll_id=payroll_id,
+            concept_id=contract_item.concept_id,
+            description=contract_item.description or "Concepto permanente del contrato",
+            quantity=contract_item.quantity,
+            unit_price=contract_item.unit_price,
+            amount=contract_item.amount,
+            display_order=contract_item.display_order,
+            notes=contract_item.notes,
+        )
+        db.add(db_item)
+        created_items += 1
+
+    db.commit()
+    return {
+        "payroll_id": payroll_id,
+        "contract_id": payroll.contract_id,
+        "created_items": created_items,
+        "skipped_items": skipped_items,
+    }
+
+
 def update_payroll_item(db: Session, item_id: int, item: PayrollItemUpdate):
     db_item = get_payroll_item(db, item_id)
     if not db_item:
@@ -174,7 +301,7 @@ def build_payroll_breakdown(db: Session, payroll_id: int):
 
         if concept_type == "DEDUCCION":
             breakdown["deducciones"].append(item)
-            breakdown["total_deducciones"] += money(item.amount)
+            breakdown["total_deductions"] += money(item.amount)
         elif concept_type == "BASE_INFORMATIVA":
             breakdown["bases_informativas"].append(item)
         elif salary_nature == "EXTRASALARIAL":
