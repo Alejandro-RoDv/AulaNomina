@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { PAYROLL_STATUS_OPTIONS, formatCurrency } from "./PayrollForm";
 import PayrollDetailsModal from "./PayrollDetailsModal";
 import PayrollConceptBreakdown from "./PayrollConceptBreakdown";
@@ -46,7 +46,7 @@ export default function PayrollTable({
   submitting,
 }) {
   const [selectedPayroll, setSelectedPayroll] = useState(null);
-  const [expandedPayroll, setExpandedPayroll] = useState(null);
+  const [expandedPayrollId, setExpandedPayrollId] = useState(null);
   const [editForm, setEditForm] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -65,7 +65,7 @@ export default function PayrollTable({
   };
 
   const toggleBreakdown = (payroll) => {
-    setExpandedPayroll((current) => current?.id === payroll.id ? null : payroll);
+    setExpandedPayrollId((currentId) => currentId === payroll.id ? null : payroll.id);
   };
 
   const closeDetailsModal = () => {
@@ -150,28 +150,44 @@ export default function PayrollTable({
             </tr>
           </thead>
           <tbody>
-            {payrolls.map((payroll) => (
-              <tr key={payroll.id}>
-                <td style={styles.tdCode}>{getPayrollCode(payroll)}</td>
-                <td style={styles.td}>{payroll.employee_name || payroll.employee_id}</td>
-                <td style={styles.td}>{payroll.company_name || payroll.company_id}</td>
-                <td style={styles.td}>{formatPeriod(payroll)}</td>
-                <td style={styles.tdAmount}>{formatCurrency(payroll.gross_salary)}</td>
-                <td style={styles.tdAmount}>{formatCurrency(payroll.total_deductions)}</td>
-                <td style={styles.tdAmountStrong}>{formatCurrency(payroll.net_salary)}</td>
-                <td style={styles.td}>
-                  <span style={getStatusStyle(payroll.status)}>{getStatusLabel(payroll.status)}</span>
-                </td>
-                <td style={styles.tdActions}>
-                  <button type="button" onClick={() => openDetailsModal(payroll)} style={styles.detailsButton}>
-                    Detalles
-                  </button>
-                  <button type="button" onClick={() => toggleBreakdown(payroll)} style={styles.breakdownButton}>
-                    Conceptos
-                  </button>
-                </td>
-              </tr>
-            ))}
+            {payrolls.map((payroll) => {
+              const isExpanded = expandedPayrollId === payroll.id;
+              return (
+                <Fragment key={payroll.id}>
+                  <tr>
+                    <td style={styles.tdCode}>{getPayrollCode(payroll)}</td>
+                    <td style={styles.td}>{payroll.employee_name || payroll.employee_id}</td>
+                    <td style={styles.td}>{payroll.company_name || payroll.company_id}</td>
+                    <td style={styles.td}>{formatPeriod(payroll)}</td>
+                    <td style={styles.tdAmount}>{formatCurrency(payroll.gross_salary)}</td>
+                    <td style={styles.tdAmount}>{formatCurrency(payroll.total_deductions)}</td>
+                    <td style={styles.tdAmountStrong}>{formatCurrency(payroll.net_salary)}</td>
+                    <td style={styles.td}>
+                      <span style={getStatusStyle(payroll.status)}>{getStatusLabel(payroll.status)}</span>
+                    </td>
+                    <td style={styles.tdActions}>
+                      <button type="button" onClick={() => openDetailsModal(payroll)} style={styles.detailsButton}>
+                        Detalles
+                      </button>
+                      <button type="button" onClick={() => toggleBreakdown(payroll)} style={isExpanded ? styles.breakdownButtonActive : styles.breakdownButton}>
+                        {isExpanded ? "Ocultar" : "Conceptos"}
+                      </button>
+                    </td>
+                  </tr>
+                  {isExpanded && (
+                    <tr>
+                      <td colSpan="9" style={styles.expandedCell}>
+                        <div style={styles.expandedHeader}>
+                          <strong>Conceptos de nómina</strong>
+                          <span>Nómina {getPayrollCode(payroll)} · {payroll.employee_name || payroll.employee_id}</span>
+                        </div>
+                        <PayrollConceptBreakdown payrollId={payroll.id} />
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
+              );
+            })}
             {payrolls.length === 0 && (
               <tr>
                 <td style={styles.td} colSpan="9">No hay nóminas generadas.</td>
@@ -180,19 +196,6 @@ export default function PayrollTable({
           </tbody>
         </table>
       </div>
-
-      {expandedPayroll && (
-        <div style={styles.breakdownPanel}>
-          <div style={styles.breakdownHeader}>
-            <div>
-              <h3 style={styles.breakdownTitle}>Conceptos de nómina</h3>
-              <p style={styles.breakdownSubtitle}>Nómina {getPayrollCode(expandedPayroll)} · {expandedPayroll.employee_name || expandedPayroll.employee_id}</p>
-            </div>
-            <button type="button" onClick={() => setExpandedPayroll(null)} style={styles.closePanelButton}>Cerrar</button>
-          </div>
-          <PayrollConceptBreakdown payrollId={expandedPayroll.id} />
-        </div>
-      )}
 
       <PayrollDetailsModal
         payroll={selectedPayroll}
@@ -237,9 +240,7 @@ const styles = {
   cancelledBadge: { backgroundColor: "#fee2e2", color: "#991b1b", padding: "4px 8px", borderRadius: "999px", fontSize: "12px", fontWeight: 800 },
   detailsButton: { backgroundColor: "#111827", color: "#ffffff", border: "1px solid #111827", borderRadius: "8px", padding: "7px 10px", cursor: "pointer", fontWeight: 700 },
   breakdownButton: { backgroundColor: "#e6d85c", color: "#111827", border: "1px solid #111827", borderRadius: "8px", padding: "7px 10px", cursor: "pointer", fontWeight: 800 },
-  breakdownPanel: { marginTop: "18px", border: "2px solid #111827", borderRadius: "16px", backgroundColor: "#fffdf0", padding: "16px", boxShadow: "4px 4px 0 #111827" },
-  breakdownHeader: { display: "flex", justifyContent: "space-between", gap: "16px", alignItems: "start", marginBottom: "12px" },
-  breakdownTitle: { margin: 0, fontSize: "20px", fontWeight: 900, color: "#111827" },
-  breakdownSubtitle: { margin: "4px 0 0", color: "#6b7280", fontSize: "13px", fontWeight: 700 },
-  closePanelButton: { backgroundColor: "#ffffff", color: "#111827", border: "2px solid #111827", borderRadius: "8px", padding: "8px 12px", cursor: "pointer", fontWeight: 900 },
+  breakdownButtonActive: { backgroundColor: "#ffffff", color: "#111827", border: "1px solid #111827", borderRadius: "8px", padding: "7px 10px", cursor: "pointer", fontWeight: 800 },
+  expandedCell: { padding: "16px", borderBottom: "2px solid #111827", backgroundColor: "#fffdf0" },
+  expandedHeader: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px", marginBottom: "12px", fontSize: "14px", color: "#111827" },
 };
