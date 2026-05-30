@@ -8,6 +8,7 @@ from pydantic import BaseModel, field_validator
 CONCEPT_TYPE_VALUES = {"DEVENGO", "DEDUCCION", "BASE_INFORMATIVA"}
 SALARY_NATURE_VALUES = {"SALARIAL", "EXTRASALARIAL", "INFORMATIVA"}
 CONCEPT_SOURCE_VALUES = {"SYSTEM", "CUSTOM", "AGREEMENT"}
+CALCULATION_TYPE_VALUES = {"FIXED_AMOUNT", "UNIT_PRICE"}
 CONCEPT_CATEGORY_VALUES = {
     "BASE",
     "COMPLEMENTO",
@@ -32,6 +33,10 @@ class PayrollConceptBase(BaseModel):
     salary_nature: str = "SALARIAL"
     source_type: str = "CUSTOM"
     agreement_id: Optional[int] = None
+    calculation_type: str = "FIXED_AMOUNT"
+    default_amount: Decimal = Decimal("0.00")
+    default_unit_price: Decimal = Decimal("0.00")
+    applies_workday_percentage: bool = True
     is_system: bool = False
     is_taxable: bool = True
     is_contribution_base: bool = True
@@ -84,6 +89,21 @@ class PayrollConceptBase(BaseModel):
             raise ValueError("Origen de concepto no válido")
         return value
 
+    @field_validator("calculation_type")
+    @classmethod
+    def validate_calculation_type(cls, value):
+        value = value.upper()
+        if value not in CALCULATION_TYPE_VALUES:
+            raise ValueError("Tipo de cálculo no válido")
+        return value
+
+    @field_validator("default_amount", "default_unit_price")
+    @classmethod
+    def validate_default_amounts(cls, value):
+        if value is not None and value < 0:
+            raise ValueError("Los importes por defecto no pueden ser negativos")
+        return value
+
 
 class PayrollConceptCreate(PayrollConceptBase):
     pass
@@ -97,6 +117,10 @@ class PayrollConceptUpdate(BaseModel):
     salary_nature: Optional[str] = None
     source_type: Optional[str] = None
     agreement_id: Optional[int] = None
+    calculation_type: Optional[str] = None
+    default_amount: Optional[Decimal] = None
+    default_unit_price: Optional[Decimal] = None
+    applies_workday_percentage: Optional[bool] = None
     is_system: Optional[bool] = None
     is_taxable: Optional[bool] = None
     is_contribution_base: Optional[bool] = None
@@ -159,6 +183,23 @@ class PayrollConceptUpdate(BaseModel):
         value = value.upper()
         if value not in CONCEPT_SOURCE_VALUES:
             raise ValueError("Origen de concepto no válido")
+        return value
+
+    @field_validator("calculation_type")
+    @classmethod
+    def validate_optional_calculation_type(cls, value):
+        if value is None:
+            return value
+        value = value.upper()
+        if value not in CALCULATION_TYPE_VALUES:
+            raise ValueError("Tipo de cálculo no válido")
+        return value
+
+    @field_validator("default_amount", "default_unit_price")
+    @classmethod
+    def validate_optional_default_amounts(cls, value):
+        if value is not None and value < 0:
+            raise ValueError("Los importes por defecto no pueden ser negativos")
         return value
 
 
