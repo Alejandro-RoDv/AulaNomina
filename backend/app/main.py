@@ -465,7 +465,7 @@ def read_employee_tax_profile(employee_id: int, db: Session = Depends(get_db)):
 
     tax_profile = get_tax_profile_by_employee(db, employee_id)
     if not tax_profile:
-        raise HTTPException(status_code=404, detail="Perfil fiscal no encontrado")
+        tax_profile = upsert_tax_profile(db, employee_id, TaxProfileUpdate())
 
     return tax_profile
 
