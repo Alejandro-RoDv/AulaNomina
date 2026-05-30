@@ -1,0 +1,106 @@
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy.orm import Session
+
+from app.crud.payroll_salary_structure import (
+    build_payroll_breakdown,
+    create_payroll_concept,
+    create_payroll_item,
+    deactivate_payroll_concept,
+    get_payroll_concept,
+    get_payroll_concepts,
+    get_payroll_items,
+    update_payroll_concept,
+    update_payroll_item,
+)
+from app.db import SessionLocal
+from app.schemas.payroll_salary_structure import (
+    PayrollBreakdownResponse,
+    PayrollConceptCreate,
+    PayrollConceptResponse,
+    PayrollConceptUpdate,
+    PayrollItemCreate,
+    PayrollItemResponse,
+    PayrollItemUpdate,
+)
+
+router = APIRouter(tags=["payroll-salary-structure"])
+
+
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+
+@router.get("/payroll-concepts", response_model=list[PayrollConceptResponse])
+def list_payroll_concepts(
+    include_inactive: bool = Query(default=False),
+    db: Session = Depends(get_db),
+):
+    return get_payroll_concepts(db, include_inactive=include_inactive)
+
+
+@router.post("/payroll-concepts", response_model=PayrollConceptResponse)
+def create_payroll_concept_endpoint(concept: PayrollConceptCreate, db: Session = Depends(get_db)):
+    return create_payroll_concept(db, concept)
+
+
+@router.get("/payroll-concepts/{concept_id}", response_model=PayrollConceptResponse)
+def read_payroll_concept(concept_id: int, db: Session = Depends(get_db)):
+    concept = get_payroll_concept(db, concept_id)
+    if not concept:
+        raise HTTPException(status_code=404, detail="Concepto salarial no encontrado")
+    return concept
+
+
+@router.put("/payroll-concepts/{concept_id}", response_model=PayrollConceptResponse)
+def update_payroll_concept_endpoint(
+    concept_id: int,
+    concept: PayrollConceptUpdate,
+    db: Session = Depends(get_db),
+):
+    updated_concept = update_payroll_concept(db, concept_id, concept)
+    if not updated_concept:
+        raise HTTPException(status_code=404, detail="Concepto salarial no encontrado")
+    return updated_concept
+
+
+@router.post("/payroll-concepts/{concept_id}/deactivate")
+def deactivate_payroll_concept_endpoint(concept_id: int, db: Session = Depends(get_db)):
+    deactivated_concept = deactivate_payroll_concept(db, concept_id)
+    if not deactivated_concept:
+        raise HTTPException(status_code=404, detail="Concepto salarial no encontrado")
+    return {"ok": True, "deactivated_id": concept_id}
+
+
+@router.get("/payrolls/{payroll_id}/items", response_model=list[PayrollItemResponse])
+def list_payroll_items(payroll_id: int, db: Session = Depends(get_db)):
+    return get_payroll_items(db, payroll_id)
+
+
+@router.post("/payrolls/{payroll_id}/items", response_model=PayrollItemResponse)
+def create_payroll_item_endpoint(
+    payroll_id: int,
+    item: PayrollItemCreate,
+    db: Session = Depends(get_db),
+):
+    return create_payroll_item(db, payroll_id, item)
+
+
+@router.put("/payroll-items/{item_id}", response_model=PayrollItemResponse)
+def update_payroll_item_endpoint(
+    item_id: int,
+    item: PayrollItemUpdate,
+    db: Session = Depends(get_db),
+):
+    updated_item = update_payroll_item(db, item_id, item)
+    if not updated_item:
+        raise HTTPException(status_code=404, detail="Línea de nómina no encontrada")
+    return updated_item
+
+
+@router.get("/payrolls/{payroll_id}/breakdown", response_model=PayrollBreakdownResponse)
+def read_payroll_breakdown(payroll_id: int, db: Session = Depends(get_db)):
+    return build_payroll_breakdown(db, payroll_id)
