@@ -228,17 +228,32 @@ def init_database() -> None:
                 if column_name not in existing_student_columns:
                     connection.execute(text(f"ALTER TABLE students ADD COLUMN {column_name} {column_definition}"))
 
-            if "student_groups" in table_names:
-                connection.execute(
-                    text(
-                        """
-                        UPDATE students
-                        SET group_id = (
-                            SELECT id FROM student_groups
-                            WHERE student_groups.code = students.group_code
-                            LIMIT 1
+            if "student_groups" in table_names and "group_id" in existing_student_columns:
+                if "group_code" in existing_student_columns:
+                    connection.execute(
+                        text(
+                            """
+                            UPDATE students
+                            SET group_id = (
+                                SELECT id FROM student_groups
+                                WHERE student_groups.code = students.group_code
+                                LIMIT 1
+                            )
+                            WHERE group_id IS NULL AND group_code IS NOT NULL
+                            """
                         )
-                        WHERE group_id IS NULL AND group_code IS NOT NULL
-                        """
                     )
-                )
+                elif "group_name" in existing_student_columns:
+                    connection.execute(
+                        text(
+                            """
+                            UPDATE students
+                            SET group_id = (
+                                SELECT id FROM student_groups
+                                WHERE student_groups.name = students.group_name
+                                LIMIT 1
+                            )
+                            WHERE group_id IS NULL AND group_name IS NOT NULL
+                            """
+                        )
+                    )
