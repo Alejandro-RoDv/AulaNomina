@@ -57,6 +57,7 @@ class Contract(Base):
     salary_table_row = relationship("SalaryTableRow")
     incidents = relationship("Incident", back_populates="contract")
     payrolls = relationship("Payroll", back_populates="contract")
+    payroll_concepts = relationship("ContractPayrollConcept", back_populates="contract")
     ss_registration = relationship(
         "SocialSecurityRegistration",
         back_populates="contract",
