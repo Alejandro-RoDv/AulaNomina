@@ -41,6 +41,10 @@ function calculatePercentage(amount, base) {
   return `${percentage.toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} %`;
 }
 
+function formatPercentage(value) {
+  return `${Number(value || 0).toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} %`;
+}
+
 function getItemDetail(item) {
   const quantity = Number(item.quantity || 0);
   const unitPrice = Number(item.unit_price || 0);
@@ -164,7 +168,11 @@ export default function PayrollDetailsModal({
         bases: [],
         totalDevengos: 0,
         totalDeducciones: 0,
+        baseIrpfManual: 0,
+        irpfPercentage: 0,
+        irpfManual: 0,
         netoManual: 0,
+        netoManualConIrpf: 0,
       };
     }
 
@@ -183,7 +191,11 @@ export default function PayrollDetailsModal({
       bases,
       totalDevengos: Number(breakdown.total_devengos || 0),
       totalDeducciones: Number(breakdown.total_deducciones || 0),
+      baseIrpfManual: Number(breakdown.base_irpf_manual || 0),
+      irpfPercentage: Number(breakdown.irpf_percentage || 0),
+      irpfManual: Number(breakdown.irpf_manual || 0),
       netoManual: Number(breakdown.neto_manual || 0),
+      netoManualConIrpf: Number(breakdown.neto_manual_con_irpf || 0),
     };
   }, [breakdown]);
 
@@ -198,8 +210,10 @@ export default function PayrollDetailsModal({
   const nonContributionDays = Number(payroll.non_contribution_days ?? 0);
   const irpfPercentage = calculatePercentage(payroll.irpf, payroll.irpf_base || payroll.gross_salary);
   const receiptGross = manualData.hasManualItems ? manualData.totalDevengos : Number(payroll.gross_salary || 0);
-  const receiptDeductions = manualData.hasManualItems ? manualData.totalDeducciones : Number(payroll.total_deductions || 0);
-  const receiptNet = manualData.hasManualItems ? manualData.netoManual : Number(payroll.net_salary || 0);
+  const receiptDeductions = manualData.hasManualItems
+    ? manualData.totalDeducciones + manualData.irpfManual
+    : Number(payroll.total_deductions || 0);
+  const receiptNet = manualData.hasManualItems ? manualData.netoManualConIrpf : Number(payroll.net_salary || 0);
 
   const handlePrint = () => window.print();
   const handleBackdropMouseDown = (event) => {
@@ -269,7 +283,7 @@ export default function PayrollDetailsModal({
 
           {manualData.hasManualItems && (
             <div style={styles.manualNotice}>
-              Recibo basado en el desglose manual de conceptos. Los importes pueden diferir de la nómina clásica calculada.
+              Recibo basado en el desglose manual. La base IRPF se calcula solo con conceptos marcados como tributables; dietas y kilometraje quedan fuera si están configurados como no tributables.
             </div>
           )}
 
@@ -305,7 +319,8 @@ export default function PayrollDetailsModal({
                     <>
                       <ConceptAmountRows items={manualData.deducciones} />
                       {manualData.deducciones.length === 0 && <AmountRow label="Sin deducciones manuales" amount={0} />}
-                      <AmountRow label="Total deducciones según desglose" amount={receiptDeductions} bold />
+                      <AmountRow label="IRPF sobre desglose" detail={formatPercentage(manualData.irpfPercentage)} amount={manualData.irpfManual} />
+                      <AmountRow label="Total deducciones + IRPF" amount={receiptDeductions} bold />
                     </>
                   ) : (
                     <>
@@ -336,8 +351,11 @@ export default function PayrollDetailsModal({
                   <AmountRow label="Días trabajados" detail="" amount={workedDays} />
                   <AmountRow label="Días incidencia" detail="" amount={incidentDays} />
                   <AmountRow label="Días no cotizados" detail="" amount={nonContributionDays} />
-                  {manualData.hasManualItems && manualData.bases.length > 0 ? (
-                    <ConceptAmountRows items={manualData.bases} />
+                  {manualData.hasManualItems ? (
+                    <>
+                      <AmountRow label="Base IRPF manual" detail="Conceptos tributables" amount={manualData.baseIrpfManual} />
+                      {manualData.bases.length > 0 && <ConceptAmountRows items={manualData.bases} />}
+                    </>
                   ) : (
                     <>
                       <AmountRow label="Base CC" amount={payroll.common_contingencies_base} />
