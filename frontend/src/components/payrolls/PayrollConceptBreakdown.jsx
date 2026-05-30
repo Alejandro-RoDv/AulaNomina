@@ -22,7 +22,10 @@ function ConceptTable({ title, items }) {
           <tbody>
             {items.map((item) => (
               <tr key={item.id}>
-                <td style={styles.cell}><strong>{item.concept_name}</strong>{item.description && <small style={styles.note}>{item.description}</small>}</td>
+                <td style={styles.cell}>
+                  <strong style={styles.conceptName}>{item.concept_name}</strong>
+                  {item.description && <small style={styles.note}>{item.description}</small>}
+                </td>
                 <td style={styles.num}>{Number(item.quantity || 0).toLocaleString("es-ES")}</td>
                 <td style={styles.num}>{formatCurrency(item.unit_price)}</td>
                 <td style={styles.amount}>{formatCurrency(item.amount)}</td>
@@ -97,7 +100,7 @@ export default function PayrollConceptBreakdown({ payrollId }) {
       <div style={styles.header}>
         <div>
           <h4 style={styles.title}>Desglose de conceptos</h4>
-          <p style={styles.subtitle}>Devengos, conceptos extrasalariales, deducciones y bases informativas.</p>
+          <p style={styles.subtitle}>Devengos, deducciones y bases informativas. Edición manual para simulación docente.</p>
         </div>
         <button type="button" onClick={loadData} style={styles.secondaryButton}>{loading ? "Cargando..." : "Actualizar"}</button>
       </div>
@@ -107,9 +110,9 @@ export default function PayrollConceptBreakdown({ payrollId }) {
       {breakdown && (
         <>
           <div style={styles.summary}>
-            <div><span>Total devengos</span><strong>{formatCurrency(breakdown.total_devengos)}</strong></div>
-            <div><span>Total deducciones</span><strong>{formatCurrency(breakdown.total_deducciones)}</strong></div>
-            <div><span>Neto manual</span><strong>{formatCurrency(breakdown.neto_manual)}</strong></div>
+            <div style={styles.summaryCard}><span>Total devengos</span><strong>{formatCurrency(breakdown.total_devengos)}</strong></div>
+            <div style={styles.summaryCard}><span>Total deducciones</span><strong>{formatCurrency(breakdown.total_deducciones)}</strong></div>
+            <div style={styles.netCard}><span>Neto manual</span><strong>{formatCurrency(breakdown.neto_manual)}</strong></div>
           </div>
           <div style={styles.grid}>
             <ConceptTable title="Devengos salariales" items={breakdown.devengos_salariales} />
@@ -123,14 +126,14 @@ export default function PayrollConceptBreakdown({ payrollId }) {
       <form onSubmit={handleSubmit} style={styles.form}>
         <h5 style={styles.formTitle}>Añadir línea manual</h5>
         <div style={styles.formGrid}>
-          <select name="concept_id" value={form.concept_id} onChange={handleChange} style={styles.input}>
+          <select name="concept_id" value={form.concept_id} onChange={handleChange} style={styles.selectInput}>
             <option value="">Concepto</option>
             {concepts.map((concept) => <option key={concept.id} value={concept.id}>{concept.name}</option>)}
           </select>
-          <input name="description" value={form.description} onChange={handleChange} placeholder="Descripción" style={styles.input} />
-          <input type="number" step="0.01" name="quantity" value={form.quantity} onChange={handleChange} placeholder="Uds." style={styles.input} />
-          <input type="number" step="0.01" name="unit_price" value={form.unit_price} onChange={handleChange} placeholder="Precio" style={styles.input} />
-          <input type="number" step="0.01" name="amount" value={form.amount} onChange={handleChange} placeholder="Importe directo" style={styles.input} />
+          <input name="description" value={form.description} onChange={handleChange} placeholder="Descripción" style={styles.descriptionInput} />
+          <input type="number" step="0.01" name="quantity" value={form.quantity} onChange={handleChange} placeholder="Uds." style={styles.smallInput} />
+          <input type="number" step="0.01" name="unit_price" value={form.unit_price} onChange={handleChange} placeholder="Precio" style={styles.smallInput} />
+          <input type="number" step="0.01" name="amount" value={form.amount} onChange={handleChange} placeholder="Importe directo" style={styles.amountInput} />
           <button type="submit" disabled={saving} style={styles.primaryButton}>{saving ? "Añadiendo..." : "Añadir"}</button>
         </div>
       </form>
@@ -138,28 +141,36 @@ export default function PayrollConceptBreakdown({ payrollId }) {
   );
 }
 
+const baseInput = { border: "2px solid #d1d5db", borderRadius: "8px", padding: "8px", fontWeight: 700, minWidth: 0 };
+
 const styles = {
-  wrapper: { maxWidth: "1040px", margin: "0 auto 18px", padding: "16px", border: "2px solid #111827", borderRadius: "16px", backgroundColor: "#ffffff", boxShadow: "4px 4px 0 #e6d85c" },
-  header: { display: "flex", justifyContent: "space-between", gap: "16px", marginBottom: "14px" },
+  wrapper: { width: "100%", boxSizing: "border-box", margin: "0", padding: "14px", border: "2px solid #111827", borderRadius: "14px", backgroundColor: "#ffffff", boxShadow: "3px 3px 0 #e6d85c", overflow: "hidden" },
+  header: { display: "flex", justifyContent: "space-between", gap: "16px", marginBottom: "12px", alignItems: "start" },
   title: { margin: 0, fontSize: "17px", fontWeight: 900, color: "#111827" },
   subtitle: { margin: "4px 0 0", fontSize: "12px", fontWeight: 700, color: "#6b7280" },
-  secondaryButton: { backgroundColor: "#ffffff", border: "2px solid #111827", borderRadius: "8px", padding: "8px 12px", fontWeight: 900, cursor: "pointer" },
-  summary: { display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "10px", marginBottom: "14px" },
-  grid: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px" },
-  box: { border: "1px solid #d1d5db", borderRadius: "12px", overflow: "hidden" },
-  boxTitle: { margin: 0, padding: "9px 10px", backgroundColor: "#f3f4f6", borderBottom: "1px solid #d1d5db", fontWeight: 900 },
-  table: { width: "100%", borderCollapse: "collapse", tableLayout: "fixed" },
-  left: { textAlign: "left", padding: "8px", fontSize: "11px" },
-  right: { textAlign: "right", padding: "8px", fontSize: "11px" },
-  cell: { padding: "8px", borderTop: "1px solid #f3f4f6" },
-  num: { padding: "8px", borderTop: "1px solid #f3f4f6", textAlign: "right" },
-  amount: { padding: "8px", borderTop: "1px solid #f3f4f6", textAlign: "right", fontWeight: 900 },
-  note: { display: "block", color: "#6b7280", marginTop: "3px" },
-  empty: { margin: 0, padding: "12px", color: "#6b7280", fontSize: "12px", fontWeight: 700 },
-  form: { marginTop: "16px", paddingTop: "14px", borderTop: "1px solid #e5e7eb" },
+  secondaryButton: { backgroundColor: "#ffffff", border: "2px solid #111827", borderRadius: "8px", padding: "8px 12px", fontWeight: 900, cursor: "pointer", whiteSpace: "nowrap" },
+  summary: { display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: "10px", marginBottom: "12px" },
+  summaryCard: { border: "1px solid #d1d5db", borderRadius: "10px", padding: "10px", backgroundColor: "#f9fafb", display: "flex", justifyContent: "space-between", gap: "8px" },
+  netCard: { border: "2px solid #111827", borderRadius: "10px", padding: "10px", backgroundColor: "#fffdf0", display: "flex", justifyContent: "space-between", gap: "8px" },
+  grid: { display: "grid", gridTemplateColumns: "1fr", gap: "12px" },
+  box: { border: "1px solid #d1d5db", borderRadius: "12px", overflow: "hidden", backgroundColor: "#ffffff" },
+  boxTitle: { margin: 0, padding: "8px 10px", backgroundColor: "#f3f4f6", borderBottom: "1px solid #d1d5db", fontWeight: 900, fontSize: "14px" },
+  table: { width: "100%", borderCollapse: "collapse", tableLayout: "auto" },
+  left: { textAlign: "left", padding: "7px 8px", fontSize: "11px", color: "#4b5563" },
+  right: { width: "96px", textAlign: "right", padding: "7px 8px", fontSize: "11px", color: "#4b5563", whiteSpace: "nowrap" },
+  cell: { padding: "8px", borderTop: "1px solid #f3f4f6", minWidth: "260px" },
+  conceptName: { display: "block", fontSize: "13px", lineHeight: 1.25 },
+  num: { width: "96px", padding: "8px", borderTop: "1px solid #f3f4f6", textAlign: "right", whiteSpace: "nowrap" },
+  amount: { width: "110px", padding: "8px", borderTop: "1px solid #f3f4f6", textAlign: "right", fontWeight: 900, whiteSpace: "nowrap" },
+  note: { display: "block", color: "#6b7280", marginTop: "3px", lineHeight: 1.35 },
+  empty: { margin: 0, padding: "10px", color: "#6b7280", fontSize: "12px", fontWeight: 700 },
+  form: { marginTop: "14px", paddingTop: "12px", borderTop: "1px solid #e5e7eb" },
   formTitle: { margin: "0 0 10px", fontSize: "15px", fontWeight: 900 },
-  formGrid: { display: "grid", gridTemplateColumns: "1.2fr 1.4fr 0.6fr 0.7fr 0.8fr 0.5fr", gap: "8px" },
-  input: { border: "2px solid #d1d5db", borderRadius: "8px", padding: "8px", fontWeight: 700 },
-  primaryButton: { backgroundColor: "#111827", color: "#ffffff", border: "2px solid #111827", borderRadius: "8px", padding: "8px 10px", fontWeight: 900, cursor: "pointer" },
+  formGrid: { display: "flex", flexWrap: "wrap", gap: "8px", alignItems: "center" },
+  selectInput: { ...baseInput, flex: "1 1 220px" },
+  descriptionInput: { ...baseInput, flex: "2 1 260px" },
+  smallInput: { ...baseInput, flex: "0 1 110px" },
+  amountInput: { ...baseInput, flex: "0 1 160px" },
+  primaryButton: { backgroundColor: "#111827", color: "#ffffff", border: "2px solid #111827", borderRadius: "8px", padding: "8px 14px", fontWeight: 900, cursor: "pointer", flex: "0 0 auto" },
   error: { marginBottom: "12px", padding: "10px", borderRadius: "10px", border: "1px solid #fecaca", backgroundColor: "#fef2f2", color: "#991b1b", fontWeight: 800 },
 };
