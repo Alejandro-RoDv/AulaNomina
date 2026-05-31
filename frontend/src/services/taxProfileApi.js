@@ -6,7 +6,7 @@ export async function fetchTaxProfiles() {
 
 export async function fetchEmployeeTaxProfile(employeeId) {
   return apiRequest(
-    `/employees/${employeeId}/tax-profile`,
+    `/tax-profiles/employee/${employeeId}`,
     {},
     "Error al cargar datos fiscales del trabajador"
   );
@@ -34,7 +34,7 @@ export async function simulateEmployeeIrpfAnnualSummary(employeeId, payload) {
 
 export async function calculateEmployeeIrpf(employeeId) {
   return apiRequest(
-    `/employees/${employeeId}/tax-profile/calculate-irpf`,
+    `/tax-profiles/employee/${employeeId}`,
     {},
     "Error al calcular IRPF del trabajador"
   );
@@ -42,7 +42,7 @@ export async function calculateEmployeeIrpf(employeeId) {
 
 export async function calculateIrpf(payload) {
   return apiRequest(
-    "/tax-profiles/calculate-irpf",
+    "/irpf/calculate",
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -54,7 +54,7 @@ export async function calculateIrpf(payload) {
 
 export async function updateEmployeeTaxProfile(employeeId, payload) {
   return apiRequest(
-    `/employees/${employeeId}/tax-profile`,
+    `/tax-profiles/employee/${employeeId}`,
     {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
