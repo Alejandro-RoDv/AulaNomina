@@ -24,6 +24,9 @@ const EMPTY_EXTRA = {
   working_day_type: "full_time",
   weekly_hours: "40",
   full_time_weekly_hours: "40",
+  annual_agreement_hours: "",
+  monthly_hours: "173.33",
+  annual_hours: "2080",
   partiality_coefficient: "100",
   monthly_or_daily_contribution: "monthly",
   red_occupation_code: "",
@@ -87,6 +90,15 @@ function calculatePartiality(weeklyHours, fullTimeWeeklyHours) {
   const fullTime = Number(fullTimeWeeklyHours || 40);
   if (!weekly || !fullTime) return "";
   return String(Math.round((weekly / fullTime) * 10000) / 100);
+}
+
+function calculateHoursFromWeekly(weeklyHours) {
+  const weekly = Number(weeklyHours || 0);
+  if (!weekly) return { monthly_hours: "", annual_hours: "" };
+  return {
+    monthly_hours: String(Math.round((weekly * 52 / 12) * 100) / 100),
+    annual_hours: String(Math.round((weekly * 52) * 100) / 100),
+  };
 }
 
 function money(value) {
@@ -280,7 +292,16 @@ export default function ContractForm({
       const selected = catalogs.contracts.find((item) => item.contract_code === value);
       const nextWorkingDay = value.startsWith("5") ? "part_time" : value === "300" ? "fixed_discontinuous" : value.startsWith("4") ? "full_time" : extraForm.working_day_type;
       const nextPartiality = nextWorkingDay === "full_time" ? "100" : extraForm.partiality_coefficient;
-      updateExtra({ contract_code: value, contract_code_description: selected?.contract_code_description || "", contract_family: selected?.contract_family || "", working_day_type: nextWorkingDay, partiality_coefficient: nextPartiality });
+      const nextWeeklyHours = nextWorkingDay === "full_time" ? (extraForm.full_time_weekly_hours || "40") : extraForm.weekly_hours;
+      updateExtra({
+        contract_code: value,
+        contract_code_description: selected?.contract_code_description || "",
+        contract_family: selected?.contract_family || "",
+        working_day_type: nextWorkingDay,
+        weekly_hours: nextWeeklyHours,
+        partiality_coefficient: nextPartiality,
+        ...calculateHoursFromWeekly(nextWeeklyHours),
+      });
       updateSs({ red_contract_key: value });
       if (selected?.contract_family) onChange({ target: { name: "contract_type", value: inferContractType(selected.contract_family) } });
       return;
@@ -291,6 +312,7 @@ export default function ContractForm({
       if (value === "full_time") {
         patch.weekly_hours = extraForm.full_time_weekly_hours || "40";
         patch.partiality_coefficient = "100";
+        Object.assign(patch, calculateHoursFromWeekly(patch.weekly_hours));
       }
       updateExtra(patch);
       return;
@@ -298,7 +320,9 @@ export default function ContractForm({
 
     if (name === "weekly_hours" || name === "full_time_weekly_hours") {
       const next = { ...extraForm, [name]: value };
-      if (next.working_day_type === "part_time") next.partiality_coefficient = calculatePartiality(next.weekly_hours, next.full_time_weekly_hours);
+      const calculated = calculatePartiality(next.weekly_hours, next.full_time_weekly_hours);
+      if (calculated) next.partiality_coefficient = calculated;
+      Object.assign(next, calculateHoursFromWeekly(next.weekly_hours));
       updateExtra(next);
       return;
     }
@@ -399,7 +423,11 @@ export default function ContractForm({
             <Field label="Horas semanales"><input type="number" name="weekly_hours" value={extraForm.weekly_hours} onChange={handleExtraChange} style={styles.input} /></Field>
             <Field label="Jornada completa ref."><input type="number" name="full_time_weekly_hours" value={extraForm.full_time_weekly_hours} onChange={handleExtraChange} style={styles.input} /></Field>
             <Field label="Coeficiente parcialidad"><input type="number" name="partiality_coefficient" value={extraForm.partiality_coefficient} onChange={handleExtraChange} style={styles.input} /></Field>
+            <Field label="Jornada anual convenio"><input type="number" name="annual_agreement_hours" value={extraForm.annual_agreement_hours} onChange={handleExtraChange} placeholder="Ej. 1780" style={styles.input} /></Field>
+            <Field label="Horas mensuales"><input type="number" name="monthly_hours" value={extraForm.monthly_hours} onChange={handleExtraChange} style={styles.input} /></Field>
+            <Field label="Horas anuales"><input type="number" name="annual_hours" value={extraForm.annual_hours} onChange={handleExtraChange} style={styles.input} /></Field>
           </div>
+          <div style={styles.infoBox}>Las horas mensuales y anuales se proponen automáticamente desde las horas semanales, pero pueden corregirse manualmente para casos docentes.</div>
         </section>
 
         <section style={styles.section}>
