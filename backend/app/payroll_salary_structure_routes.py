@@ -19,6 +19,11 @@ from app.crud.payroll_salary_structure import (
     update_payroll_item,
 )
 from app.db import SessionLocal
+from app.schemas.contract import (
+    ContractSalarySummaryResponse,
+    ContractWorkdaySimulationRequest,
+    ContractWorkdaySimulationResponse,
+)
 from app.schemas.payroll_salary_structure import (
     ContractPayrollConceptCreate,
     ContractPayrollConceptResponse,
@@ -31,6 +36,10 @@ from app.schemas.payroll_salary_structure import (
     PayrollItemCreate,
     PayrollItemResponse,
     PayrollItemUpdate,
+)
+from app.services.contract_salary_summary import (
+    build_contract_salary_summary,
+    simulate_contract_workday_change,
 )
 
 router = APIRouter(tags=["payroll-salary-structure"])
@@ -101,6 +110,20 @@ def create_contract_payroll_concept_endpoint(
     db: Session = Depends(get_db),
 ):
     return create_contract_payroll_concept(db, contract_id, item)
+
+
+@router.get("/contracts/{contract_id}/salary-summary", response_model=ContractSalarySummaryResponse)
+def read_contract_salary_summary(contract_id: int, db: Session = Depends(get_db)):
+    return build_contract_salary_summary(db, contract_id)
+
+
+@router.post("/contracts/{contract_id}/simulate-workday", response_model=ContractWorkdaySimulationResponse)
+def simulate_contract_workday_endpoint(
+    contract_id: int,
+    request: ContractWorkdaySimulationRequest,
+    db: Session = Depends(get_db),
+):
+    return simulate_contract_workday_change(db, contract_id, request)
 
 
 @router.put("/contract-payroll-concepts/{concept_line_id}", response_model=ContractPayrollConceptResponse)
