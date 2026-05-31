@@ -35,6 +35,9 @@ class Contract(Base):
     working_day_type = Column(String, nullable=True)
     weekly_hours = Column(Float, nullable=True)
     full_time_weekly_hours = Column(Float, default=40)
+    annual_agreement_hours = Column(Float, nullable=True)
+    monthly_hours = Column(Float, nullable=True)
+    annual_hours = Column(Float, nullable=True)
     partiality_coefficient = Column(Float, nullable=True)
 
     # Cotización / RED simulado mínimo en contrato
