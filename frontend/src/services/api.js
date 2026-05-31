@@ -20,6 +20,26 @@ export async function resetDemo() {
   );
 }
 
+export async function fetchContractSalarySummary(contractId) {
+  return apiRequest(
+    `/contracts/${contractId}/salary-summary`,
+    {},
+    "Error al cargar resumen retributivo del contrato"
+  );
+}
+
+export async function simulateContractWorkday(contractId, payload) {
+  return apiRequest(
+    `/contracts/${contractId}/simulate-workday`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    },
+    "Error al simular cambio de jornada"
+  );
+}
+
 export async function createSocialSecurityRegistration(contractId, payload) {
   return apiRequest(
     `/contracts/${contractId}/social-security-registration`,
