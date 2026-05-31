@@ -66,11 +66,50 @@ def init_database() -> None:
                 "company_id": "INTEGER REFERENCES companies(id)",
                 "center_id": "INTEGER REFERENCES work_centers(id)",
                 "contract_code": "VARCHAR",
+                "contract_code_description": "VARCHAR",
+                "contract_family": "VARCHAR",
+                "contribution_group": "VARCHAR",
+                "professional_category": "VARCHAR",
+                "job_position": "VARCHAR",
+                "collective_agreement_code": "VARCHAR",
+                "collective_agreement_id": "INTEGER REFERENCES collective_agreements(id)",
+                "professional_category_id": "INTEGER REFERENCES professional_categories(id)",
+                "salary_table_row_id": "INTEGER REFERENCES salary_table_rows(id)",
+                "working_day_type": "VARCHAR",
+                "weekly_hours": "FLOAT",
+                "full_time_weekly_hours": "FLOAT DEFAULT 40",
+                "annual_agreement_hours": "FLOAT",
+                "monthly_hours": "FLOAT",
+                "annual_hours": "FLOAT",
+                "partiality_coefficient": "FLOAT",
+                "monthly_or_daily_contribution": "VARCHAR",
+                "red_occupation_code": "VARCHAR",
+                "red_reduction_code": "VARCHAR",
+                "gross_annual_salary": "NUMERIC(10, 2)",
                 "pay_schedule": "VARCHAR DEFAULT 'not_prorated_14' NOT NULL",
             }
             for column_name, column_definition in contract_columns.items():
                 if column_name not in existing_contract_columns:
                     connection.execute(text(f"ALTER TABLE contracts ADD COLUMN {column_name} {column_definition}"))
+
+            connection.execute(
+                text(
+                    """
+                    UPDATE contracts
+                    SET full_time_weekly_hours = COALESCE(full_time_weekly_hours, 40),
+                        partiality_coefficient = COALESCE(
+                            partiality_coefficient,
+                            CASE
+                                WHEN weekly_hours IS NOT NULL AND COALESCE(full_time_weekly_hours, 40) > 0
+                                THEN ROUND(((weekly_hours / COALESCE(full_time_weekly_hours, 40)) * 100)::numeric, 2)::float
+                                ELSE 100
+                            END
+                        ),
+                        monthly_hours = COALESCE(monthly_hours, ROUND((COALESCE(weekly_hours, full_time_weekly_hours, 40) * 52 / 12)::numeric, 2)::float),
+                        annual_hours = COALESCE(annual_hours, ROUND((COALESCE(weekly_hours, full_time_weekly_hours, 40) * 52)::numeric, 2)::float)
+                    """
+                )
+            )
 
         if "incidents" in table_names:
             existing_incident_columns = {column["name"] for column in inspector.get_columns("incidents")}
