@@ -91,6 +91,78 @@ code {
   box-shadow: 0 3px 0 #111111 !important;
 }
 
+/* Ajuste visual específico: resumen de Convenios > Control del convenio.
+   El componente usa estilos inline; por eso se fuerza con !important. */
+main section header h3 {
+  scroll-margin-top: 120px;
+}
+
+main section header h3:where(:not(:empty)) {
+  max-width: 100%;
+}
+
+main section header h3 + p {
+  text-align: right;
+}
+
+main div[style*="grid-template-columns: 1fr 1fr"] > section:nth-child(2) > div:first-of-type {
+  display: block !important;
+  grid-template-columns: none !important;
+  padding: 8px 12px 10px !important;
+  gap: 0 !important;
+}
+
+main div[style*="grid-template-columns: 1fr 1fr"] > section:nth-child(2) > div:first-of-type > div {
+  display: flex !important;
+  flex-direction: row !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  gap: 16px !important;
+  min-height: 34px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-bottom: 1px solid #f3f4f6 !important;
+  background: #ffffff !important;
+  font-size: 13px !important;
+}
+
+main div[style*="grid-template-columns: 1fr 1fr"] > section:nth-child(2) > div:first-of-type > div > strong {
+  order: 2 !important;
+  min-width: 32px !important;
+  text-align: right !important;
+  font-size: 13px !important;
+  font-weight: 850 !important;
+}
+
+main div[style*="grid-template-columns: 1fr 1fr"] > section:nth-child(2) > div:first-of-type > div > span {
+  order: 1 !important;
+  color: #374151 !important;
+  font-size: 13px !important;
+}
+
+main div[style*="grid-template-columns: 1fr 1fr"] > section:nth-child(2) > div:nth-of-type(2) {
+  margin: 10px 12px 12px !important;
+  padding: 10px 12px !important;
+  border: 1px solid #fed7aa !important;
+  border-left: 3px solid #f59e0b !important;
+  background: #fff7ed !important;
+}
+
+main div[style*="grid-template-columns: 1fr 1fr"] > section:nth-child(2) > div:nth-of-type(2) h4 {
+  margin: 0 0 6px !important;
+  color: #92400e !important;
+  font-size: 13px !important;
+  font-weight: 850 !important;
+}
+
+main div[style*="grid-template-columns: 1fr 1fr"] > section:nth-child(2) > div:nth-of-type(2) ul {
+  margin: 0 !important;
+  padding-left: 16px !important;
+  color: #92400e !important;
+  font-size: 12px !important;
+  line-height: 1.65 !important;
+}
+
 @page {
   size: A4 portrait;
   margin: 14mm;
