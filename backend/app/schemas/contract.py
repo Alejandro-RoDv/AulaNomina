@@ -31,6 +31,9 @@ class ContractBase(BaseModel):
     working_day_type: Optional[str] = None
     weekly_hours: Optional[float] = None
     full_time_weekly_hours: Optional[float] = 40
+    annual_agreement_hours: Optional[float] = None
+    monthly_hours: Optional[float] = None
+    annual_hours: Optional[float] = None
     partiality_coefficient: Optional[float] = None
 
     monthly_or_daily_contribution: Optional[str] = None
@@ -92,6 +95,11 @@ class ContractBase(BaseModel):
         if self.weekly_hours is not None and self.weekly_hours < 0:
             raise ValueError("weekly_hours no puede ser negativa")
 
+        for field_name in ("annual_agreement_hours", "monthly_hours", "annual_hours"):
+            value = getattr(self, field_name)
+            if value is not None and value < 0:
+                raise ValueError(f"{field_name} no puede ser negativo")
+
         if self.partiality_coefficient is not None and not 0 <= self.partiality_coefficient <= 100:
             raise ValueError("partiality_coefficient debe estar entre 0 y 100")
 
@@ -134,6 +142,9 @@ class ContractUpdate(BaseModel):
     working_day_type: Optional[str] = None
     weekly_hours: Optional[float] = None
     full_time_weekly_hours: Optional[float] = None
+    annual_agreement_hours: Optional[float] = None
+    monthly_hours: Optional[float] = None
+    annual_hours: Optional[float] = None
     partiality_coefficient: Optional[float] = None
 
     monthly_or_daily_contribution: Optional[str] = None
@@ -214,6 +225,9 @@ class ContractResponse(BaseModel):
     working_day_type: Optional[str] = None
     weekly_hours: Optional[float] = None
     full_time_weekly_hours: Optional[float] = None
+    annual_agreement_hours: Optional[float] = None
+    monthly_hours: Optional[float] = None
+    annual_hours: Optional[float] = None
     partiality_coefficient: Optional[float] = None
 
     monthly_or_daily_contribution: Optional[str] = None
@@ -228,3 +242,50 @@ class ContractResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class ContractSalaryConceptLine(BaseModel):
+    id: int
+    concept_id: int
+    concept_name: Optional[str] = None
+    concept_code: Optional[str] = None
+    concept_type: Optional[str] = None
+    salary_nature: Optional[str] = None
+    original_amount: Decimal = Decimal("0.00")
+    applied_amount: Decimal = Decimal("0.00")
+    applies_workday_percentage: bool = True
+
+
+class ContractSalarySummaryResponse(BaseModel):
+    contract_id: int
+    employee_name: Optional[str] = None
+    working_day_type: Optional[str] = None
+    weekly_hours: Decimal = Decimal("0.00")
+    monthly_hours: Decimal = Decimal("0.00")
+    annual_hours: Decimal = Decimal("0.00")
+    annual_agreement_hours: Decimal = Decimal("0.00")
+    full_time_weekly_hours: Decimal = Decimal("40.00")
+    partiality_coefficient: Decimal = Decimal("100.00")
+    salary_base_theoretical: Decimal = Decimal("0.00")
+    salary_base_applied: Decimal = Decimal("0.00")
+    permanent_concepts_original: Decimal = Decimal("0.00")
+    permanent_concepts_applied: Decimal = Decimal("0.00")
+    monthly_remuneration: Decimal = Decimal("0.00")
+    annual_remuneration: Decimal = Decimal("0.00")
+    estimated_company_social_security: Decimal = Decimal("0.00")
+    estimated_company_cost: Decimal = Decimal("0.00")
+    concept_lines: list[ContractSalaryConceptLine] = []
+
+
+class ContractWorkdaySimulationRequest(BaseModel):
+    target_weekly_hours: Optional[float] = None
+    target_partiality_coefficient: Optional[float] = None
+    target_full_time_weekly_hours: Optional[float] = None
+
+
+class ContractWorkdaySimulationResponse(BaseModel):
+    contract_id: int
+    before: ContractSalarySummaryResponse
+    after: ContractSalarySummaryResponse
+    annual_difference: Decimal = Decimal("0.00")
+    monthly_difference: Decimal = Decimal("0.00")
