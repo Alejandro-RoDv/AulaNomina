@@ -1,6 +1,9 @@
 const CONTRACT_NUMERIC_FIELDS = new Set([
   "weekly_hours",
   "full_time_weekly_hours",
+  "annual_agreement_hours",
+  "monthly_hours",
+  "annual_hours",
   "partiality_coefficient",
   "gross_annual_salary",
   "collective_agreement_id",
@@ -58,6 +61,9 @@ export function validateContractWorkflow(form, contractExtra = {}, socialSecurit
   const partialityCoefficient = toNumberOrNull(contractExtra.partiality_coefficient || form.partiality_coefficient);
   const weeklyHours = toNumberOrNull(contractExtra.weekly_hours || form.weekly_hours);
   const fullTimeWeeklyHours = toNumberOrNull(contractExtra.full_time_weekly_hours || form.full_time_weekly_hours || 40);
+  const annualAgreementHours = toNumberOrNull(contractExtra.annual_agreement_hours || form.annual_agreement_hours);
+  const monthlyHours = toNumberOrNull(contractExtra.monthly_hours || form.monthly_hours);
+  const annualHours = toNumberOrNull(contractExtra.annual_hours || form.annual_hours);
   const workingTimeReduction = toNumberOrNull(ss.working_time_reduction);
   const initialCtp = toNumberOrNull(ss.initial_ctp);
   const registrationDate = ss.registration_date || form.start_date;
@@ -94,6 +100,20 @@ export function validateContractWorkflow(form, contractExtra = {}, socialSecurit
 
   if (workingDayType === "full_time" && partialityCoefficient !== null && partialityCoefficient !== 100) {
     errors.push("En jornada completa el coeficiente de parcialidad debe ser 100.");
+  }
+
+  [
+    [weeklyHours, "Las horas semanales no pueden ser negativas."],
+    [fullTimeWeeklyHours, "La jornada completa de referencia debe ser mayor que 0."],
+    [annualAgreementHours, "La jornada anual de convenio no puede ser negativa."],
+    [monthlyHours, "Las horas mensuales no pueden ser negativas."],
+    [annualHours, "Las horas anuales no pueden ser negativas."],
+  ].forEach(([value, message]) => {
+    if (value !== null && value < 0) errors.push(message);
+  });
+
+  if (fullTimeWeeklyHours !== null && fullTimeWeeklyHours === 0) {
+    errors.push("La jornada completa de referencia debe ser mayor que 0.");
   }
 
   if (workingTimeReduction !== null) {
