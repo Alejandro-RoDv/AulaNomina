@@ -69,7 +69,7 @@ from app.crud.incident import (
     create_incident,
     get_incidents,
     update_incident,
-    delete_incident,
+    delete_incident as delete_incident_crud,
 )
 from app.schemas.payroll import (
     PayrollCreate,
@@ -83,19 +83,17 @@ from app.schemas.payroll import (
 from app.crud.payroll import (
     create_payroll,
     get_payrolls,
-    get_payroll,
-    prepare_monthly_payrolls,
-    simulate_future_payrolls,
     update_payroll,
     delete_payroll,
+    prepare_monthly_payrolls,
+    simulate_future_payrolls,
 )
 from app.schemas.document import DocumentCreate, DocumentUpdate, DocumentResponse
 from app.crud.document import (
     create_document,
     get_documents,
-    get_documents_by_employee,
     update_document,
-    mark_document_not_applicable,
+    delete_document,
 )
 
 app = FastAPI(title="AulaNomina API")
@@ -113,21 +111,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-init_database()
 app.include_router(case_study_router)
 app.include_router(irpf_summary_router)
 app.include_router(collective_agreement_router)
 app.include_router(payroll_salary_structure_router)
 
-_demo_db = SessionLocal()
-try:
-    seed_demo_student_groups(_demo_db)
-    seed_demo_students(_demo_db)
-    seed_demo_case_studies(_demo_db)
-    seed_demo_case_assignments(_demo_db)
-    seed_demo_corrections(_demo_db)
-finally:
-    _demo_db.close()
+
+@app.on_event("startup")
+def startup_event():
+    init_database()
 
 
 def get_db():
@@ -139,73 +131,62 @@ def get_db():
 
 
 @app.get("/")
-def root():
+def read_root():
     return {"message": "AulaNomina API funcionando"}
 
 
 @app.post("/seed-demo")
 def seed_demo(db: Session = Depends(get_db)):
-    seed_demo_data()
-    seed_demo_documents()
+    seed_demo_data(db)
     seed_demo_collective_agreements(db)
-    seed_demo_student_groups(db)
-    seed_demo_students(db)
+    seed_demo_documents(db)
     seed_demo_case_studies(db)
     seed_demo_case_assignments(db)
     seed_demo_corrections(db)
-    return {"ok": True, "message": "Datos demo cargados"}
+    seed_demo_students(db)
+    seed_demo_student_groups(db)
+    return {"ok": True, "message": "Datos demo recargados correctamente"}
 
 
 @app.get("/employees/next-code")
-def get_next_employee_code_endpoint(db: Session = Depends(get_db)):
-    return {"employee_code": get_next_employee_code(db)}
+def next_employee_code(db: Session = Depends(get_db)):
+    return {"next_code": get_next_employee_code(db)}
 
 
 @app.post("/employees", response_model=EmployeeResponse)
 def create_employee_endpoint(employee: EmployeeCreate, db: Session = Depends(get_db)):
-    if get_employee_by_dni(db, employee.dni):
-        raise HTTPException(status_code=400, detail="Ya existe un trabajador con este DNI")
-
+    if employee.dni and get_employee_by_dni(db, employee.dni):
+        raise HTTPException(status_code=400, detail="Ya existe un trabajador con ese DNI")
     if employee.email and get_employee_by_email(db, employee.email):
-        raise HTTPException(status_code=400, detail="Ya existe un trabajador con este email")
-
-    if employee.naf and get_employee_by_naf(db, employee.naf):
-        raise HTTPException(status_code=400, detail="Ya existe un trabajador con este NAF")
-
+        raise HTTPException(status_code=400, detail="Ya existe un trabajador con ese email")
+    if employee.social_security_number and get_employee_by_naf(db, employee.social_security_number):
+        raise HTTPException(status_code=400, detail="Ya existe un trabajador con ese NAF")
     return create_employee(db, employee)
 
 
 @app.get("/employees", response_model=list[EmployeeResponse])
-def list_employees(include_inactive: bool = False, db: Session = Depends(get_db)):
-    if include_inactive:
-        return get_employees_all(db)
+def list_employees(db: Session = Depends(get_db)):
     return get_employees(db)
 
 
-@app.get("/employees/{employee_id}", response_model=EmployeeResponse)
-def read_employee(employee_id: int, db: Session = Depends(get_db)):
+@app.get("/employees/all", response_model=list[EmployeeResponse])
+def list_all_employees(db: Session = Depends(get_db)):
+    return get_employees_all(db)
+
+
+@app.get("/employees/{employee_id}/assignment-history", response_model=list[EmployeeAssignmentHistoryResponse])
+def list_employee_assignment_history(employee_id: int, db: Session = Depends(get_db)):
     employee = get_employee(db, employee_id)
     if not employee:
-        raise HTTPException(status_code=404, detail="Trabajador no encontrado")
-    return employee
+        raise HTTPException(status_code=404, detail="Empleado no encontrado")
+    return get_employee_assignment_history(db, employee_id)
 
 
 @app.put("/employees/{employee_id}", response_model=EmployeeResponse)
 def update_employee_endpoint(employee_id: int, employee: EmployeeUpdate, db: Session = Depends(get_db)):
-    existing_employee = get_employee(db, employee_id)
-    if not existing_employee:
-        raise HTTPException(status_code=404, detail="Trabajador no encontrado")
-
-    if employee.dni and employee.dni != existing_employee.dni and get_employee_by_dni(db, employee.dni):
-        raise HTTPException(status_code=400, detail="Ya existe otro trabajador con este DNI")
-
-    if employee.email and employee.email != existing_employee.email and get_employee_by_email(db, employee.email):
-        raise HTTPException(status_code=400, detail="Ya existe otro trabajador con este email")
-
-    if employee.naf and employee.naf != existing_employee.naf and get_employee_by_naf(db, employee.naf):
-        raise HTTPException(status_code=400, detail="Ya existe otro trabajador con este NAF")
-
     updated_employee = update_employee(db, employee_id, employee)
+    if not updated_employee:
+        raise HTTPException(status_code=404, detail="Empleado no encontrado")
     return updated_employee
 
 
@@ -213,57 +194,34 @@ def update_employee_endpoint(employee_id: int, employee: EmployeeUpdate, db: Ses
 def delete_employee(employee_id: int, db: Session = Depends(get_db)):
     deleted_employee = soft_delete_employee(db, employee_id)
     if not deleted_employee:
-        raise HTTPException(status_code=404, detail="Trabajador no encontrado")
+        raise HTTPException(status_code=404, detail="Empleado no encontrado")
     return {"ok": True, "deleted_id": employee_id}
-
-
-@app.get("/employees/{employee_id}/assignment-history", response_model=list[EmployeeAssignmentHistoryResponse])
-def read_employee_assignment_history(employee_id: int, db: Session = Depends(get_db)):
-    employee = get_employee(db, employee_id)
-    if not employee:
-        raise HTTPException(status_code=404, detail="Trabajador no encontrado")
-    return get_employee_assignment_history(db, employee_id)
 
 
 @app.post("/companies", response_model=CompanyResponse)
 def create_company_endpoint(company: CompanyCreate, db: Session = Depends(get_db)):
     if get_company_by_cif(db, company.cif):
-        raise HTTPException(status_code=400, detail="Ya existe una empresa con este CIF")
-
-    if company.ccc and get_company_by_ccc(db, company.ccc):
-        raise HTTPException(status_code=400, detail="Ya existe una empresa con este CCC principal")
-
+        raise HTTPException(status_code=400, detail="Ya existe una empresa con ese CIF")
+    if company.main_ccc and get_company_by_ccc(db, company.main_ccc):
+        raise HTTPException(status_code=400, detail="Ya existe una empresa con ese CCC principal")
     return create_company(db, company)
 
 
 @app.get("/companies", response_model=list[CompanyResponse])
-def list_companies(include_inactive: bool = False, db: Session = Depends(get_db)):
-    if include_inactive:
-        return get_companies_all(db)
+def list_companies(db: Session = Depends(get_db)):
     return get_companies(db)
 
 
-@app.get("/companies/{company_id}", response_model=CompanyResponse)
-def read_company(company_id: int, db: Session = Depends(get_db)):
-    company = get_company(db, company_id)
-    if not company:
-        raise HTTPException(status_code=404, detail="Empresa no encontrada")
-    return company
+@app.get("/companies/all", response_model=list[CompanyResponse])
+def list_all_companies(db: Session = Depends(get_db)):
+    return get_companies_all(db)
 
 
 @app.put("/companies/{company_id}", response_model=CompanyResponse)
 def update_company_endpoint(company_id: int, company: CompanyUpdate, db: Session = Depends(get_db)):
-    existing_company = get_company(db, company_id)
-    if not existing_company:
-        raise HTTPException(status_code=404, detail="Empresa no encontrada")
-
-    if company.cif and company.cif != existing_company.cif and get_company_by_cif(db, company.cif):
-        raise HTTPException(status_code=400, detail="Ya existe otra empresa con este CIF")
-
-    if company.ccc and company.ccc != existing_company.ccc and get_company_by_ccc(db, company.ccc):
-        raise HTTPException(status_code=400, detail="Ya existe otra empresa con este CCC principal")
-
     updated_company = update_company(db, company_id, company)
+    if not updated_company:
+        raise HTTPException(status_code=404, detail="Empresa no encontrada")
     return updated_company
 
 
@@ -277,52 +235,39 @@ def delete_company(company_id: int, db: Session = Depends(get_db)):
 
 @app.post("/work-centers", response_model=WorkCenterResponse)
 def create_work_center_endpoint(work_center: WorkCenterCreate, db: Session = Depends(get_db)):
-    if get_work_center_by_code(db, work_center.center_code):
-        raise HTTPException(status_code=400, detail="Ya existe un centro con este código")
-
+    if not get_company(db, work_center.company_id):
+        raise HTTPException(status_code=404, detail="Empresa no encontrada")
+    if work_center.center_code and get_work_center_by_code(db, work_center.center_code):
+        raise HTTPException(status_code=400, detail="Ya existe un centro con ese código")
     return create_work_center(db, work_center)
 
 
 @app.get("/work-centers", response_model=list[WorkCenterResponse])
-def list_work_centers(include_inactive: bool = False, db: Session = Depends(get_db)):
-    return get_work_centers(db, include_inactive=include_inactive)
+def list_work_centers(db: Session = Depends(get_db)):
+    return get_work_centers(db)
 
 
-@app.get("/companies/{company_id}/work-centers", response_model=list[WorkCenterResponse])
+@app.get("/work-centers/company/{company_id}", response_model=list[WorkCenterResponse])
 def list_work_centers_by_company(company_id: int, db: Session = Depends(get_db)):
     if not get_company(db, company_id):
         raise HTTPException(status_code=404, detail="Empresa no encontrada")
     return get_work_centers_by_company(db, company_id)
 
 
-@app.get("/work-centers/{center_id}", response_model=WorkCenterResponse)
-def read_work_center(center_id: int, db: Session = Depends(get_db)):
-    work_center = get_work_center(db, center_id)
-    if not work_center:
-        raise HTTPException(status_code=404, detail="Centro de trabajo no encontrado")
-    return work_center
+@app.put("/work-centers/{work_center_id}", response_model=WorkCenterResponse)
+def update_work_center_endpoint(work_center_id: int, work_center: WorkCenterUpdate, db: Session = Depends(get_db)):
+    updated_work_center = update_work_center(db, work_center_id, work_center)
+    if not updated_work_center:
+        raise HTTPException(status_code=404, detail="Centro no encontrado")
+    return updated_work_center
 
 
-@app.put("/work-centers/{center_id}", response_model=WorkCenterResponse)
-def update_work_center_endpoint(center_id: int, work_center: WorkCenterUpdate, db: Session = Depends(get_db)):
-    existing_center = get_work_center(db, center_id)
-    if not existing_center:
-        raise HTTPException(status_code=404, detail="Centro de trabajo no encontrado")
-
-    if work_center.center_code and work_center.center_code != existing_center.center_code:
-        if get_work_center_by_code(db, work_center.center_code):
-            raise HTTPException(status_code=400, detail="Ya existe otro centro con este código")
-
-    updated_center = update_work_center(db, center_id, work_center)
-    return updated_center
-
-
-@app.delete("/work-centers/{center_id}")
-def delete_work_center(center_id: int, db: Session = Depends(get_db)):
-    deleted_center = soft_delete_work_center(db, center_id)
-    if not deleted_center:
-        raise HTTPException(status_code=404, detail="Centro de trabajo no encontrado")
-    return {"ok": True, "deleted_id": center_id}
+@app.delete("/work-centers/{work_center_id}")
+def delete_work_center(work_center_id: int, db: Session = Depends(get_db)):
+    deleted_work_center = soft_delete_work_center(db, work_center_id)
+    if not deleted_work_center:
+        raise HTTPException(status_code=404, detail="Centro no encontrado")
+    return {"ok": True, "deleted_id": work_center_id}
 
 
 @app.post("/contracts", response_model=ContractResponse)
@@ -370,8 +315,8 @@ def update_incident_endpoint(incident_id: int, incident: IncidentUpdate, db: Ses
 
 
 @app.delete("/incidents/{incident_id}")
-def delete_incident(incident_id: int, db: Session = Depends(get_db)):
-    deleted_incident = delete_incident(db, incident_id)
+def delete_incident_endpoint(incident_id: int, db: Session = Depends(get_db)):
+    deleted_incident = delete_incident_crud(db, incident_id)
     if not deleted_incident:
         raise HTTPException(status_code=404, detail="Incidencia no encontrada")
     return {"ok": True, "deleted_id": incident_id}
@@ -387,22 +332,14 @@ def list_payrolls(db: Session = Depends(get_db)):
     return get_payrolls(db)
 
 
-@app.post("/payrolls/prepare", response_model=PayrollPrepareResponse)
-def prepare_payrolls_endpoint(request: PayrollPrepareRequest, db: Session = Depends(get_db)):
+@app.post("/payrolls/prepare-monthly", response_model=PayrollPrepareResponse)
+def prepare_monthly_payrolls_endpoint(request: PayrollPrepareRequest, db: Session = Depends(get_db)):
     return prepare_monthly_payrolls(db, request)
 
 
 @app.post("/payrolls/simulate-future", response_model=PayrollFutureSimulationResponse)
 def simulate_future_payrolls_endpoint(request: PayrollFutureSimulationRequest, db: Session = Depends(get_db)):
     return simulate_future_payrolls(db, request)
-
-
-@app.get("/payrolls/{payroll_id}", response_model=PayrollResponse)
-def read_payroll(payroll_id: int, db: Session = Depends(get_db)):
-    payroll = get_payroll(db, payroll_id)
-    if not payroll:
-        raise HTTPException(status_code=404, detail="Nómina no encontrada")
-    return payroll
 
 
 @app.put("/payrolls/{payroll_id}", response_model=PayrollResponse)
@@ -421,6 +358,32 @@ def delete_payroll_endpoint(payroll_id: int, db: Session = Depends(get_db)):
     return {"ok": True, "deleted_id": payroll_id}
 
 
+@app.get("/tax-profiles", response_model=list[TaxProfileResponse])
+def list_tax_profiles(db: Session = Depends(get_db)):
+    return get_tax_profiles(db)
+
+
+@app.get("/tax-profiles/employee/{employee_id}", response_model=TaxProfileResponse)
+def get_employee_tax_profile(employee_id: int, db: Session = Depends(get_db)):
+    profile = get_tax_profile_by_employee(db, employee_id)
+    if not profile:
+        raise HTTPException(status_code=404, detail="Perfil IRPF no encontrado")
+    return profile
+
+
+@app.put("/tax-profiles/employee/{employee_id}", response_model=TaxProfileResponse)
+def update_employee_tax_profile(employee_id: int, profile: TaxProfileUpdate, db: Session = Depends(get_db)):
+    updated_profile = upsert_tax_profile(db, employee_id, profile)
+    if not updated_profile:
+        raise HTTPException(status_code=404, detail="Empleado no encontrado")
+    return updated_profile
+
+
+@app.post("/irpf/calculate", response_model=IrpfCalculationResponse)
+def calculate_irpf_endpoint(input_data: IrpfCalculationInput):
+    return calculate_irpf_2026(input_data)
+
+
 @app.post("/documents", response_model=DocumentResponse)
 def create_document_endpoint(document: DocumentCreate, db: Session = Depends(get_db)):
     return create_document(db, document)
@@ -431,11 +394,6 @@ def list_documents(db: Session = Depends(get_db)):
     return get_documents(db)
 
 
-@app.get("/employees/{employee_id}/documents", response_model=list[DocumentResponse])
-def list_employee_documents(employee_id: int, db: Session = Depends(get_db)):
-    return get_documents_by_employee(db, employee_id)
-
-
 @app.put("/documents/{document_id}", response_model=DocumentResponse)
 def update_document_endpoint(document_id: int, document: DocumentUpdate, db: Session = Depends(get_db)):
     updated_document = update_document(db, document_id, document)
@@ -444,44 +402,9 @@ def update_document_endpoint(document_id: int, document: DocumentUpdate, db: Ses
     return updated_document
 
 
-@app.post("/documents/{document_id}/not-applicable", response_model=DocumentResponse)
-def mark_document_not_applicable_endpoint(document_id: int, db: Session = Depends(get_db)):
-    updated_document = mark_document_not_applicable(db, document_id)
-    if not updated_document:
+@app.delete("/documents/{document_id}")
+def delete_document_endpoint(document_id: int, db: Session = Depends(get_db)):
+    deleted_document = delete_document(db, document_id)
+    if not deleted_document:
         raise HTTPException(status_code=404, detail="Documento no encontrado")
-    return updated_document
-
-
-@app.get("/tax-profiles", response_model=list[TaxProfileResponse])
-def list_tax_profiles(db: Session = Depends(get_db)):
-    return get_tax_profiles(db)
-
-
-@app.get("/employees/{employee_id}/tax-profile", response_model=TaxProfileResponse)
-def read_employee_tax_profile(employee_id: int, db: Session = Depends(get_db)):
-    employee = get_employee(db, employee_id)
-    if not employee:
-        raise HTTPException(status_code=404, detail="Trabajador no encontrado")
-
-    tax_profile = get_tax_profile_by_employee(db, employee_id)
-    if not tax_profile:
-        tax_profile = upsert_tax_profile(db, employee_id, TaxProfileUpdate())
-
-    return tax_profile
-
-
-@app.put("/employees/{employee_id}/tax-profile", response_model=TaxProfileResponse)
-def upsert_employee_tax_profile(employee_id: int, tax_profile: TaxProfileUpdate, db: Session = Depends(get_db)):
-    employee = get_employee(db, employee_id)
-    if not employee:
-        raise HTTPException(status_code=404, detail="Trabajador no encontrado")
-    return upsert_tax_profile(db, employee_id, tax_profile)
-
-
-@app.post("/irpf/calculate", response_model=IrpfCalculationResponse)
-def calculate_irpf_endpoint(input_data: IrpfCalculationInput):
-    try:
-        result = calculate_irpf_2026(input_data)
-        return result
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return {"ok": True, "deleted_id": document_id}
