@@ -19,11 +19,66 @@ function styleButtonAsTab(button, active = false) {
   button.style.border = "0";
   button.style.borderBottom = active ? "2px solid #facc15" : "2px solid transparent";
   button.style.backgroundColor = "#fff";
-  button.style.padding = "9px 12px";
+  button.style.padding = "10px 13px";
   button.style.color = active ? "#111827" : "#4b5563";
-  button.style.fontSize = "14px";
+  button.style.fontSize = "14.5px";
   button.style.fontWeight = active ? "850" : "750";
   button.style.cursor = "pointer";
+}
+
+function applyModuleFontSize() {
+  const title = Array.from(document.querySelectorAll("h2")).find((node) => node.textContent?.trim() === "Convenios colectivos");
+  const root = title?.closest("main") || title?.parentElement?.parentElement;
+  if (!root) return;
+  root.style.fontSize = "14.5px";
+
+  root.querySelectorAll("button, input, select, textarea, table, td, th, p, span, label").forEach((node) => {
+    const current = Number.parseFloat(window.getComputedStyle(node).fontSize);
+    if (Number.isFinite(current) && current < 13.5) node.style.fontSize = "13.5px";
+  });
+}
+
+function applyRecordActionsBox() {
+  const recordTitle = Array.from(document.querySelectorAll("span")).find((node) => node.textContent?.trim() === "CONVENIO SELECCIONADO");
+  const record = recordTitle?.closest("section");
+  if (!record) return;
+
+  record.style.gridTemplateColumns = "minmax(240px, 1.15fr) repeat(3, minmax(130px, 0.55fr)) minmax(300px, auto)";
+  record.style.alignItems = "center";
+  record.style.minHeight = "92px";
+  record.style.gap = "14px";
+
+  const actions = Array.from(record.querySelectorAll("div")).find((div) => {
+    const text = div.textContent || "";
+    return text.includes("Nuevo") && text.includes("Duplicar") && text.includes("Activar") && text.includes("Caducar");
+  });
+  if (!actions) return;
+
+  actions.style.display = "flex";
+  actions.style.justifyContent = "center";
+  actions.style.alignItems = "center";
+  actions.style.gap = "8px";
+  actions.style.flexWrap = "wrap";
+  actions.style.alignSelf = "center";
+  actions.style.justifySelf = "end";
+  actions.style.minWidth = "300px";
+  actions.style.padding = "10px 12px";
+  actions.style.border = "1px solid #d1d5db";
+  actions.style.background = "#f9fafb";
+  actions.style.boxShadow = "inset 3px 0 0 #facc15";
+
+  actions.querySelectorAll("button").forEach((button) => {
+    button.style.height = "32px";
+    button.style.padding = "0 11px";
+    button.style.border = "1px solid #d1d5db";
+    button.style.borderRadius = "5px";
+    button.style.background = "#ffffff";
+    button.style.color = "#111827";
+    button.style.fontSize = "13.5px";
+    button.style.fontWeight = "800";
+    button.style.textDecoration = "none";
+    button.style.cursor = "pointer";
+  });
 }
 
 function applyControlLayout() {
@@ -35,13 +90,15 @@ function applyControlLayout() {
 
   stats.style.display = "grid";
   stats.style.gridTemplateColumns = "repeat(2, minmax(0, 1fr))";
-  stats.style.gap = "0 28px";
-  stats.style.padding = "10px 12px 14px";
+  stats.style.columnGap = "24px";
+  stats.style.rowGap = "0";
+  stats.style.padding = "8px 12px 14px";
+  stats.style.alignItems = "start";
 
   Array.from(stats.children).forEach((row) => {
-    row.style.display = "flex";
-    row.style.flexDirection = "row";
-    row.style.justifyContent = "space-between";
+    row.style.display = "grid";
+    row.style.gridTemplateColumns = "150px minmax(0, 1fr)";
+    row.style.justifyContent = "start";
     row.style.alignItems = "center";
     row.style.minHeight = "38px";
     row.style.padding = "0";
@@ -49,6 +106,25 @@ function applyControlLayout() {
     row.style.borderBottom = "1px solid #f3f4f6";
     row.style.background = "#fff";
     row.style.fontSize = "14px";
+    row.style.gap = "10px";
+  });
+
+  Array.from(stats.children).forEach((row) => {
+    const strong = row.querySelector("strong");
+    const span = row.querySelector("span");
+    if (span) {
+      span.style.order = "1";
+      span.style.color = "#374151";
+      span.style.fontSize = "14px";
+      span.style.fontWeight = "500";
+    }
+    if (strong) {
+      strong.style.order = "2";
+      strong.style.textAlign = "left";
+      strong.style.fontSize = "14px";
+      strong.style.fontWeight = "850";
+      strong.style.color = "#111827";
+    }
   });
 }
 
@@ -74,12 +150,12 @@ function ensureAlertsTab() {
   function renderAlertsPanel() {
     const alerts = readAlertsFromOverview();
     panel.innerHTML = `
-      <header style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;border-bottom:1px solid #e5e7eb;padding:10px 12px;background:#f9fafb;">
-        <h3 style="margin:0;font-size:16px;font-weight:850;color:#111827;">Alertas del convenio</h3>
-        <p style="margin:0;color:#6b7280;font-size:13px;font-weight:600;">Revisiones útiles para docencia y validación.</p>
+      <header style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;border-bottom:1px solid #e5e7eb;padding:11px 13px;background:#f9fafb;">
+        <h3 style="margin:0;font-size:17px;font-weight:850;color:#111827;">Alertas del convenio</h3>
+        <p style="margin:0;color:#6b7280;font-size:13.5px;font-weight:600;">Revisiones útiles para docencia y validación.</p>
       </header>
-      <div style="padding:14px 16px;">
-        ${alerts.length ? `<ul style="margin:0;padding-left:18px;color:#92400e;font-size:14px;line-height:1.8;font-weight:750;">${alerts.map((item) => `<li>${item}</li>`).join("")}</ul>` : `<div style="color:#166534;font-size:14px;font-weight:750;">Sin alertas críticas.</div>`}
+      <div style="padding:16px 18px;">
+        ${alerts.length ? `<ul style="margin:0;padding-left:18px;color:#92400e;font-size:14.5px;line-height:1.8;font-weight:750;">${alerts.map((item) => `<li>${item}</li>`).join("")}</ul>` : `<div style="color:#166534;font-size:14.5px;font-weight:750;">Sin alertas críticas.</div>`}
       </div>
     `;
   }
@@ -110,6 +186,8 @@ function ensureAlertsTab() {
 function applyConveniosEnhancements() {
   document.body.classList.toggle("aulanomina-convenios-page", isConveniosPage());
   if (!isConveniosPage()) return;
+  applyModuleFontSize();
+  applyRecordActionsBox();
   applyControlLayout();
   readAlertsFromOverview();
   ensureAlertsTab();
