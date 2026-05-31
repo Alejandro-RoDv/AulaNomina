@@ -4,6 +4,7 @@ import { fetchCatalogs } from "../services/api";
 import { getContractVisibleCode } from "../utils/visibleCodes";
 import { getSortLabel, nextSortConfig, sortRows } from "../utils/tableSorting";
 import { formatPaySchedule, PAY_SCHEDULE_OPTIONS } from "./ContractForm";
+import ContractSalarySummaryPanel from "./ContractSalarySummaryPanel";
 
 const TERMINATION_REASONS = [
   { value: "fin_contrato_temporal", label: "Fin de contrato temporal" },
@@ -68,6 +69,13 @@ function findLabel(items, code) {
   return item ? `${item.code} · ${item.description}` : code;
 }
 
+function calculatePartiality(weeklyHours, fullTimeWeeklyHours) {
+  const weekly = Number(weeklyHours || 0);
+  const fullTime = Number(fullTimeWeeklyHours || 40);
+  if (!weekly || !fullTime) return "";
+  return String(Math.round((weekly / fullTime) * 10000) / 100);
+}
+
 function toEditForm(contract) {
   return {
     employee_id: contract.employee_id ? String(contract.employee_id) : "",
@@ -93,6 +101,9 @@ function toEditForm(contract) {
     working_day_type: contract.working_day_type || "",
     weekly_hours: contract.weekly_hours ?? "",
     full_time_weekly_hours: contract.full_time_weekly_hours ?? "40",
+    annual_agreement_hours: contract.annual_agreement_hours ?? "",
+    monthly_hours: contract.monthly_hours ?? "",
+    annual_hours: contract.annual_hours ?? "",
     partiality_coefficient: contract.partiality_coefficient ?? "",
     monthly_or_daily_contribution: contract.monthly_or_daily_contribution || "monthly",
     red_occupation_code: contract.red_occupation_code || "",
@@ -232,7 +243,18 @@ export default function ContractTable({ loading, contracts, employees, companies
 
   const handleEditChange = (event) => {
     const { name, value } = event.target;
-    setEditForm((prev) => ({ ...prev, [name]: value }));
+    setEditForm((prev) => {
+      const next = { ...prev, [name]: value };
+      if (name === "weekly_hours" || name === "full_time_weekly_hours") {
+        const calculated = calculatePartiality(next.weekly_hours, next.full_time_weekly_hours);
+        if (calculated) next.partiality_coefficient = calculated;
+      }
+      if (name === "working_day_type" && value === "full_time") {
+        next.weekly_hours = next.full_time_weekly_hours || "40";
+        next.partiality_coefficient = "100";
+      }
+      return next;
+    });
   };
 
   const handleSsEditChange = (event) => {
@@ -382,7 +404,14 @@ export default function ContractTable({ loading, contracts, employees, companies
                 <div style={styles.formRow}>
                   <div style={styles.formGroup}><label>Grupo cotización</label><select name="contribution_group" value={editForm.contribution_group} onChange={(e) => { handleEditChange(e); setSsEditForm((prev) => ({ ...prev, contribution_group: e.target.value, red_contribution_group: e.target.value })); }} style={styles.input}><option value="">Selecciona grupo</option>{catalogs.contribution_groups.map((item) => <option key={item.code} value={item.code}>{item.code} · {item.description}</option>)}</select></div>
                   <div style={styles.formGroup}><label>Tipo jornada</label><select name="working_day_type" value={editForm.working_day_type} onChange={handleEditChange} style={styles.input}><option value="">Sin definir</option>{catalogOrFallback(catalogs.working_day_types, [{ code: "full_time", description: "Jornada completa" }, { code: "part_time", description: "Jornada parcial" }, { code: "fixed_discontinuous", description: "Fijo discontinuo" }]).map((item) => <option key={item.code} value={item.code}>{item.description}</option>)}</select></div>
+                  <div style={styles.formGroup}><label>Horas semanales</label><input type="number" name="weekly_hours" value={editForm.weekly_hours} onChange={handleEditChange} style={styles.input} /></div>
+                  <div style={styles.formGroup}><label>Jornada completa ref.</label><input type="number" name="full_time_weekly_hours" value={editForm.full_time_weekly_hours} onChange={handleEditChange} style={styles.input} /></div>
+                </div>
+                <div style={styles.formRow}>
                   <div style={styles.formGroup}><label>Coeficiente parcialidad</label><input type="number" name="partiality_coefficient" value={editForm.partiality_coefficient} onChange={handleEditChange} style={styles.input} /></div>
+                  <div style={styles.formGroup}><label>Jornada anual convenio</label><input type="number" name="annual_agreement_hours" value={editForm.annual_agreement_hours} onChange={handleEditChange} style={styles.input} /></div>
+                  <div style={styles.formGroup}><label>Horas mensuales</label><input type="number" name="monthly_hours" value={editForm.monthly_hours} onChange={handleEditChange} style={styles.input} /></div>
+                  <div style={styles.formGroup}><label>Horas anuales</label><input type="number" name="annual_hours" value={editForm.annual_hours} onChange={handleEditChange} style={styles.input} /></div>
                 </div>
                 <div style={styles.formRow}>
                   <div style={styles.formGroup}><label>Ocupación RED</label><input name="red_occupation_code" value={editForm.red_occupation_code} onChange={(e) => { handleEditChange(e); setSsEditForm((prev) => ({ ...prev, red_occupation_code: e.target.value, occupation_code: e.target.value })); }} style={styles.input} /></div>
@@ -390,6 +419,8 @@ export default function ContractTable({ loading, contracts, employees, companies
                   <div style={styles.formGroup}><label>Indicador cotización</label><select name="monthly_or_daily_contribution" value={editForm.monthly_or_daily_contribution} onChange={handleEditChange} style={styles.input}>{catalogOrFallback(catalogs.monthly_daily_contribution_types, [{ code: "monthly", description: "Cotización mensual" }, { code: "daily", description: "Cotización diaria" }]).map((item) => <option key={item.code} value={item.code}>{item.description}</option>)}</select></div>
                 </div>
               </section>
+
+              <ContractSalarySummaryPanel contractId={editingContract.id} />
 
               <section style={styles.sectionBox}>
                 <h4 style={styles.sectionTitle}>Alta SS simulada</h4>
