@@ -14,6 +14,7 @@ import CompaniesPage from "./pages/CompaniesPage";
 import ContractsPage from "./pages/ContractsPage";
 import EmployeesPage from "./pages/EmployeesPage";
 import IncidentsPage from "./pages/IncidentsPage";
+import IrpfPage from "./pages/IrpfPage";
 import PayrollConceptsPage from "./pages/PayrollConceptsPage";
 import PayrollHistoryPage from "./pages/PayrollHistoryPage";
 import PayrollIndividualPage from "./pages/PayrollIndividualPage";
@@ -161,6 +162,7 @@ export default function App() {
     if (activePage === "payroll-individual") return "Nómina individual";
     if (activePage === "payroll-simulation") return "Simulación de nóminas";
     if (activePage === "payroll-history") return "Histórico de nóminas";
+    if (activePage === "irpf") return "IRPF";
     if (activePage === "payrolls") return "Nóminas";
     if (activePage === "incidents") return "Incidencias laborales";
     if (activePage === "documents") return "Documentos";
@@ -182,6 +184,7 @@ export default function App() {
     if (activePage === "payroll-individual") return "Creación manual de una nómina concreta";
     if (activePage === "payroll-simulation") return "Previsión y escenarios sin generar nóminas reales";
     if (activePage === "payroll-history") return "Consulta, revisión y desglose de nóminas generadas";
+    if (activePage === "irpf") return "Cálculo anual del trabajador, previsión mensual, IRPF voluntario y recálculo";
     if (activePage === "payrolls") return "Generación y consulta de nóminas simuladas";
     if (activePage === "incidents") return "Gestión de IT, recaídas, vacaciones, ausencias y permisos";
     if (activePage === "documents") return "Gestión documental del expediente laboral";
@@ -278,6 +281,16 @@ export default function App() {
           onUpdatePayroll={handleUpdatePayroll}
           onDeletePayroll={handleDeletePayroll}
           payrollSubmitting={payrollSubmitting}
+        />
+      );
+    }
+
+    if (activePage === "irpf") {
+      return (
+        <IrpfPage
+          employees={employees.filter((employee) => employee.is_active)}
+          contracts={contracts}
+          onRefresh={loadData}
         />
       );
     }
