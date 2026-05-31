@@ -4,17 +4,28 @@ import { fetchContractSalarySummary, simulateContractWorkday } from "../services
 
 function formatMoney(value) {
   if (value === null || value === undefined || value === "") return "-";
+  const number = Number(value);
+  if (Number.isNaN(number)) return "-";
   return new Intl.NumberFormat("es-ES", {
     style: "currency",
     currency: "EUR",
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
-  }).format(Number(value));
+  }).format(number);
 }
 
 function formatNumber(value, suffix = "") {
   if (value === null || value === undefined || value === "") return "-";
-  return `${Number(value).toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}${suffix}`;
+  const number = Number(value);
+  if (Number.isNaN(number)) return "-";
+  return `${number.toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}${suffix}`;
+}
+
+function toPositiveNumber(value) {
+  if (value === "" || value === null || value === undefined) return null;
+  const number = Number(value);
+  if (Number.isNaN(number) || number <= 0) return null;
+  return number;
 }
 
 function SummaryMetric({ label, value, strong = false }) {
@@ -125,16 +136,21 @@ export default function ContractSalarySummaryPanel({ contractId }) {
     setError("");
     setSimulation(null);
 
+    const targetHours = toPositiveNumber(targetWeeklyHours);
+    const targetPercentage = toPositiveNumber(targetPartiality);
     const payload = {};
-    if (targetWeeklyHours !== "") {
-      payload.target_weekly_hours = Number(targetWeeklyHours);
-      payload.target_full_time_weekly_hours = Number(summary?.full_time_weekly_hours || 40);
-    } else if (targetPartiality !== "") {
-      payload.target_partiality_coefficient = Number(targetPartiality);
-    }
 
-    if (!payload.target_weekly_hours && !payload.target_partiality_coefficient) {
-      setError("Indica una parcialidad objetivo o unas horas semanales objetivo.");
+    if (targetHours !== null) {
+      payload.target_weekly_hours = targetHours;
+      payload.target_full_time_weekly_hours = Number(summary?.full_time_weekly_hours || 40);
+    } else if (targetPercentage !== null) {
+      if (targetPercentage > 100) {
+        setError("La parcialidad objetivo no puede ser superior al 100% en esta simulación MVP.");
+        return;
+      }
+      payload.target_partiality_coefficient = targetPercentage;
+    } else {
+      setError("Indica una parcialidad objetivo o unas horas semanales objetivo mayor que 0.");
       return;
     }
 
@@ -191,11 +207,11 @@ export default function ContractSalarySummaryPanel({ contractId }) {
         <div style={styles.formRow}>
           <div style={styles.formGroup}>
             <label>Parcialidad objetivo (%)</label>
-            <input type="number" value={targetPartiality} onChange={(event) => { setTargetPartiality(event.target.value); setTargetWeeklyHours(""); }} style={styles.input} placeholder="Ej. 75" />
+            <input type="number" min="0" max="100" value={targetPartiality} onChange={(event) => { setTargetPartiality(event.target.value); setTargetWeeklyHours(""); }} style={styles.input} placeholder="Ej. 75" />
           </div>
           <div style={styles.formGroup}>
             <label>O bien horas semanales</label>
-            <input type="number" value={targetWeeklyHours} onChange={(event) => { setTargetWeeklyHours(event.target.value); setTargetPartiality(""); }} style={styles.input} placeholder="Ej. 30" />
+            <input type="number" min="0" value={targetWeeklyHours} onChange={(event) => { setTargetWeeklyHours(event.target.value); setTargetPartiality(""); }} style={styles.input} placeholder="Ej. 30" />
           </div>
           <button type="button" onClick={handleSimulate} disabled={simulating} style={styles.button}>{simulating ? "Simulando..." : "Simular nueva jornada"}</button>
         </div>
@@ -219,7 +235,7 @@ const styles = {
   metricCard: { border: "1px solid #e5e7eb", borderRadius: "10px", padding: "10px", backgroundColor: "#f9fafb", display: "flex", flexDirection: "column", gap: "4px" },
   metricLabel: { color: "#6b7280", fontSize: "11px", fontWeight: 900, textTransform: "uppercase" },
   metricValue: { color: "#111827", fontSize: "15px", fontWeight: 900 },
-  metricValueStrong: { color: "#111827", fontSize: "17px", fontWeight: 1000 },
+  metricValueStrong: { color: "#111827", fontSize: "17px", fontWeight: 900 },
   tableWrapper: { overflowX: "auto", border: "1px solid #e5e7eb", borderRadius: "10px" },
   table: { width: "100%", borderCollapse: "collapse", fontSize: "13px" },
   th: { textAlign: "left", padding: "9px", backgroundColor: "#f9fafb", borderBottom: "1px solid #e5e7eb" },
