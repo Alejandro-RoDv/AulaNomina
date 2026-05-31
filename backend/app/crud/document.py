@@ -110,3 +110,12 @@ def mark_document_not_applicable(db: Session, document_id: int):
     db.commit()
     db.refresh(db_document)
     return get_document(db, document_id)
+
+
+def delete_document(db: Session, document_id: int):
+    """Compatibilidad con el endpoint DELETE.
+
+    En el MVP no eliminamos físicamente el documento: lo marcamos como no aplicable
+    para conservar trazabilidad docente y evitar pérdida accidental de datos demo.
+    """
+    return mark_document_not_applicable(db, document_id)
