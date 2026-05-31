@@ -22,16 +22,7 @@ const tabs = [
   { id: "new", label: "Nuevo convenio" },
 ];
 
-const initialAgreementForm = {
-  name: "",
-  agreement_code: "",
-  sector: "",
-  territorial_scope: "",
-  effective_from: "",
-  effective_to: "",
-  status: "draft",
-  notes: "",
-};
+const initialAgreementForm = { name: "", agreement_code: "", sector: "", territorial_scope: "", effective_from: "", effective_to: "", status: "draft", notes: "" };
 const initialGroupForm = { code: "", name: "", description: "", display_order: 1 };
 const initialCategoryForm = { professional_group_id: "", code: "", name: "", level: "", functional_description: "", display_order: 1 };
 const initialSalaryTableForm = { name: "Tabla salarial 2026", year: "2026", number_of_payments: 14, amount_type: "monthly", status: "active", notes: "" };
@@ -51,6 +42,10 @@ function money(value) {
 
 function getGroupName(groups, groupId) {
   return groups.find((group) => Number(group.id) === Number(groupId))?.name || "—";
+}
+
+function formatLeaveType(value) {
+  return value === "paid" ? "Retribuido" : value === "unpaid" ? "No retribuido" : value || "—";
 }
 
 export default function CollectiveAgreementsPage({ loading, collectiveAgreements = [], onDataChanged }) {
@@ -131,44 +126,25 @@ export default function CollectiveAgreementsPage({ loading, collectiveAgreements
 
   const handleCreateAgreement = (event) => {
     event.preventDefault();
-    submitAction(
-      () => createCollectiveAgreement(cleanPayload(agreementForm)),
-      "Convenio creado correctamente",
-      () => setAgreementForm(initialAgreementForm)
-    );
+    submitAction(() => createCollectiveAgreement(cleanPayload(agreementForm)), "Convenio creado correctamente", () => setAgreementForm(initialAgreementForm));
   };
 
   const handleCreateGroup = (event) => {
     event.preventDefault();
     if (!activeAgreement?.id) return;
-    submitAction(
-      () => createProfessionalGroup(activeAgreement.id, cleanPayload(groupForm)),
-      "Grupo profesional creado correctamente",
-      () => setGroupForm(initialGroupForm),
-      activeAgreement.id
-    );
+    submitAction(() => createProfessionalGroup(activeAgreement.id, cleanPayload(groupForm)), "Grupo profesional creado correctamente", () => setGroupForm(initialGroupForm), activeAgreement.id);
   };
 
   const handleCreateCategory = (event) => {
     event.preventDefault();
     if (!activeAgreement?.id) return;
-    submitAction(
-      () => createProfessionalCategory(activeAgreement.id, cleanPayload(categoryForm)),
-      "Categoría profesional creada correctamente",
-      () => setCategoryForm(initialCategoryForm),
-      activeAgreement.id
-    );
+    submitAction(() => createProfessionalCategory(activeAgreement.id, cleanPayload(categoryForm)), "Categoría profesional creada correctamente", () => setCategoryForm(initialCategoryForm), activeAgreement.id);
   };
 
   const handleCreateSalaryTable = (event) => {
     event.preventDefault();
     if (!activeAgreement?.id) return;
-    submitAction(
-      () => createSalaryTable(activeAgreement.id, cleanPayload(salaryTableForm)),
-      "Tabla salarial creada correctamente",
-      () => setSalaryTableForm(initialSalaryTableForm),
-      activeAgreement.id
-    );
+    submitAction(() => createSalaryTable(activeAgreement.id, cleanPayload(salaryTableForm)), "Tabla salarial creada correctamente", () => setSalaryTableForm(initialSalaryTableForm), activeAgreement.id);
   };
 
   const handleCreateSalaryRow = (event) => {
@@ -180,12 +156,7 @@ export default function CollectiveAgreementsPage({ loading, collectiveAgreements
     const category = categories.find((item) => String(item.id) === String(salaryRowForm.professional_category_id));
     const group = groups.find((item) => Number(item.id) === Number(category?.professional_group_id));
     submitAction(
-      () => createSalaryTableRow(salaryRowForm.salary_table_id, cleanPayload({
-        ...salaryRowForm,
-        category_name: category?.name || null,
-        group_name: group?.name || null,
-        professional_group_id: category?.professional_group_id || null,
-      })),
+      () => createSalaryTableRow(salaryRowForm.salary_table_id, cleanPayload({ ...salaryRowForm, category_name: category?.name || null, group_name: group?.name || null, professional_group_id: category?.professional_group_id || null })),
       "Fila salarial creada correctamente",
       () => setSalaryRowForm(initialSalaryRowForm),
       activeAgreement?.id
@@ -195,34 +166,19 @@ export default function CollectiveAgreementsPage({ loading, collectiveAgreements
   const handleCreateWorkTimeRule = (event) => {
     event.preventDefault();
     if (!activeAgreement?.id) return;
-    submitAction(
-      () => createWorkTimeRule(activeAgreement.id, cleanPayload(workTimeRuleForm)),
-      "Regla de jornada creada correctamente",
-      () => setWorkTimeRuleForm(initialWorkTimeRuleForm),
-      activeAgreement.id
-    );
+    submitAction(() => createWorkTimeRule(activeAgreement.id, cleanPayload(workTimeRuleForm)), "Regla de jornada creada correctamente", () => setWorkTimeRuleForm(initialWorkTimeRuleForm), activeAgreement.id);
   };
 
   const handleCreateVacationRule = (event) => {
     event.preventDefault();
     if (!activeAgreement?.id) return;
-    submitAction(
-      () => createVacationRule(activeAgreement.id, cleanPayload(vacationRuleForm)),
-      "Regla de vacaciones creada correctamente",
-      () => setVacationRuleForm(initialVacationRuleForm),
-      activeAgreement.id
-    );
+    submitAction(() => createVacationRule(activeAgreement.id, cleanPayload(vacationRuleForm)), "Regla de vacaciones creada correctamente", () => setVacationRuleForm(initialVacationRuleForm), activeAgreement.id);
   };
 
   const handleCreateLeaveRule = (event) => {
     event.preventDefault();
     if (!activeAgreement?.id) return;
-    submitAction(
-      () => createLeaveRule(activeAgreement.id, cleanPayload(leaveRuleForm)),
-      "Permiso creado correctamente",
-      () => setLeaveRuleForm(initialLeaveRuleForm),
-      activeAgreement.id
-    );
+    submitAction(() => createLeaveRule(activeAgreement.id, cleanPayload(leaveRuleForm)), "Permiso creado correctamente", () => setLeaveRuleForm(initialLeaveRuleForm), activeAgreement.id);
   };
 
   return (
@@ -388,17 +344,7 @@ export default function CollectiveAgreementsPage({ loading, collectiveAgreements
             </form>
           </div>
 
-          <div style={styles.tableWrapper}>
-            <table style={styles.table}>
-              <thead><tr><th>Tipo</th><th>Nombre</th><th>Detalle</th><th>Notas</th></tr></thead>
-              <tbody>
-                {workTimeRules.map((rule) => <tr key={`work-${rule.id}`}><td>Jornada</td><td>{rule.name}</td><td>{rule.annual_hours || "—"} h/año · {rule.weekly_hours || "—"} h/semana</td><td>{rule.notes || "—"}</td></tr>)}
-                {vacationRules.map((rule) => <tr key={`vac-${rule.id}`}><td>Vacaciones</td><td>{rule.name}</td><td>{rule.natural_days || "—"} días naturales · {rule.accrual_period || "—"}</td><td>{rule.notes || "—"}</td></tr>)}
-                {leaveRules.map((rule) => <tr key={`leave-${rule.id}`}><td>Permiso</td><td>{rule.name}</td><td>{rule.duration || "—"} {rule.duration_unit || ""} · {rule.leave_type}</td><td>{rule.notes || "—"}</td></tr>)}
-                {workTimeRules.length + vacationRules.length + leaveRules.length === 0 && <tr><td colSpan="4">Sin datos registrados.</td></tr>}
-              </tbody>
-            </table>
-          </div>
+          <RulesHistory workTimeRules={workTimeRules} vacationRules={vacationRules} leaveRules={leaveRules} />
         </PageCard>
       )}
 
@@ -424,6 +370,117 @@ function Info({ label, value }) {
 
 function Rule({ title, text }) {
   return <div style={styles.ruleCard}><strong>{title}</strong><span>{text}</span></div>;
+}
+
+function RulesHistory({ workTimeRules, vacationRules, leaveRules }) {
+  const total = workTimeRules.length + vacationRules.length + leaveRules.length;
+
+  if (!total) {
+    return (
+      <section style={styles.historyBox}>
+        <div style={styles.historyHeader}>
+          <div>
+            <h3 style={styles.historyTitle}>Historial de reglas</h3>
+            <p style={styles.historySubtitle}>Todavía no hay reglas registradas para este convenio.</p>
+          </div>
+        </div>
+        <div style={styles.emptyHistory}>Añade una jornada, vacaciones o permiso para construir el convenio.</div>
+      </section>
+    );
+  }
+
+  return (
+    <section style={styles.historyBox}>
+      <div style={styles.historyHeader}>
+        <div>
+          <h3 style={styles.historyTitle}>Historial de reglas</h3>
+          <p style={styles.historySubtitle}>Resumen visual de las reglas informativas registradas en este convenio.</p>
+        </div>
+        <div style={styles.historyCounters}>
+          <InfoPill label="Jornadas" value={workTimeRules.length} />
+          <InfoPill label="Vacaciones" value={vacationRules.length} />
+          <InfoPill label="Permisos" value={leaveRules.length} />
+        </div>
+      </div>
+
+      <div style={styles.historyGrid}>
+        {workTimeRules.map((rule) => (
+          <HistoryCard
+            key={`work-${rule.id}`}
+            type="Jornada"
+            title={rule.name}
+            badge="Tiempo de trabajo"
+            tone="work"
+            metrics={[
+              { label: "Horas anuales", value: rule.annual_hours ? `${rule.annual_hours} h` : "—" },
+              { label: "Horas semanales", value: rule.weekly_hours ? `${rule.weekly_hours} h` : "—" },
+              { label: "Distribución", value: rule.distribution_type || "Regular" },
+            ]}
+            notes={rule.notes}
+          />
+        ))}
+
+        {vacationRules.map((rule) => (
+          <HistoryCard
+            key={`vac-${rule.id}`}
+            type="Vacaciones"
+            title={rule.name}
+            badge="Descanso anual"
+            tone="vacation"
+            metrics={[
+              { label: "Días naturales", value: rule.natural_days ? `${rule.natural_days}` : "—" },
+              { label: "Días laborables", value: rule.working_days ? `${rule.working_days}` : "—" },
+              { label: "Devengo", value: rule.accrual_period || "—" },
+            ]}
+            notes={rule.notes}
+          />
+        ))}
+
+        {leaveRules.map((rule) => (
+          <HistoryCard
+            key={`leave-${rule.id}`}
+            type="Permiso"
+            title={rule.name}
+            badge={formatLeaveType(rule.leave_type)}
+            tone="leave"
+            metrics={[
+              { label: "Duración", value: rule.duration ? `${rule.duration} ${rule.duration_unit || ""}` : "—" },
+              { label: "Causa", value: rule.cause || "—" },
+              { label: "Tratamiento", value: rule.salary_treatment || formatLeaveType(rule.leave_type) },
+            ]}
+            notes={rule.notes}
+          />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function InfoPill({ label, value }) {
+  return <div style={styles.infoPill}><span>{label}</span><strong>{value}</strong></div>;
+}
+
+function HistoryCard({ type, title, badge, tone, metrics, notes }) {
+  return (
+    <article style={{ ...styles.historyCard, ...(styles[`${tone}Card`] || {}) }}>
+      <div style={styles.historyCardHeader}>
+        <div>
+          <span style={styles.historyType}>{type}</span>
+          <h4 style={styles.historyCardTitle}>{title}</h4>
+        </div>
+        <span style={styles.historyBadge}>{badge}</span>
+      </div>
+      <div style={styles.historyMetrics}>
+        {metrics.map((metric) => (
+          <div key={metric.label} style={styles.historyMetric}>
+            <span>{metric.label}</span>
+            <strong>{metric.value}</strong>
+          </div>
+        ))}
+      </div>
+      <div style={styles.historyNotes}><span>Notas</span><strong>{notes || "Sin notas"}</strong></div>
+    </article>
+  );
 }
 
 const styles = {
@@ -454,4 +511,23 @@ const styles = {
   secondaryButton: { backgroundColor: "white", color: "#111", border: "1px solid #111", borderRadius: "8px", padding: "10px 14px", fontWeight: 900, cursor: "pointer" },
   tableWrapper: { marginTop: "16px", overflowX: "auto", border: "1px solid #e5e7eb", borderRadius: "10px" },
   table: { width: "100%", borderCollapse: "collapse", fontSize: "14px" },
+  historyBox: { marginTop: "18px", border: "1px solid #e5e7eb", borderRadius: "14px", padding: "16px", backgroundColor: "#ffffff" },
+  historyHeader: { display: "flex", justifyContent: "space-between", gap: "16px", alignItems: "flex-start", borderBottom: "1px solid #e5e7eb", paddingBottom: "12px", marginBottom: "14px" },
+  historyTitle: { margin: 0, fontSize: "18px", fontWeight: 900, color: "#111827" },
+  historySubtitle: { margin: "4px 0 0", color: "#6b7280", fontWeight: 700, fontSize: "13px" },
+  historyCounters: { display: "flex", gap: "8px", flexWrap: "wrap", justifyContent: "flex-end" },
+  infoPill: { minWidth: "96px", border: "1px solid #e5e7eb", borderRadius: "10px", padding: "8px 10px", backgroundColor: "#f9fafb", display: "flex", flexDirection: "column", gap: "2px" },
+  historyGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "12px" },
+  historyCard: { border: "1px solid #e5e7eb", borderRadius: "14px", padding: "14px", backgroundColor: "#ffffff", display: "flex", flexDirection: "column", gap: "12px", boxShadow: "3px 3px 0 #f3f4f6" },
+  workCard: { borderLeft: "6px solid #111827" },
+  vacationCard: { borderLeft: "6px solid #f59e0b" },
+  leaveCard: { borderLeft: "6px solid #2563eb" },
+  historyCardHeader: { display: "flex", justifyContent: "space-between", gap: "12px", alignItems: "flex-start" },
+  historyType: { display: "inline-block", fontSize: "11px", fontWeight: 900, textTransform: "uppercase", color: "#6b7280", marginBottom: "4px" },
+  historyCardTitle: { margin: 0, fontSize: "16px", fontWeight: 900, color: "#111827" },
+  historyBadge: { border: "1px solid #111827", borderRadius: "999px", padding: "4px 8px", fontSize: "11px", fontWeight: 900, whiteSpace: "nowrap", backgroundColor: "#fef3c7", color: "#111827" },
+  historyMetrics: { display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: "8px" },
+  historyMetric: { border: "1px solid #e5e7eb", borderRadius: "10px", padding: "8px", backgroundColor: "#f9fafb", display: "flex", flexDirection: "column", gap: "3px", fontSize: "12px" },
+  historyNotes: { borderTop: "1px solid #e5e7eb", paddingTop: "8px", display: "flex", flexDirection: "column", gap: "3px", color: "#6b7280", fontSize: "12px" },
+  emptyHistory: { border: "1px dashed #d1d5db", borderRadius: "12px", padding: "18px", backgroundColor: "#f9fafb", color: "#6b7280", fontWeight: 800 },
 };
