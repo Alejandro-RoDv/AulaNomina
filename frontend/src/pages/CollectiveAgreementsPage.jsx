@@ -97,14 +97,15 @@ export default function CollectiveAgreementsPage({ loading, collectiveAgreements
     }
   }
 
-  async function submitAction(action, successMessage, resetForm = null) {
+  async function submitAction(action, successMessage, resetForm = null, refreshAgreementId = null) {
     setError("");
     setMessage("");
     try {
       setSubmitting(true);
       const result = await action();
       setMessage(successMessage);
-      await refreshAgreement(result?.id || result?.agreement_id || activeAgreement?.id);
+      const targetAgreementId = refreshAgreementId || result?.agreement_id || result?.collective_agreement_id || activeAgreement?.id || result?.id;
+      await refreshAgreement(targetAgreementId);
       resetForm?.();
       return result;
     } catch (err) {
@@ -143,7 +144,8 @@ export default function CollectiveAgreementsPage({ loading, collectiveAgreements
     submitAction(
       () => createProfessionalGroup(activeAgreement.id, cleanPayload(groupForm)),
       "Grupo profesional creado correctamente",
-      () => setGroupForm(initialGroupForm)
+      () => setGroupForm(initialGroupForm),
+      activeAgreement.id
     );
   };
 
@@ -153,7 +155,8 @@ export default function CollectiveAgreementsPage({ loading, collectiveAgreements
     submitAction(
       () => createProfessionalCategory(activeAgreement.id, cleanPayload(categoryForm)),
       "Categoría profesional creada correctamente",
-      () => setCategoryForm(initialCategoryForm)
+      () => setCategoryForm(initialCategoryForm),
+      activeAgreement.id
     );
   };
 
@@ -163,7 +166,8 @@ export default function CollectiveAgreementsPage({ loading, collectiveAgreements
     submitAction(
       () => createSalaryTable(activeAgreement.id, cleanPayload(salaryTableForm)),
       "Tabla salarial creada correctamente",
-      () => setSalaryTableForm(initialSalaryTableForm)
+      () => setSalaryTableForm(initialSalaryTableForm),
+      activeAgreement.id
     );
   };
 
@@ -183,7 +187,8 @@ export default function CollectiveAgreementsPage({ loading, collectiveAgreements
         professional_group_id: category?.professional_group_id || null,
       })),
       "Fila salarial creada correctamente",
-      () => setSalaryRowForm(initialSalaryRowForm)
+      () => setSalaryRowForm(initialSalaryRowForm),
+      activeAgreement?.id
     );
   };
 
@@ -193,7 +198,8 @@ export default function CollectiveAgreementsPage({ loading, collectiveAgreements
     submitAction(
       () => createWorkTimeRule(activeAgreement.id, cleanPayload(workTimeRuleForm)),
       "Regla de jornada creada correctamente",
-      () => setWorkTimeRuleForm(initialWorkTimeRuleForm)
+      () => setWorkTimeRuleForm(initialWorkTimeRuleForm),
+      activeAgreement.id
     );
   };
 
@@ -203,7 +209,8 @@ export default function CollectiveAgreementsPage({ loading, collectiveAgreements
     submitAction(
       () => createVacationRule(activeAgreement.id, cleanPayload(vacationRuleForm)),
       "Regla de vacaciones creada correctamente",
-      () => setVacationRuleForm(initialVacationRuleForm)
+      () => setVacationRuleForm(initialVacationRuleForm),
+      activeAgreement.id
     );
   };
 
@@ -213,7 +220,8 @@ export default function CollectiveAgreementsPage({ loading, collectiveAgreements
     submitAction(
       () => createLeaveRule(activeAgreement.id, cleanPayload(leaveRuleForm)),
       "Permiso creado correctamente",
-      () => setLeaveRuleForm(initialLeaveRuleForm)
+      () => setLeaveRuleForm(initialLeaveRuleForm),
+      activeAgreement.id
     );
   };
 
@@ -284,6 +292,7 @@ export default function CollectiveAgreementsPage({ loading, collectiveAgreements
               <textarea style={styles.textarea} placeholder="Descripción" value={groupForm.description} onChange={(e) => setGroupForm({ ...groupForm, description: e.target.value })} />
               <button type="submit" disabled={submitting} style={styles.primaryButton}>Añadir grupo</button>
             </form>
+
             <form onSubmit={handleCreateCategory} style={styles.stackForm}>
               <h3 style={styles.sectionTitle}>Nueva categoría</h3>
               <select style={styles.input} value={categoryForm.professional_group_id} onChange={(e) => setCategoryForm({ ...categoryForm, professional_group_id: e.target.value })}>
@@ -291,45 +300,60 @@ export default function CollectiveAgreementsPage({ loading, collectiveAgreements
                 {groups.map((group) => <option key={group.id} value={group.id}>{group.name}</option>)}
               </select>
               <input style={styles.input} placeholder="Código" value={categoryForm.code} onChange={(e) => setCategoryForm({ ...categoryForm, code: e.target.value })} />
-              <input style={styles.input} placeholder="Nombre de categoría" value={categoryForm.name} onChange={(e) => setCategoryForm({ ...categoryForm, name: e.target.value })} required />
+              <input style={styles.input} placeholder="Nombre categoría" value={categoryForm.name} onChange={(e) => setCategoryForm({ ...categoryForm, name: e.target.value })} required />
               <input style={styles.input} placeholder="Nivel" value={categoryForm.level} onChange={(e) => setCategoryForm({ ...categoryForm, level: e.target.value })} />
-              <textarea style={styles.textarea} placeholder="Descripción funcional" value={categoryForm.functional_description} onChange={(e) => setCategoryForm({ ...categoryForm, functional_description: e.target.value })} />
               <button type="submit" disabled={submitting} style={styles.primaryButton}>Añadir categoría</button>
             </form>
           </div>
-          <SimpleTable columns={["Grupo", "Código", "Categoría", "Nivel"]} rows={categories.map((category) => [getGroupName(groups, category.professional_group_id), category.code || "—", category.name, category.level || "—"])} />
+
+          <div style={styles.tableWrapper}>
+            <table style={styles.table}>
+              <thead><tr><th>Grupo</th><th>Código</th><th>Categoría</th><th>Nivel</th></tr></thead>
+              <tbody>
+                {categories.map((category) => <tr key={category.id}><td>{getGroupName(groups, category.professional_group_id)}</td><td>{category.code || "—"}</td><td>{category.name}</td><td>{category.level || "—"}</td></tr>)}
+                {categories.length === 0 && <tr><td colSpan="4">Sin categorías registradas.</td></tr>}
+              </tbody>
+            </table>
+          </div>
         </PageCard>
       )}
 
       {selectedAgreement && activeTab === "salary" && (
-        <PageCard title="Tablas salariales" subtitle="Importes de referencia. El salario base puede copiarse al contrato, pero sigue siendo editable.">
+        <PageCard title="Tablas salariales" subtitle="Registra importes base y complementos de referencia.">
           <div style={styles.twoColumns}>
             <form onSubmit={handleCreateSalaryTable} style={styles.stackForm}>
               <h3 style={styles.sectionTitle}>Nueva tabla</h3>
-              <input style={styles.input} placeholder="Nombre" value={salaryTableForm.name} onChange={(e) => setSalaryTableForm({ ...salaryTableForm, name: e.target.value })} required />
-              <input style={styles.input} placeholder="Año" value={salaryTableForm.year} onChange={(e) => setSalaryTableForm({ ...salaryTableForm, year: e.target.value })} />
-              <select style={styles.input} value={salaryTableForm.amount_type} onChange={(e) => setSalaryTableForm({ ...salaryTableForm, amount_type: e.target.value })}>
-                <option value="monthly">Mensual</option><option value="annual">Anual</option><option value="daily">Diario</option><option value="hourly">Hora</option>
-              </select>
+              <input style={styles.input} value={salaryTableForm.name} onChange={(e) => setSalaryTableForm({ ...salaryTableForm, name: e.target.value })} required />
+              <input style={styles.input} value={salaryTableForm.year} onChange={(e) => setSalaryTableForm({ ...salaryTableForm, year: e.target.value })} />
+              <input type="number" style={styles.input} value={salaryTableForm.number_of_payments} onChange={(e) => setSalaryTableForm({ ...salaryTableForm, number_of_payments: Number(e.target.value) })} />
               <button type="submit" disabled={submitting} style={styles.primaryButton}>Crear tabla</button>
             </form>
+
             <form onSubmit={handleCreateSalaryRow} style={styles.stackForm}>
               <h3 style={styles.sectionTitle}>Nueva fila salarial</h3>
-              <select style={styles.input} value={salaryRowForm.salary_table_id} onChange={(e) => setSalaryRowForm({ ...salaryRowForm, salary_table_id: e.target.value })}>
-                <option value="">Seleccionar tabla</option>
+              <select style={styles.input} value={salaryRowForm.salary_table_id} onChange={(e) => setSalaryRowForm({ ...salaryRowForm, salary_table_id: e.target.value })} required>
+                <option value="">Selecciona tabla</option>
                 {salaryTables.map((table) => <option key={table.id} value={table.id}>{table.name}</option>)}
               </select>
               <select style={styles.input} value={salaryRowForm.professional_category_id} onChange={(e) => setSalaryRowForm({ ...salaryRowForm, professional_category_id: e.target.value })}>
-                <option value="">Seleccionar categoría</option>
+                <option value="">Categoría manual</option>
                 {categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
               </select>
-              <input style={styles.input} placeholder="Salario base" value={salaryRowForm.base_salary} onChange={(e) => setSalaryRowForm({ ...salaryRowForm, base_salary: e.target.value })} />
-              <input style={styles.input} placeholder="Antigüedad" value={salaryRowForm.seniority_amount} onChange={(e) => setSalaryRowForm({ ...salaryRowForm, seniority_amount: e.target.value })} />
-              <input style={styles.input} placeholder="Plus convenio" value={salaryRowForm.agreement_plus} onChange={(e) => setSalaryRowForm({ ...salaryRowForm, agreement_plus: e.target.value })} />
-              <button type="submit" disabled={submitting} style={styles.primaryButton}>Añadir fila</button>
+              <input type="number" style={styles.input} placeholder="Salario base" value={salaryRowForm.base_salary} onChange={(e) => setSalaryRowForm({ ...salaryRowForm, base_salary: e.target.value })} required />
+              <input type="number" style={styles.input} placeholder="Complemento convenio" value={salaryRowForm.agreement_plus} onChange={(e) => setSalaryRowForm({ ...salaryRowForm, agreement_plus: e.target.value })} />
+              <button type="submit" disabled={submitting} style={styles.primaryButton}>Añadir fila salarial</button>
             </form>
           </div>
-          <SimpleTable columns={["Tabla", "Categoría", "Base", "Antigüedad", "Plus", "Total"]} rows={salaryRows.map((row) => [row.table_name, row.category_name || "—", money(row.base_salary), money(row.seniority_amount), money(row.agreement_plus), money(row.total_amount)])} />
+
+          <div style={styles.tableWrapper}>
+            <table style={styles.table}>
+              <thead><tr><th>Tabla</th><th>Año</th><th>Categoría</th><th>Salario base</th><th>Plus convenio</th></tr></thead>
+              <tbody>
+                {salaryRows.map((row) => <tr key={row.id}><td>{row.table_name}</td><td>{row.table_year}</td><td>{row.category_name || "—"}</td><td>{money(row.base_salary)}</td><td>{money(row.agreement_plus)}</td></tr>)}
+                {salaryRows.length === 0 && <tr><td colSpan="5">Sin filas salariales.</td></tr>}
+              </tbody>
+            </table>
+          </div>
         </PageCard>
       )}
 
@@ -338,47 +362,54 @@ export default function CollectiveAgreementsPage({ loading, collectiveAgreements
           <div style={styles.threeColumns}>
             <form onSubmit={handleCreateWorkTimeRule} style={styles.stackForm}>
               <h3 style={styles.sectionTitle}>Jornada</h3>
-              <input style={styles.input} placeholder="Nombre" value={workTimeRuleForm.name} onChange={(e) => setWorkTimeRuleForm({ ...workTimeRuleForm, name: e.target.value })} required />
-              <input style={styles.input} placeholder="Horas anuales" value={workTimeRuleForm.annual_hours} onChange={(e) => setWorkTimeRuleForm({ ...workTimeRuleForm, annual_hours: e.target.value })} />
-              <input style={styles.input} placeholder="Horas semanales" value={workTimeRuleForm.weekly_hours} onChange={(e) => setWorkTimeRuleForm({ ...workTimeRuleForm, weekly_hours: e.target.value })} />
+              <input style={styles.input} value={workTimeRuleForm.name} onChange={(e) => setWorkTimeRuleForm({ ...workTimeRuleForm, name: e.target.value })} required />
+              <input type="number" style={styles.input} placeholder="Horas anuales" value={workTimeRuleForm.annual_hours} onChange={(e) => setWorkTimeRuleForm({ ...workTimeRuleForm, annual_hours: e.target.value })} />
+              <input type="number" style={styles.input} placeholder="Horas semanales" value={workTimeRuleForm.weekly_hours} onChange={(e) => setWorkTimeRuleForm({ ...workTimeRuleForm, weekly_hours: e.target.value })} />
               <button type="submit" disabled={submitting} style={styles.primaryButton}>Añadir jornada</button>
             </form>
+
             <form onSubmit={handleCreateVacationRule} style={styles.stackForm}>
               <h3 style={styles.sectionTitle}>Vacaciones</h3>
-              <input style={styles.input} placeholder="Nombre" value={vacationRuleForm.name} onChange={(e) => setVacationRuleForm({ ...vacationRuleForm, name: e.target.value })} required />
-              <input style={styles.input} placeholder="Días naturales" value={vacationRuleForm.natural_days} onChange={(e) => setVacationRuleForm({ ...vacationRuleForm, natural_days: e.target.value })} />
-              <input style={styles.input} placeholder="Periodo devengo" value={vacationRuleForm.accrual_period} onChange={(e) => setVacationRuleForm({ ...vacationRuleForm, accrual_period: e.target.value })} />
+              <input style={styles.input} value={vacationRuleForm.name} onChange={(e) => setVacationRuleForm({ ...vacationRuleForm, name: e.target.value })} required />
+              <input type="number" style={styles.input} placeholder="Días naturales" value={vacationRuleForm.natural_days} onChange={(e) => setVacationRuleForm({ ...vacationRuleForm, natural_days: e.target.value })} />
+              <input style={styles.input} placeholder="Devengo" value={vacationRuleForm.accrual_period} onChange={(e) => setVacationRuleForm({ ...vacationRuleForm, accrual_period: e.target.value })} />
               <button type="submit" disabled={submitting} style={styles.primaryButton}>Añadir vacaciones</button>
             </form>
+
             <form onSubmit={handleCreateLeaveRule} style={styles.stackForm}>
               <h3 style={styles.sectionTitle}>Permiso</h3>
               <input style={styles.input} placeholder="Nombre" value={leaveRuleForm.name} onChange={(e) => setLeaveRuleForm({ ...leaveRuleForm, name: e.target.value })} required />
-              <select style={styles.input} value={leaveRuleForm.leave_type} onChange={(e) => setLeaveRuleForm({ ...leaveRuleForm, leave_type: e.target.value, paid: e.target.value === "paid" })}>
-                <option value="paid">Retribuido</option><option value="unpaid">No retribuido</option>
+              <select style={styles.input} value={leaveRuleForm.leave_type} onChange={(e) => setLeaveRuleForm({ ...leaveRuleForm, leave_type: e.target.value })}>
+                <option value="paid">Retribuido</option>
+                <option value="unpaid">No retribuido</option>
               </select>
               <input style={styles.input} placeholder="Duración" value={leaveRuleForm.duration} onChange={(e) => setLeaveRuleForm({ ...leaveRuleForm, duration: e.target.value })} />
               <button type="submit" disabled={submitting} style={styles.primaryButton}>Añadir permiso</button>
             </form>
           </div>
-          <SimpleTable columns={["Tipo", "Nombre", "Dato principal", "Notas"]} rows={[
-            ...workTimeRules.map((rule) => ["Jornada", rule.name, `${rule.annual_hours || "—"} h/año`, rule.notes || "—"]),
-            ...vacationRules.map((rule) => ["Vacaciones", rule.name, `${rule.natural_days || rule.working_days || "—"} días`, rule.notes || "—"]),
-            ...leaveRules.map((rule) => ["Permiso", rule.name, `${rule.duration || "—"} ${rule.duration_unit || ""}`, rule.salary_treatment || rule.notes || "—"]),
-            ...complements.map((item) => ["Complemento", item.name, item.amount ? money(item.amount) : `${item.percentage || "—"}%`, item.notes || "—"]),
-          ]} />
+
+          <div style={styles.tableWrapper}>
+            <table style={styles.table}>
+              <thead><tr><th>Tipo</th><th>Nombre</th><th>Detalle</th><th>Notas</th></tr></thead>
+              <tbody>
+                {workTimeRules.map((rule) => <tr key={`work-${rule.id}`}><td>Jornada</td><td>{rule.name}</td><td>{rule.annual_hours || "—"} h/año · {rule.weekly_hours || "—"} h/semana</td><td>{rule.notes || "—"}</td></tr>)}
+                {vacationRules.map((rule) => <tr key={`vac-${rule.id}`}><td>Vacaciones</td><td>{rule.name}</td><td>{rule.natural_days || "—"} días naturales · {rule.accrual_period || "—"}</td><td>{rule.notes || "—"}</td></tr>)}
+                {leaveRules.map((rule) => <tr key={`leave-${rule.id}`}><td>Permiso</td><td>{rule.name}</td><td>{rule.duration || "—"} {rule.duration_unit || ""} · {rule.leave_type}</td><td>{rule.notes || "—"}</td></tr>)}
+                {workTimeRules.length + vacationRules.length + leaveRules.length === 0 && <tr><td colSpan="4">Sin datos registrados.</td></tr>}
+              </tbody>
+            </table>
+          </div>
         </PageCard>
       )}
 
       {activeTab === "new" && (
-        <PageCard title="Nuevo convenio" subtitle="Alta manual. No se interpreta automáticamente ningún BOE ni PDF.">
-          <form onSubmit={handleCreateAgreement} style={styles.gridForm}>
+        <PageCard title="Nuevo convenio" subtitle="Crea una estructura base y después añade grupos, categorías y tablas.">
+          <form onSubmit={handleCreateAgreement} style={styles.stackFormWide}>
             <input style={styles.input} placeholder="Nombre" value={agreementForm.name} onChange={(e) => setAgreementForm({ ...agreementForm, name: e.target.value })} required />
-            <input style={styles.input} placeholder="Código" value={agreementForm.agreement_code} onChange={(e) => setAgreementForm({ ...agreementForm, agreement_code: e.target.value })} />
+            <input style={styles.input} placeholder="Código convenio" value={agreementForm.agreement_code} onChange={(e) => setAgreementForm({ ...agreementForm, agreement_code: e.target.value })} />
             <input style={styles.input} placeholder="Sector" value={agreementForm.sector} onChange={(e) => setAgreementForm({ ...agreementForm, sector: e.target.value })} />
             <input style={styles.input} placeholder="Ámbito territorial" value={agreementForm.territorial_scope} onChange={(e) => setAgreementForm({ ...agreementForm, territorial_scope: e.target.value })} />
-            <input style={styles.input} type="date" value={agreementForm.effective_from} onChange={(e) => setAgreementForm({ ...agreementForm, effective_from: e.target.value })} />
-            <input style={styles.input} type="date" value={agreementForm.effective_to} onChange={(e) => setAgreementForm({ ...agreementForm, effective_to: e.target.value })} />
-            <textarea style={styles.textareaWide} placeholder="Notas docentes" value={agreementForm.notes} onChange={(e) => setAgreementForm({ ...agreementForm, notes: e.target.value })} />
+            <textarea style={styles.textarea} placeholder="Notas" value={agreementForm.notes} onChange={(e) => setAgreementForm({ ...agreementForm, notes: e.target.value })} />
             <button type="submit" disabled={submitting} style={styles.primaryButton}>Crear convenio</button>
           </form>
         </PageCard>
@@ -388,48 +419,39 @@ export default function CollectiveAgreementsPage({ loading, collectiveAgreements
 }
 
 function Info({ label, value }) {
-  return <div style={styles.infoBox}><span>{label}</span><strong>{value}</strong></div>;
+  return <div style={styles.infoItem}><span>{label}</span><strong>{value}</strong></div>;
 }
 
 function Rule({ title, text }) {
-  return <div style={styles.ruleBox}><strong>{title}</strong><p>{text}</p></div>;
-}
-
-function SimpleTable({ columns, rows }) {
-  if (!rows.length) return <p style={styles.empty}>Sin datos registrados.</p>;
-  return <div style={styles.tableWrapper}><table style={styles.table}><thead><tr>{columns.map((column) => <th key={column} style={styles.th}>{column}</th>)}</tr></thead><tbody>{rows.map((row, index) => <tr key={index}>{row.map((cell, cellIndex) => <td key={cellIndex} style={styles.td}>{cell}</td>)}</tr>)}</tbody></table></div>;
+  return <div style={styles.ruleCard}><strong>{title}</strong><span>{text}</span></div>;
 }
 
 const styles = {
-  wrapper: { display: "flex", flexDirection: "column", gap: "20px" },
-  hero: { display: "grid", gridTemplateColumns: "1.5fr minmax(300px, 0.8fr)", gap: "20px", alignItems: "center", border: "3px solid #111111", borderRadius: "16px", padding: "22px", background: "linear-gradient(135deg, #ffffff 0%, #fff7bf 62%, #e6d85c 100%)", boxShadow: "6px 6px 0 #111111" },
-  kicker: { margin: 0, color: "#8a6f00", fontSize: "12px", fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.08em" },
-  heroTitle: { margin: "6px 0 0", color: "#111827", fontSize: "36px", fontWeight: 950, lineHeight: 1 },
-  heroText: { margin: "10px 0 0", color: "#374151", fontSize: "15px", fontWeight: 650, lineHeight: 1.5 },
-  heroActions: { display: "flex", flexDirection: "column", gap: "10px" },
-  feedbackBar: { display: "flex", gap: "14px", alignItems: "center", padding: "10px 12px", borderRadius: "10px", backgroundColor: "#f9fafb", border: "1px solid #e5e7eb", fontWeight: 800 },
-  tabs: { display: "flex", flexWrap: "wrap", gap: "8px", borderBottom: "3px solid #111111", paddingBottom: "10px" },
-  tab: { backgroundColor: "#f3f4f6", color: "#111827", border: "1px solid #d1d5db", borderRadius: "8px", padding: "9px 12px", cursor: "pointer", fontWeight: 850 },
-  tabActive: { backgroundColor: "#111111", color: "#ffffff", border: "1px solid #111111", borderRadius: "8px", padding: "9px 12px", cursor: "pointer", fontWeight: 900 },
-  gridForm: { display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: "12px" },
-  stackForm: { display: "flex", flexDirection: "column", gap: "10px", border: "1px solid #e5e7eb", borderRadius: "12px", padding: "14px", backgroundColor: "#fafafa" },
-  twoColumns: { display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "18px", marginBottom: "18px" },
-  threeColumns: { display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: "18px", marginBottom: "18px" },
-  summaryGrid: { display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: "12px" },
-  rulesPanel: { display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: "12px" },
-  ruleBox: { border: "1px solid #e5e7eb", borderRadius: "12px", padding: "14px", backgroundColor: "#f9fafb" },
-  infoBox: { border: "1px solid #d1d5db", borderRadius: "10px", padding: "12px", backgroundColor: "#f9fafb", display: "flex", flexDirection: "column", gap: "5px" },
-  input: { width: "100%", boxSizing: "border-box", padding: "10px 12px", border: "1px solid #ccc", borderRadius: "8px", fontSize: "14px", backgroundColor: "#ffffff" },
-  textarea: { width: "100%", minHeight: "74px", boxSizing: "border-box", padding: "10px 12px", border: "1px solid #ccc", borderRadius: "8px", fontSize: "14px", fontFamily: "inherit" },
-  textareaWide: { width: "100%", minHeight: "74px", boxSizing: "border-box", padding: "10px 12px", border: "1px solid #ccc", borderRadius: "8px", fontSize: "14px", fontFamily: "inherit", gridColumn: "span 2" },
-  primaryButton: { backgroundColor: "#111111", color: "#ffffff", border: "none", borderRadius: "8px", padding: "10px 14px", cursor: "pointer", fontWeight: 900 },
-  secondaryButton: { backgroundColor: "#ffffff", color: "#111111", border: "2px solid #111111", borderRadius: "8px", padding: "10px 14px", cursor: "pointer", fontWeight: 900 },
-  sectionTitle: { margin: "0 0 6px", fontSize: "15px", fontWeight: 900, color: "#111827" },
-  tableWrapper: { overflowX: "auto", border: "1px solid #e5e7eb", borderRadius: "10px" },
-  table: { width: "100%", borderCollapse: "collapse", fontSize: "13px" },
-  th: { textAlign: "left", padding: "10px", backgroundColor: "#f3f4f6", borderBottom: "1px solid #e5e7eb" },
-  td: { padding: "10px", borderBottom: "1px solid #f1f5f9", verticalAlign: "top" },
+  wrapper: { display: "flex", flexDirection: "column", gap: "16px" },
+  hero: { display: "flex", justifyContent: "space-between", gap: "24px", alignItems: "center", border: "3px solid #111", borderRadius: "14px", padding: "20px", background: "linear-gradient(135deg, #fffbea 0%, #f5e96b 100%)", boxShadow: "6px 6px 0 #111" },
+  kicker: { margin: 0, textTransform: "uppercase", letterSpacing: "0.08em", color: "#9a7b00", fontSize: "12px", fontWeight: 900 },
+  heroTitle: { margin: "4px 0", fontSize: "30px", fontWeight: 900, color: "#111" },
+  heroText: { margin: 0, maxWidth: "720px", color: "#374151", fontWeight: 650 },
+  heroActions: { minWidth: "360px", display: "flex", flexDirection: "column", gap: "10px" },
+  tabs: { display: "flex", gap: "8px", borderBottom: "2px solid #111", paddingBottom: "8px", flexWrap: "wrap" },
+  tab: { border: "1px solid #d1d5db", borderRadius: "8px", backgroundColor: "#f3f4f6", padding: "10px 14px", fontWeight: 800, cursor: "pointer" },
+  tabActive: { border: "1px solid #111", borderRadius: "8px", backgroundColor: "#111", color: "#fff", padding: "10px 14px", fontWeight: 900, cursor: "pointer" },
+  feedbackBar: { display: "flex", gap: "14px", alignItems: "center", padding: "12px", border: "1px solid #d1d5db", borderRadius: "10px", backgroundColor: "#f9fafb", fontWeight: 800 },
   success: { color: "#166534" },
   error: { color: "#b91c1c" },
-  empty: { color: "#6b7280", fontWeight: 650 },
+  summaryGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: "12px" },
+  infoItem: { border: "1px solid #e5e7eb", borderRadius: "10px", padding: "12px", backgroundColor: "#f9fafb", display: "flex", flexDirection: "column", gap: "4px" },
+  rulesPanel: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "12px" },
+  ruleCard: { border: "1px solid #e5e7eb", borderRadius: "10px", padding: "12px", display: "flex", flexDirection: "column", gap: "6px", backgroundColor: "#fff" },
+  twoColumns: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "14px", marginBottom: "18px" },
+  threeColumns: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "14px", marginBottom: "18px" },
+  stackForm: { border: "1px solid #e5e7eb", borderRadius: "12px", padding: "14px", backgroundColor: "#f9fafb", display: "flex", flexDirection: "column", gap: "10px" },
+  stackFormWide: { maxWidth: "720px", display: "flex", flexDirection: "column", gap: "10px" },
+  sectionTitle: { margin: "0 0 4px", fontSize: "16px", fontWeight: 900 },
+  input: { padding: "10px 12px", border: "1px solid #ccc", borderRadius: "8px", fontSize: "14px", backgroundColor: "white" },
+  textarea: { padding: "10px 12px", border: "1px solid #ccc", borderRadius: "8px", fontSize: "14px", minHeight: "70px", resize: "vertical" },
+  primaryButton: { backgroundColor: "#111", color: "white", border: "1px solid #111", borderRadius: "8px", padding: "10px 14px", fontWeight: 900, cursor: "pointer" },
+  secondaryButton: { backgroundColor: "white", color: "#111", border: "1px solid #111", borderRadius: "8px", padding: "10px 14px", fontWeight: 900, cursor: "pointer" },
+  tableWrapper: { marginTop: "16px", overflowX: "auto", border: "1px solid #e5e7eb", borderRadius: "10px" },
+  table: { width: "100%", borderCollapse: "collapse", fontSize: "14px" },
 };
