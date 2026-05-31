@@ -31,6 +31,9 @@ CONTRACT_RESPONSE_FIELDS = [
     "working_day_type",
     "weekly_hours",
     "full_time_weekly_hours",
+    "annual_agreement_hours",
+    "monthly_hours",
+    "annual_hours",
     "partiality_coefficient",
     "monthly_or_daily_contribution",
     "red_occupation_code",
@@ -60,6 +63,9 @@ CONTRACT_CREATE_FIELDS = [
     "working_day_type",
     "weekly_hours",
     "full_time_weekly_hours",
+    "annual_agreement_hours",
+    "monthly_hours",
+    "annual_hours",
     "partiality_coefficient",
     "monthly_or_daily_contribution",
     "red_occupation_code",
@@ -120,6 +126,33 @@ def _validate_contract_red_coherence(contract_data):
 
     if contract_code == "300" and working_day_type and working_day_type != "fixed_discontinuous":
         raise HTTPException(status_code=400, detail="El contrato 300 debe ser fijo discontinuo")
+
+
+def _complete_workday_fields(payload: dict):
+    weekly_hours = payload.get("weekly_hours")
+    full_time_weekly_hours = payload.get("full_time_weekly_hours") or 40
+    annual_agreement_hours = payload.get("annual_agreement_hours")
+    partiality_coefficient = payload.get("partiality_coefficient")
+    working_day_type = payload.get("working_day_type")
+
+    if working_day_type == "full_time" and partiality_coefficient in (None, ""):
+        partiality_coefficient = 100
+        payload["partiality_coefficient"] = 100
+
+    if partiality_coefficient is None and weekly_hours and full_time_weekly_hours:
+        partiality_coefficient = round((float(weekly_hours) / float(full_time_weekly_hours)) * 100, 2)
+        payload["partiality_coefficient"] = partiality_coefficient
+
+    if weekly_hours and payload.get("monthly_hours") is None:
+        payload["monthly_hours"] = round(float(weekly_hours) * 52 / 12, 2)
+
+    if weekly_hours and payload.get("annual_hours") is None:
+        payload["annual_hours"] = round(float(weekly_hours) * 52, 2)
+
+    if annual_agreement_hours and partiality_coefficient is not None and payload.get("annual_hours") is None:
+        payload["annual_hours"] = round(float(annual_agreement_hours) * float(partiality_coefficient) / 100, 2)
+
+    return payload
 
 
 def _apply_agreement_salary_reference(db: Session, payload: dict):
@@ -209,6 +242,7 @@ def create_contract(db: Session, contract: ContractCreate):
             raise HTTPException(status_code=400, detail="El empleado ya tiene un contrato activo")
 
     payload = {field: getattr(contract, field) for field in CONTRACT_CREATE_FIELDS}
+    payload = _complete_workday_fields(payload)
     payload = _apply_agreement_salary_reference(db, payload)
 
     db_contract = Contract(
@@ -300,12 +334,24 @@ def update_contract(db: Session, contract_id: int, contract_data: ContractUpdate
 
     merged_payload = {field: getattr(db_contract, field, None) for field in CONTRACT_CREATE_FIELDS if field != "employee_id"}
     merged_payload.update(update_data)
+    merged_payload = _complete_workday_fields(merged_payload)
     merged_payload = _apply_agreement_salary_reference(db, merged_payload)
 
     for key, value in update_data.items():
         setattr(db_contract, key, value)
 
-    for key in ["collective_agreement_code", "professional_category", "salary_base", "collective_agreement_id", "professional_category_id", "salary_table_row_id"]:
+    for key in [
+        "collective_agreement_code",
+        "professional_category",
+        "salary_base",
+        "collective_agreement_id",
+        "professional_category_id",
+        "salary_table_row_id",
+        "annual_agreement_hours",
+        "monthly_hours",
+        "annual_hours",
+        "partiality_coefficient",
+    ]:
         if key in merged_payload:
             setattr(db_contract, key, merged_payload[key])
 
