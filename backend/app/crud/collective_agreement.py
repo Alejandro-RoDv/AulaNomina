@@ -285,8 +285,12 @@ def get_work_time_rules(db: Session, agreement_id: int):
     return db.query(WorkTimeRule).filter(WorkTimeRule.collective_agreement_id == agreement_id).all()
 
 
+def get_work_time_rule(db: Session, rule_id: int):
+    return db.query(WorkTimeRule).filter(WorkTimeRule.id == rule_id).first()
+
+
 def update_work_time_rule(db: Session, rule_id: int, rule_data: WorkTimeRuleUpdate):
-    db_rule = db.query(WorkTimeRule).filter(WorkTimeRule.id == rule_id).first()
+    db_rule = get_work_time_rule(db, rule_id)
     if not db_rule:
         return None
 
@@ -295,6 +299,16 @@ def update_work_time_rule(db: Session, rule_id: int, rule_data: WorkTimeRuleUpda
 
     db.commit()
     db.refresh(db_rule)
+    return db_rule
+
+
+def delete_work_time_rule(db: Session, rule_id: int):
+    db_rule = get_work_time_rule(db, rule_id)
+    if not db_rule:
+        return None
+
+    db.delete(db_rule)
+    db.commit()
     return db_rule
 
 
@@ -310,8 +324,12 @@ def get_vacation_rules(db: Session, agreement_id: int):
     return db.query(VacationRule).filter(VacationRule.collective_agreement_id == agreement_id).all()
 
 
+def get_vacation_rule(db: Session, rule_id: int):
+    return db.query(VacationRule).filter(VacationRule.id == rule_id).first()
+
+
 def update_vacation_rule(db: Session, rule_id: int, rule_data: VacationRuleUpdate):
-    db_rule = db.query(VacationRule).filter(VacationRule.id == rule_id).first()
+    db_rule = get_vacation_rule(db, rule_id)
     if not db_rule:
         return None
 
@@ -320,6 +338,16 @@ def update_vacation_rule(db: Session, rule_id: int, rule_data: VacationRuleUpdat
 
     db.commit()
     db.refresh(db_rule)
+    return db_rule
+
+
+def delete_vacation_rule(db: Session, rule_id: int):
+    db_rule = get_vacation_rule(db, rule_id)
+    if not db_rule:
+        return None
+
+    db.delete(db_rule)
+    db.commit()
     return db_rule
 
 
@@ -335,8 +363,12 @@ def get_leave_rules(db: Session, agreement_id: int):
     return db.query(LeaveRule).filter(LeaveRule.collective_agreement_id == agreement_id).all()
 
 
+def get_leave_rule(db: Session, rule_id: int):
+    return db.query(LeaveRule).filter(LeaveRule.id == rule_id).first()
+
+
 def update_leave_rule(db: Session, rule_id: int, rule_data: LeaveRuleUpdate):
-    db_rule = db.query(LeaveRule).filter(LeaveRule.id == rule_id).first()
+    db_rule = get_leave_rule(db, rule_id)
     if not db_rule:
         return None
 
@@ -345,4 +377,14 @@ def update_leave_rule(db: Session, rule_id: int, rule_data: LeaveRuleUpdate):
 
     db.commit()
     db.refresh(db_rule)
+    return db_rule
+
+
+def delete_leave_rule(db: Session, rule_id: int):
+    db_rule = get_leave_rule(db, rule_id)
+    if not db_rule:
+        return None
+
+    db.delete(db_rule)
+    db.commit()
     return db_rule
