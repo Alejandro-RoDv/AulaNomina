@@ -28,11 +28,111 @@ function toPositiveNumber(value) {
   return number;
 }
 
+function toNumber(value) {
+  if (value === "" || value === null || value === undefined) return 0;
+  const number = Number(value);
+  return Number.isNaN(number) ? 0 : number;
+}
+
+function buildSummaryAlerts(summary) {
+  const alerts = [];
+  const partiality = toNumber(summary.partiality_coefficient);
+  const weeklyHours = toNumber(summary.weekly_hours);
+  const monthlyHours = toNumber(summary.monthly_hours);
+  const annualHours = toNumber(summary.annual_hours);
+  const fullTimeHours = toNumber(summary.full_time_weekly_hours);
+  const salaryBase = toNumber(summary.salary_base_theoretical);
+  const annualAgreementHours = toNumber(summary.annual_agreement_hours);
+  const conceptLines = summary.concept_lines || [];
+  const conceptsWithoutWorkday = conceptLines.filter((line) => !line.applies_workday_percentage);
+
+  if (salaryBase <= 0) {
+    alerts.push({ level: "danger", title: "Salario base no informado", detail: "El resumen retributivo no puede dar una referencia útil sin salario base." });
+  }
+
+  if (partiality <= 0) {
+    alerts.push({ level: "danger", title: "Parcialidad sin calcular", detail: "Introduce horas semanales o coeficiente de parcialidad en el contrato." });
+  }
+
+  if (weeklyHours <= 0) {
+    alerts.push({ level: "warning", title: "Horas semanales vacías", detail: "La jornada existe, pero no hay horas semanales reales informadas." });
+  }
+
+  if (fullTimeHours <= 0) {
+    alerts.push({ level: "danger", title: "Jornada completa de referencia inválida", detail: "No se puede calcular la parcialidad sin una jornada completa de referencia mayor que 0." });
+  }
+
+  if (weeklyHours > 0 && fullTimeHours > 0) {
+    const expectedPartiality = Math.round((weeklyHours / fullTimeHours) * 10000) / 100;
+    if (partiality > 0 && Math.abs(expectedPartiality - partiality) > 0.5) {
+      alerts.push({
+        level: "warning",
+        title: "Parcialidad incoherente con las horas",
+        detail: `Con ${weeklyHours} h sobre ${fullTimeHours} h, la parcialidad esperada sería ${expectedPartiality}%.`,
+      });
+    }
+  }
+
+  if (monthlyHours <= 0 || annualHours <= 0) {
+    alerts.push({ level: "warning", title: "Horas mensuales/anuales incompletas", detail: "Conviene completar estos datos para futuras vacaciones, IT, absentismo y horas extra." });
+  }
+
+  if (annualAgreementHours <= 0) {
+    alerts.push({ level: "info", title: "Jornada anual de convenio no informada", detail: "No bloquea el MVP, pero será útil para cálculo anual, vacaciones y comparativas." });
+  }
+
+  if (conceptLines.length === 0) {
+    alerts.push({ level: "info", title: "Sin complementos permanentes", detail: "El contrato solo está usando salario base. Añade complementos si el caso práctico lo necesita." });
+  }
+
+  if (partiality > 0 && partiality < 100 && conceptsWithoutWorkday.length > 0) {
+    alerts.push({
+      level: "info",
+      title: "Hay conceptos que no aplican parcialidad",
+      detail: `${conceptsWithoutWorkday.length} concepto(s) se mantienen íntegros aunque el contrato sea parcial. Revísalo si no es intencionado.`,
+    });
+  }
+
+  if (partiality > 100) {
+    alerts.push({ level: "warning", title: "Parcialidad superior al 100%", detail: "Puede servir como simulación, pero no debería ser el caso normal del MVP." });
+  }
+
+  return alerts;
+}
+
 function SummaryMetric({ label, value, strong = false }) {
   return (
     <div style={styles.metricCard}>
       <span style={styles.metricLabel}>{label}</span>
       <strong style={strong ? styles.metricValueStrong : styles.metricValue}>{value}</strong>
+    </div>
+  );
+}
+
+function AlertPanel({ alerts = [] }) {
+  if (!alerts.length) {
+    return (
+      <div style={styles.alertOk}>
+        <strong>Sin alertas relevantes</strong>
+        <span>La jornada y el resumen salarial tienen una estructura coherente para el MVP.</span>
+      </div>
+    );
+  }
+
+  return (
+    <div style={styles.alertPanel}>
+      <div style={styles.alertHeader}>
+        <h5 style={styles.subTitle}>Alertas inteligentes</h5>
+        <span style={styles.alertCount}>{alerts.length}</span>
+      </div>
+      <div style={styles.alertList}>
+        {alerts.map((alert, index) => (
+          <div key={`${alert.title}-${index}`} style={styles[`${alert.level}Alert`] || styles.infoAlert}>
+            <strong>{alert.title}</strong>
+            <span>{alert.detail}</span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -173,6 +273,8 @@ export default function ContractSalarySummaryPanel({ contractId }) {
     return <section style={styles.sectionBox}><h4 style={styles.sectionTitle}>Resumen retributivo</h4>{error && <div style={styles.error}>{error}</div>}</section>;
   }
 
+  const alerts = buildSummaryAlerts(summary);
+
   return (
     <section style={styles.sectionBox}>
       <div style={styles.headerRow}>
@@ -182,6 +284,8 @@ export default function ContractSalarySummaryPanel({ contractId }) {
         </div>
         <span style={styles.badge}>{formatNumber(summary.partiality_coefficient, "%")} jornada</span>
       </div>
+
+      <AlertPanel alerts={alerts} />
 
       <div style={styles.metricsGrid}>
         <SummaryMetric label="Salario teórico" value={formatMoney(summary.salary_base_theoretical)} />
@@ -230,6 +334,14 @@ const styles = {
   sectionSubtitle: { margin: "4px 0 0", color: "#6b7280", fontSize: "12px", fontWeight: 700 },
   subTitle: { margin: "14px 0 10px", fontSize: "13px", fontWeight: 900, color: "#111827" },
   badge: { display: "inline-flex", alignItems: "center", backgroundColor: "#fef3c7", color: "#92400e", border: "1px solid #f59e0b", borderRadius: "999px", padding: "5px 10px", fontSize: "12px", fontWeight: 900, whiteSpace: "nowrap" },
+  alertOk: { display: "flex", flexDirection: "column", gap: "3px", marginBottom: "12px", padding: "10px 12px", border: "1px solid #bbf7d0", borderRadius: "10px", backgroundColor: "#f0fdf4", color: "#166534", fontSize: "13px", fontWeight: 800 },
+  alertPanel: { marginBottom: "12px", border: "1px solid #e5e7eb", borderRadius: "10px", padding: "10px", backgroundColor: "#f9fafb" },
+  alertHeader: { display: "flex", justifyContent: "space-between", gap: "10px", alignItems: "center" },
+  alertCount: { backgroundColor: "#111827", color: "#ffffff", borderRadius: "999px", padding: "3px 8px", fontSize: "12px", fontWeight: 900 },
+  alertList: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "8px" },
+  dangerAlert: { display: "flex", flexDirection: "column", gap: "3px", border: "1px solid #fecaca", borderRadius: "10px", padding: "10px", backgroundColor: "#fef2f2", color: "#991b1b", fontSize: "12px", fontWeight: 800 },
+  warningAlert: { display: "flex", flexDirection: "column", gap: "3px", border: "1px solid #fcd34d", borderRadius: "10px", padding: "10px", backgroundColor: "#fffbeb", color: "#92400e", fontSize: "12px", fontWeight: 800 },
+  infoAlert: { display: "flex", flexDirection: "column", gap: "3px", border: "1px solid #bfdbfe", borderRadius: "10px", padding: "10px", backgroundColor: "#eff6ff", color: "#1e40af", fontSize: "12px", fontWeight: 800 },
   metricsGrid: { display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: "10px", marginBottom: "10px" },
   hoursGrid: { display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: "10px" },
   metricCard: { border: "1px solid #e5e7eb", borderRadius: "10px", padding: "10px", backgroundColor: "#f9fafb", display: "flex", flexDirection: "column", gap: "4px" },
