@@ -187,6 +187,25 @@ def resolve_item_amount(quantity: Decimal, unit_price: Decimal, amount: Decimal 
     return money((quantity or Decimal("0.00")) * (unit_price or Decimal("0.00")))
 
 
+def get_contract_partiality_ratio(contract: Contract) -> Decimal:
+    if contract.partiality_coefficient is not None:
+        return Decimal(str(contract.partiality_coefficient)) / Decimal("100")
+
+    weekly_hours = Decimal(str(contract.weekly_hours or 0))
+    full_time_weekly_hours = Decimal(str(contract.full_time_weekly_hours or 40))
+    if weekly_hours > 0 and full_time_weekly_hours > 0:
+        return weekly_hours / full_time_weekly_hours
+
+    return Decimal("1")
+
+
+def apply_contract_workday_percentage(amount: Decimal, contract: Contract, concept: PayrollConcept | None):
+    applies_workday_percentage = bool(concept.applies_workday_percentage) if concept else True
+    if applies_workday_percentage:
+        return money(amount * get_contract_partiality_ratio(contract))
+    return money(amount)
+
+
 def create_payroll_item(db: Session, payroll_id: int, item: PayrollItemCreate):
     ensure_payroll_exists(db, payroll_id)
     ensure_active_concept(db, item.concept_id)
@@ -213,7 +232,9 @@ def create_payroll_item(db: Session, payroll_id: int, item: PayrollItemCreate):
 
 def load_contract_concepts_into_payroll(db: Session, payroll_id: int):
     payroll = ensure_payroll_exists(db, payroll_id)
+    contract = ensure_contract_exists(db, payroll.contract_id)
     contract_items = get_contract_payroll_concepts(db, payroll.contract_id)
+    partiality_percentage = money(get_contract_partiality_ratio(contract) * Decimal("100"))
     created_items = 0
     skipped_items = 0
 
@@ -226,15 +247,21 @@ def load_contract_concepts_into_payroll(db: Session, payroll_id: int):
             skipped_items += 1
             continue
 
+        concept = contract_item.concept
+        amount = apply_contract_workday_percentage(contract_item.amount, contract, concept)
+        applies_workday_percentage = bool(concept.applies_workday_percentage) if concept else True
+        workday_note = f"Aplicado % jornada: {partiality_percentage}%" if applies_workday_percentage else "No aplica % jornada"
+        notes = f"{contract_item.notes}\n{workday_note}" if contract_item.notes else workday_note
+
         db_item = PayrollItem(
             payroll_id=payroll_id,
             concept_id=contract_item.concept_id,
             description=contract_item.description or "Concepto permanente del contrato",
             quantity=contract_item.quantity,
             unit_price=contract_item.unit_price,
-            amount=contract_item.amount,
+            amount=amount,
             display_order=contract_item.display_order,
-            notes=contract_item.notes,
+            notes=notes,
         )
         db.add(db_item)
         created_items += 1
