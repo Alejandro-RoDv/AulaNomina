@@ -96,6 +96,10 @@ export async function updateWorkTimeRule(ruleId, payload) {
   return jsonRequest(`/collective-agreements/work-time-rules/${ruleId}`, "PUT", payload, "Error al actualizar regla de jornada");
 }
 
+export async function deleteWorkTimeRule(ruleId) {
+  return deleteRequest(`/collective-agreements/work-time-rules/${ruleId}`, "Error al eliminar regla de jornada");
+}
+
 export async function createVacationRule(agreementId, payload) {
   return jsonRequest(`/collective-agreements/${agreementId}/vacation-rules`, "POST", payload, "Error al crear regla de vacaciones");
 }
@@ -104,10 +108,18 @@ export async function updateVacationRule(ruleId, payload) {
   return jsonRequest(`/collective-agreements/vacation-rules/${ruleId}`, "PUT", payload, "Error al actualizar regla de vacaciones");
 }
 
+export async function deleteVacationRule(ruleId) {
+  return deleteRequest(`/collective-agreements/vacation-rules/${ruleId}`, "Error al eliminar regla de vacaciones");
+}
+
 export async function createLeaveRule(agreementId, payload) {
   return jsonRequest(`/collective-agreements/${agreementId}/leave-rules`, "POST", payload, "Error al crear permiso");
 }
 
 export async function updateLeaveRule(ruleId, payload) {
   return jsonRequest(`/collective-agreements/leave-rules/${ruleId}`, "PUT", payload, "Error al actualizar permiso");
+}
+
+export async function deleteLeaveRule(ruleId) {
+  return deleteRequest(`/collective-agreements/leave-rules/${ruleId}`, "Error al eliminar permiso");
 }
