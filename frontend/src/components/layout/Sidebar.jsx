@@ -25,11 +25,9 @@ const conceptPages = ["payroll-concepts", "permanent-payroll-concepts"];
 const payrollPages = ["payroll-monthly-preparation", "payroll-individual", "payroll-simulation", "payroll-history"];
 const teachingPages = ["teacher-dashboard", "teaching-alerts", "case-studies", "assignments", "corrections", "student-demo", "students", "groups", "progress"];
 const overlayHashes = overlayPages.map((page) => `#${page}`);
-const IRPF_HASH = "#irpf-module";
 
 function getOverlayPageFromHash() {
   const page = window.location.hash.replace("#", "");
-  if (page === "irpf-module") return "irpf-module";
   return overlayPages.includes(page) ? page : null;
 }
 
@@ -54,11 +52,6 @@ export default function Sidebar({ activePage, setActivePage }) {
       if (overlayPage === "employee-record") {
         setEmployeeMenuOpen(true);
         setActivePage("employees");
-        return;
-      }
-
-      if (overlayPage === "irpf-module") {
-        setActivePage("payroll-history");
         return;
       }
 
@@ -168,7 +161,7 @@ export default function Sidebar({ activePage, setActivePage }) {
   ];
 
   const clearHashIfNeeded = () => {
-    if (overlayHashes.includes(window.location.hash) || window.location.hash === IRPF_HASH) {
+    if (overlayHashes.includes(window.location.hash)) {
       window.history.replaceState(null, "", window.location.pathname + window.location.search);
       window.dispatchEvent(new Event("aulanomina-route-change"));
     }
@@ -208,11 +201,6 @@ export default function Sidebar({ activePage, setActivePage }) {
       return;
     }
 
-    if (item.id === "irpf") {
-      activateHashRoute("irpf-module", "payroll-history");
-      return;
-    }
-
     if (["documents", "alerts", "reports", ...teachingPages].includes(item.id)) {
       activateHashRoute(item.id, item.id);
       return;
@@ -247,7 +235,7 @@ export default function Sidebar({ activePage, setActivePage }) {
                     : item.menu === "payroll"
                       ? payrollPages
                       : conceptPages;
-                const isActive = currentActivePage === item.id || (item.id === "irpf" && currentActivePage === "irpf-module") || (item.children && childPages.includes(currentActivePage));
+                const isActive = currentActivePage === item.id || (item.children && childPages.includes(currentActivePage));
 
                 return (
                   <div key={item.id} style={styles.itemBlock}>
@@ -333,6 +321,6 @@ const styles = {
   navItemActive: { backgroundColor: "#ffffff", border: "3px solid #111111", boxShadow: "3px 3px 0 #111111" },
   navItemDisabled: { opacity: 0.45, cursor: "not-allowed" },
   submenu: { display: "flex", flexDirection: "column", gap: "4px", paddingLeft: "18px", borderLeft: "3px solid #111111", marginLeft: "8px" },
-  subNavItem: { width: "100%", textAlign: "left", backgroundColor: "transparent", border: "none", color: "#111111", padding: "5px 8px", cursor: "pointer", fontSize: "12px", fontWeight: 900, letterSpacing: "0.04em", textTransform: "uppercase" },
+  subNavItem: { width: "100%", textAlign: "left", backgroundColor: "transparent", border: "none", color: "#111111", padding: "6px 8px", cursor: "pointer", fontSize: "12px", fontWeight: 900, letterSpacing: "0.04em", textTransform: "uppercase" },
   subNavItemActive: { backgroundColor: "#ffffff", border: "2px solid #111111" },
 };
