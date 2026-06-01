@@ -1,6 +1,65 @@
 import { useMemo, useState } from "react";
 import { getSortLabel, nextSortConfig, sortRows } from "../utils/tableSorting";
 
+const WEEK_DAYS = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
+
+function createEmptySchedule() {
+  return WEEK_DAYS.reduce((acc, day) => {
+    acc[day] = { morning: "", afternoon: "", total: "" };
+    return acc;
+  }, {});
+}
+
+function parseCalendarData(company) {
+  if (!company.work_calendar_data) {
+    return {
+      calendar_period_type: "todo_el_ano",
+      winter_period: "",
+      summer_period: "",
+      rest_type: "semanal",
+      rest_days: "Sábado y domingo",
+      schedule: createEmptySchedule(),
+      shifts_enabled: false,
+      shift_1: "",
+      shift_2: "",
+      shift_3: "",
+      shift_4: "",
+    };
+  }
+
+  try {
+    const parsed = JSON.parse(company.work_calendar_data);
+    const shifts = parsed.shifts || [];
+    return {
+      calendar_period_type: parsed.period_type || "todo_el_ano",
+      winter_period: parsed.winter_period || "",
+      summer_period: parsed.summer_period || "",
+      rest_type: parsed.rest_type || "semanal",
+      rest_days: parsed.rest_days || "Sábado y domingo",
+      schedule: { ...createEmptySchedule(), ...(parsed.schedule || {}) },
+      shifts_enabled: !!parsed.shifts_enabled,
+      shift_1: shifts[0] || "",
+      shift_2: shifts[1] || "",
+      shift_3: shifts[2] || "",
+      shift_4: shifts[3] || "",
+    };
+  } catch {
+    return {
+      calendar_period_type: "todo_el_ano",
+      winter_period: "",
+      summer_period: "",
+      rest_type: "semanal",
+      rest_days: "Sábado y domingo",
+      schedule: createEmptySchedule(),
+      shifts_enabled: false,
+      shift_1: "",
+      shift_2: "",
+      shift_3: "",
+      shift_4: "",
+    };
+  }
+}
+
 function toEditForm(company) {
   return {
     name: company.name || "",
@@ -31,7 +90,7 @@ function toEditForm(company) {
     pension_plan_name: company.pension_plan_name || "",
     work_calendar_mode: company.work_calendar_mode || "",
     work_calendar_name: company.work_calendar_name || "",
-    work_calendar_data: company.work_calendar_data || "",
+    ...parseCalendarData(company),
     bank_iban: company.bank_iban || "",
     model_111: company.model_111 || "trimestral",
     fiscal_regime: company.fiscal_regime || "plan_general_contable",
@@ -51,11 +110,40 @@ function formatStatus(status) {
   return "Alta";
 }
 
+function buildCalendarData(form) {
+  return JSON.stringify({
+    period_type: form.calendar_period_type,
+    winter_period: form.winter_period,
+    summer_period: form.summer_period,
+    rest_type: form.rest_type,
+    rest_days: form.rest_days,
+    schedule: form.schedule,
+    shifts_enabled: form.shifts_enabled,
+    shifts: [form.shift_1, form.shift_2, form.shift_3, form.shift_4].filter(Boolean),
+  });
+}
+
 function buildUpdatePayload(form) {
   const ccc = form.ccc || [form.ccc_regime, form.ccc_code].filter(Boolean).join("/") || null;
+  const {
+    calendar_period_type,
+    winter_period,
+    summer_period,
+    rest_type,
+    rest_days,
+    schedule,
+    shifts_enabled,
+    shift_1,
+    shift_2,
+    shift_3,
+    shift_4,
+    ...baseForm
+  } = form;
+
   return {
-    ...form,
+    ...baseForm,
     ccc,
+    work_calendar_data: form.work_calendar_mode ? buildCalendarData(form) : null,
     registration_date: form.registration_date || null,
     deregistration_date: form.deregistration_date || null,
   };
@@ -109,6 +197,16 @@ export default function CompanyTable({ loading, companies, onUpdateCompany, onDe
   const handleEditChange = (event) => {
     const { name, value, checked, type } = event.target;
     setEditForm((prev) => ({ ...prev, [name]: type === "checkbox" ? checked : value }));
+  };
+
+  const handleScheduleChange = (day, field, value) => {
+    setEditForm((prev) => ({
+      ...prev,
+      schedule: {
+        ...prev.schedule,
+        [day]: { ...prev.schedule[day], [field]: value },
+      },
+    }));
   };
 
   const handleEditSubmit = async (event) => {
@@ -191,7 +289,15 @@ export default function CompanyTable({ loading, companies, onUpdateCompany, onDe
 
               <section style={styles.block}><h4 style={styles.blockTitle}>Calendario de trabajo</h4>
                 <div style={styles.formRow}>{input("work_calendar_mode", "Modo calendario")}{input("work_calendar_name", "Nombre calendario")}</div>
-                {textarea("work_calendar_data", "Datos calendario JSON")}
+                <div style={styles.formRow}>
+                  <div style={styles.formGroup}><label>Periodo</label><select name="calendar_period_type" value={editForm.calendar_period_type} onChange={handleEditChange} style={styles.input}><option value="todo_el_ano">Todo el año</option><option value="verano_invierno">Verano e invierno</option></select></div>
+                  <div style={styles.formGroup}><label>Descanso y vacaciones</label><select name="rest_type" value={editForm.rest_type} onChange={handleEditChange} style={styles.input}><option value="semanal">Semanal</option><option value="intermedio">Intermedio</option></select></div>
+                  {input("rest_days", "Días de descanso")}
+                </div>
+                {editForm.calendar_period_type === "verano_invierno" && <div style={styles.formRow}>{input("winter_period", "Periodo invierno")}{input("summer_period", "Periodo verano")}</div>}
+                <div style={styles.scheduleWrapper}><table style={styles.scheduleTable}><thead><tr><th>Día</th><th>Horario mañana</th><th>Horario tarde</th><th>Total horas</th></tr></thead><tbody>{WEEK_DAYS.map((day) => <tr key={day}><td>{day}</td><td><input value={editForm.schedule[day].morning} onChange={(event) => handleScheduleChange(day, "morning", event.target.value)} style={styles.input} /></td><td><input value={editForm.schedule[day].afternoon} onChange={(event) => handleScheduleChange(day, "afternoon", event.target.value)} style={styles.input} /></td><td><input value={editForm.schedule[day].total} onChange={(event) => handleScheduleChange(day, "total", event.target.value)} style={styles.input} /></td></tr>)}</tbody></table></div>
+                <label style={styles.inlineCheck}><input type="checkbox" name="shifts_enabled" checked={editForm.shifts_enabled} onChange={handleEditChange} /> Activar turnos</label>
+                {editForm.shifts_enabled && <div style={styles.formRow}>{input("shift_1", "Turno 1")}{input("shift_2", "Turno 2")}{input("shift_3", "Turno 3")}{input("shift_4", "Turno 4")}</div>}
               </section>
 
               <section style={styles.block}><h4 style={styles.blockTitle}>Fiscalidad, pagos y SILTRA</h4>
@@ -247,6 +353,8 @@ const styles = {
   formGroupWide: { flex: 1, minWidth: "100%", display: "flex", flexDirection: "column", gap: "6px" },
   input: { padding: "10px 12px", border: "1px solid #ccc", borderRadius: "8px", fontSize: "14px" },
   textarea: { padding: "10px 12px", border: "1px solid #ccc", borderRadius: "8px", fontSize: "13px", fontFamily: "monospace", resize: "vertical" },
+  scheduleWrapper: { overflowX: "auto", border: "1px solid #e5e7eb", borderRadius: "8px", backgroundColor: "#ffffff" },
+  scheduleTable: { width: "100%", borderCollapse: "collapse" },
   confirmText: { margin: "0 0 16px", color: "#374151", lineHeight: 1.5 },
   error: { backgroundColor: "#fee2e2", color: "#991b1b", padding: "10px 12px", borderRadius: "8px" },
   modalActions: { display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "6px" },
