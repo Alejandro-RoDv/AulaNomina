@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import Boolean, Column, DateTime, Integer, String
+from sqlalchemy import Boolean, Column, Date, DateTime, Integer, String, Text
 from sqlalchemy.orm import relationship
 
 from app.db import Base
@@ -13,9 +13,41 @@ class Company(Base):
     name = Column(String, nullable=False)
     cif = Column(String, unique=True, index=True, nullable=False)
     ccc = Column(String, unique=True, index=True, nullable=True)
+    ccc_regime = Column(String, nullable=True)
+    ccc_code = Column(String, nullable=True)
     address = Column(String, nullable=True)
     city = Column(String, nullable=True)
     province = Column(String, nullable=True)
+    status = Column(String, default="alta", nullable=False)
+    registration_date = Column(Date, nullable=True)
+    deregistration_date = Column(Date, nullable=True)
+    main_collective_agreement = Column(String, nullable=True)
+    is_cooperative = Column(Boolean, default=False, nullable=False)
+    special_work_income_withholding = Column(Boolean, default=False, nullable=False)
+    company_type = Column(String, nullable=True)
+    legal_representative_name = Column(String, nullable=True)
+    legal_representative_dni = Column(String, nullable=True)
+    legal_representative_position = Column(String, nullable=True)
+    cnae_2009_code = Column(String, nullable=True)
+    cnae_2009_name = Column(String, nullable=True)
+    cnae_2025_code = Column(String, nullable=True)
+    cnae_2025_name = Column(String, nullable=True)
+    pension_plan_enabled = Column(Boolean, default=False, nullable=False)
+    pension_manager_key = Column(String, nullable=True)
+    pension_manager_entity_number = Column(String, nullable=True)
+    pension_plan_name = Column(String, nullable=True)
+    work_calendar_mode = Column(String, default="new", nullable=False)
+    work_calendar_name = Column(String, nullable=True)
+    work_calendar_data = Column(Text, nullable=True)
+    bank_iban = Column(String, nullable=True)
+    model_111 = Column(String, nullable=True)
+    fiscal_regime = Column(String, nullable=True)
+    complement_computation = Column(String, nullable=True)
+    siltra_enabled = Column(Boolean, default=False, nullable=False)
+    siltra_payment_mode = Column(String, nullable=True)
+    siltra_options = Column(Text, nullable=True)
+    sector_bonuses = Column(Text, nullable=True)
+    grouped_withholding_company = Column(String, nullable=True)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
