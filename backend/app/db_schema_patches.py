@@ -36,11 +36,73 @@ CONTRACT_LABOR_COLUMNS = {
     "gross_annual_salary": "NUMERIC(10, 2)",
 }
 
+COMPANY_SPLIT_24_COLUMNS = {
+    "ccc_regime": "VARCHAR",
+    "ccc_code": "VARCHAR",
+    "status": "VARCHAR DEFAULT 'alta' NOT NULL",
+    "registration_date": "DATE",
+    "deregistration_date": "DATE",
+    "main_collective_agreement": "VARCHAR",
+    "is_cooperative": "BOOLEAN DEFAULT FALSE NOT NULL",
+    "special_work_income_withholding": "BOOLEAN DEFAULT FALSE NOT NULL",
+    "company_type": "VARCHAR",
+    "legal_representative_name": "VARCHAR",
+    "legal_representative_dni": "VARCHAR",
+    "legal_representative_position": "VARCHAR",
+    "cnae_2009_code": "VARCHAR",
+    "cnae_2009_name": "VARCHAR",
+    "cnae_2025_code": "VARCHAR",
+    "cnae_2025_name": "VARCHAR",
+    "pension_plan_enabled": "BOOLEAN DEFAULT FALSE NOT NULL",
+    "pension_manager_key": "VARCHAR",
+    "pension_manager_entity_number": "VARCHAR",
+    "pension_plan_name": "VARCHAR",
+    "work_calendar_mode": "VARCHAR DEFAULT 'new' NOT NULL",
+    "work_calendar_name": "VARCHAR",
+    "work_calendar_data": "TEXT",
+    "bank_iban": "VARCHAR",
+    "model_111": "VARCHAR",
+    "fiscal_regime": "VARCHAR",
+    "complement_computation": "VARCHAR",
+    "siltra_enabled": "BOOLEAN DEFAULT FALSE NOT NULL",
+    "siltra_payment_mode": "VARCHAR",
+    "siltra_options": "TEXT",
+    "sector_bonuses": "TEXT",
+    "grouped_withholding_company": "VARCHAR",
+}
+
+WORK_CENTER_SPLIT_24_COLUMNS = {
+    "collective_agreement": "VARCHAR",
+    "phone": "VARCHAR",
+    "fax": "VARCHAR",
+    "mobile": "VARCHAR",
+    "email": "VARCHAR",
+    "website": "VARCHAR",
+}
+
 BASE_COLUMNS_REQUIRED_FOR_DAILY_BASE_BACKFILL = {
     "gross_salary",
     "common_contingencies_base",
     "professional_contingencies_base",
 }
+
+
+def add_missing_company_center_split_24_columns() -> None:
+    inspector = inspect(engine)
+    table_names = inspector.get_table_names()
+
+    with engine.begin() as connection:
+        if "companies" in table_names:
+            existing_columns = {column["name"] for column in inspector.get_columns("companies")}
+            for column_name, column_definition in COMPANY_SPLIT_24_COLUMNS.items():
+                if column_name not in existing_columns:
+                    connection.execute(text("ALTER TABLE companies ADD COLUMN " + column_name + " " + column_definition))
+
+        if "work_centers" in table_names:
+            existing_columns = {column["name"] for column in inspector.get_columns("work_centers")}
+            for column_name, column_definition in WORK_CENTER_SPLIT_24_COLUMNS.items():
+                if column_name not in existing_columns:
+                    connection.execute(text("ALTER TABLE work_centers ADD COLUMN " + column_name + " " + column_definition))
 
 
 def add_missing_contract_labor_columns() -> None:
@@ -94,12 +156,9 @@ def add_missing_contract_labor_columns() -> None:
 
 
 def add_missing_payroll_contribution_columns() -> None:
-    """Add Split 18 payroll contribution and earning-line columns.
+    """Add Split 18 payroll contribution and earning-line columns."""
 
-    This is an idempotent development/demo bridge until Alembic migrations are
-    introduced. It is intentionally narrow and defensive.
-    """
-
+    add_missing_company_center_split_24_columns()
     add_missing_contract_labor_columns()
 
     inspector = inspect(engine)
