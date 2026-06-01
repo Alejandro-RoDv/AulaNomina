@@ -8,7 +8,7 @@ import { openReportPreset } from "../utils/reportShortcuts";
 
 function getInitialSection() {
   if (window.location.hash === "#company-centers") return "centers";
-  if (window.location.hash === "#companies-list") return "list";
+  if (window.location.hash === "#company-list") return "list";
   return "new";
 }
 
@@ -45,7 +45,7 @@ export default function CompaniesPage({
   }, []);
 
   const changeSection = (nextSection) => {
-    const nextHash = nextSection === "centers" ? "#company-centers" : nextSection === "list" ? "#companies-list" : "#companies";
+    const nextHash = nextSection === "centers" ? "#company-centers" : nextSection === "list" ? "#company-list" : "#company-companies";
     window.location.hash = nextHash;
     window.dispatchEvent(new Event("aulanomina-route-change"));
     setSection(nextSection);
