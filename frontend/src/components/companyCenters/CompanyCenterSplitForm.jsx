@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { createCompany } from "../../services/companyApi";
-import { createWorkCalendar, fetchWorkCalendars } from "../../services/workCalendarApi";
+import { createWorkCalendar, fetchWorkCalendars, updateWorkCalendar } from "../../services/workCalendarApi";
 import { createWorkCenter } from "../../services/workCenterApi";
 
 const WEEK_DAYS = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
@@ -178,6 +178,16 @@ function buildCompanyPayload(form) {
   };
 }
 
+function parseScheduleData(scheduleData) {
+  if (!scheduleData) return createEmptySchedule();
+  try {
+    const parsed = JSON.parse(scheduleData);
+    return { ...createEmptySchedule(), ...parsed };
+  } catch {
+    return createEmptySchedule();
+  }
+}
+
 function getNextCenterCode(companyId, workCenters) {
   if (!companyId) return "";
   const centersInCompany = workCenters.filter((center) => String(center.company_id) === String(companyId));
@@ -203,16 +213,6 @@ function buildCenterPayload(form, company, workCenters) {
   };
 }
 
-function parseScheduleData(scheduleData) {
-  if (!scheduleData) return createEmptySchedule();
-  try {
-    const parsed = JSON.parse(scheduleData);
-    return { ...createEmptySchedule(), ...parsed };
-  } catch {
-    return createEmptySchedule();
-  }
-}
-
 export default function CompanyCenterSplitForm({ companies, workCenters = [], initialSection = "companies", onReloadData, onSelectedCompanyChange }) {
   const [section, setSection] = useState(initialSection);
   const [companyForm, setCompanyForm] = useState(initialCompany);
@@ -223,32 +223,32 @@ export default function CompanyCenterSplitForm({ companies, workCenters = [], in
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
-  useEffect(() => {
-    setSection(initialSection);
-  }, [initialSection]);
-
-  useEffect(() => {
-    async function loadCalendars() {
-      try {
-        setCalendarLoading(true);
-        const calendars = await fetchWorkCalendars();
-        setWorkCalendars(calendars || []);
-      } catch {
-        setWorkCalendars([]);
-      } finally {
-        setCalendarLoading(false);
-      }
-    }
-    loadCalendars();
-  }, []);
-
   const activeCompanies = companies.filter((company) => company.is_active);
   const selectedCompany = useMemo(
     () => activeCompanies.find((company) => String(company.id) === String(centerForm.company_id)),
     [activeCompanies, centerForm.company_id]
   );
-
   const showCalendarDetails = companyForm.work_calendar_mode === "new" || Boolean(companyForm.selected_work_calendar_id);
+
+  useEffect(() => {
+    setSection(initialSection);
+  }, [initialSection]);
+
+  useEffect(() => {
+    loadCalendars();
+  }, []);
+
+  async function loadCalendars() {
+    try {
+      setCalendarLoading(true);
+      const calendars = await fetchWorkCalendars();
+      setWorkCalendars(calendars || []);
+    } catch {
+      setWorkCalendars([]);
+    } finally {
+      setCalendarLoading(false);
+    }
+  }
 
   const resetMessages = () => {
     setError("");
@@ -299,12 +299,7 @@ export default function CompanyCenterSplitForm({ companies, workCenters = [], in
   const handleCompanyChange = (event) => {
     const { name, value, checked, type } = event.target;
     if (name === "work_calendar_mode") {
-      setCompanyForm((prev) => ({
-        ...prev,
-        work_calendar_mode: value,
-        ...resetCalendarFields(),
-        work_calendar_name: value === "new" ? "" : prev.work_calendar_name,
-      }));
+      setCompanyForm((prev) => ({ ...prev, work_calendar_mode: value, ...resetCalendarFields() }));
       return;
     }
     if (name === "selected_work_calendar_id") {
@@ -321,23 +316,16 @@ export default function CompanyCenterSplitForm({ companies, workCenters = [], in
   const handleScheduleChange = (day, field, value) => {
     setCompanyForm((prev) => ({
       ...prev,
-      schedule: {
-        ...prev.schedule,
-        [day]: { ...prev.schedule[day], [field]: value },
-      },
+      schedule: { ...prev.schedule, [day]: { ...prev.schedule[day], [field]: value } },
     }));
   };
 
   const handleFlagChange = (group, key, checked) => {
-    setCompanyForm((prev) => ({
-      ...prev,
-      [group]: { ...prev[group], [key]: checked },
-    }));
+    setCompanyForm((prev) => ({ ...prev, [group]: { ...prev[group], [key]: checked } }));
   };
 
   const handleCenterChange = (event) => {
     const { name, value } = event.target;
-
     if (name === "company_id") {
       const company = activeCompanies.find((item) => String(item.id) === String(value));
       setCenterForm((prev) => ({
@@ -352,7 +340,6 @@ export default function CompanyCenterSplitForm({ companies, workCenters = [], in
       if (onSelectedCompanyChange) onSelectedCompanyChange(value);
       return;
     }
-
     setCenterForm((prev) => ({ ...prev, [name]: value }));
   };
 
@@ -364,20 +351,26 @@ export default function CompanyCenterSplitForm({ companies, workCenters = [], in
       setError("Selecciona un calendario de trabajo o crea uno nuevo.");
       return;
     }
-
     if (companyForm.work_calendar_mode === "existing" && !companyForm.selected_work_calendar_id) {
       setError("Selecciona un calendario ya creado.");
+      return;
+    }
+    if (companyForm.work_calendar_mode === "new" && !companyForm.work_calendar_name) {
+      setError("Indica un nombre para el nuevo calendario.");
       return;
     }
 
     try {
       setSubmitting(true);
-      if (companyForm.work_calendar_mode === "new" && companyForm.work_calendar_name) {
+      if (companyForm.work_calendar_mode === "new") {
         try {
           await createWorkCalendar(buildCalendarPayload(companyForm));
         } catch (calendarError) {
           if (!String(calendarError.message || "").includes("existe")) throw calendarError;
         }
+      }
+      if (companyForm.work_calendar_mode === "existing" && companyForm.selected_work_calendar_id) {
+        await updateWorkCalendar(companyForm.selected_work_calendar_id, buildCalendarPayload(companyForm));
       }
       await createCompany(buildCompanyPayload(companyForm));
       setCompanyForm(initialCompany);
@@ -393,12 +386,10 @@ export default function CompanyCenterSplitForm({ companies, workCenters = [], in
   const handleCreateCenter = async (event) => {
     event.preventDefault();
     resetMessages();
-
     if (!selectedCompany) {
       setError("Selecciona una empresa ya creada antes de crear el centro.");
       return;
     }
-
     try {
       setSubmitting(true);
       await createWorkCenter(buildCenterPayload(centerForm, selectedCompany, workCenters));
@@ -423,53 +414,21 @@ export default function CompanyCenterSplitForm({ companies, workCenters = [], in
   const calendarDetails = showCalendarDetails ? (
     <div style={styles.subCard}>
       {companyForm.work_calendar_mode === "new" && renderInput("work_calendar_name", "Nombre calendario")}
+      {companyForm.work_calendar_mode === "existing" && <div style={styles.readOnlyTitle}>Editando calendario: {companyForm.work_calendar_name}</div>}
       <div style={styles.formRow}>
-        <label style={styles.formGroup}>
-          Periodo
-          <select name="calendar_period_type" value={companyForm.calendar_period_type} onChange={handleCompanyChange} style={styles.input}>
-            <option value="todo_el_ano">Todo el año</option>
-            <option value="verano_invierno">Verano e invierno</option>
-          </select>
-        </label>
-        <label style={styles.formGroup}>
-          Descanso y vacaciones
-          <select name="rest_type" value={companyForm.rest_type} onChange={handleCompanyChange} style={styles.input}>
-            <option value="semanal">Semanal</option>
-            <option value="intermedio">Intermedio</option>
-          </select>
-        </label>
+        <label style={styles.formGroup}>Periodo<select name="calendar_period_type" value={companyForm.calendar_period_type} onChange={handleCompanyChange} style={styles.input}><option value="todo_el_ano">Todo el año</option><option value="verano_invierno">Verano e invierno</option></select></label>
+        <label style={styles.formGroup}>Descanso y vacaciones<select name="rest_type" value={companyForm.rest_type} onChange={handleCompanyChange} style={styles.input}><option value="semanal">Semanal</option><option value="intermedio">Intermedio</option></select></label>
         {renderInput("rest_days", "Días de descanso")}
       </div>
-      {companyForm.calendar_period_type === "verano_invierno" && (
-        <div style={styles.formRow}>
-          {renderInput("winter_period", "Periodo invierno")}
-          {renderInput("summer_period", "Periodo verano")}
-        </div>
-      )}
+      {companyForm.calendar_period_type === "verano_invierno" && <div style={styles.formRow}>{renderInput("winter_period", "Periodo invierno")}{renderInput("summer_period", "Periodo verano")}</div>}
       <div style={styles.scheduleWrapper}>
         <table style={styles.scheduleTable}>
           <thead><tr><th>Día</th><th>Horario mañana</th><th>Horario tarde</th><th>Total horas</th></tr></thead>
-          <tbody>
-            {WEEK_DAYS.map((day) => (
-              <tr key={day}>
-                <td>{day}</td>
-                <td><input value={companyForm.schedule[day].morning} onChange={(e) => handleScheduleChange(day, "morning", e.target.value)} style={styles.input} /></td>
-                <td><input value={companyForm.schedule[day].afternoon} onChange={(e) => handleScheduleChange(day, "afternoon", e.target.value)} style={styles.input} /></td>
-                <td><input value={companyForm.schedule[day].total} onChange={(e) => handleScheduleChange(day, "total", e.target.value)} style={styles.input} /></td>
-              </tr>
-            ))}
-          </tbody>
+          <tbody>{WEEK_DAYS.map((day) => <tr key={day}><td>{day}</td><td><input value={companyForm.schedule[day].morning} onChange={(e) => handleScheduleChange(day, "morning", e.target.value)} style={styles.input} /></td><td><input value={companyForm.schedule[day].afternoon} onChange={(e) => handleScheduleChange(day, "afternoon", e.target.value)} style={styles.input} /></td><td><input value={companyForm.schedule[day].total} onChange={(e) => handleScheduleChange(day, "total", e.target.value)} style={styles.input} /></td></tr>)}</tbody>
         </table>
       </div>
       <label style={styles.inlineCheck}><input type="checkbox" name="shifts_enabled" checked={companyForm.shifts_enabled} onChange={handleCompanyChange} /> Activar turnos</label>
-      {companyForm.shifts_enabled && (
-        <div style={styles.formRow}>
-          {renderInput("shift_1", "Turno 1")}
-          {renderInput("shift_2", "Turno 2")}
-          {renderInput("shift_3", "Turno 3")}
-          {renderInput("shift_4", "Turno 4")}
-        </div>
-      )}
+      {companyForm.shifts_enabled && <div style={styles.formRow}>{renderInput("shift_1", "Turno 1")}{renderInput("shift_2", "Turno 2")}{renderInput("shift_3", "Turno 3")}{renderInput("shift_4", "Turno 4")}</div>}
     </div>
   ) : null;
 
@@ -477,51 +436,16 @@ export default function CompanyCenterSplitForm({ companies, workCenters = [], in
     <div style={styles.wrapper}>
       {section === "companies" ? (
         <form onSubmit={handleCreateCompany} style={styles.form}>
-          <div style={styles.headerRow}>
-            <h3 style={styles.sectionTitle}>Crear nueva empresa</h3>
-            <span style={styles.badge}>Ficha ampliada Split 24</span>
-          </div>
+          <div style={styles.headerRow}><h3 style={styles.sectionTitle}>Crear nueva empresa</h3><span style={styles.badge}>Ficha ampliada Split 24</span></div>
 
           <section style={styles.block}>
             <h4 style={styles.blockTitle}>Identificación</h4>
-            <div style={styles.formRow}>
-              {renderInput("name", "Nombre empresa", { required: true })}
-              {renderInput("cif", "CIF", { required: true })}
-              <label style={styles.formGroupSmall}>
-                Estado actual
-                <select name="status" value={companyForm.status} onChange={handleCompanyChange} style={styles.input}>
-                  <option value="alta">Alta</option>
-                  <option value="baja_temporal">Baja temporal</option>
-                  <option value="baja_definitiva">Baja definitiva</option>
-                </select>
-              </label>
-            </div>
-            <div style={styles.formRow}>
-              {renderInput("registration_date", "Fecha de alta", { type: "date" })}
-              {renderInput("deregistration_date", "Fecha de baja", { type: "date" })}
-              {renderInput("main_collective_agreement", "Convenio principal aplicable")}
-            </div>
-            <div style={styles.formRow}>
-              {renderInput("ccc_regime", "CCC régimen")}
-              {renderInput("ccc_code", "CCC código")}
-              <label style={styles.formGroup}>
-                Tipo de empresa
-                <select name="company_type" value={companyForm.company_type} onChange={handleCompanyChange} style={styles.input}>
-                  <option value="privada">Privada</option>
-                  <option value="publica">Pública</option>
-                  <option value="privada_sin_lucro">Privada sin lucro</option>
-                  <option value="corporaciones">Corporaciones</option>
-                  <option value="ett">ETT</option>
-                  <option value="sociedad_laboral_privada">Sociedad laboral privada</option>
-                </select>
-              </label>
-            </div>
+            <div style={styles.formRow}>{renderInput("name", "Nombre empresa", { required: true })}{renderInput("cif", "CIF", { required: true })}<label style={styles.formGroupSmall}>Estado actual<select name="status" value={companyForm.status} onChange={handleCompanyChange} style={styles.input}><option value="alta">Alta</option><option value="baja_temporal">Baja temporal</option><option value="baja_definitiva">Baja definitiva</option></select></label></div>
+            <div style={styles.formRow}>{renderInput("registration_date", "Fecha de alta", { type: "date" })}{renderInput("deregistration_date", "Fecha de baja", { type: "date" })}{renderInput("main_collective_agreement", "Convenio principal aplicable")}</div>
+            <div style={styles.formRow}>{renderInput("ccc_regime", "CCC régimen")}{renderInput("ccc_code", "CCC código")}<label style={styles.formGroup}>Tipo de empresa<select name="company_type" value={companyForm.company_type} onChange={handleCompanyChange} style={styles.input}><option value="privada">Privada</option><option value="publica">Pública</option><option value="privada_sin_lucro">Privada sin lucro</option><option value="corporaciones">Corporaciones</option><option value="ett">ETT</option><option value="sociedad_laboral_privada">Sociedad laboral privada</option></select></label></div>
             <label style={styles.formGroupWide}>Domicilio social<input name="address" value={companyForm.address} onChange={handleCompanyChange} style={styles.input} /></label>
             <div style={styles.formRow}>{renderInput("city", "Ciudad")}{renderInput("province", "Provincia")}</div>
-            <div style={styles.checkboxRow}>
-              <label><input type="checkbox" name="is_cooperative" checked={companyForm.is_cooperative} onChange={handleCompanyChange} /> Sociedad cooperativa</label>
-              <label><input type="checkbox" name="special_work_income_withholding" checked={companyForm.special_work_income_withholding} onChange={handleCompanyChange} /> Cálculo especial de retenciones de rendimientos del trabajo</label>
-            </div>
+            <div style={styles.checkboxRow}><label><input type="checkbox" name="is_cooperative" checked={companyForm.is_cooperative} onChange={handleCompanyChange} /> Sociedad cooperativa</label><label><input type="checkbox" name="special_work_income_withholding" checked={companyForm.special_work_income_withholding} onChange={handleCompanyChange} /> Cálculo especial de retenciones de rendimientos del trabajo</label></div>
           </section>
 
           <section style={styles.block}>
@@ -536,42 +460,18 @@ export default function CompanyCenterSplitForm({ companies, workCenters = [], in
           </section>
 
           <section style={styles.block}>
-            <div style={styles.headerRow}>
-              <h4 style={styles.blockTitle}>Calendario de trabajo</h4>
-              <span style={styles.badge}>{calendarLoading ? "Cargando calendarios..." : `${workCalendars.length} disponibles`}</span>
-            </div>
+            <div style={styles.headerRow}><h4 style={styles.blockTitle}>Calendario de trabajo</h4><span style={styles.badge}>{calendarLoading ? "Cargando calendarios..." : `${workCalendars.length} disponibles`}</span></div>
             <div style={styles.formRow}>
-              <label style={styles.formGroup}>
-                Selección de calendario
-                <select name="work_calendar_mode" value={companyForm.work_calendar_mode} onChange={handleCompanyChange} style={styles.input}>
-                  <option value="">Seleccionar opción</option>
-                  <option value="existing">Elegir calendario creado</option>
-                  <option value="new">Crear calendario nuevo</option>
-                </select>
-              </label>
-              {companyForm.work_calendar_mode === "existing" && (
-                <label style={styles.formGroup}>
-                  Calendario creado
-                  <select name="selected_work_calendar_id" value={companyForm.selected_work_calendar_id} onChange={handleCompanyChange} style={styles.input}>
-                    <option value="">Seleccionar calendario guardado</option>
-                    {workCalendars.map((calendar) => <option key={calendar.id} value={calendar.id}>{calendar.name}</option>)}
-                  </select>
-                </label>
-              )}
+              <label style={styles.formGroup}>Selección de calendario<select name="work_calendar_mode" value={companyForm.work_calendar_mode} onChange={handleCompanyChange} style={styles.input}><option value="">Seleccionar opción</option><option value="existing">Elegir calendario creado</option><option value="new">Crear calendario nuevo</option></select></label>
+              {companyForm.work_calendar_mode === "existing" && <label style={styles.formGroup}>Calendario creado<select name="selected_work_calendar_id" value={companyForm.selected_work_calendar_id} onChange={handleCompanyChange} style={styles.input}><option value="">Seleccionar calendario guardado</option>{workCalendars.map((calendar) => <option key={calendar.id} value={calendar.id}>{calendar.name}</option>)}</select></label>}
             </div>
             {calendarDetails}
           </section>
 
           <section style={styles.block}>
             <h4 style={styles.blockTitle}>Fiscalidad, pagos y SILTRA</h4>
-            <div style={styles.formRow}>{renderInput("bank_iban", "IBAN transferencias")}
-              <label style={styles.formGroup}>Modelo 111<select name="model_111" value={companyForm.model_111} onChange={handleCompanyChange} style={styles.input}><option value="trimestral">Trimestral</option><option value="mensual">Mensual</option><option value="no_confecciona">No confecciona</option><option value="solo_mod216">Solo mod. 216</option></select></label>
-              <label style={styles.formGroup}>Régimen fiscal<select name="fiscal_regime" value={companyForm.fiscal_regime} onChange={handleCompanyChange} style={styles.input}><option value="estimacion_directa">Estimación directa</option><option value="modulos">Módulos</option><option value="plan_general_contable">Plan general contable</option></select></label>
-            </div>
-            <div style={styles.formRow}>
-              <label style={styles.formGroup}>Cómputo complementos<select name="complement_computation" value={companyForm.complement_computation} onChange={handleCompanyChange} style={styles.input}><option value="segun_convenio">Según convenio</option><option value="calendario_laboral">Por calendario laboral</option></select></label>
-              {renderInput("grouped_withholding_company", "Retenciones 111/190 agrupadas con otra empresa")}
-            </div>
+            <div style={styles.formRow}>{renderInput("bank_iban", "IBAN transferencias")}<label style={styles.formGroup}>Modelo 111<select name="model_111" value={companyForm.model_111} onChange={handleCompanyChange} style={styles.input}><option value="trimestral">Trimestral</option><option value="mensual">Mensual</option><option value="no_confecciona">No confecciona</option><option value="solo_mod216">Solo mod. 216</option></select></label><label style={styles.formGroup}>Régimen fiscal<select name="fiscal_regime" value={companyForm.fiscal_regime} onChange={handleCompanyChange} style={styles.input}><option value="estimacion_directa">Estimación directa</option><option value="modulos">Módulos</option><option value="plan_general_contable">Plan general contable</option></select></label></div>
+            <div style={styles.formRow}><label style={styles.formGroup}>Cómputo complementos<select name="complement_computation" value={companyForm.complement_computation} onChange={handleCompanyChange} style={styles.input}><option value="segun_convenio">Según convenio</option><option value="calendario_laboral">Por calendario laboral</option></select></label>{renderInput("grouped_withholding_company", "Retenciones 111/190 agrupadas con otra empresa")}</div>
             <label style={styles.inlineCheck}><input type="checkbox" name="siltra_enabled" checked={companyForm.siltra_enabled} onChange={handleCompanyChange} /> Cotización SILTRA</label>
             {companyForm.siltra_enabled && <><label style={styles.formGroup}>Forma de pago SILTRA<select name="siltra_payment_mode" value={companyForm.siltra_payment_mode} onChange={handleCompanyChange} style={styles.input}><option value="cargo_cuenta">Cargo en cuenta</option><option value="pago_electronico">Pago electrónico</option><option value="retribucion_contable">Retribución contable</option></select></label><div style={styles.flagGrid}>{SILTRA_FLAGS.map(([key, label]) => <label key={key}><input type="checkbox" checked={!!companyForm.siltra_flags[key]} onChange={(e) => handleFlagChange("siltra_flags", key, e.target.checked)} /> {label}</label>)}</div><h5 style={styles.miniTitle}>Bonificación sectorial</h5><div style={styles.flagGrid}>{SECTOR_FLAGS.map(([key, label]) => <label key={key}><input type="checkbox" checked={!!companyForm.sector_flags[key]} onChange={(e) => handleFlagChange("sector_flags", key, e.target.checked)} /> {label}</label>)}</div></>}
           </section>
@@ -610,6 +510,7 @@ const styles = {
   formGroup: { flex: 1, minWidth: "220px", display: "flex", flexDirection: "column", gap: "6px", fontWeight: 800, color: "#111827" },
   formGroupSmall: { width: "190px", flex: "0 0 190px", display: "flex", flexDirection: "column", gap: "6px", fontWeight: 800, color: "#111827" },
   formGroupWide: { flex: 1, minWidth: "100%", display: "flex", flexDirection: "column", gap: "6px", fontWeight: 800, color: "#111827" },
+  readOnlyTitle: { border: "1px solid #e5e7eb", borderRadius: "8px", padding: "10px 12px", backgroundColor: "#ffffff", fontWeight: 900, color: "#374151" },
   sectionTitle: { margin: 0, fontSize: "15px", fontWeight: 900, color: "#111827" },
   blockTitle: { margin: 0, fontSize: "14px", fontWeight: 900, color: "#111827" },
   miniTitle: { margin: "4px 0 0", fontSize: "13px", fontWeight: 900, color: "#374151" },
