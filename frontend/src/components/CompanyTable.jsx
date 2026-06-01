@@ -15,12 +15,33 @@ function toEditForm(company) {
     registration_date: company.registration_date || "",
     deregistration_date: company.deregistration_date || "",
     main_collective_agreement: company.main_collective_agreement || "",
-    company_type: company.company_type || "",
+    is_cooperative: !!company.is_cooperative,
+    special_work_income_withholding: !!company.special_work_income_withholding,
+    company_type: company.company_type || "privada",
+    legal_representative_name: company.legal_representative_name || "",
+    legal_representative_dni: company.legal_representative_dni || "",
+    legal_representative_position: company.legal_representative_position || "",
+    cnae_2009_code: company.cnae_2009_code || "",
+    cnae_2009_name: company.cnae_2009_name || "",
+    cnae_2025_code: company.cnae_2025_code || "",
+    cnae_2025_name: company.cnae_2025_name || "",
+    pension_plan_enabled: !!company.pension_plan_enabled,
+    pension_manager_key: company.pension_manager_key || "",
+    pension_manager_entity_number: company.pension_manager_entity_number || "",
+    pension_plan_name: company.pension_plan_name || "",
+    work_calendar_mode: company.work_calendar_mode || "",
+    work_calendar_name: company.work_calendar_name || "",
+    work_calendar_data: company.work_calendar_data || "",
     bank_iban: company.bank_iban || "",
-    model_111: company.model_111 || "",
-    fiscal_regime: company.fiscal_regime || "",
-    complement_computation: company.complement_computation || "",
+    model_111: company.model_111 || "trimestral",
+    fiscal_regime: company.fiscal_regime || "plan_general_contable",
+    complement_computation: company.complement_computation || "segun_convenio",
     siltra_enabled: !!company.siltra_enabled,
+    siltra_payment_mode: company.siltra_payment_mode || "cargo_cuenta",
+    siltra_options: company.siltra_options || "{}",
+    sector_bonuses: company.sector_bonuses || "{}",
+    grouped_withholding_company: company.grouped_withholding_company || "",
+    is_active: company.is_active !== false,
   };
 }
 
@@ -28,6 +49,16 @@ function formatStatus(status) {
   if (status === "baja_temporal") return "Baja temporal";
   if (status === "baja_definitiva") return "Baja definitiva";
   return "Alta";
+}
+
+function buildUpdatePayload(form) {
+  const ccc = form.ccc || [form.ccc_regime, form.ccc_code].filter(Boolean).join("/") || null;
+  return {
+    ...form,
+    ccc,
+    registration_date: form.registration_date || null,
+    deregistration_date: form.deregistration_date || null,
+  };
 }
 
 export default function CompanyTable({ loading, companies, onUpdateCompany, onDeleteCompany, submitting }) {
@@ -51,9 +82,7 @@ export default function CompanyTable({ loading, companies, onUpdateCompany, onDe
 
   if (loading) return <p>Cargando...</p>;
 
-  const handleSort = (key) => {
-    setSortConfig((current) => nextSortConfig(current, key));
-  };
+  const handleSort = (key) => setSortConfig((current) => nextSortConfig(current, key));
 
   const sortHeader = (key, label, style = styles.th) => (
     <th style={style}>
@@ -85,9 +114,8 @@ export default function CompanyTable({ loading, companies, onUpdateCompany, onDe
   const handleEditSubmit = async (event) => {
     event.preventDefault();
     setEditError("");
-
     try {
-      await onUpdateCompany(editingCompany.id, editForm);
+      await onUpdateCompany(editingCompany.id, buildUpdatePayload(editForm));
       closeEditModal();
     } catch (err) {
       setEditError(err.message || "Error al actualizar empresa");
@@ -96,7 +124,6 @@ export default function CompanyTable({ loading, companies, onUpdateCompany, onDe
 
   const handleConfirmDelete = async () => {
     setDeleteError("");
-
     try {
       await onDeleteCompany(companyToDelete.id);
       setCompanyToDelete(null);
@@ -106,43 +133,30 @@ export default function CompanyTable({ loading, companies, onUpdateCompany, onDe
     }
   };
 
+  const input = (name, label, props = {}) => (
+    <div style={props.wide ? styles.formGroupWide : styles.formGroup}>
+      <label>{label}</label>
+      <input name={name} value={editForm[name] || ""} onChange={handleEditChange} style={styles.input} {...props} />
+    </div>
+  );
+
+  const textarea = (name, label) => (
+    <div style={styles.formGroupWide}>
+      <label>{label}</label>
+      <textarea name={name} value={editForm[name] || ""} onChange={handleEditChange} style={styles.textarea} rows={4} />
+    </div>
+  );
+
   return (
     <>
       <div style={styles.tableWrapper}>
         <table style={styles.table}>
-          <thead>
-            <tr>
-              {sortHeader("id", "ID")}
-              {sortHeader("name", "Nombre")}
-              {sortHeader("cif", "CIF")}
-              {sortHeader("status", "Estado")}
-              {sortHeader("company_type", "Tipo")}
-              {sortHeader("ccc", "CCC")}
-              <th style={styles.th}>Convenio</th>
-              <th style={styles.th}>Modelo 111</th>
-              <th style={styles.th}>SILTRA</th>
-              {sortHeader("city", "Ciudad")}
-              <th style={styles.th}>Acciones</th>
-            </tr>
-          </thead>
+          <thead><tr>{sortHeader("id", "ID")}{sortHeader("name", "Nombre")}{sortHeader("cif", "CIF")}{sortHeader("status", "Estado")}{sortHeader("company_type", "Tipo")}{sortHeader("ccc", "CCC")}<th style={styles.th}>Convenio</th><th style={styles.th}>Modelo 111</th><th style={styles.th}>SILTRA</th>{sortHeader("city", "Ciudad")}<th style={styles.th}>Acciones</th></tr></thead>
           <tbody>
             {sortedCompanies.map((c) => (
               <tr key={c.id}>
-                <td style={styles.td}>{c.id}</td>
-                <td style={styles.td}>{c.name}</td>
-                <td style={styles.td}>{c.cif}</td>
-                <td style={styles.td}>{formatStatus(c.status)}</td>
-                <td style={styles.td}>{c.company_type || "-"}</td>
-                <td style={styles.td}>{c.ccc || "-"}</td>
-                <td style={styles.td}>{c.main_collective_agreement || "-"}</td>
-                <td style={styles.td}>{c.model_111 || "-"}</td>
-                <td style={styles.td}>{c.siltra_enabled ? "Sí" : "No"}</td>
-                <td style={styles.td}>{c.city || "-"}</td>
-                <td style={styles.td}>
-                  <button type="button" onClick={() => openEditModal(c)} style={styles.editButton}>
-                    Editar
-                  </button>
-                </td>
+                <td style={styles.td}>{c.id}</td><td style={styles.td}>{c.name}</td><td style={styles.td}>{c.cif}</td><td style={styles.td}>{formatStatus(c.status)}</td><td style={styles.td}>{c.company_type || "-"}</td><td style={styles.td}>{c.ccc || "-"}</td><td style={styles.td}>{c.main_collective_agreement || "-"}</td><td style={styles.td}>{c.model_111 || "-"}</td><td style={styles.td}>{c.siltra_enabled ? "Sí" : "No"}</td><td style={styles.td}>{c.city || "-"}</td>
+                <td style={styles.td}><button type="button" onClick={() => openEditModal(c)} style={styles.editButton}>Editar</button></td>
               </tr>
             ))}
           </tbody>
@@ -153,91 +167,53 @@ export default function CompanyTable({ loading, companies, onUpdateCompany, onDe
         <div style={styles.modalBackdrop}>
           <div style={styles.modal}>
             <div style={styles.modalHeader}>
-              <div>
-                <h3 style={styles.modalTitle}>Editar empresa</h3>
-                <p style={styles.modalSubtitle}>ID {editingCompany.id} · {editingCompany.name}</p>
-              </div>
+              <div><h3 style={styles.modalTitle}>Editar empresa</h3><p style={styles.modalSubtitle}>ID {editingCompany.id} · {editingCompany.name}</p></div>
               <button type="button" onClick={closeEditModal} style={styles.closeButton}>×</button>
             </div>
 
             <form onSubmit={handleEditSubmit} style={styles.form}>
-              <div style={styles.formRow}>
-                <div style={styles.formGroup}><label>Nombre</label><input name="name" value={editForm.name} onChange={handleEditChange} required style={styles.input} /></div>
-                <div style={styles.formGroupSmall}><label>CIF</label><input name="cif" value={editForm.cif} onChange={handleEditChange} required style={styles.input} /></div>
-                <div style={styles.formGroupSmall}><label>Estado</label><select name="status" value={editForm.status} onChange={handleEditChange} style={styles.input}><option value="alta">Alta</option><option value="baja_temporal">Baja temporal</option><option value="baja_definitiva">Baja definitiva</option></select></div>
-              </div>
+              <section style={styles.block}><h4 style={styles.blockTitle}>Identificación</h4>
+                <div style={styles.formRow}>{input("name", "Nombre", { required: true })}{input("cif", "CIF", { required: true })}<div style={styles.formGroup}><label>Estado</label><select name="status" value={editForm.status} onChange={handleEditChange} style={styles.input}><option value="alta">Alta</option><option value="baja_temporal">Baja temporal</option><option value="baja_definitiva">Baja definitiva</option></select></div></div>
+                <div style={styles.formRow}>{input("registration_date", "Fecha alta", { type: "date" })}{input("deregistration_date", "Fecha baja", { type: "date" })}{input("main_collective_agreement", "Convenio principal")}</div>
+                <div style={styles.formRow}>{input("ccc_regime", "CCC régimen")}{input("ccc_code", "CCC código")}{input("ccc", "CCC completo")}</div>
+                <div style={styles.formRow}><div style={styles.formGroup}><label>Tipo empresa</label><select name="company_type" value={editForm.company_type} onChange={handleEditChange} style={styles.input}><option value="privada">Privada</option><option value="publica">Pública</option><option value="privada_sin_lucro">Privada sin lucro</option><option value="corporaciones">Corporaciones</option><option value="ett">ETT</option><option value="sociedad_laboral_privada">Sociedad laboral privada</option></select></div>{input("address", "Domicilio social")}{input("city", "Ciudad")}{input("province", "Provincia")}</div>
+                <div style={styles.checkboxRow}><label><input type="checkbox" name="is_cooperative" checked={editForm.is_cooperative} onChange={handleEditChange} /> Sociedad cooperativa</label><label><input type="checkbox" name="special_work_income_withholding" checked={editForm.special_work_income_withholding} onChange={handleEditChange} /> Cálculo especial retenciones trabajo</label><label><input type="checkbox" name="is_active" checked={editForm.is_active} onChange={handleEditChange} /> Activa</label></div>
+              </section>
 
-              <div style={styles.formRow}>
-                <div style={styles.formGroup}><label>CCC régimen</label><input name="ccc_regime" value={editForm.ccc_regime} onChange={handleEditChange} style={styles.input} /></div>
-                <div style={styles.formGroup}><label>CCC código</label><input name="ccc_code" value={editForm.ccc_code} onChange={handleEditChange} style={styles.input} /></div>
-                <div style={styles.formGroup}><label>CCC completo</label><input name="ccc" value={editForm.ccc} onChange={handleEditChange} style={styles.input} /></div>
-              </div>
+              <section style={styles.block}><h4 style={styles.blockTitle}>Representante legal y CNAE</h4>
+                <div style={styles.formRow}>{input("legal_representative_name", "Nombre representante")}{input("legal_representative_dni", "DNI representante")}{input("legal_representative_position", "Puesto representante")}</div>
+                <div style={styles.formRow}>{input("cnae_2009_code", "CNAE 2009 código")}{input("cnae_2009_name", "CNAE 2009 nombre")}{input("cnae_2025_code", "CNAE 2025 código")}{input("cnae_2025_name", "CNAE 2025 nombre")}</div>
+              </section>
 
-              <div style={styles.formRow}>
-                <div style={styles.formGroup}><label>Fecha alta</label><input type="date" name="registration_date" value={editForm.registration_date || ""} onChange={handleEditChange} style={styles.input} /></div>
-                <div style={styles.formGroup}><label>Fecha baja</label><input type="date" name="deregistration_date" value={editForm.deregistration_date || ""} onChange={handleEditChange} style={styles.input} /></div>
-                <div style={styles.formGroup}><label>Tipo empresa</label><input name="company_type" value={editForm.company_type} onChange={handleEditChange} style={styles.input} /></div>
-              </div>
+              <section style={styles.block}><div style={styles.headerRow}><h4 style={styles.blockTitle}>Plan de pensiones</h4><label style={styles.inlineCheck}><input type="checkbox" name="pension_plan_enabled" checked={editForm.pension_plan_enabled} onChange={handleEditChange} /> Activado</label></div>
+                {editForm.pension_plan_enabled && <div style={styles.formRow}>{input("pension_manager_key", "Clave entidad gestora")}{input("pension_manager_entity_number", "Número entidad gestora")}{input("pension_plan_name", "Denominación plan")}</div>}
+              </section>
 
-              <div style={styles.formRow}>
-                <div style={styles.formGroupWide}><label>Domicilio social</label><input name="address" value={editForm.address} onChange={handleEditChange} style={styles.input} /></div>
-              </div>
+              <section style={styles.block}><h4 style={styles.blockTitle}>Calendario de trabajo</h4>
+                <div style={styles.formRow}>{input("work_calendar_mode", "Modo calendario")}{input("work_calendar_name", "Nombre calendario")}</div>
+                {textarea("work_calendar_data", "Datos calendario JSON")}
+              </section>
 
-              <div style={styles.formRow}>
-                <div style={styles.formGroup}><label>Ciudad</label><input name="city" value={editForm.city} onChange={handleEditChange} style={styles.input} /></div>
-                <div style={styles.formGroup}><label>Provincia</label><input name="province" value={editForm.province} onChange={handleEditChange} style={styles.input} /></div>
-                <div style={styles.formGroup}><label>Convenio principal</label><input name="main_collective_agreement" value={editForm.main_collective_agreement} onChange={handleEditChange} style={styles.input} /></div>
-              </div>
-
-              <div style={styles.formRow}>
-                <div style={styles.formGroup}><label>IBAN</label><input name="bank_iban" value={editForm.bank_iban} onChange={handleEditChange} style={styles.input} /></div>
-                <div style={styles.formGroup}><label>Modelo 111</label><input name="model_111" value={editForm.model_111} onChange={handleEditChange} style={styles.input} /></div>
-                <div style={styles.formGroup}><label>Régimen fiscal</label><input name="fiscal_regime" value={editForm.fiscal_regime} onChange={handleEditChange} style={styles.input} /></div>
-                <div style={styles.formGroup}><label>Cómputo complementos</label><input name="complement_computation" value={editForm.complement_computation} onChange={handleEditChange} style={styles.input} /></div>
-              </div>
-
-              <label style={styles.inlineCheck}><input type="checkbox" name="siltra_enabled" checked={editForm.siltra_enabled} onChange={handleEditChange} /> Cotización SILTRA</label>
+              <section style={styles.block}><h4 style={styles.blockTitle}>Fiscalidad, pagos y SILTRA</h4>
+                <div style={styles.formRow}>{input("bank_iban", "IBAN")}
+                  <div style={styles.formGroup}><label>Modelo 111</label><select name="model_111" value={editForm.model_111} onChange={handleEditChange} style={styles.input}><option value="trimestral">Trimestral</option><option value="mensual">Mensual</option><option value="no_confecciona">No confecciona</option><option value="solo_mod216">Solo mod. 216</option></select></div>
+                  <div style={styles.formGroup}><label>Régimen fiscal</label><select name="fiscal_regime" value={editForm.fiscal_regime} onChange={handleEditChange} style={styles.input}><option value="estimacion_directa">Estimación directa</option><option value="modulos">Módulos</option><option value="plan_general_contable">Plan general contable</option></select></div>
+                  <div style={styles.formGroup}><label>Cómputo complementos</label><select name="complement_computation" value={editForm.complement_computation} onChange={handleEditChange} style={styles.input}><option value="segun_convenio">Según convenio</option><option value="calendario_laboral">Por calendario laboral</option></select></div>
+                </div>
+                <div style={styles.formRow}>{input("grouped_withholding_company", "Retenciones 111/190 agrupadas con")}</div>
+                <label style={styles.inlineCheck}><input type="checkbox" name="siltra_enabled" checked={editForm.siltra_enabled} onChange={handleEditChange} /> Cotización SILTRA</label>
+                {editForm.siltra_enabled && <><div style={styles.formRow}><div style={styles.formGroup}><label>Forma de pago SILTRA</label><select name="siltra_payment_mode" value={editForm.siltra_payment_mode} onChange={handleEditChange} style={styles.input}><option value="cargo_cuenta">Cargo en cuenta</option><option value="pago_electronico">Pago electrónico</option><option value="retribucion_contable">Retribución contable</option></select></div></div>{textarea("siltra_options", "Opciones/exclusiones SILTRA JSON")}{textarea("sector_bonuses", "Bonificaciones sectoriales JSON")}</>}
+              </section>
 
               {editError && <div style={styles.error}>{editError}</div>}
-
-              <div style={styles.modalActionsSplit}>
-                <button type="button" onClick={() => setCompanyToDelete(editingCompany)} style={styles.deleteButton}>
-                  Eliminar empresa
-                </button>
-                <div style={styles.modalActionsRight}>
-                  <button type="button" onClick={closeEditModal} style={styles.cancelButton}>Cancelar</button>
-                  <button type="submit" disabled={submitting} style={styles.saveButton}>
-                    {submitting ? "Guardando..." : "Guardar cambios"}
-                  </button>
-                </div>
-              </div>
+              <div style={styles.modalActionsSplit}><button type="button" onClick={() => setCompanyToDelete(editingCompany)} style={styles.deleteButton}>Eliminar empresa</button><div style={styles.modalActionsRight}><button type="button" onClick={closeEditModal} style={styles.cancelButton}>Cancelar</button><button type="submit" disabled={submitting} style={styles.saveButton}>{submitting ? "Guardando..." : "Guardar cambios"}</button></div></div>
             </form>
           </div>
         </div>
       )}
 
       {companyToDelete && (
-        <div style={styles.modalBackdrop}>
-          <div style={styles.confirmModal}>
-            <div style={styles.modalHeader}>
-              <div>
-                <h3 style={styles.modalTitle}>Eliminar empresa</h3>
-                <p style={styles.modalSubtitle}>Esta acción desactivará la empresa o centro.</p>
-              </div>
-              <button type="button" onClick={() => setCompanyToDelete(null)} style={styles.closeButton}>×</button>
-            </div>
-
-            <p style={styles.confirmText}>¿Seguro que quieres eliminar/desactivar {companyToDelete.name}?</p>
-            {deleteError && <div style={styles.error}>{deleteError}</div>}
-
-            <div style={styles.modalActions}>
-              <button type="button" onClick={() => setCompanyToDelete(null)} style={styles.cancelButton}>Cancelar</button>
-              <button type="button" onClick={handleConfirmDelete} disabled={submitting} style={styles.dangerButton}>
-                {submitting ? "Eliminando..." : "Confirmar eliminación"}
-              </button>
-            </div>
-          </div>
-        </div>
+        <div style={styles.modalBackdrop}><div style={styles.confirmModal}><div style={styles.modalHeader}><div><h3 style={styles.modalTitle}>Eliminar empresa</h3><p style={styles.modalSubtitle}>Esta acción desactivará la empresa.</p></div><button type="button" onClick={() => setCompanyToDelete(null)} style={styles.closeButton}>×</button></div><p style={styles.confirmText}>¿Seguro que quieres eliminar/desactivar {companyToDelete.name}?</p>{deleteError && <div style={styles.error}>{deleteError}</div>}<div style={styles.modalActions}><button type="button" onClick={() => setCompanyToDelete(null)} style={styles.cancelButton}>Cancelar</button><button type="button" onClick={handleConfirmDelete} disabled={submitting} style={styles.dangerButton}>{submitting ? "Eliminando..." : "Confirmar eliminación"}</button></div></div></div>
       )}
     </>
   );
@@ -253,19 +229,24 @@ const styles = {
   editButton: { backgroundColor: "#111827", color: "#ffffff", border: "1px solid #111827", borderRadius: "8px", padding: "7px 10px", cursor: "pointer", fontWeight: 700 },
   deleteButton: { backgroundColor: "#fee2e2", color: "#991b1b", border: "1px solid #fecaca", borderRadius: "8px", padding: "10px 14px", cursor: "pointer", fontWeight: 800 },
   modalBackdrop: { position: "fixed", inset: 0, backgroundColor: "rgba(17, 24, 39, 0.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, padding: "24px" },
-  modal: { width: "min(980px, 100%)", maxHeight: "90vh", overflowY: "auto", backgroundColor: "#ffffff", border: "1px solid #d1d5db", borderRadius: "12px", boxShadow: "0 18px 45px rgba(15, 23, 42, 0.18)", padding: "22px" },
+  modal: { width: "min(1120px, 100%)", maxHeight: "90vh", overflowY: "auto", backgroundColor: "#ffffff", border: "1px solid #d1d5db", borderRadius: "12px", boxShadow: "0 18px 45px rgba(15, 23, 42, 0.18)", padding: "22px" },
   confirmModal: { width: "min(560px, 100%)", backgroundColor: "#ffffff", border: "1px solid #d1d5db", borderRadius: "12px", boxShadow: "0 18px 45px rgba(15, 23, 42, 0.18)", padding: "22px" },
   modalHeader: { display: "flex", justifyContent: "space-between", alignItems: "start", gap: "16px", marginBottom: "18px", borderBottom: "1px solid #e5e7eb", paddingBottom: "14px" },
   modalTitle: { margin: 0, fontSize: "20px", fontWeight: 900, color: "#111827" },
   modalSubtitle: { margin: "4px 0 0", color: "#6b7280", fontSize: "13px", fontWeight: 700 },
   closeButton: { border: "none", backgroundColor: "transparent", fontSize: "28px", lineHeight: 1, cursor: "pointer", color: "#111827" },
   form: { display: "flex", flexDirection: "column", gap: "16px" },
+  block: { border: "1px solid #e5e7eb", borderRadius: "10px", padding: "14px", display: "flex", flexDirection: "column", gap: "12px", backgroundColor: "#ffffff" },
+  blockTitle: { margin: 0, fontSize: "14px", fontWeight: 900, color: "#111827" },
+  headerRow: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px", flexWrap: "wrap" },
   formRow: { display: "flex", gap: "16px", flexWrap: "wrap" },
+  checkboxRow: { display: "flex", gap: "18px", flexWrap: "wrap", fontWeight: 800, color: "#111827" },
+  inlineCheck: { display: "flex", alignItems: "center", gap: "8px", fontWeight: 800, color: "#111827" },
   formGroup: { flex: 1, minWidth: "220px", display: "flex", flexDirection: "column", gap: "6px" },
   formGroupSmall: { width: "190px", flex: "0 0 190px", display: "flex", flexDirection: "column", gap: "6px" },
   formGroupWide: { flex: 1, minWidth: "100%", display: "flex", flexDirection: "column", gap: "6px" },
-  inlineCheck: { display: "flex", alignItems: "center", gap: "8px", fontWeight: 800, color: "#111827" },
   input: { padding: "10px 12px", border: "1px solid #ccc", borderRadius: "8px", fontSize: "14px" },
+  textarea: { padding: "10px 12px", border: "1px solid #ccc", borderRadius: "8px", fontSize: "13px", fontFamily: "monospace", resize: "vertical" },
   confirmText: { margin: "0 0 16px", color: "#374151", lineHeight: 1.5 },
   error: { backgroundColor: "#fee2e2", color: "#991b1b", padding: "10px 12px", borderRadius: "8px" },
   modalActions: { display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "6px" },
