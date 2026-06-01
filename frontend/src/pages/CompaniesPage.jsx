@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import PageCard from "../components/layout/PageCard";
 import CompanyTable from "../components/CompanyTable";
@@ -23,7 +23,14 @@ export default function CompaniesPage({
   workCenterSubmitting,
 }) {
   const [section, setSection] = useState(getInitialSection);
-  const activeWorkCenters = workCenters.filter((center) => center.is_active);
+  const [selectedCompanyId, setSelectedCompanyId] = useState("");
+
+  const visibleWorkCenters = useMemo(() => {
+    if (section !== "centers" || !selectedCompanyId) return [];
+    return workCenters.filter(
+      (center) => center.is_active && String(center.company_id) === String(selectedCompanyId)
+    );
+  }, [section, selectedCompanyId, workCenters]);
 
   useEffect(() => {
     const syncSection = () => setSection(getInitialSection());
@@ -44,13 +51,19 @@ export default function CompaniesPage({
     <div style={styles.wrapper}>
       <PageCard
         title={section === "centers" ? "Centros" : "Empresas"}
-        subtitle={section === "centers" ? "Crea centros asociados a empresas existentes." : "Crea empresas y consulta el listado principal."}
+        subtitle={section === "centers" ? "Crea centros asociados a empresas existentes. El historial se carga al elegir empresa." : "Crea empresas y consulta el listado principal."}
       >
-        <CompanyCenterSplitForm companies={companies} workCenters={workCenters} initialSection={section} onReloadData={reloadPageData} />
+        <CompanyCenterSplitForm
+          companies={companies}
+          workCenters={workCenters}
+          initialSection={section}
+          onReloadData={reloadPageData}
+          onSelectedCompanyChange={setSelectedCompanyId}
+        />
       </PageCard>
 
       {section === "companies" ? (
-        <PageCard title="Empresas" subtitle="Empresas registradas actualmente en AulaNomina. Aquí sí se mantiene visible el ID de empresa.">
+        <PageCard title="Empresas ya creadas" subtitle="Empresas registradas actualmente en AulaNomina. Aquí sí se mantiene visible el ID de empresa.">
           <div style={styles.reportActions}>
             <button type="button" style={styles.reportButton} onClick={() => openReportPreset({ category: "company", reportId: "companies-active" })}>Informe empresas activas</button>
             <button type="button" style={styles.reportButtonSecondary} onClick={() => openReportPreset({ category: "company", reportId: "centers-ccc" })}>Informe centros / CCC</button>
@@ -58,8 +71,8 @@ export default function CompaniesPage({
           <CompanyTable loading={loading} companies={companies} onUpdateCompany={onUpdateCompany} onDeleteCompany={onDeleteCompany} submitting={companySubmitting} />
         </PageCard>
       ) : (
-        <PageCard title="Centros" subtitle="Centros vinculados a empresas. No se muestra el ID técnico del centro.">
-          <WorkCenterTable loading={loading} workCenters={activeWorkCenters} companies={companies} onUpdateWorkCenter={onUpdateWorkCenter} onDeleteWorkCenter={onDeleteWorkCenter} submitting={workCenterSubmitting} />
+        <PageCard title="Centros de la empresa seleccionada" subtitle={selectedCompanyId ? "Centros vinculados a la empresa elegida." : "Selecciona una empresa en el formulario superior para cargar sus centros."}>
+          <WorkCenterTable loading={loading} workCenters={visibleWorkCenters} companies={companies} onUpdateWorkCenter={onUpdateWorkCenter} onDeleteWorkCenter={onDeleteWorkCenter} submitting={workCenterSubmitting} />
         </PageCard>
       )}
     </div>
