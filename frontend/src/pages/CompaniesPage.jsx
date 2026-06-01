@@ -8,7 +8,8 @@ import { openReportPreset } from "../utils/reportShortcuts";
 
 function getInitialSection() {
   if (window.location.hash === "#company-centers") return "centers";
-  return "companies";
+  if (window.location.hash === "#companies-list") return "list";
+  return "new";
 }
 
 export default function CompaniesPage({
@@ -43,36 +44,61 @@ export default function CompaniesPage({
     };
   }, []);
 
+  const changeSection = (nextSection) => {
+    const nextHash = nextSection === "centers" ? "#company-centers" : nextSection === "list" ? "#companies-list" : "#companies";
+    window.location.hash = nextHash;
+    window.dispatchEvent(new Event("aulanomina-route-change"));
+    setSection(nextSection);
+  };
+
   const reloadPageData = async () => {
     window.location.reload();
   };
 
   return (
     <div style={styles.wrapper}>
-      <PageCard
-        title={section === "centers" ? "Centros" : "Empresas"}
-        subtitle={section === "centers" ? "Crea centros asociados a empresas existentes. El historial se carga al elegir empresa." : "Crea empresas y consulta el listado principal."}
-      >
-        <CompanyCenterSplitForm
-          companies={companies}
-          workCenters={workCenters}
-          initialSection={section}
-          onReloadData={reloadPageData}
-          onSelectedCompanyChange={setSelectedCompanyId}
-        />
-      </PageCard>
+      <div style={styles.tabs}>
+        <button type="button" onClick={() => changeSection("new")} style={section === "new" ? styles.tabActive : styles.tab}>Nueva empresa</button>
+        <button type="button" onClick={() => changeSection("centers")} style={section === "centers" ? styles.tabActive : styles.tab}>Centros</button>
+        <button type="button" onClick={() => changeSection("list")} style={section === "list" ? styles.tabActive : styles.tab}>Listado empresas</button>
+      </div>
 
-      {section === "companies" ? (
-        <PageCard title="Empresas ya creadas" subtitle="Empresas registradas actualmente en AulaNomina. Aquí sí se mantiene visible el ID de empresa.">
+      {section === "new" && (
+        <PageCard title="Nueva empresa" subtitle="Alta de empresa con ficha laboral, fiscal, SILTRA y calendario de trabajo.">
+          <CompanyCenterSplitForm
+            companies={companies}
+            workCenters={workCenters}
+            initialSection="companies"
+            onReloadData={reloadPageData}
+            onSelectedCompanyChange={setSelectedCompanyId}
+          />
+        </PageCard>
+      )}
+
+      {section === "centers" && (
+        <>
+          <PageCard title="Centros" subtitle="Crea centros asociados a empresas existentes. El historial se carga al elegir empresa.">
+            <CompanyCenterSplitForm
+              companies={companies}
+              workCenters={workCenters}
+              initialSection="centers"
+              onReloadData={reloadPageData}
+              onSelectedCompanyChange={setSelectedCompanyId}
+            />
+          </PageCard>
+          <PageCard title="Centros de la empresa seleccionada" subtitle={selectedCompanyId ? "Centros vinculados a la empresa elegida." : "Selecciona una empresa en el formulario superior para cargar sus centros."}>
+            <WorkCenterTable loading={loading} workCenters={visibleWorkCenters} companies={companies} onUpdateWorkCenter={onUpdateWorkCenter} onDeleteWorkCenter={onDeleteWorkCenter} submitting={workCenterSubmitting} />
+          </PageCard>
+        </>
+      )}
+
+      {section === "list" && (
+        <PageCard title="Listado empresas" subtitle="Consulta y edición completa de empresas ya creadas.">
           <div style={styles.reportActions}>
             <button type="button" style={styles.reportButton} onClick={() => openReportPreset({ category: "company", reportId: "companies-active" })}>Informe empresas activas</button>
             <button type="button" style={styles.reportButtonSecondary} onClick={() => openReportPreset({ category: "company", reportId: "centers-ccc" })}>Informe centros / CCC</button>
           </div>
           <CompanyTable loading={loading} companies={companies} onUpdateCompany={onUpdateCompany} onDeleteCompany={onDeleteCompany} submitting={companySubmitting} />
-        </PageCard>
-      ) : (
-        <PageCard title="Centros de la empresa seleccionada" subtitle={selectedCompanyId ? "Centros vinculados a la empresa elegida." : "Selecciona una empresa en el formulario superior para cargar sus centros."}>
-          <WorkCenterTable loading={loading} workCenters={visibleWorkCenters} companies={companies} onUpdateWorkCenter={onUpdateWorkCenter} onDeleteWorkCenter={onDeleteWorkCenter} submitting={workCenterSubmitting} />
         </PageCard>
       )}
     </div>
@@ -81,6 +107,9 @@ export default function CompaniesPage({
 
 const styles = {
   wrapper: { display: "flex", flexDirection: "column", gap: "20px" },
+  tabs: { display: "flex", gap: "8px", borderBottom: "1px solid #e5e7eb", paddingBottom: "10px", flexWrap: "wrap" },
+  tab: { backgroundColor: "#ffffff", color: "#374151", border: "1px solid #d1d5db", borderRadius: "8px", padding: "10px 14px", cursor: "pointer", fontWeight: 900 },
+  tabActive: { backgroundColor: "#111827", color: "#ffffff", border: "1px solid #111827", borderRadius: "8px", padding: "10px 14px", cursor: "pointer", fontWeight: 900 },
   reportActions: { display: "flex", gap: "10px", justifyContent: "flex-end", marginBottom: "14px" },
   reportButton: { backgroundColor: "#111827", color: "#fff", border: "1px solid #111827", borderRadius: "7px", padding: "9px 12px", cursor: "pointer", fontWeight: 900 },
   reportButtonSecondary: { backgroundColor: "#fff", color: "#111827", border: "1px solid #d1d5db", borderRadius: "7px", padding: "9px 12px", cursor: "pointer", fontWeight: 900 },
