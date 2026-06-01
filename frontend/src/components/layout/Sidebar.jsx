@@ -5,6 +5,7 @@ import logo from "../../assets/aulanomina-logo.svg";
 const overlayPages = [
   "company-companies",
   "company-centers",
+  "company-list",
   "employee-record",
   "documents",
   "alerts",
@@ -20,7 +21,7 @@ const overlayPages = [
   "progress",
 ];
 
-const companyPages = ["company-companies", "company-centers"];
+const companyPages = ["company-companies", "company-centers", "company-list"];
 const conceptPages = ["payroll-concepts", "permanent-payroll-concepts"];
 const payrollPages = ["payroll-monthly-preparation", "payroll-individual", "payroll-simulation", "payroll-history"];
 const teachingPages = ["teacher-dashboard", "teaching-alerts", "case-studies", "assignments", "corrections", "student-demo", "students", "groups", "progress"];
@@ -83,8 +84,9 @@ export default function Sidebar({ activePage, setActivePage }) {
           enabled: true,
           menu: "company",
           children: [
-            { id: "company-companies", label: "Empresas", enabled: true },
+            { id: "company-companies", label: "Nueva empresa", enabled: true },
             { id: "company-centers", label: "Centros", enabled: true },
+            { id: "company-list", label: "Listado empresas", enabled: true },
           ],
         },
         {
