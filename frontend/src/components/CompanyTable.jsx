@@ -3,11 +3,40 @@ import { getSortLabel, nextSortConfig, sortRows } from "../utils/tableSorting";
 
 const WEEK_DAYS = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
 
+const SILTRA_FLAGS = [
+  ["exclusion_irpf", "Exclusión IRPF"],
+  ["exclusion_fogasa", "Exclusión FOGASA"],
+  ["exclusion_integrated_officials", "Exclusión funcionarios integrados"],
+  ["resolution_2010_05_25", "Resolución 25/05/2010"],
+  ["ceuta_melilla_bonus", "Bonificación Ceuta/Melilla"],
+  ["local_police_extra_suspension", "Suspensión extra Navidad Policías Locales"],
+];
+
+const SECTOR_FLAGS = [
+  ["textile", "Industrial textil"],
+  ["leather_goods", "Marroquinería"],
+  ["furniture", "Mueble"],
+  ["toy", "Juguetería"],
+  ["tourism", "Turismo"],
+  ["research", "Investigación"],
+  ["sports_club", "Club deportivo"],
+];
+
 function createEmptySchedule() {
   return WEEK_DAYS.reduce((acc, day) => {
     acc[day] = { morning: "", afternoon: "", total: "" };
     return acc;
   }, {});
+}
+
+function parseJsonObject(value) {
+  if (!value) return {};
+  if (typeof value === "object") return value;
+  try {
+    return JSON.parse(value) || {};
+  } catch {
+    return {};
+  }
 }
 
 function parseCalendarData(company) {
@@ -97,8 +126,8 @@ function toEditForm(company) {
     complement_computation: company.complement_computation || "segun_convenio",
     siltra_enabled: !!company.siltra_enabled,
     siltra_payment_mode: company.siltra_payment_mode || "cargo_cuenta",
-    siltra_options: company.siltra_options || "{}",
-    sector_bonuses: company.sector_bonuses || "{}",
+    siltra_flags: parseJsonObject(company.siltra_options),
+    sector_flags: parseJsonObject(company.sector_bonuses),
     grouped_withholding_company: company.grouped_withholding_company || "",
     is_active: company.is_active !== false,
   };
@@ -137,6 +166,8 @@ function buildUpdatePayload(form) {
     shift_2,
     shift_3,
     shift_4,
+    siltra_flags,
+    sector_flags,
     ...baseForm
   } = form;
 
@@ -144,6 +175,8 @@ function buildUpdatePayload(form) {
     ...baseForm,
     ccc,
     work_calendar_data: form.work_calendar_mode ? buildCalendarData(form) : null,
+    siltra_options: JSON.stringify(siltra_flags || {}),
+    sector_bonuses: JSON.stringify(sector_flags || {}),
     registration_date: form.registration_date || null,
     deregistration_date: form.deregistration_date || null,
   };
@@ -199,6 +232,13 @@ export default function CompanyTable({ loading, companies, onUpdateCompany, onDe
     setEditForm((prev) => ({ ...prev, [name]: type === "checkbox" ? checked : value }));
   };
 
+  const handleFlagChange = (group, key, checked) => {
+    setEditForm((prev) => ({
+      ...prev,
+      [group]: { ...(prev[group] || {}), [key]: checked },
+    }));
+  };
+
   const handleScheduleChange = (day, field, value) => {
     setEditForm((prev) => ({
       ...prev,
@@ -235,13 +275,6 @@ export default function CompanyTable({ loading, companies, onUpdateCompany, onDe
     <div style={props.wide ? styles.formGroupWide : styles.formGroup}>
       <label>{label}</label>
       <input name={name} value={editForm[name] || ""} onChange={handleEditChange} style={styles.input} {...props} />
-    </div>
-  );
-
-  const textarea = (name, label) => (
-    <div style={styles.formGroupWide}>
-      <label>{label}</label>
-      <textarea name={name} value={editForm[name] || ""} onChange={handleEditChange} style={styles.textarea} rows={4} />
     </div>
   );
 
@@ -308,7 +341,13 @@ export default function CompanyTable({ loading, companies, onUpdateCompany, onDe
                 </div>
                 <div style={styles.formRow}>{input("grouped_withholding_company", "Retenciones 111/190 agrupadas con")}</div>
                 <label style={styles.inlineCheck}><input type="checkbox" name="siltra_enabled" checked={editForm.siltra_enabled} onChange={handleEditChange} /> Cotización SILTRA</label>
-                {editForm.siltra_enabled && <><div style={styles.formRow}><div style={styles.formGroup}><label>Forma de pago SILTRA</label><select name="siltra_payment_mode" value={editForm.siltra_payment_mode} onChange={handleEditChange} style={styles.input}><option value="cargo_cuenta">Cargo en cuenta</option><option value="pago_electronico">Pago electrónico</option><option value="retribucion_contable">Retribución contable</option></select></div></div>{textarea("siltra_options", "Opciones/exclusiones SILTRA JSON")}{textarea("sector_bonuses", "Bonificaciones sectoriales JSON")}</>}
+                {editForm.siltra_enabled && <>
+                  <div style={styles.formRow}><div style={styles.formGroup}><label>Forma de pago SILTRA</label><select name="siltra_payment_mode" value={editForm.siltra_payment_mode} onChange={handleEditChange} style={styles.input}><option value="cargo_cuenta">Cargo en cuenta</option><option value="pago_electronico">Pago electrónico</option><option value="retribucion_contable">Retribución contable</option></select></div></div>
+                  <h5 style={styles.miniTitle}>Opciones y exclusiones SILTRA</h5>
+                  <div style={styles.flagGrid}>{SILTRA_FLAGS.map(([key, label]) => <label key={key}><input type="checkbox" checked={!!editForm.siltra_flags[key]} onChange={(event) => handleFlagChange("siltra_flags", key, event.target.checked)} /> {label}</label>)}</div>
+                  <h5 style={styles.miniTitle}>Bonificación sectorial</h5>
+                  <div style={styles.flagGrid}>{SECTOR_FLAGS.map(([key, label]) => <label key={key}><input type="checkbox" checked={!!editForm.sector_flags[key]} onChange={(event) => handleFlagChange("sector_flags", key, event.target.checked)} /> {label}</label>)}</div>
+                </>}
               </section>
 
               {editError && <div style={styles.error}>{editError}</div>}
@@ -344,6 +383,7 @@ const styles = {
   form: { display: "flex", flexDirection: "column", gap: "16px" },
   block: { border: "1px solid #e5e7eb", borderRadius: "10px", padding: "14px", display: "flex", flexDirection: "column", gap: "12px", backgroundColor: "#ffffff" },
   blockTitle: { margin: 0, fontSize: "14px", fontWeight: 900, color: "#111827" },
+  miniTitle: { margin: "4px 0 0", fontSize: "13px", fontWeight: 900, color: "#374151" },
   headerRow: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px", flexWrap: "wrap" },
   formRow: { display: "flex", gap: "16px", flexWrap: "wrap" },
   checkboxRow: { display: "flex", gap: "18px", flexWrap: "wrap", fontWeight: 800, color: "#111827" },
@@ -352,9 +392,9 @@ const styles = {
   formGroupSmall: { width: "190px", flex: "0 0 190px", display: "flex", flexDirection: "column", gap: "6px" },
   formGroupWide: { flex: 1, minWidth: "100%", display: "flex", flexDirection: "column", gap: "6px" },
   input: { padding: "10px 12px", border: "1px solid #ccc", borderRadius: "8px", fontSize: "14px" },
-  textarea: { padding: "10px 12px", border: "1px solid #ccc", borderRadius: "8px", fontSize: "13px", fontFamily: "monospace", resize: "vertical" },
   scheduleWrapper: { overflowX: "auto", border: "1px solid #e5e7eb", borderRadius: "8px", backgroundColor: "#ffffff" },
   scheduleTable: { width: "100%", borderCollapse: "collapse" },
+  flagGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "8px", fontWeight: 700, color: "#111827" },
   confirmText: { margin: "0 0 16px", color: "#374151", lineHeight: 1.5 },
   error: { backgroundColor: "#fee2e2", color: "#991b1b", padding: "10px 12px", borderRadius: "8px" },
   modalActions: { display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "6px" },
