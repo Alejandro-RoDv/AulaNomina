@@ -3,13 +3,82 @@ import { useEffect, useMemo, useState } from "react";
 import { createCompany } from "../../services/companyApi";
 import { createWorkCenter } from "../../services/workCenterApi";
 
+const WEEK_DAYS = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
+
+const SILTRA_FLAGS = [
+  ["exclusion_irpf", "Exclusión IRPF"],
+  ["exclusion_fogasa", "Exclusión FOGASA"],
+  ["exclusion_integrated_officials", "Exclusión funcionarios integrados"],
+  ["resolution_2010_05_25", "Resolución 25/05/2010"],
+  ["ceuta_melilla_bonus", "Bonificación Ceuta/Melilla"],
+  ["local_police_extra_suspension", "Suspensión extra Navidad Policías Locales"],
+];
+
+const SECTOR_FLAGS = [
+  ["textile", "Industrial textil"],
+  ["leather_goods", "Marroquinería"],
+  ["furniture", "Mueble"],
+  ["toy", "Juguetería"],
+  ["tourism", "Turismo"],
+  ["research", "Investigación"],
+  ["sports_club", "Club deportivo"],
+];
+
+function createEmptySchedule() {
+  return WEEK_DAYS.reduce((acc, day) => {
+    acc[day] = { morning: "", afternoon: "", total: "" };
+    return acc;
+  }, {});
+}
+
 const initialCompany = {
   name: "",
   cif: "",
-  ccc: "",
+  ccc_regime: "0111",
+  ccc_code: "",
   address: "",
   city: "",
   province: "",
+  status: "alta",
+  registration_date: "",
+  deregistration_date: "",
+  main_collective_agreement: "",
+  is_cooperative: false,
+  special_work_income_withholding: false,
+  company_type: "privada",
+  legal_representative_name: "",
+  legal_representative_dni: "",
+  legal_representative_position: "",
+  cnae_2009_code: "",
+  cnae_2009_name: "",
+  cnae_2025_code: "",
+  cnae_2025_name: "",
+  pension_plan_enabled: false,
+  pension_manager_key: "",
+  pension_manager_entity_number: "",
+  pension_plan_name: "",
+  work_calendar_mode: "new",
+  work_calendar_name: "Calendario estándar",
+  calendar_period_type: "todo_el_ano",
+  winter_period: "",
+  summer_period: "",
+  rest_type: "semanal",
+  rest_days: "Sábado y domingo",
+  schedule: createEmptySchedule(),
+  shifts_enabled: false,
+  shift_1: "",
+  shift_2: "",
+  shift_3: "",
+  shift_4: "",
+  bank_iban: "ES7620770024003102575766",
+  model_111: "trimestral",
+  fiscal_regime: "plan_general_contable",
+  complement_computation: "segun_convenio",
+  siltra_enabled: false,
+  siltra_payment_mode: "cargo_cuenta",
+  siltra_flags: {},
+  sector_flags: {},
+  grouped_withholding_company: "",
 };
 
 const initialCenter = {
@@ -20,16 +89,71 @@ const initialCenter = {
   address: "",
   city: "",
   province: "",
+  collective_agreement: "",
+  phone: "",
+  fax: "",
+  mobile: "",
+  email: "",
+  website: "",
 };
 
+function emptyToNull(value) {
+  if (value === "") return null;
+  return value;
+}
+
 function buildCompanyPayload(form) {
+  const ccc = [form.ccc_regime, form.ccc_code].filter(Boolean).join("/") || null;
+  const workCalendar = {
+    period_type: form.calendar_period_type,
+    winter_period: form.winter_period,
+    summer_period: form.summer_period,
+    rest_type: form.rest_type,
+    rest_days: form.rest_days,
+    schedule: form.schedule,
+    shifts_enabled: form.shifts_enabled,
+    shifts: [form.shift_1, form.shift_2, form.shift_3, form.shift_4].filter(Boolean),
+  };
+
   return {
     name: form.name,
     cif: form.cif,
-    ccc: form.ccc || null,
-    address: form.address || null,
-    city: form.city || null,
-    province: form.province || null,
+    ccc,
+    ccc_regime: emptyToNull(form.ccc_regime),
+    ccc_code: emptyToNull(form.ccc_code),
+    address: emptyToNull(form.address),
+    city: emptyToNull(form.city),
+    province: emptyToNull(form.province),
+    status: form.status,
+    registration_date: emptyToNull(form.registration_date),
+    deregistration_date: emptyToNull(form.deregistration_date),
+    main_collective_agreement: emptyToNull(form.main_collective_agreement),
+    is_cooperative: form.is_cooperative,
+    special_work_income_withholding: form.special_work_income_withholding,
+    company_type: emptyToNull(form.company_type),
+    legal_representative_name: emptyToNull(form.legal_representative_name),
+    legal_representative_dni: emptyToNull(form.legal_representative_dni),
+    legal_representative_position: emptyToNull(form.legal_representative_position),
+    cnae_2009_code: emptyToNull(form.cnae_2009_code),
+    cnae_2009_name: emptyToNull(form.cnae_2009_name),
+    cnae_2025_code: emptyToNull(form.cnae_2025_code),
+    cnae_2025_name: emptyToNull(form.cnae_2025_name),
+    pension_plan_enabled: form.pension_plan_enabled,
+    pension_manager_key: emptyToNull(form.pension_manager_key),
+    pension_manager_entity_number: emptyToNull(form.pension_manager_entity_number),
+    pension_plan_name: emptyToNull(form.pension_plan_name),
+    work_calendar_mode: form.work_calendar_mode,
+    work_calendar_name: emptyToNull(form.work_calendar_name),
+    work_calendar_data: JSON.stringify(workCalendar),
+    bank_iban: emptyToNull(form.bank_iban),
+    model_111: emptyToNull(form.model_111),
+    fiscal_regime: emptyToNull(form.fiscal_regime),
+    complement_computation: emptyToNull(form.complement_computation),
+    siltra_enabled: form.siltra_enabled,
+    siltra_payment_mode: emptyToNull(form.siltra_payment_mode),
+    siltra_options: JSON.stringify(form.siltra_flags),
+    sector_bonuses: JSON.stringify(form.sector_flags),
+    grouped_withholding_company: emptyToNull(form.grouped_withholding_company),
   };
 }
 
@@ -49,10 +173,16 @@ function buildCenterPayload(form, company, workCenters) {
     address: form.address || company?.address || null,
     city: form.city || company?.city || null,
     province: form.province || company?.province || null,
+    collective_agreement: form.collective_agreement || company?.main_collective_agreement || null,
+    phone: form.phone || null,
+    fax: form.fax || null,
+    mobile: form.mobile || null,
+    email: form.email || null,
+    website: form.website || null,
   };
 }
 
-export default function CompanyCenterSplitForm({ companies, workCenters = [], initialSection = "companies", onReloadData }) {
+export default function CompanyCenterSplitForm({ companies, workCenters = [], initialSection = "companies", onReloadData, onSelectedCompanyChange }) {
   const [section, setSection] = useState(initialSection);
   const [companyForm, setCompanyForm] = useState(initialCompany);
   const [centerForm, setCenterForm] = useState(initialCenter);
@@ -80,8 +210,25 @@ export default function CompanyCenterSplitForm({ companies, workCenters = [], in
   };
 
   const handleCompanyChange = (event) => {
-    const { name, value } = event.target;
-    setCompanyForm((prev) => ({ ...prev, [name]: value }));
+    const { name, value, checked, type } = event.target;
+    setCompanyForm((prev) => ({ ...prev, [name]: type === "checkbox" ? checked : value }));
+  };
+
+  const handleScheduleChange = (day, field, value) => {
+    setCompanyForm((prev) => ({
+      ...prev,
+      schedule: {
+        ...prev.schedule,
+        [day]: { ...prev.schedule[day], [field]: value },
+      },
+    }));
+  };
+
+  const handleFlagChange = (group, key, checked) => {
+    setCompanyForm((prev) => ({
+      ...prev,
+      [group]: { ...prev[group], [key]: checked },
+    }));
   };
 
   const handleCenterChange = (event) => {
@@ -96,7 +243,9 @@ export default function CompanyCenterSplitForm({ companies, workCenters = [], in
         address: company?.address || "",
         city: company?.city || "",
         province: company?.province || "",
+        collective_agreement: company?.main_collective_agreement || "",
       }));
+      if (onSelectedCompanyChange) onSelectedCompanyChange(value);
       return;
     }
 
@@ -134,6 +283,7 @@ export default function CompanyCenterSplitForm({ companies, workCenters = [], in
       await createWorkCenter(buildCenterPayload(centerForm, selectedCompany, workCenters));
       setCenterForm(initialCenter);
       setSuccess("Centro creado correctamente");
+      if (onSelectedCompanyChange) onSelectedCompanyChange("");
       await reloadData();
     } catch (err) {
       setError(err.message || "Error al crear centro");
@@ -142,41 +292,215 @@ export default function CompanyCenterSplitForm({ companies, workCenters = [], in
     }
   };
 
+  const renderInput = (name, label, props = {}) => (
+    <label style={props.wide ? styles.formGroupWide : styles.formGroup}>
+      {label}
+      <input name={name} value={companyForm[name]} onChange={handleCompanyChange} style={styles.input} {...props} />
+    </label>
+  );
+
   return (
     <div style={styles.wrapper}>
       {section === "companies" ? (
         <form onSubmit={handleCreateCompany} style={styles.form}>
-          <h3 style={styles.sectionTitle}>Nueva empresa</h3>
-          <div style={styles.formRow}>
-            <label style={styles.formGroup}>
-              Nombre empresa
-              <input name="name" value={companyForm.name} onChange={handleCompanyChange} required style={styles.input} />
-            </label>
-            <label style={styles.formGroupSmall}>
-              CIF
-              <input name="cif" value={companyForm.cif} onChange={handleCompanyChange} required style={styles.input} />
-            </label>
-            <label style={styles.formGroupSmall}>
-              CCC empresa
-              <input name="ccc" value={companyForm.ccc} onChange={handleCompanyChange} style={styles.input} />
-            </label>
+          <div style={styles.headerRow}>
+            <h3 style={styles.sectionTitle}>Crear nueva empresa</h3>
+            <span style={styles.badge}>Ficha ampliada Split 24</span>
           </div>
 
-          <label style={styles.formGroupWide}>
-            Dirección empresa
-            <input name="address" value={companyForm.address} onChange={handleCompanyChange} style={styles.input} />
-          </label>
+          <section style={styles.block}>
+            <h4 style={styles.blockTitle}>Identificación</h4>
+            <div style={styles.formRow}>
+              {renderInput("name", "Nombre empresa", { required: true })}
+              {renderInput("cif", "CIF", { required: true })}
+              <label style={styles.formGroupSmall}>
+                Estado actual
+                <select name="status" value={companyForm.status} onChange={handleCompanyChange} style={styles.input}>
+                  <option value="alta">Alta</option>
+                  <option value="baja_temporal">Baja temporal</option>
+                  <option value="baja_definitiva">Baja definitiva</option>
+                </select>
+              </label>
+            </div>
+            <div style={styles.formRow}>
+              {renderInput("registration_date", "Fecha de alta", { type: "date" })}
+              {renderInput("deregistration_date", "Fecha de baja", { type: "date" })}
+              {renderInput("main_collective_agreement", "Convenio principal aplicable")}
+            </div>
+            <div style={styles.formRow}>
+              {renderInput("ccc_regime", "CCC régimen")}
+              {renderInput("ccc_code", "CCC código")}
+              <label style={styles.formGroup}>
+                Tipo de empresa
+                <select name="company_type" value={companyForm.company_type} onChange={handleCompanyChange} style={styles.input}>
+                  <option value="privada">Privada</option>
+                  <option value="publica">Pública</option>
+                  <option value="privada_sin_lucro">Privada sin lucro</option>
+                  <option value="corporaciones">Corporaciones</option>
+                  <option value="ett">ETT</option>
+                  <option value="sociedad_laboral_privada">Sociedad laboral privada</option>
+                </select>
+              </label>
+            </div>
+            <label style={styles.formGroupWide}>
+              Domicilio social
+              <input name="address" value={companyForm.address} onChange={handleCompanyChange} style={styles.input} />
+            </label>
+            <div style={styles.formRow}>
+              {renderInput("city", "Ciudad")}
+              {renderInput("province", "Provincia")}
+            </div>
+            <div style={styles.checkboxRow}>
+              <label><input type="checkbox" name="is_cooperative" checked={companyForm.is_cooperative} onChange={handleCompanyChange} /> Sociedad cooperativa</label>
+              <label><input type="checkbox" name="special_work_income_withholding" checked={companyForm.special_work_income_withholding} onChange={handleCompanyChange} /> Cálculo especial de retenciones de rendimientos del trabajo</label>
+            </div>
+          </section>
 
-          <div style={styles.formRow}>
-            <label style={styles.formGroup}>
-              Ciudad
-              <input name="city" value={companyForm.city} onChange={handleCompanyChange} style={styles.input} />
-            </label>
-            <label style={styles.formGroup}>
-              Provincia
-              <input name="province" value={companyForm.province} onChange={handleCompanyChange} style={styles.input} />
-            </label>
-          </div>
+          <section style={styles.block}>
+            <h4 style={styles.blockTitle}>Representante legal y CNAE</h4>
+            <div style={styles.formRow}>
+              {renderInput("legal_representative_name", "Nombre y apellidos representante")}
+              {renderInput("legal_representative_dni", "DNI")}
+              {renderInput("legal_representative_position", "Puesto")}
+            </div>
+            <div style={styles.formRow}>
+              {renderInput("cnae_2009_code", "CNAE 2009 código")}
+              {renderInput("cnae_2009_name", "CNAE 2009 nombre")}
+              {renderInput("cnae_2025_code", "CNAE 2025 código")}
+              {renderInput("cnae_2025_name", "CNAE 2025 nombre")}
+            </div>
+          </section>
+
+          <section style={styles.block}>
+            <div style={styles.headerRow}>
+              <h4 style={styles.blockTitle}>Plan de pensiones</h4>
+              <label style={styles.inlineCheck}><input type="checkbox" name="pension_plan_enabled" checked={companyForm.pension_plan_enabled} onChange={handleCompanyChange} /> Activar apartado</label>
+            </div>
+            {companyForm.pension_plan_enabled && (
+              <div style={styles.formRow}>
+                {renderInput("pension_manager_key", "Clave entidad gestora")}
+                {renderInput("pension_manager_entity_number", "Número entidad gestora")}
+                {renderInput("pension_plan_name", "Denominación plan de pensiones")}
+              </div>
+            )}
+          </section>
+
+          <section style={styles.block}>
+            <h4 style={styles.blockTitle}>Calendario de trabajo</h4>
+            <div style={styles.formRow}>
+              <label style={styles.formGroup}>
+                Calendario
+                <select name="work_calendar_mode" value={companyForm.work_calendar_mode} onChange={handleCompanyChange} style={styles.input}>
+                  <option value="new">Crear nuevo</option>
+                  <option value="existing">Elegir creado previamente</option>
+                </select>
+              </label>
+              {renderInput("work_calendar_name", "Nombre calendario")}
+              <label style={styles.formGroup}>
+                Periodo
+                <select name="calendar_period_type" value={companyForm.calendar_period_type} onChange={handleCompanyChange} style={styles.input}>
+                  <option value="todo_el_ano">Todo el año</option>
+                  <option value="verano_invierno">Verano e invierno</option>
+                </select>
+              </label>
+            </div>
+            {companyForm.calendar_period_type === "verano_invierno" && (
+              <div style={styles.formRow}>
+                {renderInput("winter_period", "Periodo invierno")}
+                {renderInput("summer_period", "Periodo verano")}
+              </div>
+            )}
+            <div style={styles.formRow}>
+              <label style={styles.formGroup}>
+                Descanso y vacaciones
+                <select name="rest_type" value={companyForm.rest_type} onChange={handleCompanyChange} style={styles.input}>
+                  <option value="semanal">Semanal</option>
+                  <option value="intermedio">Intermedio</option>
+                </select>
+              </label>
+              {renderInput("rest_days", "Días de descanso")}
+            </div>
+            <div style={styles.scheduleWrapper}>
+              <table style={styles.scheduleTable}>
+                <thead>
+                  <tr><th>Día</th><th>Horario mañana</th><th>Horario tarde</th><th>Total horas</th></tr>
+                </thead>
+                <tbody>
+                  {WEEK_DAYS.map((day) => (
+                    <tr key={day}>
+                      <td>{day}</td>
+                      <td><input value={companyForm.schedule[day].morning} onChange={(e) => handleScheduleChange(day, "morning", e.target.value)} style={styles.input} /></td>
+                      <td><input value={companyForm.schedule[day].afternoon} onChange={(e) => handleScheduleChange(day, "afternoon", e.target.value)} style={styles.input} /></td>
+                      <td><input value={companyForm.schedule[day].total} onChange={(e) => handleScheduleChange(day, "total", e.target.value)} style={styles.input} /></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <label style={styles.inlineCheck}><input type="checkbox" name="shifts_enabled" checked={companyForm.shifts_enabled} onChange={handleCompanyChange} /> Activar turnos</label>
+            {companyForm.shifts_enabled && (
+              <div style={styles.formRow}>
+                {renderInput("shift_1", "Turno 1")}
+                {renderInput("shift_2", "Turno 2")}
+                {renderInput("shift_3", "Turno 3")}
+                {renderInput("shift_4", "Turno 4")}
+              </div>
+            )}
+          </section>
+
+          <section style={styles.block}>
+            <h4 style={styles.blockTitle}>Fiscalidad, pagos y SILTRA</h4>
+            <div style={styles.formRow}>
+              {renderInput("bank_iban", "IBAN transferencias")}
+              <label style={styles.formGroup}>
+                Modelo 111
+                <select name="model_111" value={companyForm.model_111} onChange={handleCompanyChange} style={styles.input}>
+                  <option value="trimestral">Trimestral</option>
+                  <option value="mensual">Mensual</option>
+                  <option value="no_confecciona">No confecciona</option>
+                  <option value="solo_mod216">Solo mod. 216</option>
+                </select>
+              </label>
+              <label style={styles.formGroup}>
+                Régimen fiscal
+                <select name="fiscal_regime" value={companyForm.fiscal_regime} onChange={handleCompanyChange} style={styles.input}>
+                  <option value="estimacion_directa">Estimación directa</option>
+                  <option value="modulos">Módulos</option>
+                  <option value="plan_general_contable">Plan general contable</option>
+                </select>
+              </label>
+            </div>
+            <div style={styles.formRow}>
+              <label style={styles.formGroup}>
+                Cómputo complementos
+                <select name="complement_computation" value={companyForm.complement_computation} onChange={handleCompanyChange} style={styles.input}>
+                  <option value="segun_convenio">Según convenio</option>
+                  <option value="calendario_laboral">Por calendario laboral</option>
+                </select>
+              </label>
+              {renderInput("grouped_withholding_company", "Retenciones 111/190 agrupadas con otra empresa")}
+            </div>
+            <label style={styles.inlineCheck}><input type="checkbox" name="siltra_enabled" checked={companyForm.siltra_enabled} onChange={handleCompanyChange} /> Cotización SILTRA</label>
+            {companyForm.siltra_enabled && (
+              <>
+                <label style={styles.formGroup}>
+                  Forma de pago SILTRA
+                  <select name="siltra_payment_mode" value={companyForm.siltra_payment_mode} onChange={handleCompanyChange} style={styles.input}>
+                    <option value="cargo_cuenta">Cargo en cuenta</option>
+                    <option value="pago_electronico">Pago electrónico</option>
+                    <option value="retribucion_contable">Retribución contable</option>
+                  </select>
+                </label>
+                <div style={styles.flagGrid}>
+                  {SILTRA_FLAGS.map(([key, label]) => <label key={key}><input type="checkbox" checked={!!companyForm.siltra_flags[key]} onChange={(e) => handleFlagChange("siltra_flags", key, e.target.checked)} /> {label}</label>)}
+                </div>
+                <h5 style={styles.miniTitle}>Bonificación sectorial</h5>
+                <div style={styles.flagGrid}>
+                  {SECTOR_FLAGS.map(([key, label]) => <label key={key}><input type="checkbox" checked={!!companyForm.sector_flags[key]} onChange={(e) => handleFlagChange("sector_flags", key, e.target.checked)} /> {label}</label>)}
+                </div>
+              </>
+            )}
+          </section>
 
           {error && <div style={styles.error}>{error}</div>}
           {success && <div style={styles.success}>{success}</div>}
@@ -187,15 +511,13 @@ export default function CompanyCenterSplitForm({ companies, workCenters = [], in
         </form>
       ) : (
         <form onSubmit={handleCreateCenter} style={styles.form}>
-          <h3 style={styles.sectionTitle}>Nuevo centro</h3>
+          <h3 style={styles.sectionTitle}>Centro asociado a empresa ya creada</h3>
           <label style={styles.formGroupWide}>
             Empresa asociada
             <select name="company_id" value={centerForm.company_id} onChange={handleCenterChange} required style={styles.input}>
               <option value="">Seleccionar empresa existente</option>
               {activeCompanies.map((company) => (
-                <option key={company.id} value={company.id}>
-                  {company.name} · {company.cif}{company.ccc ? ` · CCC ${company.ccc}` : ""}
-                </option>
+                <option key={company.id} value={company.id}>{company.name} · {company.cif}</option>
               ))}
             </select>
           </label>
@@ -206,30 +528,27 @@ export default function CompanyCenterSplitForm({ companies, workCenters = [], in
           </label>
 
           <div style={styles.formRow}>
-            <label style={styles.formGroup}>
-              CCC empresa
-              <input name="general_ccc" value={centerForm.general_ccc} onChange={handleCenterChange} placeholder="Se copia de la empresa" style={styles.input} />
-            </label>
-            <label style={styles.formGroup}>
-              CCC centro
-              <input name="main_ccc" value={centerForm.main_ccc} onChange={handleCenterChange} placeholder="CCC propia del centro" style={styles.input} />
-            </label>
+            <label style={styles.formGroup}><span>Convenio del centro</span><input name="collective_agreement" value={centerForm.collective_agreement} onChange={handleCenterChange} placeholder="Por defecto, convenio de empresa" style={styles.input} /></label>
+            <label style={styles.formGroup}><span>CCC empresa</span><input name="general_ccc" value={centerForm.general_ccc} onChange={handleCenterChange} placeholder="Se copia de la empresa" style={styles.input} /></label>
+            <label style={styles.formGroup}><span>CCC centro</span><input name="main_ccc" value={centerForm.main_ccc} onChange={handleCenterChange} placeholder="CCC propia del centro" style={styles.input} /></label>
           </div>
 
           <label style={styles.formGroupWide}>
-            Dirección centro
-            <input name="address" value={centerForm.address} onChange={handleCenterChange} placeholder="Por defecto, dirección de empresa" style={styles.input} />
+            Domicilio del centro
+            <input name="address" value={centerForm.address} onChange={handleCenterChange} placeholder="Por defecto, domicilio social de empresa" style={styles.input} />
           </label>
 
           <div style={styles.formRow}>
-            <label style={styles.formGroup}>
-              Ciudad
-              <input name="city" value={centerForm.city} onChange={handleCenterChange} style={styles.input} />
-            </label>
-            <label style={styles.formGroup}>
-              Provincia
-              <input name="province" value={centerForm.province} onChange={handleCenterChange} style={styles.input} />
-            </label>
+            <label style={styles.formGroup}><span>Ciudad</span><input name="city" value={centerForm.city} onChange={handleCenterChange} style={styles.input} /></label>
+            <label style={styles.formGroup}><span>Provincia</span><input name="province" value={centerForm.province} onChange={handleCenterChange} style={styles.input} /></label>
+          </div>
+
+          <div style={styles.formRow}>
+            <label style={styles.formGroup}><span>Teléfono</span><input name="phone" value={centerForm.phone} onChange={handleCenterChange} style={styles.input} /></label>
+            <label style={styles.formGroup}><span>Fax</span><input name="fax" value={centerForm.fax} onChange={handleCenterChange} style={styles.input} /></label>
+            <label style={styles.formGroup}><span>Móvil</span><input name="mobile" value={centerForm.mobile} onChange={handleCenterChange} style={styles.input} /></label>
+            <label style={styles.formGroup}><span>Email</span><input name="email" value={centerForm.email} onChange={handleCenterChange} style={styles.input} /></label>
+            <label style={styles.formGroup}><span>Web</span><input name="website" value={centerForm.website} onChange={handleCenterChange} style={styles.input} /></label>
           </div>
 
           {error && <div style={styles.error}>{error}</div>}
@@ -247,13 +566,23 @@ export default function CompanyCenterSplitForm({ companies, workCenters = [], in
 const styles = {
   wrapper: { display: "flex", flexDirection: "column", gap: "18px" },
   form: { border: "1px solid #e5e7eb", borderRadius: "10px", padding: "14px", display: "flex", flexDirection: "column", gap: "14px" },
+  block: { border: "1px solid #e5e7eb", borderRadius: "10px", padding: "14px", display: "flex", flexDirection: "column", gap: "12px", backgroundColor: "#ffffff" },
+  headerRow: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px", flexWrap: "wrap" },
   formRow: { display: "flex", gap: "16px", flexWrap: "wrap" },
+  checkboxRow: { display: "flex", gap: "18px", flexWrap: "wrap", fontWeight: 800, color: "#111827" },
+  inlineCheck: { display: "flex", alignItems: "center", gap: "8px", fontWeight: 800, color: "#111827" },
   formGroup: { flex: 1, minWidth: "220px", display: "flex", flexDirection: "column", gap: "6px", fontWeight: 800, color: "#111827" },
   formGroupSmall: { width: "190px", flex: "0 0 190px", display: "flex", flexDirection: "column", gap: "6px", fontWeight: 800, color: "#111827" },
   formGroupWide: { flex: 1, minWidth: "100%", display: "flex", flexDirection: "column", gap: "6px", fontWeight: 800, color: "#111827" },
   sectionTitle: { margin: 0, fontSize: "15px", fontWeight: 900, color: "#111827" },
+  blockTitle: { margin: 0, fontSize: "14px", fontWeight: 900, color: "#111827" },
+  miniTitle: { margin: "4px 0 0", fontSize: "13px", fontWeight: 900, color: "#374151" },
+  badge: { border: "1px solid #d1d5db", borderRadius: "999px", padding: "5px 9px", fontSize: "12px", fontWeight: 900, color: "#374151", backgroundColor: "#f9fafb" },
   input: { padding: "10px 12px", border: "1px solid #ccc", borderRadius: "8px", fontSize: "14px" },
   button: { backgroundColor: "#111827", color: "white", border: "none", borderRadius: "8px", padding: "12px 18px", cursor: "pointer", width: "fit-content", fontWeight: 800 },
   error: { backgroundColor: "#fee2e2", color: "#991b1b", padding: "10px 12px", borderRadius: "8px" },
   success: { backgroundColor: "#dcfce7", color: "#166534", padding: "10px 12px", borderRadius: "8px" },
+  scheduleWrapper: { overflowX: "auto", border: "1px solid #e5e7eb", borderRadius: "8px" },
+  scheduleTable: { width: "100%", borderCollapse: "collapse" },
+  flagGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "8px", fontWeight: 700, color: "#111827" },
 };
