@@ -6,6 +6,7 @@ const overlayPages = [
   "company-companies",
   "company-centers",
   "company-list",
+  "companies-list",
   "employee-record",
   "documents",
   "alerts",
@@ -21,7 +22,7 @@ const overlayPages = [
   "progress",
 ];
 
-const companyPages = ["company-companies", "company-centers", "company-list"];
+const companyPages = ["company-companies", "company-centers", "company-list", "companies-list"];
 const conceptPages = ["payroll-concepts", "permanent-payroll-concepts"];
 const payrollPages = ["payroll-monthly-preparation", "payroll-individual", "payroll-simulation", "payroll-history"];
 const teachingPages = ["teacher-dashboard", "teaching-alerts", "case-studies", "assignments", "corrections", "student-demo", "students", "groups", "progress"];
@@ -30,6 +31,16 @@ const overlayHashes = overlayPages.map((page) => `#${page}`);
 function getOverlayPageFromHash() {
   const page = window.location.hash.replace("#", "");
   return overlayPages.includes(page) ? page : null;
+}
+
+function normalizePageId(pageId) {
+  if (pageId === "companies-list") return "company-list";
+  if (pageId === "companies") {
+    if (window.location.hash === "#company-list" || window.location.hash === "#companies-list") return "company-list";
+    if (window.location.hash === "#company-centers") return "company-centers";
+    return "company-companies";
+  }
+  return pageId;
 }
 
 export default function Sidebar({ activePage, setActivePage }) {
@@ -71,7 +82,7 @@ export default function Sidebar({ activePage, setActivePage }) {
     };
   }, [setActivePage]);
 
-  const currentActivePage = hashActivePage || activePage;
+  const currentActivePage = normalizePageId(hashActivePage || activePage);
 
   const groups = [
     {
@@ -231,7 +242,7 @@ export default function Sidebar({ activePage, setActivePage }) {
                   conceptMenuOpen
                 );
                 const childPages = item.menu === "company"
-                  ? companyPages
+                  ? companyPages.map(normalizePageId)
                   : item.menu === "employee"
                     ? ["employees", "employee-record"]
                     : item.menu === "payroll"
