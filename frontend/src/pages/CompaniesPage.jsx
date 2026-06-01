@@ -3,7 +3,9 @@ import { useEffect, useMemo, useState } from "react";
 import PageCard from "../components/layout/PageCard";
 import CompanyTable from "../components/CompanyTable";
 import WorkCenterTable from "../components/workCenters/WorkCenterTable";
+import WorkCalendarTable from "../components/workCalendars/WorkCalendarTable";
 import CompanyCenterSplitForm from "../components/companyCenters/CompanyCenterSplitForm";
+import { fetchWorkCalendars } from "../services/workCalendarApi";
 import { openReportPreset } from "../utils/reportShortcuts";
 
 function getInitialSection() {
@@ -24,6 +26,8 @@ export default function CompaniesPage({
 }) {
   const [section, setSection] = useState(getInitialSection);
   const [selectedCompanyId, setSelectedCompanyId] = useState("");
+  const [workCalendars, setWorkCalendars] = useState([]);
+  const [calendarsLoading, setCalendarsLoading] = useState(false);
 
   const visibleWorkCenters = useMemo(() => {
     if (section !== "centers" || !selectedCompanyId) return [];
@@ -31,6 +35,18 @@ export default function CompaniesPage({
       (center) => center.is_active && String(center.company_id) === String(selectedCompanyId)
     );
   }, [section, selectedCompanyId, workCenters]);
+
+  const loadWorkCalendars = async () => {
+    try {
+      setCalendarsLoading(true);
+      const calendars = await fetchWorkCalendars();
+      setWorkCalendars(calendars || []);
+    } catch {
+      setWorkCalendars([]);
+    } finally {
+      setCalendarsLoading(false);
+    }
+  };
 
   useEffect(() => {
     const syncSection = () => setSection(getInitialSection());
@@ -43,7 +59,12 @@ export default function CompaniesPage({
     };
   }, []);
 
+  useEffect(() => {
+    loadWorkCalendars();
+  }, []);
+
   const reloadPageData = async () => {
+    await loadWorkCalendars();
     window.location.reload();
   };
 
@@ -63,13 +84,19 @@ export default function CompaniesPage({
       </PageCard>
 
       {section === "companies" ? (
-        <PageCard title="Empresas ya creadas" subtitle="Empresas registradas actualmente en AulaNomina. Aquí sí se mantiene visible el ID de empresa.">
-          <div style={styles.reportActions}>
-            <button type="button" style={styles.reportButton} onClick={() => openReportPreset({ category: "company", reportId: "companies-active" })}>Informe empresas activas</button>
-            <button type="button" style={styles.reportButtonSecondary} onClick={() => openReportPreset({ category: "company", reportId: "centers-ccc" })}>Informe centros / CCC</button>
-          </div>
-          <CompanyTable loading={loading} companies={companies} onUpdateCompany={onUpdateCompany} onDeleteCompany={onDeleteCompany} submitting={companySubmitting} />
-        </PageCard>
+        <>
+          <PageCard title="Empresas ya creadas" subtitle="Empresas registradas actualmente en AulaNomina. Aquí sí se mantiene visible el ID de empresa.">
+            <div style={styles.reportActions}>
+              <button type="button" style={styles.reportButton} onClick={() => openReportPreset({ category: "company", reportId: "companies-active" })}>Informe empresas activas</button>
+              <button type="button" style={styles.reportButtonSecondary} onClick={() => openReportPreset({ category: "company", reportId: "centers-ccc" })}>Informe centros / CCC</button>
+            </div>
+            <CompanyTable loading={loading} companies={companies} onUpdateCompany={onUpdateCompany} onDeleteCompany={onDeleteCompany} submitting={companySubmitting} />
+          </PageCard>
+
+          <PageCard title="Calendarios laborales creados" subtitle="Calendarios reutilizables para empresas. Sirven como base docente para jornada, descanso, vacaciones y turnos.">
+            <WorkCalendarTable loading={calendarsLoading} calendars={workCalendars} />
+          </PageCard>
+        </>
       ) : (
         <PageCard title="Centros de la empresa seleccionada" subtitle={selectedCompanyId ? "Centros vinculados a la empresa elegida." : "Selecciona una empresa en el formulario superior para cargar sus centros."}>
           <WorkCenterTable loading={loading} workCenters={visibleWorkCenters} companies={companies} onUpdateWorkCenter={onUpdateWorkCenter} onDeleteWorkCenter={onDeleteWorkCenter} submitting={workCenterSubmitting} />
