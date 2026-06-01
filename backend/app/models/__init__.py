@@ -4,6 +4,7 @@ from app.models.contract import Contract
 from app.models.social_security_registration import SocialSecurityRegistration
 from app.models.company import Company
 from app.models.work_center import WorkCenter
+from app.models.work_calendar import WorkCalendar
 from app.models.incident import Incident
 from app.models.payroll import Payroll
 from app.models.payroll_salary_structure import ContractPayrollConcept, PayrollConcept, PayrollItem
