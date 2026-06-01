@@ -18,6 +18,13 @@ from app.crud.payroll_salary_structure import (
     update_payroll_concept,
     update_payroll_item,
 )
+from app.crud.work_calendar import (
+    create_work_calendar,
+    get_work_calendar,
+    get_work_calendar_by_name,
+    get_work_calendars,
+    update_work_calendar,
+)
 from app.db import SessionLocal
 from app.schemas.contract import (
     ContractSalarySummaryResponse,
@@ -37,6 +44,7 @@ from app.schemas.payroll_salary_structure import (
     PayrollItemResponse,
     PayrollItemUpdate,
 )
+from app.schemas.work_calendar import WorkCalendarCreate, WorkCalendarResponse, WorkCalendarUpdate
 from app.services.contract_salary_summary import (
     build_contract_salary_summary,
     simulate_contract_workday_change,
@@ -51,6 +59,34 @@ def get_db():
         yield db
     finally:
         db.close()
+
+
+@router.get("/work-calendars", response_model=list[WorkCalendarResponse])
+def list_work_calendars(db: Session = Depends(get_db)):
+    return get_work_calendars(db)
+
+
+@router.post("/work-calendars", response_model=WorkCalendarResponse)
+def create_work_calendar_endpoint(calendar: WorkCalendarCreate, db: Session = Depends(get_db)):
+    if get_work_calendar_by_name(db, calendar.name):
+        raise HTTPException(status_code=400, detail="Ya existe un calendario con ese nombre")
+    return create_work_calendar(db, calendar)
+
+
+@router.get("/work-calendars/{calendar_id}", response_model=WorkCalendarResponse)
+def read_work_calendar(calendar_id: int, db: Session = Depends(get_db)):
+    calendar = get_work_calendar(db, calendar_id)
+    if not calendar:
+        raise HTTPException(status_code=404, detail="Calendario no encontrado")
+    return calendar
+
+
+@router.put("/work-calendars/{calendar_id}", response_model=WorkCalendarResponse)
+def update_work_calendar_endpoint(calendar_id: int, calendar: WorkCalendarUpdate, db: Session = Depends(get_db)):
+    updated_calendar = update_work_calendar(db, calendar_id, calendar)
+    if not updated_calendar:
+        raise HTTPException(status_code=404, detail="Calendario no encontrado")
+    return updated_calendar
 
 
 @router.get("/payroll-concepts", response_model=list[PayrollConceptResponse])
