@@ -16,8 +16,8 @@ class WorkCenterBase(BaseModel):
     phone: str | None = None
     fax: str | None = None
     mobile: str | None = None
-    contact_email: str | None = None
-    web_url: str | None = None
+    email: str | None = None
+    website: str | None = None
     is_active: bool = True
 
     @field_validator("center_code")
@@ -52,8 +52,8 @@ class WorkCenterUpdate(BaseModel):
     phone: str | None = None
     fax: str | None = None
     mobile: str | None = None
-    contact_email: str | None = None
-    web_url: str | None = None
+    email: str | None = None
+    website: str | None = None
     is_active: bool | None = None
 
     @field_validator("center_code")
