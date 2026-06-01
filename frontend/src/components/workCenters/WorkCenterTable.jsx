@@ -10,6 +10,12 @@ function toEditForm(center) {
     address: center.address || "",
     city: center.city || "",
     province: center.province || "",
+    collective_agreement: center.collective_agreement || "",
+    phone: center.phone || "",
+    fax: center.fax || "",
+    mobile: center.mobile || "",
+    email: center.email || "",
+    website: center.website || "",
   };
 }
 
@@ -84,10 +90,12 @@ export default function WorkCenterTable({
             <tr>
               <th style={styles.th}>Centro</th>
               <th style={styles.th}>Empresa madre</th>
+              <th style={styles.th}>Convenio centro</th>
               <th style={styles.th}>CCC general</th>
               <th style={styles.th}>CCC principal</th>
+              <th style={styles.th}>Teléfono</th>
+              <th style={styles.th}>Email</th>
               <th style={styles.th}>Ciudad</th>
-              <th style={styles.th}>Provincia</th>
               <th style={styles.th}>Acciones</th>
             </tr>
           </thead>
@@ -96,10 +104,12 @@ export default function WorkCenterTable({
               <tr key={center.id}>
                 <td style={styles.td}>{center.name}</td>
                 <td style={styles.td}>{center.company_name || getCompanyName(center.company_id)}</td>
+                <td style={styles.td}>{center.collective_agreement || "-"}</td>
                 <td style={styles.td}>{center.general_ccc || "-"}</td>
                 <td style={styles.td}>{center.main_ccc || "-"}</td>
+                <td style={styles.td}>{center.phone || center.mobile || "-"}</td>
+                <td style={styles.td}>{center.email || "-"}</td>
                 <td style={styles.td}>{center.city || "-"}</td>
-                <td style={styles.td}>{center.province || "-"}</td>
                 <td style={styles.td}>
                   <button type="button" onClick={() => openEditModal(center)} style={styles.editButton}>
                     Editar
@@ -110,8 +120,8 @@ export default function WorkCenterTable({
 
             {workCenters.length === 0 && (
               <tr>
-                <td colSpan="7" style={styles.emptyCell}>
-                  No hay centros creados todavía.
+                <td colSpan="9" style={styles.emptyCell}>
+                  Selecciona una empresa o crea el primer centro asociado.
                 </td>
               </tr>
             )}
@@ -149,6 +159,10 @@ export default function WorkCenterTable({
 
               <div style={styles.formRow}>
                 <div style={styles.formGroup}>
+                  <label>Convenio del centro</label>
+                  <input name="collective_agreement" value={editForm.collective_agreement} onChange={handleEditChange} style={styles.input} />
+                </div>
+                <div style={styles.formGroup}>
                   <label>CCC general</label>
                   <input name="general_ccc" value={editForm.general_ccc} onChange={handleEditChange} style={styles.input} />
                 </div>
@@ -160,20 +174,22 @@ export default function WorkCenterTable({
 
               <div style={styles.formRow}>
                 <div style={styles.formGroupWide}>
-                  <label>Dirección</label>
+                  <label>Domicilio del centro</label>
                   <input name="address" value={editForm.address} onChange={handleEditChange} style={styles.input} />
                 </div>
               </div>
 
               <div style={styles.formRow}>
-                <div style={styles.formGroup}>
-                  <label>Ciudad</label>
-                  <input name="city" value={editForm.city} onChange={handleEditChange} style={styles.input} />
-                </div>
-                <div style={styles.formGroup}>
-                  <label>Provincia</label>
-                  <input name="province" value={editForm.province} onChange={handleEditChange} style={styles.input} />
-                </div>
+                <div style={styles.formGroup}><label>Ciudad</label><input name="city" value={editForm.city} onChange={handleEditChange} style={styles.input} /></div>
+                <div style={styles.formGroup}><label>Provincia</label><input name="province" value={editForm.province} onChange={handleEditChange} style={styles.input} /></div>
+              </div>
+
+              <div style={styles.formRow}>
+                <div style={styles.formGroup}><label>Teléfono</label><input name="phone" value={editForm.phone} onChange={handleEditChange} style={styles.input} /></div>
+                <div style={styles.formGroup}><label>Fax</label><input name="fax" value={editForm.fax} onChange={handleEditChange} style={styles.input} /></div>
+                <div style={styles.formGroup}><label>Móvil</label><input name="mobile" value={editForm.mobile} onChange={handleEditChange} style={styles.input} /></div>
+                <div style={styles.formGroup}><label>Email</label><input name="email" value={editForm.email} onChange={handleEditChange} style={styles.input} /></div>
+                <div style={styles.formGroup}><label>Web</label><input name="website" value={editForm.website} onChange={handleEditChange} style={styles.input} /></div>
               </div>
 
               {editError && <div style={styles.error}>{editError}</div>}
@@ -205,10 +221,7 @@ export default function WorkCenterTable({
               <button type="button" onClick={() => setCenterToDelete(null)} style={styles.closeButton}>×</button>
             </div>
 
-            <p style={styles.confirmText}>
-              ¿Seguro que quieres desactivar {centerToDelete.name}?
-            </p>
-
+            <p style={styles.confirmText}>¿Seguro que quieres desactivar {centerToDelete.name}?</p>
             {deleteError && <div style={styles.error}>{deleteError}</div>}
 
             <div style={styles.modalActions}>
@@ -233,8 +246,8 @@ const styles = {
   editButton: { backgroundColor: "#111827", color: "#ffffff", border: "1px solid #111827", borderRadius: "8px", padding: "7px 10px", cursor: "pointer", fontWeight: 700 },
   deleteButton: { backgroundColor: "#fee2e2", color: "#991b1b", border: "1px solid #fecaca", borderRadius: "8px", padding: "10px 14px", cursor: "pointer", fontWeight: 800 },
   modalBackdrop: { position: "fixed", inset: 0, backgroundColor: "rgba(17, 24, 39, 0.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, padding: "24px" },
-  modal: { width: "min(920px, 100%)", maxHeight: "90vh", overflowY: "auto", backgroundColor: "#ffffff", border: "3px solid #111111", borderRadius: "12px", boxShadow: "8px 8px 0 #e6d85c", padding: "22px" },
-  confirmModal: { width: "min(560px, 100%)", backgroundColor: "#ffffff", border: "3px solid #111111", borderRadius: "12px", boxShadow: "8px 8px 0 #e6d85c", padding: "22px" },
+  modal: { width: "min(980px, 100%)", maxHeight: "90vh", overflowY: "auto", backgroundColor: "#ffffff", border: "1px solid #d1d5db", borderRadius: "12px", boxShadow: "0 18px 45px rgba(15, 23, 42, 0.18)", padding: "22px" },
+  confirmModal: { width: "min(560px, 100%)", backgroundColor: "#ffffff", border: "1px solid #d1d5db", borderRadius: "12px", boxShadow: "0 18px 45px rgba(15, 23, 42, 0.18)", padding: "22px" },
   modalHeader: { display: "flex", justifyContent: "space-between", alignItems: "start", gap: "16px", marginBottom: "18px", borderBottom: "1px solid #e5e7eb", paddingBottom: "14px" },
   modalTitle: { margin: 0, fontSize: "20px", fontWeight: 900, color: "#111827" },
   modalSubtitle: { margin: "4px 0 0", color: "#6b7280", fontSize: "13px", fontWeight: 700 },
