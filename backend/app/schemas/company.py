@@ -43,6 +43,10 @@ class CompanyBase(BaseModel):
     sector_bonuses: str | None = None
     grouped_withholding_company: str | None = None
 
+    @property
+    def main_ccc(self) -> str | None:
+        return self.ccc
+
 
 class CompanyCreate(CompanyBase):
     pass
