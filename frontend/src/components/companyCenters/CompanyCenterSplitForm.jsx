@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { createCompany } from "../../services/companyApi";
+import { createWorkCalendar, fetchWorkCalendars } from "../../services/workCalendarApi";
 import { createWorkCenter } from "../../services/workCenterApi";
 
 const WEEK_DAYS = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
@@ -58,6 +59,7 @@ const initialCompany = {
   pension_manager_entity_number: "",
   pension_plan_name: "",
   work_calendar_mode: "new",
+  selected_work_calendar_id: "",
   work_calendar_name: "Calendario estándar",
   calendar_period_type: "todo_el_ano",
   winter_period: "",
@@ -98,13 +100,11 @@ const initialCenter = {
 };
 
 function emptyToNull(value) {
-  if (value === "") return null;
-  return value;
+  return value === "" ? null : value;
 }
 
-function buildCompanyPayload(form) {
-  const ccc = [form.ccc_regime, form.ccc_code].filter(Boolean).join("/") || null;
-  const workCalendar = {
+function buildCalendarObject(form) {
+  return {
     period_type: form.calendar_period_type,
     winter_period: form.winter_period,
     summer_period: form.summer_period,
@@ -114,7 +114,28 @@ function buildCompanyPayload(form) {
     shifts_enabled: form.shifts_enabled,
     shifts: [form.shift_1, form.shift_2, form.shift_3, form.shift_4].filter(Boolean),
   };
+}
 
+function buildCalendarPayload(form) {
+  return {
+    name: form.work_calendar_name || "Calendario estándar",
+    period_type: form.calendar_period_type,
+    winter_period: emptyToNull(form.winter_period),
+    summer_period: emptyToNull(form.summer_period),
+    rest_type: form.rest_type,
+    rest_days: emptyToNull(form.rest_days),
+    schedule_data: JSON.stringify(form.schedule),
+    shifts_enabled: form.shifts_enabled,
+    shift_1: emptyToNull(form.shift_1),
+    shift_2: emptyToNull(form.shift_2),
+    shift_3: emptyToNull(form.shift_3),
+    shift_4: emptyToNull(form.shift_4),
+    is_active: true,
+  };
+}
+
+function buildCompanyPayload(form) {
+  const ccc = [form.ccc_regime, form.ccc_code].filter(Boolean).join("/") || null;
   return {
     name: form.name,
     cif: form.cif,
@@ -144,7 +165,7 @@ function buildCompanyPayload(form) {
     pension_plan_name: emptyToNull(form.pension_plan_name),
     work_calendar_mode: form.work_calendar_mode,
     work_calendar_name: emptyToNull(form.work_calendar_name),
-    work_calendar_data: JSON.stringify(workCalendar),
+    work_calendar_data: JSON.stringify(buildCalendarObject(form)),
     bank_iban: emptyToNull(form.bank_iban),
     model_111: emptyToNull(form.model_111),
     fiscal_regime: emptyToNull(form.fiscal_regime),
@@ -182,10 +203,22 @@ function buildCenterPayload(form, company, workCenters) {
   };
 }
 
+function parseScheduleData(scheduleData) {
+  if (!scheduleData) return createEmptySchedule();
+  try {
+    const parsed = JSON.parse(scheduleData);
+    return { ...createEmptySchedule(), ...parsed };
+  } catch {
+    return createEmptySchedule();
+  }
+}
+
 export default function CompanyCenterSplitForm({ companies, workCenters = [], initialSection = "companies", onReloadData, onSelectedCompanyChange }) {
   const [section, setSection] = useState(initialSection);
   const [companyForm, setCompanyForm] = useState(initialCompany);
   const [centerForm, setCenterForm] = useState(initialCenter);
+  const [workCalendars, setWorkCalendars] = useState([]);
+  const [calendarLoading, setCalendarLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -193,6 +226,21 @@ export default function CompanyCenterSplitForm({ companies, workCenters = [], in
   useEffect(() => {
     setSection(initialSection);
   }, [initialSection]);
+
+  useEffect(() => {
+    async function loadCalendars() {
+      try {
+        setCalendarLoading(true);
+        const calendars = await fetchWorkCalendars();
+        setWorkCalendars(calendars || []);
+      } catch {
+        setWorkCalendars([]);
+      } finally {
+        setCalendarLoading(false);
+      }
+    }
+    loadCalendars();
+  }, []);
 
   const activeCompanies = companies.filter((company) => company.is_active);
   const selectedCompany = useMemo(
@@ -209,8 +257,33 @@ export default function CompanyCenterSplitForm({ companies, workCenters = [], in
     if (onReloadData) await onReloadData();
   };
 
+  const applyCalendarToCompanyForm = (calendarId) => {
+    const calendar = workCalendars.find((item) => String(item.id) === String(calendarId));
+    if (!calendar) return;
+    setCompanyForm((prev) => ({
+      ...prev,
+      selected_work_calendar_id: calendarId,
+      work_calendar_name: calendar.name || "",
+      calendar_period_type: calendar.period_type || "todo_el_ano",
+      winter_period: calendar.winter_period || "",
+      summer_period: calendar.summer_period || "",
+      rest_type: calendar.rest_type || "semanal",
+      rest_days: calendar.rest_days || "",
+      schedule: parseScheduleData(calendar.schedule_data),
+      shifts_enabled: !!calendar.shifts_enabled,
+      shift_1: calendar.shift_1 || "",
+      shift_2: calendar.shift_2 || "",
+      shift_3: calendar.shift_3 || "",
+      shift_4: calendar.shift_4 || "",
+    }));
+  };
+
   const handleCompanyChange = (event) => {
     const { name, value, checked, type } = event.target;
+    if (name === "selected_work_calendar_id") {
+      applyCalendarToCompanyForm(value);
+      return;
+    }
     setCompanyForm((prev) => ({ ...prev, [name]: type === "checkbox" ? checked : value }));
   };
 
@@ -258,6 +331,13 @@ export default function CompanyCenterSplitForm({ companies, workCenters = [], in
 
     try {
       setSubmitting(true);
+      if (companyForm.work_calendar_mode === "new" && companyForm.work_calendar_name) {
+        try {
+          await createWorkCalendar(buildCalendarPayload(companyForm));
+        } catch (calendarError) {
+          if (!String(calendarError.message || "").includes("existe")) throw calendarError;
+        }
+      }
       await createCompany(buildCompanyPayload(companyForm));
       setCompanyForm(initialCompany);
       setSuccess("Empresa creada correctamente");
@@ -386,7 +466,10 @@ export default function CompanyCenterSplitForm({ companies, workCenters = [], in
           </section>
 
           <section style={styles.block}>
-            <h4 style={styles.blockTitle}>Calendario de trabajo</h4>
+            <div style={styles.headerRow}>
+              <h4 style={styles.blockTitle}>Calendario de trabajo</h4>
+              <span style={styles.badge}>{calendarLoading ? "Cargando calendarios..." : `${workCalendars.length} calendarios guardados`}</span>
+            </div>
             <div style={styles.formRow}>
               <label style={styles.formGroup}>
                 Calendario
@@ -395,7 +478,19 @@ export default function CompanyCenterSplitForm({ companies, workCenters = [], in
                   <option value="existing">Elegir creado previamente</option>
                 </select>
               </label>
-              {renderInput("work_calendar_name", "Nombre calendario")}
+              {companyForm.work_calendar_mode === "existing" ? (
+                <label style={styles.formGroup}>
+                  Calendario existente
+                  <select name="selected_work_calendar_id" value={companyForm.selected_work_calendar_id} onChange={handleCompanyChange} style={styles.input}>
+                    <option value="">Seleccionar calendario guardado</option>
+                    {workCalendars.map((calendar) => (
+                      <option key={calendar.id} value={calendar.id}>{calendar.name}</option>
+                    ))}
+                  </select>
+                </label>
+              ) : (
+                renderInput("work_calendar_name", "Nombre calendario")
+              )}
               <label style={styles.formGroup}>
                 Periodo
                 <select name="calendar_period_type" value={companyForm.calendar_period_type} onChange={handleCompanyChange} style={styles.input}>
@@ -505,9 +600,7 @@ export default function CompanyCenterSplitForm({ companies, workCenters = [], in
           {error && <div style={styles.error}>{error}</div>}
           {success && <div style={styles.success}>{success}</div>}
 
-          <button type="submit" disabled={submitting} style={styles.button}>
-            {submitting ? "Guardando..." : "Crear empresa"}
-          </button>
+          <button type="submit" disabled={submitting} style={styles.button}>{submitting ? "Guardando..." : "Crear empresa"}</button>
         </form>
       ) : (
         <form onSubmit={handleCreateCenter} style={styles.form}>
@@ -516,33 +609,20 @@ export default function CompanyCenterSplitForm({ companies, workCenters = [], in
             Empresa asociada
             <select name="company_id" value={centerForm.company_id} onChange={handleCenterChange} required style={styles.input}>
               <option value="">Seleccionar empresa existente</option>
-              {activeCompanies.map((company) => (
-                <option key={company.id} value={company.id}>{company.name} · {company.cif}</option>
-              ))}
+              {activeCompanies.map((company) => <option key={company.id} value={company.id}>{company.name} · {company.cif}</option>)}
             </select>
           </label>
-
-          <label style={styles.formGroupWide}>
-            Nombre centro
-            <input name="name" value={centerForm.name} onChange={handleCenterChange} required placeholder="Ej. Colegio San Rafael" style={styles.input} />
-          </label>
-
+          <label style={styles.formGroupWide}>Nombre centro<input name="name" value={centerForm.name} onChange={handleCenterChange} required placeholder="Ej. Colegio San Rafael" style={styles.input} /></label>
           <div style={styles.formRow}>
             <label style={styles.formGroup}><span>Convenio del centro</span><input name="collective_agreement" value={centerForm.collective_agreement} onChange={handleCenterChange} placeholder="Por defecto, convenio de empresa" style={styles.input} /></label>
             <label style={styles.formGroup}><span>CCC empresa</span><input name="general_ccc" value={centerForm.general_ccc} onChange={handleCenterChange} placeholder="Se copia de la empresa" style={styles.input} /></label>
             <label style={styles.formGroup}><span>CCC centro</span><input name="main_ccc" value={centerForm.main_ccc} onChange={handleCenterChange} placeholder="CCC propia del centro" style={styles.input} /></label>
           </div>
-
-          <label style={styles.formGroupWide}>
-            Domicilio del centro
-            <input name="address" value={centerForm.address} onChange={handleCenterChange} placeholder="Por defecto, domicilio social de empresa" style={styles.input} />
-          </label>
-
+          <label style={styles.formGroupWide}>Domicilio del centro<input name="address" value={centerForm.address} onChange={handleCenterChange} placeholder="Por defecto, domicilio social de empresa" style={styles.input} /></label>
           <div style={styles.formRow}>
             <label style={styles.formGroup}><span>Ciudad</span><input name="city" value={centerForm.city} onChange={handleCenterChange} style={styles.input} /></label>
             <label style={styles.formGroup}><span>Provincia</span><input name="province" value={centerForm.province} onChange={handleCenterChange} style={styles.input} /></label>
           </div>
-
           <div style={styles.formRow}>
             <label style={styles.formGroup}><span>Teléfono</span><input name="phone" value={centerForm.phone} onChange={handleCenterChange} style={styles.input} /></label>
             <label style={styles.formGroup}><span>Fax</span><input name="fax" value={centerForm.fax} onChange={handleCenterChange} style={styles.input} /></label>
@@ -550,13 +630,9 @@ export default function CompanyCenterSplitForm({ companies, workCenters = [], in
             <label style={styles.formGroup}><span>Email</span><input name="email" value={centerForm.email} onChange={handleCenterChange} style={styles.input} /></label>
             <label style={styles.formGroup}><span>Web</span><input name="website" value={centerForm.website} onChange={handleCenterChange} style={styles.input} /></label>
           </div>
-
           {error && <div style={styles.error}>{error}</div>}
           {success && <div style={styles.success}>{success}</div>}
-
-          <button type="submit" disabled={submitting} style={styles.button}>
-            {submitting ? "Guardando..." : "Crear centro"}
-          </button>
+          <button type="submit" disabled={submitting} style={styles.button}>{submitting ? "Guardando..." : "Crear centro"}</button>
         </form>
       )}
     </div>
