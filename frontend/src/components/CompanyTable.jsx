@@ -22,6 +22,14 @@ const SECTOR_FLAGS = [
   ["sports_club", "Club deportivo"],
 ];
 
+const initialFilters = {
+  search: "",
+  status: "",
+  company_type: "",
+  province: "",
+  siltra: "",
+};
+
 function createEmptySchedule() {
   return WEEK_DAYS.reduce((acc, day) => {
     acc[day] = { morning: "", afternoon: "", total: "" };
@@ -182,6 +190,10 @@ function buildUpdatePayload(form) {
   };
 }
 
+function normalizeText(value) {
+  return String(value || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}
+
 export default function CompanyTable({ loading, companies, onUpdateCompany, onDeleteCompany, submitting }) {
   const [editingCompany, setEditingCompany] = useState(null);
   const [companyToDelete, setCompanyToDelete] = useState(null);
@@ -189,8 +201,28 @@ export default function CompanyTable({ loading, companies, onUpdateCompany, onDe
   const [editError, setEditError] = useState("");
   const [deleteError, setDeleteError] = useState("");
   const [sortConfig, setSortConfig] = useState({ key: "id", direction: "asc" });
+  const [filters, setFilters] = useState(initialFilters);
 
-  const sortedCompanies = useMemo(() => sortRows(companies, sortConfig, {
+  const filterOptions = useMemo(() => {
+    const types = [...new Set(companies.map((company) => company.company_type).filter(Boolean))].sort();
+    const provinces = [...new Set(companies.map((company) => company.province).filter(Boolean))].sort();
+    return { types, provinces };
+  }, [companies]);
+
+  const filteredCompanies = useMemo(() => {
+    const search = normalizeText(filters.search);
+    return companies.filter((company) => {
+      const matchesSearch = !search || [company.name, company.cif, company.ccc, company.city, company.province, company.main_collective_agreement]
+        .some((value) => normalizeText(value).includes(search));
+      const matchesStatus = !filters.status || company.status === filters.status;
+      const matchesType = !filters.company_type || company.company_type === filters.company_type;
+      const matchesProvince = !filters.province || company.province === filters.province;
+      const matchesSiltra = !filters.siltra || String(!!company.siltra_enabled) === filters.siltra;
+      return matchesSearch && matchesStatus && matchesType && matchesProvince && matchesSiltra;
+    });
+  }, [companies, filters]);
+
+  const sortedCompanies = useMemo(() => sortRows(filteredCompanies, sortConfig, {
     id: (company) => company.id,
     name: (company) => company.name,
     cif: (company) => company.cif,
@@ -199,11 +231,16 @@ export default function CompanyTable({ loading, companies, onUpdateCompany, onDe
     company_type: (company) => company.company_type,
     city: (company) => company.city,
     province: (company) => company.province,
-  }), [companies, sortConfig]);
+  }), [filteredCompanies, sortConfig]);
 
   if (loading) return <p>Cargando...</p>;
 
   const handleSort = (key) => setSortConfig((current) => nextSortConfig(current, key));
+
+  const handleFilterChange = (event) => {
+    const { name, value } = event.target;
+    setFilters((prev) => ({ ...prev, [name]: value }));
+  };
 
   const sortHeader = (key, label, style = styles.th) => (
     <th style={style}>
@@ -280,6 +317,21 @@ export default function CompanyTable({ loading, companies, onUpdateCompany, onDe
 
   return (
     <>
+      <div style={styles.filterPanel}>
+        <div style={styles.filterHeader}>
+          <strong>Filtros</strong>
+          <span style={styles.counter}>Mostrando {sortedCompanies.length} de {companies.length} empresas</span>
+        </div>
+        <div style={styles.filterGrid}>
+          <label style={styles.filterGroup}>Buscar<input name="search" value={filters.search} onChange={handleFilterChange} placeholder="Empresa, CIF, CCC, convenio..." style={styles.input} /></label>
+          <label style={styles.filterGroup}>Estado<select name="status" value={filters.status} onChange={handleFilterChange} style={styles.input}><option value="">Todos</option><option value="alta">Alta</option><option value="baja_temporal">Baja temporal</option><option value="baja_definitiva">Baja definitiva</option></select></label>
+          <label style={styles.filterGroup}>Tipo<select name="company_type" value={filters.company_type} onChange={handleFilterChange} style={styles.input}><option value="">Todos</option>{filterOptions.types.map((type) => <option key={type} value={type}>{type}</option>)}</select></label>
+          <label style={styles.filterGroup}>Provincia<select name="province" value={filters.province} onChange={handleFilterChange} style={styles.input}><option value="">Todas</option>{filterOptions.provinces.map((province) => <option key={province} value={province}>{province}</option>)}</select></label>
+          <label style={styles.filterGroup}>SILTRA<select name="siltra" value={filters.siltra} onChange={handleFilterChange} style={styles.input}><option value="">Todas</option><option value="true">Sí</option><option value="false">No</option></select></label>
+        </div>
+        <button type="button" onClick={() => setFilters(initialFilters)} style={styles.clearFiltersButton}>Limpiar filtros</button>
+      </div>
+
       <div style={styles.tableWrapper}>
         <table style={styles.table}>
           <thead><tr>{sortHeader("id", "ID")}{sortHeader("name", "Nombre")}{sortHeader("cif", "CIF")}{sortHeader("status", "Estado")}{sortHeader("company_type", "Tipo")}{sortHeader("ccc", "CCC")}<th style={styles.th}>Convenio</th><th style={styles.th}>Modelo 111</th><th style={styles.th}>SILTRA</th>{sortHeader("city", "Ciudad")}<th style={styles.th}>Acciones</th></tr></thead>
@@ -290,6 +342,7 @@ export default function CompanyTable({ loading, companies, onUpdateCompany, onDe
                 <td style={styles.td}><button type="button" onClick={() => openEditModal(c)} style={styles.editButton}>Editar</button></td>
               </tr>
             ))}
+            {sortedCompanies.length === 0 && <tr><td colSpan="11" style={styles.emptyCell}>No hay empresas que coincidan con los filtros.</td></tr>}
           </tbody>
         </table>
       </div>
@@ -322,11 +375,7 @@ export default function CompanyTable({ loading, companies, onUpdateCompany, onDe
 
               <section style={styles.block}><h4 style={styles.blockTitle}>Calendario de trabajo</h4>
                 <div style={styles.formRow}>{input("work_calendar_mode", "Modo calendario")}{input("work_calendar_name", "Nombre calendario")}</div>
-                <div style={styles.formRow}>
-                  <div style={styles.formGroup}><label>Periodo</label><select name="calendar_period_type" value={editForm.calendar_period_type} onChange={handleEditChange} style={styles.input}><option value="todo_el_ano">Todo el año</option><option value="verano_invierno">Verano e invierno</option></select></div>
-                  <div style={styles.formGroup}><label>Descanso y vacaciones</label><select name="rest_type" value={editForm.rest_type} onChange={handleEditChange} style={styles.input}><option value="semanal">Semanal</option><option value="intermedio">Intermedio</option></select></div>
-                  {input("rest_days", "Días de descanso")}
-                </div>
+                <div style={styles.formRow}><div style={styles.formGroup}><label>Periodo</label><select name="calendar_period_type" value={editForm.calendar_period_type} onChange={handleEditChange} style={styles.input}><option value="todo_el_ano">Todo el año</option><option value="verano_invierno">Verano e invierno</option></select></div><div style={styles.formGroup}><label>Descanso y vacaciones</label><select name="rest_type" value={editForm.rest_type} onChange={handleEditChange} style={styles.input}><option value="semanal">Semanal</option><option value="intermedio">Intermedio</option></select></div>{input("rest_days", "Días de descanso")}</div>
                 {editForm.calendar_period_type === "verano_invierno" && <div style={styles.formRow}>{input("winter_period", "Periodo invierno")}{input("summer_period", "Periodo verano")}</div>}
                 <div style={styles.scheduleWrapper}><table style={styles.scheduleTable}><thead><tr><th>Día</th><th>Horario mañana</th><th>Horario tarde</th><th>Total horas</th></tr></thead><tbody>{WEEK_DAYS.map((day) => <tr key={day}><td>{day}</td><td><input value={editForm.schedule[day].morning} onChange={(event) => handleScheduleChange(day, "morning", event.target.value)} style={styles.input} /></td><td><input value={editForm.schedule[day].afternoon} onChange={(event) => handleScheduleChange(day, "afternoon", event.target.value)} style={styles.input} /></td><td><input value={editForm.schedule[day].total} onChange={(event) => handleScheduleChange(day, "total", event.target.value)} style={styles.input} /></td></tr>)}</tbody></table></div>
                 <label style={styles.inlineCheck}><input type="checkbox" name="shifts_enabled" checked={editForm.shifts_enabled} onChange={handleEditChange} /> Activar turnos</label>
@@ -334,20 +383,10 @@ export default function CompanyTable({ loading, companies, onUpdateCompany, onDe
               </section>
 
               <section style={styles.block}><h4 style={styles.blockTitle}>Fiscalidad, pagos y SILTRA</h4>
-                <div style={styles.formRow}>{input("bank_iban", "IBAN")}
-                  <div style={styles.formGroup}><label>Modelo 111</label><select name="model_111" value={editForm.model_111} onChange={handleEditChange} style={styles.input}><option value="trimestral">Trimestral</option><option value="mensual">Mensual</option><option value="no_confecciona">No confecciona</option><option value="solo_mod216">Solo mod. 216</option></select></div>
-                  <div style={styles.formGroup}><label>Régimen fiscal</label><select name="fiscal_regime" value={editForm.fiscal_regime} onChange={handleEditChange} style={styles.input}><option value="estimacion_directa">Estimación directa</option><option value="modulos">Módulos</option><option value="plan_general_contable">Plan general contable</option></select></div>
-                  <div style={styles.formGroup}><label>Cómputo complementos</label><select name="complement_computation" value={editForm.complement_computation} onChange={handleEditChange} style={styles.input}><option value="segun_convenio">Según convenio</option><option value="calendario_laboral">Por calendario laboral</option></select></div>
-                </div>
+                <div style={styles.formRow}>{input("bank_iban", "IBAN")}<div style={styles.formGroup}><label>Modelo 111</label><select name="model_111" value={editForm.model_111} onChange={handleEditChange} style={styles.input}><option value="trimestral">Trimestral</option><option value="mensual">Mensual</option><option value="no_confecciona">No confecciona</option><option value="solo_mod216">Solo mod. 216</option></select></div><div style={styles.formGroup}><label>Régimen fiscal</label><select name="fiscal_regime" value={editForm.fiscal_regime} onChange={handleEditChange} style={styles.input}><option value="estimacion_directa">Estimación directa</option><option value="modulos">Módulos</option><option value="plan_general_contable">Plan general contable</option></select></div><div style={styles.formGroup}><label>Cómputo complementos</label><select name="complement_computation" value={editForm.complement_computation} onChange={handleEditChange} style={styles.input}><option value="segun_convenio">Según convenio</option><option value="calendario_laboral">Por calendario laboral</option></select></div></div>
                 <div style={styles.formRow}>{input("grouped_withholding_company", "Retenciones 111/190 agrupadas con")}</div>
                 <label style={styles.inlineCheck}><input type="checkbox" name="siltra_enabled" checked={editForm.siltra_enabled} onChange={handleEditChange} /> Cotización SILTRA</label>
-                {editForm.siltra_enabled && <>
-                  <div style={styles.formRow}><div style={styles.formGroup}><label>Forma de pago SILTRA</label><select name="siltra_payment_mode" value={editForm.siltra_payment_mode} onChange={handleEditChange} style={styles.input}><option value="cargo_cuenta">Cargo en cuenta</option><option value="pago_electronico">Pago electrónico</option><option value="retribucion_contable">Retribución contable</option></select></div></div>
-                  <h5 style={styles.miniTitle}>Opciones y exclusiones SILTRA</h5>
-                  <div style={styles.flagGrid}>{SILTRA_FLAGS.map(([key, label]) => <label key={key}><input type="checkbox" checked={!!editForm.siltra_flags[key]} onChange={(event) => handleFlagChange("siltra_flags", key, event.target.checked)} /> {label}</label>)}</div>
-                  <h5 style={styles.miniTitle}>Bonificación sectorial</h5>
-                  <div style={styles.flagGrid}>{SECTOR_FLAGS.map(([key, label]) => <label key={key}><input type="checkbox" checked={!!editForm.sector_flags[key]} onChange={(event) => handleFlagChange("sector_flags", key, event.target.checked)} /> {label}</label>)}</div>
-                </>}
+                {editForm.siltra_enabled && <><div style={styles.formRow}><div style={styles.formGroup}><label>Forma de pago SILTRA</label><select name="siltra_payment_mode" value={editForm.siltra_payment_mode} onChange={handleEditChange} style={styles.input}><option value="cargo_cuenta">Cargo en cuenta</option><option value="pago_electronico">Pago electrónico</option><option value="retribucion_contable">Retribución contable</option></select></div></div><h5 style={styles.miniTitle}>Opciones y exclusiones SILTRA</h5><div style={styles.flagGrid}>{SILTRA_FLAGS.map(([key, label]) => <label key={key}><input type="checkbox" checked={!!editForm.siltra_flags[key]} onChange={(event) => handleFlagChange("siltra_flags", key, event.target.checked)} /> {label}</label>)}</div><h5 style={styles.miniTitle}>Bonificación sectorial</h5><div style={styles.flagGrid}>{SECTOR_FLAGS.map(([key, label]) => <label key={key}><input type="checkbox" checked={!!editForm.sector_flags[key]} onChange={(event) => handleFlagChange("sector_flags", key, event.target.checked)} /> {label}</label>)}</div></>}
               </section>
 
               {editError && <div style={styles.error}>{editError}</div>}
@@ -365,12 +404,19 @@ export default function CompanyTable({ loading, companies, onUpdateCompany, onDe
 }
 
 const styles = {
+  filterPanel: { border: "1px solid #e5e7eb", borderRadius: "10px", padding: "14px", marginBottom: "14px", backgroundColor: "#f9fafb", display: "flex", flexDirection: "column", gap: "12px" },
+  filterHeader: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px", flexWrap: "wrap", color: "#111827" },
+  counter: { fontSize: "13px", color: "#6b7280", fontWeight: 800 },
+  filterGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "10px" },
+  filterGroup: { display: "flex", flexDirection: "column", gap: "6px", fontWeight: 800, color: "#111827" },
+  clearFiltersButton: { alignSelf: "flex-start", backgroundColor: "#ffffff", color: "#111827", border: "1px solid #d1d5db", borderRadius: "8px", padding: "8px 12px", cursor: "pointer", fontWeight: 900 },
   tableWrapper: { overflowX: "auto" },
   table: { width: "100%", borderCollapse: "collapse" },
   th: { textAlign: "left", padding: "12px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb", whiteSpace: "nowrap" },
   sortButton: { width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px", padding: 0, border: "none", backgroundColor: "transparent", color: "inherit", font: "inherit", fontWeight: 900, cursor: "pointer", textAlign: "left" },
   sortIcon: { color: "#6b7280", fontSize: "12px" },
   td: { padding: "12px", borderBottom: "1px solid #eee", whiteSpace: "nowrap" },
+  emptyCell: { padding: "18px", color: "#6b7280", textAlign: "center", borderBottom: "1px solid #eee" },
   editButton: { backgroundColor: "#111827", color: "#ffffff", border: "1px solid #111827", borderRadius: "8px", padding: "7px 10px", cursor: "pointer", fontWeight: 700 },
   deleteButton: { backgroundColor: "#fee2e2", color: "#991b1b", border: "1px solid #fecaca", borderRadius: "8px", padding: "10px 14px", cursor: "pointer", fontWeight: 800 },
   modalBackdrop: { position: "fixed", inset: 0, backgroundColor: "rgba(17, 24, 39, 0.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, padding: "24px" },
