@@ -12,6 +12,10 @@ class CompanyBase(BaseModel):
     address: str | None = None
     city: str | None = None
     province: str | None = None
+    company_phone: str | None = None
+    company_email: str | None = None
+    company_website: str | None = None
+    company_contact_person: str | None = None
     status: str = "alta"
     registration_date: date | None = None
     deregistration_date: date | None = None
@@ -71,6 +75,10 @@ class CompanyUpdate(BaseModel):
     address: str | None = None
     city: str | None = None
     province: str | None = None
+    company_phone: str | None = None
+    company_email: str | None = None
+    company_website: str | None = None
+    company_contact_person: str | None = None
     status: str | None = None
     registration_date: date | None = None
     deregistration_date: date | None = None
