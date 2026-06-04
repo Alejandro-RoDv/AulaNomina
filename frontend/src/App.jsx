@@ -32,7 +32,6 @@ import { usePayrollsModule } from "./hooks/usePayrollsModule";
 
 const overlayPages = new Set([
   "employee-admissions",
-  "employee-record",
   "documents",
   "alerts",
   "reports",
@@ -46,6 +45,8 @@ const overlayPages = new Set([
   "groups",
   "progress",
 ]);
+
+const employeePages = new Set(["employees", "employees-list", "employee-record"]);
 
 export default function App() {
   const [activePage, setActivePage] = useState("dashboard");
@@ -153,7 +154,9 @@ export default function App() {
   function getTitle() {
     if (activePage === "dashboard") return "Dashboard";
     if (activePage === "companies") return "Empresas / Centros";
-    if (activePage === "employees") return "Trabajadores";
+    if (activePage === "employees") return "Nuevo trabajador";
+    if (activePage === "employees-list") return "Listado de trabajadores";
+    if (activePage === "employee-record") return "Expediente del trabajador";
     if (activePage === "contracts") return "Contratos";
     if (activePage === "collective-agreements") return "Convenios";
     if (activePage === "payroll-concepts") return "Historial de conceptos";
@@ -175,7 +178,9 @@ export default function App() {
   function getSubtitle() {
     if (activePage === "dashboard") return "Resumen del entorno de simulación";
     if (activePage === "companies") return "Gestión de empresas madre y centros de trabajo";
-    if (activePage === "employees") return "Gestión de trabajadores";
+    if (activePage === "employees") return "Alta de datos personales y administrativos del trabajador";
+    if (activePage === "employees-list") return "Consulta y mantenimiento operativo de trabajadores";
+    if (activePage === "employee-record") return "Expediente personal, laboral y documental del trabajador";
     if (activePage === "contracts") return "Gestión de contratos laborales";
     if (activePage === "collective-agreements") return "Parámetros de convenio para consulta didáctica y salario base mínimo";
     if (activePage === "payroll-concepts") return "Catálogo general de conceptos de sistema, personalizados y de convenio";
@@ -191,6 +196,29 @@ export default function App() {
     if (activePage === "alerts") return "Vencimientos, pendientes y revisiones laborales";
     if (activePage === "reports") return "Listados e informes del entorno de simulación";
     return "";
+  }
+
+  function renderEmployeesPage(mode) {
+    return (
+      <EmployeesPage
+        mode={mode}
+        loading={loading}
+        employees={employees}
+        companies={companies.filter((company) => company.is_active)}
+        workCenters={workCenters.filter((center) => center.is_active)}
+        contracts={contracts}
+        incidents={incidents}
+        payrolls={payrolls}
+        employeeForm={employeeForm}
+        onEmployeeChange={handleEmployeeChange}
+        onEmployeeSubmit={handleEmployeeSubmit}
+        onUpdateEmployee={handleUpdateEmployee}
+        onDeleteEmployee={handleDeleteEmployee}
+        employeeError={employeeError}
+        employeeSuccess={employeeSuccess}
+        employeeSubmitting={employeeSubmitting}
+      />
+    );
   }
 
   function renderPage() {
@@ -321,26 +349,9 @@ export default function App() {
       );
     }
 
-    if (activePage === "employees") {
-      return (
-        <EmployeesPage
-          loading={loading}
-          employees={employees}
-          companies={companies.filter((company) => company.is_active)}
-          workCenters={workCenters.filter((center) => center.is_active)}
-          contracts={contracts}
-          incidents={incidents}
-          payrolls={payrolls}
-          employeeForm={employeeForm}
-          onEmployeeChange={handleEmployeeChange}
-          onEmployeeSubmit={handleEmployeeSubmit}
-          onUpdateEmployee={handleUpdateEmployee}
-          onDeleteEmployee={handleDeleteEmployee}
-          employeeError={employeeError}
-          employeeSuccess={employeeSuccess}
-          employeeSubmitting={employeeSubmitting}
-        />
-      );
+    if (employeePages.has(activePage)) {
+      const mode = activePage === "employees-list" ? "list" : activePage === "employee-record" ? "record" : "new";
+      return renderEmployeesPage(mode);
     }
 
     if (activePage === "contracts") {
