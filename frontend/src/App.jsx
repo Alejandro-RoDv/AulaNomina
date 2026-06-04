@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import Sidebar from "./components/layout/Sidebar";
 import Header from "./components/layout/Header";
@@ -61,9 +61,20 @@ export default function App() {
     handleEmployeeSubmit,
     handleUpdateEmployee,
     handleDeleteEmployee,
+    prefillEmployeeFromExisting,
     setEmployeeError,
     setNextEmployeeCode,
   } = useEmployeesModule({ onDataChanged: () => loadData() });
+
+  useEffect(() => {
+    const handleOpenPage = (event) => {
+      const page = event.detail?.page;
+      if (page) setActivePage(page);
+    };
+
+    window.addEventListener("aulanomina-open-page", handleOpenPage);
+    return () => window.removeEventListener("aulanomina-open-page", handleOpenPage);
+  }, []);
 
   const handleGlobalLoadError = useCallback(() => {
     setContractError("Error cargando datos");
@@ -198,6 +209,16 @@ export default function App() {
     return "";
   }
 
+  const handleDuplicateEmployee = (employee) => {
+    prefillEmployeeFromExisting(employee, "Datos copiados. Selecciona la nueva empresa/centro y guarda el alta duplicada.");
+    setActivePage("employees");
+  };
+
+  const handleOpenEmployeeRecord = (employee) => {
+    if (employee?.id) window.sessionStorage.setItem("aulanomina:selectedEmployeeId", String(employee.id));
+    setActivePage("employee-record");
+  };
+
   function renderEmployeesPage(mode) {
     return (
       <EmployeesPage
@@ -214,6 +235,9 @@ export default function App() {
         onEmployeeSubmit={handleEmployeeSubmit}
         onUpdateEmployee={handleUpdateEmployee}
         onDeleteEmployee={handleDeleteEmployee}
+        onOpenRecord={handleOpenEmployeeRecord}
+        onDuplicateEmployee={handleDuplicateEmployee}
+        onPrefillEmployee={prefillEmployeeFromExisting}
         employeeError={employeeError}
         employeeSuccess={employeeSuccess}
         employeeSubmitting={employeeSubmitting}
