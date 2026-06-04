@@ -34,6 +34,15 @@ export async function fetchAllEmployees() {
   return apiRequest("/employees?include_inactive=true", {}, "Error al cargar trabajadores");
 }
 
+export async function fetchEmployeesByDocument(document) {
+  if (!document) return [];
+  return apiRequest(
+    `/employees/by-document/${encodeURIComponent(document)}`,
+    {},
+    "Error al buscar trabajador por documento"
+  );
+}
+
 export async function fetchNextEmployeeCode() {
   return apiRequest("/employees/next-code", {}, "Error al cargar el siguiente código de trabajador");
 }
