@@ -1,4 +1,6 @@
 import { useMemo, useState } from "react";
+
+import { EDUCATION_LEVEL_OPTIONS } from "../../utils/employeePayloads";
 import { getEmployeeVisibleCode } from "../../utils/visibleCodes";
 import { getSortLabel, nextSortConfig, sortRows } from "../../utils/tableSorting";
 
@@ -6,17 +8,38 @@ const emptyEditForm = {
   employee_code: "",
   company_id: "",
   center_id: "",
+  document_type: "DNI",
   dni: "",
   naf: "",
   first_name: "",
   last_name: "",
-  email: "",
-  phone: "",
+  second_last_name: "",
+  sex: "",
   birth_date: "",
+  nationality: "",
+  birth_place: "",
+  domicile: "",
   address: "",
   city: "",
   province: "",
   postal_code: "",
+  landline_phone: "",
+  mobile_phone: "",
+  phone: "",
+  fax: "",
+  email: "",
+  website: "",
+  education_level: "",
+  academic_title: "",
+  academic_title_date: "",
+  main_profession: "",
+  other_courses: "",
+  accreditations: "",
+  languages: "",
+  representative_role: "",
+  representative_nif: "",
+  representative_full_name: "",
+  observations: "",
   is_active: true,
 };
 
@@ -25,23 +48,48 @@ function toEditForm(employee) {
     employee_code: employee.employee_code || "",
     company_id: employee.company_id ? String(employee.company_id) : "",
     center_id: employee.center_id ? String(employee.center_id) : "",
+    document_type: employee.document_type || "DNI",
     dni: employee.dni || "",
     naf: employee.naf || "",
     first_name: employee.first_name || "",
     last_name: employee.last_name || "",
-    email: employee.email || "",
-    phone: employee.phone || "",
+    second_last_name: employee.second_last_name || "",
+    sex: employee.sex || "",
     birth_date: employee.birth_date || "",
+    nationality: employee.nationality || "",
+    birth_place: employee.birth_place || "",
+    domicile: employee.domicile || "",
     address: employee.address || "",
     city: employee.city || "",
     province: employee.province || "",
     postal_code: employee.postal_code || "",
+    landline_phone: employee.landline_phone || "",
+    mobile_phone: employee.mobile_phone || "",
+    phone: employee.phone || "",
+    fax: employee.fax || "",
+    email: employee.email || "",
+    website: employee.website || "",
+    education_level: employee.education_level || "",
+    academic_title: employee.academic_title || "",
+    academic_title_date: employee.academic_title_date || "",
+    main_profession: employee.main_profession || "",
+    other_courses: employee.other_courses || "",
+    accreditations: employee.accreditations || "",
+    languages: employee.languages || "",
+    representative_role: employee.representative_role || "",
+    representative_nif: employee.representative_nif || "",
+    representative_full_name: employee.representative_full_name || "",
+    observations: employee.observations || "",
     is_active: employee.is_active ?? true,
   };
 }
 
 function formatValue(value) {
   return value || "-";
+}
+
+function SectionTitle({ children }) {
+  return <h4 style={styles.sectionTitle}>{children}</h4>;
 }
 
 export default function EmployeeTable({
@@ -90,7 +138,7 @@ export default function EmployeeTable({
     code: (employee) => getEmployeeCode(employee),
     dni: (employee) => employee.dni,
     naf: (employee) => employee.naf,
-    name: (employee) => `${employee.first_name || ""} ${employee.last_name || ""}`,
+    name: (employee) => `${employee.first_name || ""} ${employee.last_name || ""} ${employee.second_last_name || ""}`,
     company: (employee) => getCompanyName(employee),
     center: (employee) => getCenterName(employee),
     status: (employee) => employee.is_active ? "Activo" : "Inactivo",
@@ -129,10 +177,7 @@ export default function EmployeeTable({
     const { name, value, type, checked } = event.target;
 
     setEditForm((prev) => {
-      if (name === "company_id") {
-        return { ...prev, company_id: value, center_id: "" };
-      }
-
+      if (name === "company_id") return { ...prev, company_id: value, center_id: "" };
       return { ...prev, [name]: type === "checkbox" ? checked : value };
     });
   };
@@ -180,8 +225,8 @@ export default function EmployeeTable({
     }
 
     window.sessionStorage.setItem("aulanomina:selectedEmployeeId", String(employee.id));
-    window.location.hash = "employee-record";
-    window.dispatchEvent(new Event("aulanomina-route-change"));
+    window.history.replaceState(null, "", window.location.pathname + window.location.search);
+    window.dispatchEvent(new CustomEvent("aulanomina-open-page", { detail: { page: "employee-record" } }));
   };
 
   return (
@@ -194,7 +239,7 @@ export default function EmployeeTable({
             <thead>
               <tr>
                 {sortHeader("code", "Código")}
-                {sortHeader("dni", "DNI")}
+                {sortHeader("dni", "Documento")}
                 {sortHeader("naf", "NAF")}
                 {sortHeader("name", "Nombre completo")}
                 {sortHeader("company", "Empresa")}
@@ -209,7 +254,7 @@ export default function EmployeeTable({
                   <td style={styles.tdStrong}>{getEmployeeCode(employee)}</td>
                   <td style={styles.td}>{employee.dni}</td>
                   <td style={styles.td}>{employee.naf || "-"}</td>
-                  <td style={styles.td}>{employee.first_name} {employee.last_name}</td>
+                  <td style={styles.td}>{employee.first_name} {employee.last_name} {employee.second_last_name || ""}</td>
                   <td style={styles.td}>{getCompanyName(employee)}</td>
                   <td style={styles.td}>{getCenterName(employee)}</td>
                   <td style={styles.td}>
@@ -236,7 +281,7 @@ export default function EmployeeTable({
             <div style={styles.modalHeader}>
               <div>
                 <h3 style={styles.modalTitle}>Detalles del trabajador</h3>
-                <p style={styles.modalSubtitle}>{selectedEmployee.first_name} {selectedEmployee.last_name} · {selectedEmployee.dni || "Sin DNI"}</p>
+                <p style={styles.modalSubtitle}>{selectedEmployee.first_name} {selectedEmployee.last_name} · {selectedEmployee.dni || "Sin documento"}</p>
               </div>
               <button type="button" onClick={closeDetailsModal} style={styles.closeButton}>×</button>
             </div>
@@ -245,18 +290,27 @@ export default function EmployeeTable({
               <div style={styles.detailsWrapper}>
                 <div style={styles.detailsGrid}>
                   <div style={styles.detailBox}><span>Código</span><strong>{formatValue(selectedEmployee.employee_code)}</strong></div>
-                  <div style={styles.detailBox}><span>DNI</span><strong>{formatValue(selectedEmployee.dni)}</strong></div>
+                  <div style={styles.detailBox}><span>Tipo documento</span><strong>{formatValue(selectedEmployee.document_type)}</strong></div>
+                  <div style={styles.detailBox}><span>Documento</span><strong>{formatValue(selectedEmployee.dni)}</strong></div>
                   <div style={styles.detailBox}><span>NAF</span><strong>{formatValue(selectedEmployee.naf)}</strong></div>
                   <div style={styles.detailBox}><span>Estado</span><strong>{selectedEmployee.is_active ? "Activo" : "Inactivo"}</strong></div>
                   <div style={styles.detailBox}><span>Nombre</span><strong>{formatValue(selectedEmployee.first_name)}</strong></div>
-                  <div style={styles.detailBox}><span>Apellidos</span><strong>{formatValue(selectedEmployee.last_name)}</strong></div>
+                  <div style={styles.detailBox}><span>Primer apellido</span><strong>{formatValue(selectedEmployee.last_name)}</strong></div>
+                  <div style={styles.detailBox}><span>Segundo apellido</span><strong>{formatValue(selectedEmployee.second_last_name)}</strong></div>
+                  <div style={styles.detailBox}><span>Sexo</span><strong>{formatValue(selectedEmployee.sex)}</strong></div>
+                  <div style={styles.detailBox}><span>Nacimiento</span><strong>{formatValue(selectedEmployee.birth_date)}</strong></div>
+                  <div style={styles.detailBox}><span>Nacionalidad</span><strong>{formatValue(selectedEmployee.nationality)}</strong></div>
+                  <div style={styles.detailBox}><span>Lugar nacimiento</span><strong>{formatValue(selectedEmployee.birth_place)}</strong></div>
                   <div style={styles.detailBox}><span>Email</span><strong>{formatValue(selectedEmployee.email)}</strong></div>
-                  <div style={styles.detailBox}><span>Teléfono</span><strong>{formatValue(selectedEmployee.phone)}</strong></div>
+                  <div style={styles.detailBox}><span>Móvil</span><strong>{formatValue(selectedEmployee.mobile_phone || selectedEmployee.phone)}</strong></div>
                   <div style={styles.detailBox}><span>Empresa</span><strong>{getCompanyName(selectedEmployee)}</strong></div>
                   <div style={styles.detailBox}><span>Centro</span><strong>{getCenterName(selectedEmployee)}</strong></div>
-                  <div style={styles.detailBox}><span>Ciudad</span><strong>{formatValue(selectedEmployee.city)}</strong></div>
-                  <div style={styles.detailBox}><span>Provincia</span><strong>{formatValue(selectedEmployee.province)}</strong></div>
-                  <div style={styles.detailBoxWide}><span>Dirección</span><strong>{formatValue(selectedEmployee.address)}</strong></div>
+                  <div style={styles.detailBoxWide}><span>Domicilio</span><strong>{formatValue(selectedEmployee.domicile || selectedEmployee.address)}</strong></div>
+                  <div style={styles.detailBox}><span>Nivel formativo</span><strong>{formatValue(selectedEmployee.education_level)}</strong></div>
+                  <div style={styles.detailBox}><span>Título académico</span><strong>{formatValue(selectedEmployee.academic_title)}</strong></div>
+                  <div style={styles.detailBox}><span>Profesión principal</span><strong>{formatValue(selectedEmployee.main_profession)}</strong></div>
+                  <div style={styles.detailBox}><span>Idiomas</span><strong>{formatValue(selectedEmployee.languages)}</strong></div>
+                  <div style={styles.detailBoxWide}><span>Observaciones</span><strong>{formatValue(selectedEmployee.observations)}</strong></div>
                 </div>
 
                 <div style={styles.modalActionsSplit}>
@@ -269,33 +323,12 @@ export default function EmployeeTable({
               </div>
             ) : (
               <form onSubmit={handleEditSubmit} style={styles.form}>
+                <SectionTitle>Asignación inicial</SectionTitle>
                 <div style={styles.formRow}>
                   <div style={styles.formGroupCode}>
                     <label>Código trabajador</label>
                     <input name="employee_code" value={editForm.employee_code} readOnly disabled style={{ ...styles.input, ...styles.readOnlyInput }} />
                   </div>
-                  <div style={styles.formGroupDni}>
-                    <label>DNI</label>
-                    <input name="dni" value={editForm.dni} onChange={handleEditChange} required style={styles.input} />
-                  </div>
-                  <div style={styles.formGroupNaf}>
-                    <label>NAF</label>
-                    <input name="naf" value={editForm.naf} onChange={handleEditChange} style={styles.input} />
-                  </div>
-                </div>
-
-                <div style={styles.formRow}>
-                  <div style={styles.formGroup}>
-                    <label>Nombre</label>
-                    <input name="first_name" value={editForm.first_name} onChange={handleEditChange} required style={styles.input} />
-                  </div>
-                  <div style={styles.formGroup}>
-                    <label>Apellidos</label>
-                    <input name="last_name" value={editForm.last_name} onChange={handleEditChange} required style={styles.input} />
-                  </div>
-                </div>
-
-                <div style={styles.formRow}>
                   <div style={styles.formGroup}>
                     <label>Empresa</label>
                     <select name="company_id" value={editForm.company_id} onChange={handleEditChange} style={styles.input}>
@@ -312,28 +345,76 @@ export default function EmployeeTable({
                   </div>
                 </div>
 
+                <SectionTitle>Identificación personal</SectionTitle>
                 <div style={styles.formRow}>
-                  <div style={styles.formGroup}>
-                    <label>Email</label>
-                    <input name="email" type="email" value={editForm.email} onChange={handleEditChange} style={styles.input} />
+                  <div style={styles.formGroupSmall}>
+                    <label>Tipo documento</label>
+                    <select name="document_type" value={editForm.document_type} onChange={handleEditChange} required style={styles.input}>
+                      <option value="DNI">DNI</option>
+                      <option value="NIE">NIE</option>
+                      <option value="PASAPORTE">Pasaporte</option>
+                    </select>
                   </div>
-                  <div style={styles.formGroup}>
-                    <label>Teléfono</label>
-                    <input name="phone" value={editForm.phone} onChange={handleEditChange} style={styles.input} />
+                  <div style={styles.formGroupDniWide}>
+                    <label>Documento</label>
+                    <input name="dni" value={editForm.dni} onChange={handleEditChange} required style={styles.input} />
                   </div>
-                  <div style={styles.formGroup}>
-                    <label>Fecha nacimiento</label>
-                    <input name="birth_date" type="date" value={editForm.birth_date} onChange={handleEditChange} style={styles.input} />
+                  <div style={styles.formGroupNaf}>
+                    <label>NAF</label>
+                    <input name="naf" value={editForm.naf} onChange={handleEditChange} style={styles.input} />
                   </div>
                 </div>
 
                 <div style={styles.formRow}>
+                  <div style={styles.formGroup}>
+                    <label>Nombre</label>
+                    <input name="first_name" value={editForm.first_name} onChange={handleEditChange} required style={styles.input} />
+                  </div>
+                  <div style={styles.formGroup}>
+                    <label>Primer apellido</label>
+                    <input name="last_name" value={editForm.last_name} onChange={handleEditChange} required style={styles.input} />
+                  </div>
+                  <div style={styles.formGroup}>
+                    <label>Segundo apellido</label>
+                    <input name="second_last_name" value={editForm.second_last_name} onChange={handleEditChange} style={styles.input} />
+                  </div>
+                </div>
+
+                <div style={styles.formRow}>
+                  <div style={styles.formGroupSmall}>
+                    <label>Sexo</label>
+                    <select name="sex" value={editForm.sex} onChange={handleEditChange} style={styles.input}>
+                      <option value="">No indicado</option>
+                      <option value="Hombre">Hombre</option>
+                      <option value="Mujer">Mujer</option>
+                      <option value="Otro">Otro / no especificado</option>
+                    </select>
+                  </div>
+                  <div style={styles.formGroupSmall}>
+                    <label>Fecha nacimiento</label>
+                    <input name="birth_date" type="date" value={editForm.birth_date} onChange={handleEditChange} style={styles.input} />
+                  </div>
+                  <div style={styles.formGroup}>
+                    <label>Nacionalidad</label>
+                    <input name="nationality" value={editForm.nationality} onChange={handleEditChange} style={styles.input} />
+                  </div>
+                  <div style={styles.formGroup}>
+                    <label>Lugar de nacimiento</label>
+                    <input name="birth_place" value={editForm.birth_place} onChange={handleEditChange} style={styles.input} />
+                  </div>
+                </div>
+
+                <SectionTitle>Contacto y domicilio</SectionTitle>
+                <div style={styles.formRow}>
+                  <div style={styles.formGroupWide}>
+                    <label>Domicilio</label>
+                    <input name="domicile" value={editForm.domicile} onChange={handleEditChange} style={styles.input} />
+                  </div>
                   <div style={styles.formGroupWide}>
                     <label>Dirección</label>
                     <input name="address" value={editForm.address} onChange={handleEditChange} style={styles.input} />
                   </div>
                 </div>
-
                 <div style={styles.formRow}>
                   <div style={styles.formGroup}>
                     <label>Ciudad</label>
@@ -343,9 +424,98 @@ export default function EmployeeTable({
                     <label>Provincia</label>
                     <input name="province" value={editForm.province} onChange={handleEditChange} style={styles.input} />
                   </div>
-                  <div style={styles.formGroup}>
+                  <div style={styles.formGroupSmall}>
                     <label>Código postal</label>
                     <input name="postal_code" value={editForm.postal_code} onChange={handleEditChange} style={styles.input} />
+                  </div>
+                </div>
+                <div style={styles.formRow}>
+                  <div style={styles.formGroupSmall}>
+                    <label>Teléfono fijo</label>
+                    <input name="landline_phone" value={editForm.landline_phone} onChange={handleEditChange} style={styles.input} />
+                  </div>
+                  <div style={styles.formGroupSmall}>
+                    <label>Móvil</label>
+                    <input name="mobile_phone" value={editForm.mobile_phone} onChange={handleEditChange} style={styles.input} />
+                  </div>
+                  <div style={styles.formGroupSmall}>
+                    <label>Teléfono general</label>
+                    <input name="phone" value={editForm.phone} onChange={handleEditChange} style={styles.input} />
+                  </div>
+                  <div style={styles.formGroupSmall}>
+                    <label>Fax</label>
+                    <input name="fax" value={editForm.fax} onChange={handleEditChange} style={styles.input} />
+                  </div>
+                </div>
+                <div style={styles.formRow}>
+                  <div style={styles.formGroup}>
+                    <label>Correo electrónico</label>
+                    <input name="email" type="email" value={editForm.email} onChange={handleEditChange} style={styles.input} />
+                  </div>
+                  <div style={styles.formGroup}>
+                    <label>Web</label>
+                    <input name="website" value={editForm.website} onChange={handleEditChange} style={styles.input} />
+                  </div>
+                </div>
+
+                <SectionTitle>Formación y perfil profesional</SectionTitle>
+                <div style={styles.formRow}>
+                  <div style={styles.formGroup}>
+                    <label>Nivel formativo</label>
+                    <select name="education_level" value={editForm.education_level} onChange={handleEditChange} style={styles.input}>
+                      <option value="">Seleccionar nivel</option>
+                      {EDUCATION_LEVEL_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
+                    </select>
+                  </div>
+                  <div style={styles.formGroup}>
+                    <label>Título académico</label>
+                    <input name="academic_title" value={editForm.academic_title} onChange={handleEditChange} style={styles.input} />
+                  </div>
+                  <div style={styles.formGroupSmall}>
+                    <label>Fecha concesión</label>
+                    <input name="academic_title_date" type="date" value={editForm.academic_title_date} onChange={handleEditChange} style={styles.input} />
+                  </div>
+                </div>
+                <div style={styles.formRow}>
+                  <div style={styles.formGroup}>
+                    <label>Profesión principal</label>
+                    <input name="main_profession" value={editForm.main_profession} onChange={handleEditChange} style={styles.input} />
+                  </div>
+                </div>
+                <div style={styles.formRow}>
+                  <div style={styles.formGroupTextarea}>
+                    <label>Otros cursos</label>
+                    <textarea name="other_courses" value={editForm.other_courses} onChange={handleEditChange} style={styles.textarea} />
+                  </div>
+                  <div style={styles.formGroupTextarea}>
+                    <label>Acreditaciones</label>
+                    <textarea name="accreditations" value={editForm.accreditations} onChange={handleEditChange} style={styles.textarea} />
+                  </div>
+                  <div style={styles.formGroupTextarea}>
+                    <label>Idiomas</label>
+                    <textarea name="languages" value={editForm.languages} onChange={handleEditChange} style={styles.textarea} />
+                  </div>
+                </div>
+
+                <SectionTitle>Representante y observaciones</SectionTitle>
+                <div style={styles.formRow}>
+                  <div style={styles.formGroup}>
+                    <label>Representante en calidad de</label>
+                    <input name="representative_role" value={editForm.representative_role} onChange={handleEditChange} style={styles.input} />
+                  </div>
+                  <div style={styles.formGroupSmall}>
+                    <label>NIF representante</label>
+                    <input name="representative_nif" value={editForm.representative_nif} onChange={handleEditChange} style={styles.input} />
+                  </div>
+                  <div style={styles.formGroup}>
+                    <label>Nombre y apellidos representante</label>
+                    <input name="representative_full_name" value={editForm.representative_full_name} onChange={handleEditChange} style={styles.input} />
+                  </div>
+                </div>
+                <div style={styles.formRow}>
+                  <div style={styles.formGroupWide}>
+                    <label>Observaciones</label>
+                    <textarea name="observations" value={editForm.observations} onChange={handleEditChange} style={styles.textareaLarge} />
                   </div>
                 </div>
 
@@ -404,8 +574,8 @@ const styles = {
   detailsButton: { backgroundColor: "#111827", color: "#ffffff", border: "1px solid #111827", borderRadius: "8px", padding: "7px 10px", cursor: "pointer", fontWeight: 800 },
   deleteButton: { backgroundColor: "#fee2e2", color: "#991b1b", border: "1px solid #fecaca", borderRadius: "8px", padding: "10px 14px", cursor: "pointer", fontWeight: 800 },
   modalBackdrop: { position: "fixed", inset: 0, backgroundColor: "rgba(17, 24, 39, 0.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, padding: "24px" },
-  modal: { width: "min(960px, 100%)", maxHeight: "90vh", overflowY: "auto", backgroundColor: "#ffffff", border: "3px solid #111111", borderRadius: "12px", boxShadow: "8px 8px 0 #e6d85c", padding: "22px" },
-  confirmModal: { width: "min(560px, 100%)", backgroundColor: "#ffffff", border: "3px solid #111111", borderRadius: "12px", boxShadow: "8px 8px 0 #e6d85c", padding: "22px" },
+  modal: { width: "min(1120px, 100%)", maxHeight: "90vh", overflowY: "auto", backgroundColor: "#ffffff", border: "1px solid #d1d5db", borderRadius: "12px", boxShadow: "0 18px 40px rgba(17, 24, 39, 0.18)", padding: "22px" },
+  confirmModal: { width: "min(560px, 100%)", backgroundColor: "#ffffff", border: "1px solid #d1d5db", borderRadius: "12px", boxShadow: "0 18px 40px rgba(17, 24, 39, 0.18)", padding: "22px" },
   modalHeader: { display: "flex", justifyContent: "space-between", alignItems: "start", gap: "16px", marginBottom: "18px", borderBottom: "1px solid #e5e7eb", paddingBottom: "14px" },
   modalTitle: { margin: 0, fontSize: "20px", fontWeight: 900, color: "#111827" },
   modalSubtitle: { margin: "4px 0 0", color: "#6b7280", fontSize: "13px", fontWeight: 700 },
@@ -414,14 +584,19 @@ const styles = {
   detailsGrid: { display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: "12px" },
   detailBox: { border: "1px solid #e5e7eb", backgroundColor: "#f9fafb", borderRadius: "10px", padding: "12px", display: "flex", flexDirection: "column", gap: "4px", minWidth: 0 },
   detailBoxWide: { border: "1px solid #e5e7eb", backgroundColor: "#f9fafb", borderRadius: "10px", padding: "12px", display: "flex", flexDirection: "column", gap: "4px", gridColumn: "1 / -1" },
-  form: { display: "flex", flexDirection: "column", gap: "16px" },
+  form: { display: "flex", flexDirection: "column", gap: "14px" },
+  sectionTitle: { margin: "6px 0 0", paddingTop: "8px", borderTop: "1px solid #e5e7eb", fontSize: "14px", fontWeight: 900, color: "#111827" },
   formRow: { display: "flex", gap: "16px", flexWrap: "wrap" },
   formGroup: { flex: 1, minWidth: "200px", display: "flex", flexDirection: "column", gap: "6px" },
   formGroupWide: { flex: 1, minWidth: "100%", display: "flex", flexDirection: "column", gap: "6px" },
+  formGroupTextarea: { flex: 1, minWidth: "240px", display: "flex", flexDirection: "column", gap: "6px" },
   formGroupCode: { width: "150px", display: "flex", flexDirection: "column", gap: "6px" },
-  formGroupDni: { width: "190px", display: "flex", flexDirection: "column", gap: "6px" },
+  formGroupDniWide: { width: "260px", display: "flex", flexDirection: "column", gap: "6px" },
   formGroupNaf: { width: "230px", display: "flex", flexDirection: "column", gap: "6px" },
+  formGroupSmall: { width: "190px", display: "flex", flexDirection: "column", gap: "6px" },
   input: { padding: "10px 12px", border: "1px solid #ccc", borderRadius: "8px", fontSize: "14px" },
+  textarea: { minHeight: "78px", padding: "10px 12px", border: "1px solid #ccc", borderRadius: "8px", fontSize: "14px", resize: "vertical" },
+  textareaLarge: { minHeight: "100px", padding: "10px 12px", border: "1px solid #ccc", borderRadius: "8px", fontSize: "14px", resize: "vertical" },
   readOnlyInput: { backgroundColor: "#f3f4f6", color: "#6b7280", cursor: "not-allowed", fontWeight: 800 },
   checkboxLabel: { display: "flex", alignItems: "center", gap: "8px", fontWeight: 700 },
   confirmText: { margin: "0 0 16px", color: "#374151", lineHeight: 1.5 },
