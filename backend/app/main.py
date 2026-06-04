@@ -26,11 +26,10 @@ from app.crud.employee import (
     get_employees_all,
     get_employee,
     get_employee_assignment_history,
+    get_employees_by_dni,
+    get_employee_identity_conflict,
     update_employee,
     soft_delete_employee,
-    get_employee_by_dni,
-    get_employee_by_email,
-    get_employee_by_naf,
     get_next_employee_code,
 )
 from app.schemas.tax_profile import IrpfCalculationInput, IrpfCalculationResponse, TaxProfileResponse, TaxProfileUpdate
@@ -159,14 +158,16 @@ def next_employee_code(db: Session = Depends(get_db)):
     return {"next_code": get_next_employee_code(db)}
 
 
+@app.get("/employees/by-document/{document}", response_model=list[EmployeeResponse])
+def list_employees_by_document(document: str, db: Session = Depends(get_db)):
+    return get_employees_by_dni(db, document)
+
+
 @app.post("/employees", response_model=EmployeeResponse)
 def create_employee_endpoint(employee: EmployeeCreate, db: Session = Depends(get_db)):
-    if employee.dni and get_employee_by_dni(db, employee.dni):
-        raise HTTPException(status_code=400, detail="Ya existe un trabajador con ese documento")
-    if employee.email and get_employee_by_email(db, employee.email):
-        raise HTTPException(status_code=400, detail="Ya existe un trabajador con ese email")
-    if employee.naf and get_employee_by_naf(db, employee.naf):
-        raise HTTPException(status_code=400, detail="Ya existe un trabajador con ese NAF")
+    conflict = get_employee_identity_conflict(db, employee)
+    if conflict:
+        raise HTTPException(status_code=400, detail="Ya existe un trabajador con ese documento, NAF o email en la misma empresa")
     return create_employee(db, employee)
 
 
