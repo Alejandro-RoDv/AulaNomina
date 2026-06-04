@@ -49,6 +49,8 @@ export default function EmployeesPage({
   onUpdateEmployee,
   onDeleteEmployee,
   onOpenRecord,
+  onDuplicateEmployee,
+  onPrefillEmployee,
   employeeError,
   employeeSuccess,
   employeeSubmitting,
@@ -170,7 +172,7 @@ export default function EmployeesPage({
             <button type="button" onClick={clearFilters} style={styles.clearButton}>Limpiar filtros</button>
           </div>
 
-          <EmployeeTable loading={loading} employees={filteredEmployees} companies={companies} workCenters={workCenters} contracts={contracts} incidents={incidents} payrolls={payrolls} onUpdateEmployee={onUpdateEmployee} onDeleteEmployee={onDeleteEmployee} onOpenRecord={onOpenRecord} submitting={employeeSubmitting} />
+          <EmployeeTable loading={loading} employees={filteredEmployees} companies={companies} workCenters={workCenters} contracts={contracts} incidents={incidents} payrolls={payrolls} onUpdateEmployee={onUpdateEmployee} onDeleteEmployee={onDeleteEmployee} onOpenRecord={onOpenRecord} onDuplicateEmployee={onDuplicateEmployee} submitting={employeeSubmitting} />
         </PageCard>
       </div>
     );
@@ -355,7 +357,7 @@ export default function EmployeesPage({
   return (
     <div style={styles.wrapper}>
       <PageCard title="Nuevo trabajador" subtitle="Alta de datos personales, contacto, formación, representante y observaciones. El alta laboral se gestiona desde Contratación.">
-        <EmployeeForm form={employeeForm} companies={companies} workCenters={workCenters} employees={employees} contracts={contracts} onChange={onEmployeeChange} onSubmit={onEmployeeSubmit} error={employeeError} success={employeeSuccess} submitting={employeeSubmitting} />
+        <EmployeeForm form={employeeForm} companies={companies} workCenters={workCenters} employees={employees} contracts={contracts} onChange={onEmployeeChange} onSubmit={onEmployeeSubmit} onPrefillEmployee={onPrefillEmployee} error={employeeError} success={employeeSuccess} submitting={employeeSubmitting} />
       </PageCard>
     </div>
   );
