@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import PageCard from "../components/layout/PageCard";
 import EmployeeForm from "../components/employees/EmployeeForm";
 import EmployeeTable from "../components/employees/EmployeeTable";
+import { fetchEmployeeAssignmentHistory } from "../services/employeeApi";
 import { openReportPreset } from "../utils/reportShortcuts";
 
 function normalizeText(value) {
@@ -18,11 +19,7 @@ function formatValue(value) {
 }
 
 function RecordTab({ active, children, onClick }) {
-  return (
-    <button type="button" onClick={onClick} style={active ? styles.recordTabActive : styles.recordTab}>
-      {children}
-    </button>
-  );
+  return <button type="button" onClick={onClick} style={active ? styles.recordTabActive : styles.recordTab}>{children}</button>;
 }
 
 function DataBox({ label, value, wide = false }) {
@@ -61,6 +58,9 @@ export default function EmployeesPage({
     return window.sessionStorage.getItem("aulanomina:selectedEmployeeId") || "";
   });
   const [recordTab, setRecordTab] = useState("personal");
+  const [assignmentHistory, setAssignmentHistory] = useState([]);
+  const [assignmentHistoryLoading, setAssignmentHistoryLoading] = useState(false);
+  const [assignmentHistoryError, setAssignmentHistoryError] = useState("");
   const [filters, setFilters] = useState({ id: "", name: "", dni: "", companyId: "", centerId: "", status: "" });
 
   useEffect(() => {
@@ -68,6 +68,26 @@ export default function EmployeesPage({
     const storedEmployeeId = window.sessionStorage.getItem("aulanomina:selectedEmployeeId");
     if (storedEmployeeId) setRecordEmployeeId(storedEmployeeId);
   }, [mode]);
+
+  useEffect(() => {
+    if (mode !== "record" || recordTab !== "history" || !recordEmployeeId) return;
+
+    async function loadAssignmentHistory() {
+      setAssignmentHistoryLoading(true);
+      setAssignmentHistoryError("");
+      try {
+        const data = await fetchEmployeeAssignmentHistory(recordEmployeeId);
+        setAssignmentHistory(data || []);
+      } catch (error) {
+        setAssignmentHistoryError(error.message || "Error al cargar histórico empresa/centro");
+        setAssignmentHistory([]);
+      } finally {
+        setAssignmentHistoryLoading(false);
+      }
+    }
+
+    loadAssignmentHistory();
+  }, [mode, recordTab, recordEmployeeId]);
 
   const companyMap = useMemo(() => companies.reduce((acc, company) => ({ ...acc, [company.id]: company }), {}), [companies]);
   const centerMap = useMemo(() => workCenters.reduce((acc, center) => ({ ...acc, [center.id]: center }), {}), [workCenters]);
@@ -121,6 +141,7 @@ export default function EmployeesPage({
     const value = event.target.value;
     setRecordEmployeeId(value);
     setRecordTab("personal");
+    setAssignmentHistory([]);
     if (typeof window !== "undefined") {
       if (value) window.sessionStorage.setItem("aulanomina:selectedEmployeeId", value);
       else window.sessionStorage.removeItem("aulanomina:selectedEmployeeId");
@@ -155,7 +176,7 @@ export default function EmployeesPage({
   if (mode === "record") {
     return (
       <div style={styles.wrapper}>
-        <PageCard title="Expediente del trabajador" subtitle="Ficha integrada del trabajador, contratos, incidencias, nóminas y documentos vinculados.">
+        <PageCard title="Expediente del trabajador" subtitle="Ficha integrada del trabajador, contratos, incidencias, nóminas, documentos e histórico empresa/centro.">
           <div style={styles.recordSelectorRow}>
             <div style={styles.recordSelector}>
               <label>Trabajador</label>
@@ -190,6 +211,7 @@ export default function EmployeesPage({
                 <RecordTab active={recordTab === "incidents"} onClick={() => setRecordTab("incidents")}>Incidencias</RecordTab>
                 <RecordTab active={recordTab === "payrolls"} onClick={() => setRecordTab("payrolls")}>Nóminas</RecordTab>
                 <RecordTab active={recordTab === "documents"} onClick={() => setRecordTab("documents")}>Documentos</RecordTab>
+                <RecordTab active={recordTab === "history"} onClick={() => setRecordTab("history")}>Histórico empresa/centro</RecordTab>
                 <RecordTab active={recordTab === "summary"} onClick={() => setRecordTab("summary")}>Resumen</RecordTab>
               </div>
 
@@ -252,9 +274,21 @@ export default function EmployeesPage({
                     <button type="button" style={styles.reportButtonSecondary} onClick={() => { window.location.hash = "documents"; window.dispatchEvent(new Event("aulanomina-route-change")); }}>Abrir módulo documentos</button>
                   </div>
                   {!selectedEmployeeDocuments.length ? <p style={styles.empty}>No hay documentos vinculados a este trabajador.</p> : (
+                    <table style={styles.miniTable}><thead><tr><th>Tipo</th><th>Nombre</th><th>Estado</th><th>Fecha emisión</th><th>Fecha caducidad</th><th>Notas</th></tr></thead><tbody>{selectedEmployeeDocuments.map((document) => <tr key={document.id}><td>{document.document_type || "-"}</td><td>{document.name || document.title || "-"}</td><td>{document.status || "-"}</td><td>{document.issue_date || document.created_at || "-"}</td><td>{document.expiration_date || "-"}</td><td>{document.notes || document.description || "-"}</td></tr>)}</tbody></table>
+                  )}
+                </div>
+              )}
+
+              {recordTab === "history" && (
+                <div style={styles.recordPanelWide}>
+                  <h3 style={styles.panelTitle}>Histórico empresa/centro</h3>
+                  {assignmentHistoryLoading && <p style={styles.empty}>Cargando histórico...</p>}
+                  {assignmentHistoryError && <div style={styles.error}>{assignmentHistoryError}</div>}
+                  {!assignmentHistoryLoading && !assignmentHistoryError && !assignmentHistory.length ? <p style={styles.empty}>No hay movimientos de empresa/centro registrados.</p> : null}
+                  {!assignmentHistoryLoading && !!assignmentHistory.length && (
                     <table style={styles.miniTable}>
-                      <thead><tr><th>Tipo</th><th>Nombre</th><th>Estado</th><th>Fecha emisión</th><th>Fecha caducidad</th><th>Notas</th></tr></thead>
-                      <tbody>{selectedEmployeeDocuments.map((document) => <tr key={document.id}><td>{document.document_type || "-"}</td><td>{document.name || document.title || "-"}</td><td>{document.status || "-"}</td><td>{document.issue_date || document.created_at || "-"}</td><td>{document.expiration_date || "-"}</td><td>{document.notes || document.description || "-"}</td></tr>)}</tbody>
+                      <thead><tr><th>Empresa</th><th>Centro</th><th>Fecha inicio</th><th>Fecha fin</th><th>Motivo / notas</th></tr></thead>
+                      <tbody>{assignmentHistory.map((assignment) => <tr key={assignment.id}><td>{assignment.company_name || companyMap[assignment.company_id]?.name || "-"}</td><td>{assignment.center_name || centerMap[assignment.center_id]?.name || "-"}</td><td>{assignment.start_date || "-"}</td><td>{assignment.end_date || "Actual"}</td><td>{assignment.notes || "-"}</td></tr>)}</tbody>
                     </table>
                   )}
                 </div>
@@ -297,6 +331,7 @@ const styles = {
   input: { padding: "10px 12px", border: "1px solid #d1d5db", borderRadius: "8px", fontSize: "14px" },
   clearButton: { backgroundColor: "#f3f4f6", color: "#111827", border: "1px solid #d1d5db", borderRadius: "8px", padding: "10px 14px", cursor: "pointer", fontWeight: 700 },
   empty: { margin: 0, color: "#6b7280", fontSize: "14px" },
+  error: { backgroundColor: "#fee2e2", color: "#991b1b", padding: "10px 12px", borderRadius: "8px", marginBottom: "12px" },
   recordSelectorRow: { display: "flex", gap: "16px", alignItems: "end", justifyContent: "space-between", flexWrap: "wrap", marginBottom: "18px" },
   recordSelector: { display: "flex", flexDirection: "column", gap: "6px", minWidth: "360px", flex: "1 1 420px" },
   recordHeaderSummary: { border: "1px solid #e5e7eb", borderRadius: "10px", padding: "10px 12px", backgroundColor: "#f9fafb", display: "flex", flexDirection: "column", gap: "4px", minWidth: "320px" },
