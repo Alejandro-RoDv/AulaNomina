@@ -45,6 +45,7 @@ const emptyEditForm = {
 
 function toEditForm(employee) {
   return {
+    ...emptyEditForm,
     employee_code: employee.employee_code || "",
     company_id: employee.company_id ? String(employee.company_id) : "",
     center_id: employee.center_id ? String(employee.center_id) : "",
@@ -166,6 +167,14 @@ export default function EmployeeTable({
     setDeleteError("");
   };
 
+  const openEditModal = (employee) => {
+    setSelectedEmployee(employee);
+    setEditForm(toEditForm(employee));
+    setEditMode(true);
+    setEditError("");
+    setDeleteError("");
+  };
+
   const closeDetailsModal = () => {
     setSelectedEmployee(null);
     setEditForm(emptyEditForm);
@@ -267,6 +276,7 @@ export default function EmployeeTable({
                   <td style={styles.td}>
                     <div style={styles.actionGroup}>
                       <button type="button" style={styles.recordButton} onClick={() => handleOpenRecord(employee)}>Expediente</button>
+                      <button type="button" style={styles.editButton} onClick={() => openEditModal(employee)}>Editar</button>
                       <button type="button" style={styles.duplicateButton} onClick={() => handleDuplicate(employee)}>Duplicar</button>
                       <button type="button" style={styles.detailsButton} onClick={() => openDetailsModal(employee)}>Detalles</button>
                     </div>
@@ -283,7 +293,7 @@ export default function EmployeeTable({
           <div style={styles.modal}>
             <div style={styles.modalHeader}>
               <div>
-                <h3 style={styles.modalTitle}>Detalles del trabajador</h3>
+                <h3 style={styles.modalTitle}>{editMode ? "Editar trabajador" : "Detalles del trabajador"}</h3>
                 <p style={styles.modalSubtitle}>{selectedEmployee.first_name} {selectedEmployee.last_name} · {selectedEmployee.dni || "Sin documento"}</p>
               </div>
               <button type="button" onClick={closeDetailsModal} style={styles.closeButton}>×</button>
@@ -405,12 +415,13 @@ const styles = {
   sortIcon: { color: "#6b7280", fontSize: "12px" },
   td: { padding: "12px", borderBottom: "1px solid #eee", whiteSpace: "nowrap" },
   tdStrong: { padding: "12px", borderBottom: "1px solid #eee", whiteSpace: "nowrap", fontWeight: 900 },
-  actionGroup: { display: "flex", gap: "8px", alignItems: "center" },
+  actionGroup: { display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" },
   activeBadge: { backgroundColor: "#dcfce7", color: "#166534", padding: "4px 8px", borderRadius: "999px", fontSize: "12px", fontWeight: 800 },
   inactiveBadge: { backgroundColor: "#fee2e2", color: "#991b1b", padding: "4px 8px", borderRadius: "999px", fontSize: "12px", fontWeight: 800 },
   recordButton: { backgroundColor: "#f8f3b5", color: "#111827", border: "1px solid #111827", borderRadius: "8px", padding: "7px 10px", cursor: "pointer", fontWeight: 800 },
+  editButton: { backgroundColor: "#111827", color: "#ffffff", border: "1px solid #111827", borderRadius: "8px", padding: "7px 10px", cursor: "pointer", fontWeight: 800 },
   duplicateButton: { backgroundColor: "#ffffff", color: "#111827", border: "1px solid #9ca3af", borderRadius: "8px", padding: "7px 10px", cursor: "pointer", fontWeight: 800 },
-  detailsButton: { backgroundColor: "#111827", color: "#ffffff", border: "1px solid #111827", borderRadius: "8px", padding: "7px 10px", cursor: "pointer", fontWeight: 800 },
+  detailsButton: { backgroundColor: "#ffffff", color: "#111827", border: "1px solid #d1d5db", borderRadius: "8px", padding: "7px 10px", cursor: "pointer", fontWeight: 800 },
   deleteButton: { backgroundColor: "#fee2e2", color: "#991b1b", border: "1px solid #fecaca", borderRadius: "8px", padding: "10px 14px", cursor: "pointer", fontWeight: 800 },
   modalBackdrop: { position: "fixed", inset: 0, backgroundColor: "rgba(17, 24, 39, 0.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, padding: "24px" },
   modal: { width: "min(1120px, 100%)", maxHeight: "90vh", overflowY: "auto", backgroundColor: "#ffffff", border: "1px solid #d1d5db", borderRadius: "12px", boxShadow: "0 18px 40px rgba(17, 24, 39, 0.18)", padding: "22px" },
