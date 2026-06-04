@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 import { fetchEmployeesByDocument } from "../../services/employeeApi";
 import { EDUCATION_LEVEL_OPTIONS } from "../../utils/employeePayloads";
@@ -10,6 +10,10 @@ function Section({ title, children }) {
       {children}
     </section>
   );
+}
+
+function normalizeDocument(value) {
+  return String(value || "").trim().toUpperCase().replace(/\s+/g, "");
 }
 
 export default function EmployeeForm({
@@ -29,16 +33,51 @@ export default function EmployeeForm({
   const [documentLookupLoading, setDocumentLookupLoading] = useState(false);
   const [documentLookupError, setDocumentLookupError] = useState("");
 
-  const filteredCenters = workCenters.filter(
-    (center) => String(center.company_id) === String(form.company_id)
-  );
+  const filteredCenters = workCenters.filter((center) => String(center.company_id) === String(form.company_id));
+  const normalizedDocument = normalizeDocument(form.dni);
+
+  const sameCompanyDocumentMatch = useMemo(() => {
+    if (!normalizedDocument || !form.company_id) return null;
+    return employees.find(
+      (employee) => normalizeDocument(employee.dni) === normalizedDocument && String(employee.company_id) === String(form.company_id)
+    );
+  }, [employees, normalizedDocument, form.company_id]);
+
+  const otherCompanyMatches = useMemo(() => {
+    if (!normalizedDocument) return [];
+    return employees.filter(
+      (employee) => normalizeDocument(employee.dni) === normalizedDocument && String(employee.company_id) !== String(form.company_id)
+    );
+  }, [employees, normalizedDocument, form.company_id]);
+
+  const missingRequiredFields = [];
+  if (!form.company_id) missingRequiredFields.push("empresa");
+  if (!form.center_id) missingRequiredFields.push("centro");
+  if (!normalizedDocument) missingRequiredFields.push("documento");
+  if (!form.first_name) missingRequiredFields.push("nombre");
+  if (!form.last_name) missingRequiredFields.push("primer apellido");
+
+  const canSubmit = !submitting && !sameCompanyDocumentMatch && missingRequiredFields.length === 0;
 
   const visibleEmployeeCode = form.company_id
     ? `${form.company_id}.${employees.filter((employee) => String(employee.company_id) === String(form.company_id)).length + 1}`
     : "Selecciona empresa";
 
+  const handleNormalizedChange = (event) => {
+    const { name, value } = event.target;
+    const normalizedValue = ["dni", "naf", "representative_nif"].includes(name)
+      ? normalizeDocument(value)
+      : value;
+
+    onChange({ ...event, target: { ...event.target, name, value: normalizedValue } });
+  };
+
   const handleDocumentBlur = async () => {
-    const document = String(form.dni || "").trim();
+    const document = normalizeDocument(form.dni);
+    if (document !== form.dni) {
+      onChange({ target: { name: "dni", value: document } });
+    }
+
     setDocumentMatches([]);
     setDocumentLookupError("");
 
@@ -60,8 +99,21 @@ export default function EmployeeForm({
     setDocumentMatches([]);
   };
 
+  const handleSubmit = (event) => {
+    if (!canSubmit) {
+      event.preventDefault();
+      return;
+    }
+    onSubmit(event);
+  };
+
   return (
-    <form onSubmit={onSubmit} style={styles.form}>
+    <form onSubmit={handleSubmit} style={styles.form}>
+      <div style={styles.infoBox}>
+        <strong>Alta de trabajador</strong>
+        <span>Este formulario crea una ficha personal vinculada a una empresa y centro. Duplicar un trabajador solo copia sus datos personales; no duplica contratos, nóminas ni incidencias.</span>
+      </div>
+
       <Section title="Asignación inicial">
         <div style={styles.formRow}>
           <div style={styles.formGroupCode}>
@@ -76,7 +128,6 @@ export default function EmployeeForm({
               {companies.map((company) => <option key={company.id} value={company.id}>{company.name}</option>)}
             </select>
           </div>
-
           <div style={styles.formGroup}>
             <label>Centro</label>
             <select name="center_id" value={form.center_id} onChange={onChange} required disabled={!form.company_id} style={styles.input}>
@@ -99,14 +150,25 @@ export default function EmployeeForm({
           </div>
           <div style={styles.formGroupDniWide}>
             <label>{form.document_type === "PASAPORTE" ? "Pasaporte" : "Documento"}</label>
-            <input name="dni" value={form.dni} onChange={onChange} onBlur={handleDocumentBlur} required style={styles.input} placeholder="Ej. 56070451W" />
+            <input name="dni" value={form.dni} onChange={handleNormalizedChange} onBlur={handleDocumentBlur} required style={styles.input} placeholder="Ej. 56070451W" />
             {documentLookupLoading && <small style={styles.helpText}>Comprobando documento...</small>}
           </div>
           <div style={styles.formGroupNaf}>
             <label>NAF</label>
-            <input name="naf" value={form.naf} onChange={onChange} style={styles.input} />
+            <input name="naf" value={form.naf} onChange={handleNormalizedChange} style={styles.input} />
           </div>
         </div>
+
+        {sameCompanyDocumentMatch && (
+          <div style={styles.error}>Ya existe un trabajador con este documento en la empresa seleccionada. Para reutilizar sus datos, elige otra empresa o edita el registro existente.</div>
+        )}
+
+        {!sameCompanyDocumentMatch && !!otherCompanyMatches.length && (
+          <div style={styles.duplicateNotice}>
+            <strong>Documento localizado en otra empresa.</strong>
+            <span> Puedes mantener el alta actual si la persona también trabajará en esta empresa. No se copiarán contratos ni nóminas.</span>
+          </div>
+        )}
 
         {documentLookupError && <div style={styles.warning}>{documentLookupError}</div>}
         {!!documentMatches.length && (
@@ -185,21 +247,23 @@ export default function EmployeeForm({
       <Section title="Representante y observaciones">
         <div style={styles.formRow}>
           <div style={styles.formGroup}><label>Representante en calidad de</label><input name="representative_role" value={form.representative_role} onChange={onChange} style={styles.input} /></div>
-          <div style={styles.formGroupSmall}><label>NIF representante</label><input name="representative_nif" value={form.representative_nif} onChange={onChange} style={styles.input} /></div>
+          <div style={styles.formGroupSmall}><label>NIF representante</label><input name="representative_nif" value={form.representative_nif} onChange={handleNormalizedChange} style={styles.input} /></div>
           <div style={styles.formGroup}><label>Nombre y apellidos representante</label><input name="representative_full_name" value={form.representative_full_name} onChange={onChange} style={styles.input} /></div>
         </div>
         <div style={styles.formRow}><div style={styles.formGroupWide}><label>Observaciones</label><textarea name="observations" value={form.observations} onChange={onChange} style={styles.textareaLarge} /></div></div>
       </Section>
 
+      {!!missingRequiredFields.length && <div style={styles.warning}>Campos pendientes para guardar: {missingRequiredFields.join(", ")}.</div>}
       {error && <div style={styles.error}>{error}</div>}
       {success && <div style={styles.success}>{success}</div>}
-      <button type="submit" disabled={submitting} style={styles.button}>{submitting ? "Guardando..." : "Crear trabajador"}</button>
+      <button type="submit" disabled={!canSubmit} style={!canSubmit ? styles.buttonDisabled : styles.button}>{submitting ? "Guardando..." : "Crear trabajador"}</button>
     </form>
   );
 }
 
 const styles = {
   form: { display: "flex", flexDirection: "column", gap: "18px" },
+  infoBox: { border: "1px solid #bfdbfe", backgroundColor: "#eff6ff", color: "#1e3a8a", borderRadius: "10px", padding: "12px", display: "flex", flexDirection: "column", gap: "4px", fontSize: "13px" },
   section: { border: "1px solid #e5e7eb", borderRadius: "12px", padding: "16px", backgroundColor: "#ffffff" },
   sectionTitle: { margin: "0 0 14px", fontSize: "15px", fontWeight: 900, color: "#111827" },
   formRow: { display: "flex", gap: "16px", flexWrap: "wrap", marginBottom: "12px" },
@@ -221,6 +285,7 @@ const styles = {
   matchList: { display: "flex", flexWrap: "wrap", gap: "8px" },
   matchButton: { backgroundColor: "#111827", color: "#fff", border: "1px solid #111827", borderRadius: "8px", padding: "8px 10px", cursor: "pointer", fontWeight: 800 },
   button: { backgroundColor: "#111827", color: "white", border: "none", borderRadius: "8px", padding: "12px 18px", cursor: "pointer", width: "fit-content", fontWeight: 800 },
+  buttonDisabled: { backgroundColor: "#9ca3af", color: "white", border: "none", borderRadius: "8px", padding: "12px 18px", cursor: "not-allowed", width: "fit-content", fontWeight: 800 },
   error: { backgroundColor: "#fee2e2", color: "#991b1b", padding: "10px 12px", borderRadius: "8px" },
   success: { backgroundColor: "#dcfce7", color: "#166534", padding: "10px 12px", borderRadius: "8px" },
 };
