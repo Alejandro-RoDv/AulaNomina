@@ -43,6 +43,7 @@ export default function EmployeesPage({
   contracts,
   incidents,
   payrolls,
+  documents = [],
   employeeForm,
   onEmployeeChange,
   onEmployeeSubmit,
@@ -111,6 +112,7 @@ export default function EmployeesPage({
   const selectedEmployeeContracts = selectedRecordEmployee ? contracts.filter((contract) => Number(contract.employee_id) === Number(selectedRecordEmployee.id)) : [];
   const selectedEmployeeIncidents = selectedRecordEmployee ? incidents.filter((incident) => Number(incident.employee_id) === Number(selectedRecordEmployee.id)) : [];
   const selectedEmployeePayrolls = selectedRecordEmployee ? payrolls.filter((payroll) => Number(payroll.employee_id) === Number(selectedRecordEmployee.id)) : [];
+  const selectedEmployeeDocuments = selectedRecordEmployee ? documents.filter((document) => Number(document.employee_id) === Number(selectedRecordEmployee.id)) : [];
   const activeContract = selectedEmployeeContracts.find((contract) => contract.status === "active") || selectedEmployeeContracts[0];
   const selectedCompanyId = activeContract?.company_id || selectedRecordEmployee?.company_id;
   const selectedCenterId = activeContract?.center_id || selectedRecordEmployee?.center_id;
@@ -135,40 +137,12 @@ export default function EmployeesPage({
           </div>
 
           <div style={styles.filters}>
-            <div style={styles.filterGroupCode}>
-              <label>Código trabajador</label>
-              <input name="id" value={filters.id} onChange={handleFilterChange} style={styles.input} />
-            </div>
-            <div style={styles.filterGroupName}>
-              <label>Nombre y apellidos</label>
-              <input name="name" value={filters.name} onChange={handleFilterChange} style={styles.input} />
-            </div>
-            <div style={styles.filterGroupDni}>
-              <label>Documento</label>
-              <input name="dni" value={filters.dni} onChange={handleFilterChange} style={styles.input} />
-            </div>
-            <div style={styles.filterGroupSelect}>
-              <label>Empresa</label>
-              <select name="companyId" value={filters.companyId} onChange={handleFilterChange} style={styles.input}>
-                <option value="">Todas</option>
-                {companies.map((company) => <option key={company.id} value={company.id}>{company.name}</option>)}
-              </select>
-            </div>
-            <div style={styles.filterGroupSelect}>
-              <label>Centro</label>
-              <select name="centerId" value={filters.centerId} onChange={handleFilterChange} style={styles.input} disabled={!filters.companyId}>
-                <option value="">Todos</option>
-                {availableFilterCenters.map((center) => <option key={center.id} value={center.id}>{center.name}</option>)}
-              </select>
-            </div>
-            <div style={styles.filterGroupStatus}>
-              <label>Estado</label>
-              <select name="status" value={filters.status} onChange={handleFilterChange} style={styles.input}>
-                <option value="">Todos</option>
-                <option value="active">Activo</option>
-                <option value="inactive">Inactivo</option>
-              </select>
-            </div>
+            <div style={styles.filterGroupCode}><label>Código trabajador</label><input name="id" value={filters.id} onChange={handleFilterChange} style={styles.input} /></div>
+            <div style={styles.filterGroupName}><label>Nombre y apellidos</label><input name="name" value={filters.name} onChange={handleFilterChange} style={styles.input} /></div>
+            <div style={styles.filterGroupDni}><label>Documento</label><input name="dni" value={filters.dni} onChange={handleFilterChange} style={styles.input} /></div>
+            <div style={styles.filterGroupSelect}><label>Empresa</label><select name="companyId" value={filters.companyId} onChange={handleFilterChange} style={styles.input}><option value="">Todas</option>{companies.map((company) => <option key={company.id} value={company.id}>{company.name}</option>)}</select></div>
+            <div style={styles.filterGroupSelect}><label>Centro</label><select name="centerId" value={filters.centerId} onChange={handleFilterChange} style={styles.input} disabled={!filters.companyId}><option value="">Todos</option>{availableFilterCenters.map((center) => <option key={center.id} value={center.id}>{center.name}</option>)}</select></div>
+            <div style={styles.filterGroupStatus}><label>Estado</label><select name="status" value={filters.status} onChange={handleFilterChange} style={styles.input}><option value="">Todos</option><option value="active">Activo</option><option value="inactive">Inactivo</option></select></div>
             <button type="button" onClick={clearFilters} style={styles.clearButton}>Limpiar filtros</button>
           </div>
 
@@ -181,15 +155,13 @@ export default function EmployeesPage({
   if (mode === "record") {
     return (
       <div style={styles.wrapper}>
-        <PageCard title="Expediente del trabajador" subtitle="Ficha integrada del trabajador, contratos, incidencias y nóminas vinculadas.">
+        <PageCard title="Expediente del trabajador" subtitle="Ficha integrada del trabajador, contratos, incidencias, nóminas y documentos vinculados.">
           <div style={styles.recordSelectorRow}>
             <div style={styles.recordSelector}>
               <label>Trabajador</label>
               <select value={recordEmployeeId} onChange={handleRecordEmployeeChange} style={styles.input}>
                 <option value="">Seleccionar trabajador</option>
-                {employees.map((employee) => (
-                  <option key={employee.id} value={employee.id}>{employee.first_name} {employee.last_name} {employee.second_last_name || ""} · {employee.dni}</option>
-                ))}
+                {employees.map((employee) => <option key={employee.id} value={employee.id}>{employee.first_name} {employee.last_name} {employee.second_last_name || ""} · {employee.dni}</option>)}
               </select>
             </div>
             {selectedRecordEmployee && (
@@ -209,6 +181,7 @@ export default function EmployeesPage({
                 <div style={styles.kpiBox}><span>Contratos</span><strong>{selectedEmployeeContracts.length}</strong></div>
                 <div style={styles.kpiBox}><span>Incidencias</span><strong>{selectedEmployeeIncidents.length}</strong></div>
                 <div style={styles.kpiBox}><span>Nóminas</span><strong>{selectedEmployeePayrolls.length}</strong></div>
+                <div style={styles.kpiBox}><span>Documentos</span><strong>{selectedEmployeeDocuments.length}</strong></div>
               </div>
 
               <div style={styles.recordTabs}>
@@ -216,6 +189,7 @@ export default function EmployeesPage({
                 <RecordTab active={recordTab === "contracts"} onClick={() => setRecordTab("contracts")}>Contratos</RecordTab>
                 <RecordTab active={recordTab === "incidents"} onClick={() => setRecordTab("incidents")}>Incidencias</RecordTab>
                 <RecordTab active={recordTab === "payrolls"} onClick={() => setRecordTab("payrolls")}>Nóminas</RecordTab>
+                <RecordTab active={recordTab === "documents"} onClick={() => setRecordTab("documents")}>Documentos</RecordTab>
                 <RecordTab active={recordTab === "summary"} onClick={() => setRecordTab("summary")}>Resumen</RecordTab>
               </div>
 
@@ -248,25 +222,7 @@ export default function EmployeesPage({
                 <div style={styles.recordPanelWide}>
                   <h3 style={styles.panelTitle}>Contratos vinculados</h3>
                   {!selectedEmployeeContracts.length ? <p style={styles.empty}>No hay contratos vinculados.</p> : (
-                    <table style={styles.miniTable}>
-                      <thead>
-                        <tr><th>Código</th><th>Tipo</th><th>Empresa</th><th>Centro</th><th>Inicio</th><th>Fin</th><th>Estado</th><th>Salario base</th></tr>
-                      </thead>
-                      <tbody>
-                        {selectedEmployeeContracts.map((contract) => (
-                          <tr key={contract.id}>
-                            <td>{contract.contract_code || contract.id}</td>
-                            <td>{contract.contract_type || "-"}</td>
-                            <td>{contract.company_name || companyMap[contract.company_id]?.name || "-"}</td>
-                            <td>{contract.center_name || centerMap[contract.center_id]?.name || "-"}</td>
-                            <td>{contract.start_date || "-"}</td>
-                            <td>{contract.end_date || "-"}</td>
-                            <td>{contract.status || "-"}</td>
-                            <td>{contract.salary_base || "-"}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                    <table style={styles.miniTable}><thead><tr><th>Código</th><th>Tipo</th><th>Empresa</th><th>Centro</th><th>Inicio</th><th>Fin</th><th>Estado</th><th>Salario base</th></tr></thead><tbody>{selectedEmployeeContracts.map((contract) => <tr key={contract.id}><td>{contract.contract_code || contract.id}</td><td>{contract.contract_type || "-"}</td><td>{contract.company_name || companyMap[contract.company_id]?.name || "-"}</td><td>{contract.center_name || centerMap[contract.center_id]?.name || "-"}</td><td>{contract.start_date || "-"}</td><td>{contract.end_date || "-"}</td><td>{contract.status || "-"}</td><td>{contract.salary_base || "-"}</td></tr>)}</tbody></table>
                   )}
                 </div>
               )}
@@ -275,23 +231,7 @@ export default function EmployeesPage({
                 <div style={styles.recordPanelWide}>
                   <h3 style={styles.panelTitle}>Incidencias laborales</h3>
                   {!selectedEmployeeIncidents.length ? <p style={styles.empty}>No hay incidencias vinculadas.</p> : (
-                    <table style={styles.miniTable}>
-                      <thead>
-                        <tr><th>Tipo</th><th>Inicio</th><th>Fin</th><th>Estado</th><th>Afecta nómina</th><th>Descripción</th></tr>
-                      </thead>
-                      <tbody>
-                        {selectedEmployeeIncidents.map((incident) => (
-                          <tr key={incident.id}>
-                            <td>{incident.incident_type || "-"}</td>
-                            <td>{incident.start_date || "-"}</td>
-                            <td>{incident.end_date || "-"}</td>
-                            <td>{incident.status || "-"}</td>
-                            <td>{incident.affects_payroll ? "Sí" : "No"}</td>
-                            <td>{incident.description || "-"}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                    <table style={styles.miniTable}><thead><tr><th>Tipo</th><th>Inicio</th><th>Fin</th><th>Estado</th><th>Afecta nómina</th><th>Descripción</th></tr></thead><tbody>{selectedEmployeeIncidents.map((incident) => <tr key={incident.id}><td>{incident.incident_type || "-"}</td><td>{incident.start_date || "-"}</td><td>{incident.end_date || "-"}</td><td>{incident.status || "-"}</td><td>{incident.affects_payroll ? "Sí" : "No"}</td><td>{incident.description || "-"}</td></tr>)}</tbody></table>
                   )}
                 </div>
               )}
@@ -300,23 +240,21 @@ export default function EmployeesPage({
                 <div style={styles.recordPanelWide}>
                   <h3 style={styles.panelTitle}>Nóminas generadas</h3>
                   {!selectedEmployeePayrolls.length ? <p style={styles.empty}>No hay nóminas vinculadas.</p> : (
+                    <table style={styles.miniTable}><thead><tr><th>Periodo</th><th>Empresa</th><th>Bruto</th><th>Deducciones</th><th>Neto</th><th>IRPF</th><th>Estado</th></tr></thead><tbody>{selectedEmployeePayrolls.map((payroll) => <tr key={payroll.id}><td>{payroll.period_label || `${payroll.period_month}/${payroll.period_year}`}</td><td>{payroll.company_name || companyMap[payroll.company_id]?.name || "-"}</td><td>{payroll.gross_salary || "-"}</td><td>{payroll.total_deductions || "-"}</td><td>{payroll.net_salary || "-"}</td><td>{payroll.irpf_percentage ?? "-"}%</td><td>{payroll.status || "-"}</td></tr>)}</tbody></table>
+                  )}
+                </div>
+              )}
+
+              {recordTab === "documents" && (
+                <div style={styles.recordPanelWide}>
+                  <div style={styles.panelHeaderRow}>
+                    <h3 style={styles.panelTitle}>Documentos del expediente</h3>
+                    <button type="button" style={styles.reportButtonSecondary} onClick={() => { window.location.hash = "documents"; window.dispatchEvent(new Event("aulanomina-route-change")); }}>Abrir módulo documentos</button>
+                  </div>
+                  {!selectedEmployeeDocuments.length ? <p style={styles.empty}>No hay documentos vinculados a este trabajador.</p> : (
                     <table style={styles.miniTable}>
-                      <thead>
-                        <tr><th>Periodo</th><th>Empresa</th><th>Bruto</th><th>Deducciones</th><th>Neto</th><th>IRPF</th><th>Estado</th></tr>
-                      </thead>
-                      <tbody>
-                        {selectedEmployeePayrolls.map((payroll) => (
-                          <tr key={payroll.id}>
-                            <td>{payroll.period_label || `${payroll.period_month}/${payroll.period_year}`}</td>
-                            <td>{payroll.company_name || companyMap[payroll.company_id]?.name || "-"}</td>
-                            <td>{payroll.gross_salary || "-"}</td>
-                            <td>{payroll.total_deductions || "-"}</td>
-                            <td>{payroll.net_salary || "-"}</td>
-                            <td>{payroll.irpf_percentage ?? "-"}%</td>
-                            <td>{payroll.status || "-"}</td>
-                          </tr>
-                        ))}
-                      </tbody>
+                      <thead><tr><th>Tipo</th><th>Nombre</th><th>Estado</th><th>Fecha emisión</th><th>Fecha caducidad</th><th>Notas</th></tr></thead>
+                      <tbody>{selectedEmployeeDocuments.map((document) => <tr key={document.id}><td>{document.document_type || "-"}</td><td>{document.name || document.title || "-"}</td><td>{document.status || "-"}</td><td>{document.issue_date || document.created_at || "-"}</td><td>{document.expiration_date || "-"}</td><td>{document.notes || document.description || "-"}</td></tr>)}</tbody>
                     </table>
                   )}
                 </div>
@@ -324,27 +262,9 @@ export default function EmployeesPage({
 
               {recordTab === "summary" && (
                 <div style={styles.recordGrid}>
-                  <div style={styles.recordPanel}>
-                    <h3 style={styles.panelTitle}>Formación</h3>
-                    <div style={styles.detailGrid}>
-                      <DataBox label="Nivel" value={selectedRecordEmployee.education_level} />
-                      <DataBox label="Título" value={selectedRecordEmployee.academic_title} />
-                      <DataBox label="Fecha concesión" value={selectedRecordEmployee.academic_title_date} />
-                      <DataBox label="Idiomas" value={selectedRecordEmployee.languages} />
-                    </div>
-                  </div>
-                  <div style={styles.recordPanel}>
-                    <h3 style={styles.panelTitle}>Representante</h3>
-                    <div style={styles.detailGrid}>
-                      <DataBox label="En calidad de" value={selectedRecordEmployee.representative_role} />
-                      <DataBox label="NIF" value={selectedRecordEmployee.representative_nif} />
-                      <DataBox label="Nombre" value={selectedRecordEmployee.representative_full_name} wide />
-                    </div>
-                  </div>
-                  <div style={styles.recordPanelWide}>
-                    <h3 style={styles.panelTitle}>Observaciones</h3>
-                    <p style={styles.observations}>{selectedRecordEmployee.observations || "Sin observaciones registradas."}</p>
-                  </div>
+                  <div style={styles.recordPanel}><h3 style={styles.panelTitle}>Formación</h3><div style={styles.detailGrid}><DataBox label="Nivel" value={selectedRecordEmployee.education_level} /><DataBox label="Título" value={selectedRecordEmployee.academic_title} /><DataBox label="Fecha concesión" value={selectedRecordEmployee.academic_title_date} /><DataBox label="Idiomas" value={selectedRecordEmployee.languages} /></div></div>
+                  <div style={styles.recordPanel}><h3 style={styles.panelTitle}>Representante</h3><div style={styles.detailGrid}><DataBox label="En calidad de" value={selectedRecordEmployee.representative_role} /><DataBox label="NIF" value={selectedRecordEmployee.representative_nif} /><DataBox label="Nombre" value={selectedRecordEmployee.representative_full_name} wide /></div></div>
+                  <div style={styles.recordPanelWide}><h3 style={styles.panelTitle}>Observaciones</h3><p style={styles.observations}>{selectedRecordEmployee.observations || "Sin observaciones registradas."}</p></div>
                 </div>
               )}
             </div>
@@ -387,6 +307,7 @@ const styles = {
   recordGrid: { display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "14px" },
   recordPanel: { border: "1px solid #e5e7eb", borderRadius: "12px", padding: "16px", backgroundColor: "#ffffff" },
   recordPanelWide: { gridColumn: "1 / -1", border: "1px solid #e5e7eb", borderRadius: "12px", padding: "16px", backgroundColor: "#ffffff" },
+  panelHeaderRow: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px", marginBottom: "12px", flexWrap: "wrap" },
   panelTitle: { margin: "0 0 12px", fontSize: "15px", fontWeight: 900, color: "#111827" },
   detailGrid: { display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "10px" },
   detailGridFour: { display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: "10px" },
