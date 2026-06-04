@@ -16,6 +16,33 @@ PAYROLL_CONTRIBUTION_COLUMNS = {
     "daily_professional_base": "NUMERIC(10, 2) DEFAULT 0 NOT NULL",
 }
 
+EMPLOYEE_SPLIT_25_COLUMNS = {
+    "document_type": "VARCHAR DEFAULT 'DNI' NOT NULL",
+    "nie_prefix": "VARCHAR",
+    "document_number": "VARCHAR",
+    "document_letter": "VARCHAR",
+    "second_last_name": "VARCHAR",
+    "sex": "VARCHAR",
+    "nationality": "VARCHAR",
+    "birth_place": "VARCHAR",
+    "domicile": "VARCHAR",
+    "landline_phone": "VARCHAR",
+    "mobile_phone": "VARCHAR",
+    "fax": "VARCHAR",
+    "website": "VARCHAR",
+    "education_level": "VARCHAR",
+    "academic_title": "VARCHAR",
+    "academic_title_date": "DATE",
+    "main_profession": "VARCHAR",
+    "other_courses": "TEXT",
+    "accreditations": "TEXT",
+    "languages": "TEXT",
+    "representative_role": "VARCHAR",
+    "representative_nif": "VARCHAR",
+    "representative_full_name": "VARCHAR",
+    "observations": "TEXT",
+}
+
 CONTRACT_LABOR_COLUMNS = {
     "contract_code_description": "VARCHAR",
     "contract_family": "VARCHAR",
@@ -101,6 +128,24 @@ BASE_COLUMNS_REQUIRED_FOR_DAILY_BASE_BACKFILL = {
 }
 
 
+def add_missing_employee_split_25_columns() -> None:
+    inspector = inspect(engine)
+    table_names = inspector.get_table_names()
+
+    if "employees" not in table_names:
+        return
+
+    existing_columns = {column["name"] for column in inspector.get_columns("employees")}
+
+    with engine.begin() as connection:
+        for column_name, column_definition in EMPLOYEE_SPLIT_25_COLUMNS.items():
+            if column_name not in existing_columns:
+                connection.execute(text("ALTER TABLE employees ADD COLUMN " + column_name + " " + column_definition))
+
+        if "document_type" in {column["name"] for column in inspect(connection).get_columns("employees")}:
+            connection.execute(text("UPDATE employees SET document_type = COALESCE(document_type, 'DNI')"))
+
+
 def add_missing_company_center_split_24_columns() -> None:
     inspector = inspect(engine)
     table_names = inspector.get_table_names()
@@ -169,8 +214,9 @@ def add_missing_contract_labor_columns() -> None:
 
 
 def add_missing_payroll_contribution_columns() -> None:
-    """Add Split 18 payroll contribution and earning-line columns."""
+    """Add Split 18 payroll contribution columns and later MVP bridge columns."""
 
+    add_missing_employee_split_25_columns()
     add_missing_company_center_split_24_columns()
     add_missing_contract_labor_columns()
 
