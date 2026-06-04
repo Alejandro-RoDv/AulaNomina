@@ -17,12 +17,43 @@ def get_employee_by_dni(db: Session, dni: str):
     return db.query(Employee).filter(Employee.dni == dni).first()
 
 
+def get_employees_by_dni(db: Session, dni: str):
+    return db.query(Employee).filter(Employee.dni == dni).order_by(Employee.id.desc()).all()
+
+
 def get_employee_by_email(db: Session, email: str):
     return db.query(Employee).filter(Employee.email == email).first()
 
 
 def get_employee_by_naf(db: Session, naf: str):
     return db.query(Employee).filter(Employee.naf == naf).first()
+
+
+def get_employee_identity_conflict(db: Session, employee: EmployeeCreate, exclude_employee_id: int | None = None):
+    query = db.query(Employee)
+
+    if exclude_employee_id is not None:
+        query = query.filter(Employee.id != exclude_employee_id)
+
+    if employee.company_id is not None:
+        query = query.filter(Employee.company_id == employee.company_id)
+
+    identity_filters = []
+    if employee.dni:
+        identity_filters.append(Employee.dni == employee.dni)
+    if employee.naf:
+        identity_filters.append(Employee.naf == employee.naf)
+    if employee.email:
+        identity_filters.append(Employee.email == employee.email)
+
+    if not identity_filters:
+        return None
+
+    combined_filter = identity_filters[0]
+    for identity_filter in identity_filters[1:]:
+        combined_filter = combined_filter | identity_filter
+
+    return query.filter(combined_filter).first()
 
 
 def parse_employee_code(value: str | None):
