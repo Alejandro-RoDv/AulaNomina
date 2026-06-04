@@ -13,15 +13,8 @@ function normalizeText(value) {
     .trim();
 }
 
-function TabButton({ active, children, onClick }) {
-  return (
-    <button type="button" onClick={onClick} style={active ? styles.tabButtonActive : styles.tabButton}>
-      {children}
-    </button>
-  );
-}
-
 export default function EmployeesPage({
+  mode = "new",
   loading,
   employees,
   companies,
@@ -39,7 +32,6 @@ export default function EmployeesPage({
   employeeSuccess,
   employeeSubmitting,
 }) {
-  const [activeSection, setActiveSection] = useState("new");
   const [recordEmployeeId, setRecordEmployeeId] = useState("");
   const [filters, setFilters] = useState({ id: "", name: "", dni: "", companyId: "", centerId: "", status: "" });
 
@@ -48,7 +40,7 @@ export default function EmployeesPage({
 
   const handleFilterChange = (event) => {
     const { name, value } = event.target;
-    setFilters((prev) => ({ ...prev, [name]: name === "companyId" ? value : value, ...(name === "companyId" ? { centerId: "" } : {}) }));
+    setFilters((prev) => ({ ...prev, [name]: value, ...(name === "companyId" ? { centerId: "" } : {}) }));
   };
 
   const clearFilters = () => setFilters({ id: "", name: "", dni: "", companyId: "", centerId: "", status: "" });
@@ -83,31 +75,13 @@ export default function EmployeesPage({
   }, [employees, contracts, filters]);
 
   const selectedRecordEmployee = employees.find((employee) => String(employee.id) === String(recordEmployeeId));
-  const selectedEmployeeContracts = selectedRecordEmployee
-    ? contracts.filter((contract) => Number(contract.employee_id) === Number(selectedRecordEmployee.id))
-    : [];
-  const selectedEmployeeIncidents = selectedRecordEmployee
-    ? incidents.filter((incident) => Number(incident.employee_id) === Number(selectedRecordEmployee.id))
-    : [];
-  const selectedEmployeePayrolls = selectedRecordEmployee
-    ? payrolls.filter((payroll) => Number(payroll.employee_id) === Number(selectedRecordEmployee.id))
-    : [];
+  const selectedEmployeeContracts = selectedRecordEmployee ? contracts.filter((contract) => Number(contract.employee_id) === Number(selectedRecordEmployee.id)) : [];
+  const selectedEmployeeIncidents = selectedRecordEmployee ? incidents.filter((incident) => Number(incident.employee_id) === Number(selectedRecordEmployee.id)) : [];
+  const selectedEmployeePayrolls = selectedRecordEmployee ? payrolls.filter((payroll) => Number(payroll.employee_id) === Number(selectedRecordEmployee.id)) : [];
 
-  return (
-    <div style={styles.wrapper}>
-      <div style={styles.tabs}>
-        <TabButton active={activeSection === "new"} onClick={() => setActiveSection("new")}>Nuevo trabajador</TabButton>
-        <TabButton active={activeSection === "list"} onClick={() => setActiveSection("list")}>Listado trabajadores</TabButton>
-        <TabButton active={activeSection === "record"} onClick={() => setActiveSection("record")}>Expediente</TabButton>
-      </div>
-
-      {activeSection === "new" && (
-        <PageCard title="Nuevo trabajador" subtitle="Alta de datos personales, contacto, formación, representante y observaciones. El alta laboral se gestiona desde Contratación.">
-          <EmployeeForm form={employeeForm} companies={companies} workCenters={workCenters} employees={employees} contracts={contracts} onChange={onEmployeeChange} onSubmit={onEmployeeSubmit} error={employeeError} success={employeeSuccess} submitting={employeeSubmitting} />
-        </PageCard>
-      )}
-
-      {activeSection === "list" && (
+  if (mode === "list") {
+    return (
+      <div style={styles.wrapper}>
         <PageCard title="Listado de trabajadores" subtitle="Consulta operativa con filtros por código, documento, empresa, centro y estado.">
           <div style={styles.reportActions}>
             <button type="button" style={styles.reportButton} onClick={() => openReportPreset({ category: "employee", reportId: "employees-active" })}>Informe trabajadores en alta</button>
@@ -154,9 +128,13 @@ export default function EmployeesPage({
 
           <EmployeeTable loading={loading} employees={filteredEmployees} companies={companies} workCenters={workCenters} contracts={contracts} incidents={incidents} payrolls={payrolls} onUpdateEmployee={onUpdateEmployee} onDeleteEmployee={onDeleteEmployee} onOpenRecord={onOpenRecord} submitting={employeeSubmitting} />
         </PageCard>
-      )}
+      </div>
+    );
+  }
 
-      {activeSection === "record" && (
+  if (mode === "record") {
+    return (
+      <div style={styles.wrapper}>
         <PageCard title="Expediente del trabajador" subtitle="Vista resumen del expediente personal, contratos, incidencias y nóminas asociadas.">
           <div style={styles.recordSelector}>
             <label>Trabajador</label>
@@ -223,16 +201,21 @@ export default function EmployeesPage({
             </div>
           )}
         </PageCard>
-      )}
+      </div>
+    );
+  }
+
+  return (
+    <div style={styles.wrapper}>
+      <PageCard title="Nuevo trabajador" subtitle="Alta de datos personales, contacto, formación, representante y observaciones. El alta laboral se gestiona desde Contratación.">
+        <EmployeeForm form={employeeForm} companies={companies} workCenters={workCenters} employees={employees} contracts={contracts} onChange={onEmployeeChange} onSubmit={onEmployeeSubmit} error={employeeError} success={employeeSuccess} submitting={employeeSubmitting} />
+      </PageCard>
     </div>
   );
 }
 
 const styles = {
   wrapper: { display: "flex", flexDirection: "column", gap: "20px" },
-  tabs: { display: "flex", gap: "8px", flexWrap: "wrap", borderBottom: "1px solid #e5e7eb", paddingBottom: "10px" },
-  tabButton: { backgroundColor: "#ffffff", color: "#374151", border: "1px solid #d1d5db", borderRadius: "8px", padding: "10px 14px", cursor: "pointer", fontWeight: 800 },
-  tabButtonActive: { backgroundColor: "#111827", color: "#ffffff", border: "1px solid #111827", borderRadius: "8px", padding: "10px 14px", cursor: "pointer", fontWeight: 900 },
   reportActions: { display: "flex", gap: "10px", justifyContent: "flex-end", marginBottom: "14px", flexWrap: "wrap" },
   reportButton: { backgroundColor: "#111827", color: "#fff", border: "1px solid #111827", borderRadius: "7px", padding: "9px 12px", cursor: "pointer", fontWeight: 900 },
   reportButtonSecondary: { backgroundColor: "#fff", color: "#111827", border: "1px solid #d1d5db", borderRadius: "7px", padding: "9px 12px", cursor: "pointer", fontWeight: 900 },
