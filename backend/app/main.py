@@ -92,6 +92,7 @@ from app.schemas.document import DocumentCreate, DocumentUpdate, DocumentRespons
 from app.crud.document import (
     create_document,
     get_documents,
+    get_documents_by_employee,
     update_document,
     delete_document,
 )
@@ -146,6 +147,11 @@ def seed_demo(db: Session = Depends(get_db)):
     seed_demo_students(db)
     seed_demo_student_groups(db)
     return {"ok": True, "message": "Datos demo recargados correctamente"}
+
+
+@app.post("/demo/reset")
+def reset_demo(db: Session = Depends(get_db)):
+    return seed_demo(db)
 
 
 @app.get("/employees/next-code")
@@ -278,3 +284,146 @@ def create_contract_endpoint(contract: ContractCreate, db: Session = Depends(get
 @app.get("/contracts", response_model=list[ContractResponse])
 def list_contracts(db: Session = Depends(get_db)):
     return get_contracts(db)
+
+
+@app.put("/contracts/{contract_id}", response_model=ContractResponse)
+def update_contract_endpoint(contract_id: int, contract: ContractUpdate, db: Session = Depends(get_db)):
+    updated_contract = update_contract(db, contract_id, contract)
+    if not updated_contract:
+        raise HTTPException(status_code=404, detail="Contrato no encontrado")
+    return updated_contract
+
+
+@app.delete("/contracts/{contract_id}")
+def delete_contract(contract_id: int, db: Session = Depends(get_db)):
+    deleted_contract = soft_delete_contract(db, contract_id)
+    if not deleted_contract:
+        raise HTTPException(status_code=404, detail="Contrato no encontrado")
+    return {"ok": True, "deleted_id": contract_id}
+
+
+@app.post("/incidents", response_model=IncidentResponse)
+def create_incident_endpoint(incident: IncidentCreate, db: Session = Depends(get_db)):
+    return create_incident(db, incident)
+
+
+@app.get("/incidents", response_model=list[IncidentResponse])
+def list_incidents(db: Session = Depends(get_db)):
+    return get_incidents(db)
+
+
+@app.put("/incidents/{incident_id}", response_model=IncidentResponse)
+def update_incident_endpoint(incident_id: int, incident: IncidentUpdate, db: Session = Depends(get_db)):
+    updated_incident = update_incident(db, incident_id, incident)
+    if not updated_incident:
+        raise HTTPException(status_code=404, detail="Incidencia no encontrada")
+    return updated_incident
+
+
+@app.delete("/incidents/{incident_id}")
+def delete_incident(incident_id: int, db: Session = Depends(get_db)):
+    deleted_incident = delete_incident_crud(db, incident_id)
+    if not deleted_incident:
+        raise HTTPException(status_code=404, detail="Incidencia no encontrada")
+    return {"ok": True, "deleted_id": incident_id}
+
+
+@app.post("/payrolls", response_model=PayrollResponse)
+def create_payroll_endpoint(payroll: PayrollCreate, db: Session = Depends(get_db)):
+    return create_payroll(db, payroll)
+
+
+@app.get("/payrolls", response_model=list[PayrollResponse])
+def list_payrolls(db: Session = Depends(get_db)):
+    return get_payrolls(db)
+
+
+@app.post("/payrolls/prepare-monthly", response_model=PayrollPrepareResponse)
+def prepare_monthly_payrolls_endpoint(request: PayrollPrepareRequest, db: Session = Depends(get_db)):
+    return prepare_monthly_payrolls(db, request)
+
+
+@app.post("/payrolls/simulate-future", response_model=PayrollFutureSimulationResponse)
+def simulate_future_payrolls_endpoint(request: PayrollFutureSimulationRequest, db: Session = Depends(get_db)):
+    return simulate_future_payrolls(db, request)
+
+
+@app.put("/payrolls/{payroll_id}", response_model=PayrollResponse)
+def update_payroll_endpoint(payroll_id: int, payroll: PayrollUpdate, db: Session = Depends(get_db)):
+    updated_payroll = update_payroll(db, payroll_id, payroll)
+    if not updated_payroll:
+        raise HTTPException(status_code=404, detail="Nómina no encontrada")
+    return updated_payroll
+
+
+@app.delete("/payrolls/{payroll_id}")
+def delete_payroll_endpoint(payroll_id: int, db: Session = Depends(get_db)):
+    deleted_payroll = delete_payroll(db, payroll_id)
+    if not deleted_payroll:
+        raise HTTPException(status_code=404, detail="Nómina no encontrada")
+    return deleted_payroll
+
+
+@app.get("/tax-profiles", response_model=list[TaxProfileResponse])
+def list_tax_profiles(db: Session = Depends(get_db)):
+    return get_tax_profiles(db)
+
+
+@app.get("/tax-profiles/employee/{employee_id}", response_model=TaxProfileResponse)
+def get_employee_tax_profile(employee_id: int, db: Session = Depends(get_db)):
+    employee = get_employee(db, employee_id)
+    if not employee:
+        raise HTTPException(status_code=404, detail="Trabajador no encontrado")
+
+    tax_profile = get_tax_profile_by_employee(db, employee_id)
+    if tax_profile:
+        return tax_profile
+
+    return upsert_tax_profile(db, employee_id, TaxProfileUpdate())
+
+
+@app.put("/tax-profiles/employee/{employee_id}", response_model=TaxProfileResponse)
+def update_employee_tax_profile(employee_id: int, tax_profile: TaxProfileUpdate, db: Session = Depends(get_db)):
+    employee = get_employee(db, employee_id)
+    if not employee:
+        raise HTTPException(status_code=404, detail="Trabajador no encontrado")
+    return upsert_tax_profile(db, employee_id, tax_profile)
+
+
+@app.post("/irpf/calculate", response_model=IrpfCalculationResponse)
+def calculate_irpf_endpoint(payload: IrpfCalculationInput):
+    return calculate_irpf_2026(payload.model_dump())
+
+
+@app.post("/documents", response_model=DocumentResponse)
+def create_document_endpoint(document: DocumentCreate, db: Session = Depends(get_db)):
+    return create_document(db, document)
+
+
+@app.get("/documents", response_model=list[DocumentResponse])
+def list_documents(db: Session = Depends(get_db)):
+    return get_documents(db)
+
+
+@app.get("/documents/employee/{employee_id}", response_model=list[DocumentResponse])
+def list_documents_by_employee(employee_id: int, db: Session = Depends(get_db)):
+    employee = get_employee(db, employee_id)
+    if not employee:
+        raise HTTPException(status_code=404, detail="Trabajador no encontrado")
+    return get_documents_by_employee(db, employee_id)
+
+
+@app.put("/documents/{document_id}", response_model=DocumentResponse)
+def update_document_endpoint(document_id: int, document: DocumentUpdate, db: Session = Depends(get_db)):
+    updated_document = update_document(db, document_id, document)
+    if not updated_document:
+        raise HTTPException(status_code=404, detail="Documento no encontrado")
+    return updated_document
+
+
+@app.delete("/documents/{document_id}")
+def delete_document_endpoint(document_id: int, db: Session = Depends(get_db)):
+    deleted_document = delete_document(db, document_id)
+    if not deleted_document:
+        raise HTTPException(status_code=404, detail="Documento no encontrado")
+    return {"ok": True, "deleted_id": document_id}
