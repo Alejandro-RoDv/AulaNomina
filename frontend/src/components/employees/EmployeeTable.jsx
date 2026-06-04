@@ -101,6 +101,7 @@ export default function EmployeeTable({
   onUpdateEmployee,
   onDeleteEmployee,
   onOpenRecord,
+  onDuplicateEmployee,
   submitting,
 }) {
   const [selectedEmployee, setSelectedEmployee] = useState(null);
@@ -175,7 +176,6 @@ export default function EmployeeTable({
 
   const handleEditChange = (event) => {
     const { name, value, type, checked } = event.target;
-
     setEditForm((prev) => {
       if (name === "company_id") return { ...prev, company_id: value, center_id: "" };
       return { ...prev, [name]: type === "checkbox" ? checked : value };
@@ -223,10 +223,14 @@ export default function EmployeeTable({
       onOpenRecord(employee);
       return;
     }
-
     window.sessionStorage.setItem("aulanomina:selectedEmployeeId", String(employee.id));
     window.history.replaceState(null, "", window.location.pathname + window.location.search);
     window.dispatchEvent(new CustomEvent("aulanomina-open-page", { detail: { page: "employee-record" } }));
+  };
+
+  const handleDuplicate = (employee) => {
+    onDuplicateEmployee?.(employee);
+    closeDetailsModal();
   };
 
   return (
@@ -258,13 +262,12 @@ export default function EmployeeTable({
                   <td style={styles.td}>{getCompanyName(employee)}</td>
                   <td style={styles.td}>{getCenterName(employee)}</td>
                   <td style={styles.td}>
-                    <span style={employee.is_active ? styles.activeBadge : styles.inactiveBadge}>
-                      {employee.is_active ? "Activo" : "Inactivo"}
-                    </span>
+                    <span style={employee.is_active ? styles.activeBadge : styles.inactiveBadge}>{employee.is_active ? "Activo" : "Inactivo"}</span>
                   </td>
                   <td style={styles.td}>
                     <div style={styles.actionGroup}>
                       <button type="button" style={styles.recordButton} onClick={() => handleOpenRecord(employee)}>Expediente</button>
+                      <button type="button" style={styles.duplicateButton} onClick={() => handleDuplicate(employee)}>Duplicar</button>
                       <button type="button" style={styles.detailsButton} onClick={() => openDetailsModal(employee)}>Detalles</button>
                     </div>
                   </td>
@@ -316,6 +319,7 @@ export default function EmployeeTable({
                 <div style={styles.modalActionsSplit}>
                   <button type="button" onClick={() => setEmployeeToDelete(selectedEmployee)} style={styles.deleteButton}>Eliminar trabajador</button>
                   <div style={styles.modalActionsRight}>
+                    <button type="button" onClick={() => handleDuplicate(selectedEmployee)} style={styles.duplicateButton}>Duplicar en otra empresa</button>
                     <button type="button" onClick={() => handleOpenRecord(selectedEmployee)} style={styles.recordButton}>Abrir expediente</button>
                     <button type="button" onClick={() => setEditMode(true)} style={styles.saveButton}>Editar datos</button>
                   </div>
@@ -325,210 +329,53 @@ export default function EmployeeTable({
               <form onSubmit={handleEditSubmit} style={styles.form}>
                 <SectionTitle>Asignación inicial</SectionTitle>
                 <div style={styles.formRow}>
-                  <div style={styles.formGroupCode}>
-                    <label>Código trabajador</label>
-                    <input name="employee_code" value={editForm.employee_code} readOnly disabled style={{ ...styles.input, ...styles.readOnlyInput }} />
-                  </div>
-                  <div style={styles.formGroup}>
-                    <label>Empresa</label>
-                    <select name="company_id" value={editForm.company_id} onChange={handleEditChange} style={styles.input}>
-                      <option value="">Sin empresa</option>
-                      {companies.map((company) => <option key={company.id} value={company.id}>{company.name}</option>)}
-                    </select>
-                  </div>
-                  <div style={styles.formGroup}>
-                    <label>Centro</label>
-                    <select name="center_id" value={editForm.center_id} onChange={handleEditChange} style={styles.input} disabled={!editForm.company_id}>
-                      <option value="">Sin centro</option>
-                      {availableCenters.map((center) => <option key={center.id} value={center.id}>{center.name}</option>)}
-                    </select>
-                  </div>
+                  <div style={styles.formGroupCode}><label>Código trabajador</label><input name="employee_code" value={editForm.employee_code} readOnly disabled style={{ ...styles.input, ...styles.readOnlyInput }} /></div>
+                  <div style={styles.formGroup}><label>Empresa</label><select name="company_id" value={editForm.company_id} onChange={handleEditChange} style={styles.input}><option value="">Sin empresa</option>{companies.map((company) => <option key={company.id} value={company.id}>{company.name}</option>)}</select></div>
+                  <div style={styles.formGroup}><label>Centro</label><select name="center_id" value={editForm.center_id} onChange={handleEditChange} style={styles.input} disabled={!editForm.company_id}><option value="">Sin centro</option>{availableCenters.map((center) => <option key={center.id} value={center.id}>{center.name}</option>)}</select></div>
                 </div>
 
                 <SectionTitle>Identificación personal</SectionTitle>
                 <div style={styles.formRow}>
-                  <div style={styles.formGroupSmall}>
-                    <label>Tipo documento</label>
-                    <select name="document_type" value={editForm.document_type} onChange={handleEditChange} required style={styles.input}>
-                      <option value="DNI">DNI</option>
-                      <option value="NIE">NIE</option>
-                      <option value="PASAPORTE">Pasaporte</option>
-                    </select>
-                  </div>
-                  <div style={styles.formGroupDniWide}>
-                    <label>Documento</label>
-                    <input name="dni" value={editForm.dni} onChange={handleEditChange} required style={styles.input} />
-                  </div>
-                  <div style={styles.formGroupNaf}>
-                    <label>NAF</label>
-                    <input name="naf" value={editForm.naf} onChange={handleEditChange} style={styles.input} />
-                  </div>
+                  <div style={styles.formGroupSmall}><label>Tipo documento</label><select name="document_type" value={editForm.document_type} onChange={handleEditChange} required style={styles.input}><option value="DNI">DNI</option><option value="NIE">NIE</option><option value="PASAPORTE">Pasaporte</option></select></div>
+                  <div style={styles.formGroupDniWide}><label>Documento</label><input name="dni" value={editForm.dni} onChange={handleEditChange} required style={styles.input} /></div>
+                  <div style={styles.formGroupNaf}><label>NAF</label><input name="naf" value={editForm.naf} onChange={handleEditChange} style={styles.input} /></div>
                 </div>
 
                 <div style={styles.formRow}>
-                  <div style={styles.formGroup}>
-                    <label>Nombre</label>
-                    <input name="first_name" value={editForm.first_name} onChange={handleEditChange} required style={styles.input} />
-                  </div>
-                  <div style={styles.formGroup}>
-                    <label>Primer apellido</label>
-                    <input name="last_name" value={editForm.last_name} onChange={handleEditChange} required style={styles.input} />
-                  </div>
-                  <div style={styles.formGroup}>
-                    <label>Segundo apellido</label>
-                    <input name="second_last_name" value={editForm.second_last_name} onChange={handleEditChange} style={styles.input} />
-                  </div>
+                  <div style={styles.formGroup}><label>Nombre</label><input name="first_name" value={editForm.first_name} onChange={handleEditChange} required style={styles.input} /></div>
+                  <div style={styles.formGroup}><label>Primer apellido</label><input name="last_name" value={editForm.last_name} onChange={handleEditChange} required style={styles.input} /></div>
+                  <div style={styles.formGroup}><label>Segundo apellido</label><input name="second_last_name" value={editForm.second_last_name} onChange={handleEditChange} style={styles.input} /></div>
                 </div>
 
                 <div style={styles.formRow}>
-                  <div style={styles.formGroupSmall}>
-                    <label>Sexo</label>
-                    <select name="sex" value={editForm.sex} onChange={handleEditChange} style={styles.input}>
-                      <option value="">No indicado</option>
-                      <option value="Hombre">Hombre</option>
-                      <option value="Mujer">Mujer</option>
-                      <option value="Otro">Otro / no especificado</option>
-                    </select>
-                  </div>
-                  <div style={styles.formGroupSmall}>
-                    <label>Fecha nacimiento</label>
-                    <input name="birth_date" type="date" value={editForm.birth_date} onChange={handleEditChange} style={styles.input} />
-                  </div>
-                  <div style={styles.formGroup}>
-                    <label>Nacionalidad</label>
-                    <input name="nationality" value={editForm.nationality} onChange={handleEditChange} style={styles.input} />
-                  </div>
-                  <div style={styles.formGroup}>
-                    <label>Lugar de nacimiento</label>
-                    <input name="birth_place" value={editForm.birth_place} onChange={handleEditChange} style={styles.input} />
-                  </div>
+                  <div style={styles.formGroupSmall}><label>Sexo</label><select name="sex" value={editForm.sex} onChange={handleEditChange} style={styles.input}><option value="">No indicado</option><option value="Hombre">Hombre</option><option value="Mujer">Mujer</option><option value="Otro">Otro / no especificado</option></select></div>
+                  <div style={styles.formGroupSmall}><label>Fecha nacimiento</label><input name="birth_date" type="date" value={editForm.birth_date} onChange={handleEditChange} style={styles.input} /></div>
+                  <div style={styles.formGroup}><label>Nacionalidad</label><input name="nationality" value={editForm.nationality} onChange={handleEditChange} style={styles.input} /></div>
+                  <div style={styles.formGroup}><label>Lugar de nacimiento</label><input name="birth_place" value={editForm.birth_place} onChange={handleEditChange} style={styles.input} /></div>
                 </div>
 
                 <SectionTitle>Contacto y domicilio</SectionTitle>
-                <div style={styles.formRow}>
-                  <div style={styles.formGroupWide}>
-                    <label>Domicilio</label>
-                    <input name="domicile" value={editForm.domicile} onChange={handleEditChange} style={styles.input} />
-                  </div>
-                  <div style={styles.formGroupWide}>
-                    <label>Dirección</label>
-                    <input name="address" value={editForm.address} onChange={handleEditChange} style={styles.input} />
-                  </div>
-                </div>
-                <div style={styles.formRow}>
-                  <div style={styles.formGroup}>
-                    <label>Ciudad</label>
-                    <input name="city" value={editForm.city} onChange={handleEditChange} style={styles.input} />
-                  </div>
-                  <div style={styles.formGroup}>
-                    <label>Provincia</label>
-                    <input name="province" value={editForm.province} onChange={handleEditChange} style={styles.input} />
-                  </div>
-                  <div style={styles.formGroupSmall}>
-                    <label>Código postal</label>
-                    <input name="postal_code" value={editForm.postal_code} onChange={handleEditChange} style={styles.input} />
-                  </div>
-                </div>
-                <div style={styles.formRow}>
-                  <div style={styles.formGroupSmall}>
-                    <label>Teléfono fijo</label>
-                    <input name="landline_phone" value={editForm.landline_phone} onChange={handleEditChange} style={styles.input} />
-                  </div>
-                  <div style={styles.formGroupSmall}>
-                    <label>Móvil</label>
-                    <input name="mobile_phone" value={editForm.mobile_phone} onChange={handleEditChange} style={styles.input} />
-                  </div>
-                  <div style={styles.formGroupSmall}>
-                    <label>Teléfono general</label>
-                    <input name="phone" value={editForm.phone} onChange={handleEditChange} style={styles.input} />
-                  </div>
-                  <div style={styles.formGroupSmall}>
-                    <label>Fax</label>
-                    <input name="fax" value={editForm.fax} onChange={handleEditChange} style={styles.input} />
-                  </div>
-                </div>
-                <div style={styles.formRow}>
-                  <div style={styles.formGroup}>
-                    <label>Correo electrónico</label>
-                    <input name="email" type="email" value={editForm.email} onChange={handleEditChange} style={styles.input} />
-                  </div>
-                  <div style={styles.formGroup}>
-                    <label>Web</label>
-                    <input name="website" value={editForm.website} onChange={handleEditChange} style={styles.input} />
-                  </div>
-                </div>
+                <div style={styles.formRow}><div style={styles.formGroupWide}><label>Domicilio</label><input name="domicile" value={editForm.domicile} onChange={handleEditChange} style={styles.input} /></div><div style={styles.formGroupWide}><label>Dirección</label><input name="address" value={editForm.address} onChange={handleEditChange} style={styles.input} /></div></div>
+                <div style={styles.formRow}><div style={styles.formGroup}><label>Ciudad</label><input name="city" value={editForm.city} onChange={handleEditChange} style={styles.input} /></div><div style={styles.formGroup}><label>Provincia</label><input name="province" value={editForm.province} onChange={handleEditChange} style={styles.input} /></div><div style={styles.formGroupSmall}><label>Código postal</label><input name="postal_code" value={editForm.postal_code} onChange={handleEditChange} style={styles.input} /></div></div>
+                <div style={styles.formRow}><div style={styles.formGroupSmall}><label>Teléfono fijo</label><input name="landline_phone" value={editForm.landline_phone} onChange={handleEditChange} style={styles.input} /></div><div style={styles.formGroupSmall}><label>Móvil</label><input name="mobile_phone" value={editForm.mobile_phone} onChange={handleEditChange} style={styles.input} /></div><div style={styles.formGroupSmall}><label>Teléfono general</label><input name="phone" value={editForm.phone} onChange={handleEditChange} style={styles.input} /></div><div style={styles.formGroupSmall}><label>Fax</label><input name="fax" value={editForm.fax} onChange={handleEditChange} style={styles.input} /></div></div>
+                <div style={styles.formRow}><div style={styles.formGroup}><label>Correo electrónico</label><input name="email" type="email" value={editForm.email} onChange={handleEditChange} style={styles.input} /></div><div style={styles.formGroup}><label>Web</label><input name="website" value={editForm.website} onChange={handleEditChange} style={styles.input} /></div></div>
 
                 <SectionTitle>Formación y perfil profesional</SectionTitle>
                 <div style={styles.formRow}>
-                  <div style={styles.formGroup}>
-                    <label>Nivel formativo</label>
-                    <select name="education_level" value={editForm.education_level} onChange={handleEditChange} style={styles.input}>
-                      <option value="">Seleccionar nivel</option>
-                      {EDUCATION_LEVEL_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
-                    </select>
-                  </div>
-                  <div style={styles.formGroup}>
-                    <label>Título académico</label>
-                    <input name="academic_title" value={editForm.academic_title} onChange={handleEditChange} style={styles.input} />
-                  </div>
-                  <div style={styles.formGroupSmall}>
-                    <label>Fecha concesión</label>
-                    <input name="academic_title_date" type="date" value={editForm.academic_title_date} onChange={handleEditChange} style={styles.input} />
-                  </div>
+                  <div style={styles.formGroup}><label>Nivel formativo</label><select name="education_level" value={editForm.education_level} onChange={handleEditChange} style={styles.input}><option value="">Seleccionar nivel</option>{EDUCATION_LEVEL_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}</select></div>
+                  <div style={styles.formGroup}><label>Título académico</label><input name="academic_title" value={editForm.academic_title} onChange={handleEditChange} style={styles.input} /></div>
+                  <div style={styles.formGroupSmall}><label>Fecha concesión</label><input name="academic_title_date" type="date" value={editForm.academic_title_date} onChange={handleEditChange} style={styles.input} /></div>
                 </div>
-                <div style={styles.formRow}>
-                  <div style={styles.formGroup}>
-                    <label>Profesión principal</label>
-                    <input name="main_profession" value={editForm.main_profession} onChange={handleEditChange} style={styles.input} />
-                  </div>
-                </div>
-                <div style={styles.formRow}>
-                  <div style={styles.formGroupTextarea}>
-                    <label>Otros cursos</label>
-                    <textarea name="other_courses" value={editForm.other_courses} onChange={handleEditChange} style={styles.textarea} />
-                  </div>
-                  <div style={styles.formGroupTextarea}>
-                    <label>Acreditaciones</label>
-                    <textarea name="accreditations" value={editForm.accreditations} onChange={handleEditChange} style={styles.textarea} />
-                  </div>
-                  <div style={styles.formGroupTextarea}>
-                    <label>Idiomas</label>
-                    <textarea name="languages" value={editForm.languages} onChange={handleEditChange} style={styles.textarea} />
-                  </div>
-                </div>
+                <div style={styles.formRow}><div style={styles.formGroup}><label>Profesión principal</label><input name="main_profession" value={editForm.main_profession} onChange={handleEditChange} style={styles.input} /></div></div>
+                <div style={styles.formRow}><div style={styles.formGroupTextarea}><label>Otros cursos</label><textarea name="other_courses" value={editForm.other_courses} onChange={handleEditChange} style={styles.textarea} /></div><div style={styles.formGroupTextarea}><label>Acreditaciones</label><textarea name="accreditations" value={editForm.accreditations} onChange={handleEditChange} style={styles.textarea} /></div><div style={styles.formGroupTextarea}><label>Idiomas</label><textarea name="languages" value={editForm.languages} onChange={handleEditChange} style={styles.textarea} /></div></div>
 
                 <SectionTitle>Representante y observaciones</SectionTitle>
-                <div style={styles.formRow}>
-                  <div style={styles.formGroup}>
-                    <label>Representante en calidad de</label>
-                    <input name="representative_role" value={editForm.representative_role} onChange={handleEditChange} style={styles.input} />
-                  </div>
-                  <div style={styles.formGroupSmall}>
-                    <label>NIF representante</label>
-                    <input name="representative_nif" value={editForm.representative_nif} onChange={handleEditChange} style={styles.input} />
-                  </div>
-                  <div style={styles.formGroup}>
-                    <label>Nombre y apellidos representante</label>
-                    <input name="representative_full_name" value={editForm.representative_full_name} onChange={handleEditChange} style={styles.input} />
-                  </div>
-                </div>
-                <div style={styles.formRow}>
-                  <div style={styles.formGroupWide}>
-                    <label>Observaciones</label>
-                    <textarea name="observations" value={editForm.observations} onChange={handleEditChange} style={styles.textareaLarge} />
-                  </div>
-                </div>
+                <div style={styles.formRow}><div style={styles.formGroup}><label>Representante en calidad de</label><input name="representative_role" value={editForm.representative_role} onChange={handleEditChange} style={styles.input} /></div><div style={styles.formGroupSmall}><label>NIF representante</label><input name="representative_nif" value={editForm.representative_nif} onChange={handleEditChange} style={styles.input} /></div><div style={styles.formGroup}><label>Nombre y apellidos representante</label><input name="representative_full_name" value={editForm.representative_full_name} onChange={handleEditChange} style={styles.input} /></div></div>
+                <div style={styles.formRow}><div style={styles.formGroupWide}><label>Observaciones</label><textarea name="observations" value={editForm.observations} onChange={handleEditChange} style={styles.textareaLarge} /></div></div>
 
-                <label style={styles.checkboxLabel}>
-                  <input name="is_active" type="checkbox" checked={editForm.is_active} onChange={handleEditChange} />
-                  Trabajador activo
-                </label>
-
+                <label style={styles.checkboxLabel}><input name="is_active" type="checkbox" checked={editForm.is_active} onChange={handleEditChange} />Trabajador activo</label>
                 {editError && <div style={styles.error}>{editError}</div>}
-                <div style={styles.modalActionsRight}>
-                  <button type="button" onClick={handleCancelEdit} style={styles.cancelButton}>Cancelar</button>
-                  <button type="submit" disabled={submitting} style={styles.saveButton}>{submitting ? "Guardando..." : "Guardar cambios"}</button>
-                </div>
+                <div style={styles.modalActionsRight}><button type="button" onClick={handleCancelEdit} style={styles.cancelButton}>Cancelar</button><button type="submit" disabled={submitting} style={styles.saveButton}>{submitting ? "Guardando..." : "Guardar cambios"}</button></div>
               </form>
             )}
           </div>
@@ -538,19 +385,10 @@ export default function EmployeeTable({
       {employeeToDelete && (
         <div style={styles.modalBackdrop}>
           <div style={styles.confirmModal}>
-            <div style={styles.modalHeader}>
-              <div>
-                <h3 style={styles.modalTitle}>Eliminar trabajador</h3>
-                <p style={styles.modalSubtitle}>Esta acción desactivará al trabajador.</p>
-              </div>
-              <button type="button" onClick={() => setEmployeeToDelete(null)} style={styles.closeButton}>×</button>
-            </div>
+            <div style={styles.modalHeader}><div><h3 style={styles.modalTitle}>Eliminar trabajador</h3><p style={styles.modalSubtitle}>Esta acción desactivará al trabajador.</p></div><button type="button" onClick={() => setEmployeeToDelete(null)} style={styles.closeButton}>×</button></div>
             <p style={styles.confirmText}>¿Seguro que quieres eliminar/desactivar a {employeeToDelete.first_name} {employeeToDelete.last_name}?</p>
             {deleteError && <div style={styles.error}>{deleteError}</div>}
-            <div style={styles.modalActions}>
-              <button type="button" onClick={() => setEmployeeToDelete(null)} style={styles.cancelButton}>Cancelar</button>
-              <button type="button" onClick={handleConfirmDelete} disabled={submitting} style={styles.dangerButton}>{submitting ? "Eliminando..." : "Confirmar eliminación"}</button>
-            </div>
+            <div style={styles.modalActions}><button type="button" onClick={() => setEmployeeToDelete(null)} style={styles.cancelButton}>Cancelar</button><button type="button" onClick={handleConfirmDelete} disabled={submitting} style={styles.dangerButton}>{submitting ? "Eliminando..." : "Confirmar eliminación"}</button></div>
           </div>
         </div>
       )}
@@ -571,6 +409,7 @@ const styles = {
   activeBadge: { backgroundColor: "#dcfce7", color: "#166534", padding: "4px 8px", borderRadius: "999px", fontSize: "12px", fontWeight: 800 },
   inactiveBadge: { backgroundColor: "#fee2e2", color: "#991b1b", padding: "4px 8px", borderRadius: "999px", fontSize: "12px", fontWeight: 800 },
   recordButton: { backgroundColor: "#f8f3b5", color: "#111827", border: "1px solid #111827", borderRadius: "8px", padding: "7px 10px", cursor: "pointer", fontWeight: 800 },
+  duplicateButton: { backgroundColor: "#ffffff", color: "#111827", border: "1px solid #9ca3af", borderRadius: "8px", padding: "7px 10px", cursor: "pointer", fontWeight: 800 },
   detailsButton: { backgroundColor: "#111827", color: "#ffffff", border: "1px solid #111827", borderRadius: "8px", padding: "7px 10px", cursor: "pointer", fontWeight: 800 },
   deleteButton: { backgroundColor: "#fee2e2", color: "#991b1b", border: "1px solid #fecaca", borderRadius: "8px", padding: "10px 14px", cursor: "pointer", fontWeight: 800 },
   modalBackdrop: { position: "fixed", inset: 0, backgroundColor: "rgba(17, 24, 39, 0.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, padding: "24px" },
