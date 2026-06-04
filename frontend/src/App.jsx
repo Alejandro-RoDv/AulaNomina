@@ -92,6 +92,7 @@ export default function App() {
     workCenters,
     incidents,
     payrolls,
+    documents,
     collectiveAgreements,
     loading,
     loadData,
@@ -230,6 +231,7 @@ export default function App() {
         contracts={contracts}
         incidents={incidents}
         payrolls={payrolls}
+        documents={documents}
         employeeForm={employeeForm}
         onEmployeeChange={handleEmployeeChange}
         onEmployeeSubmit={handleEmployeeSubmit}
