@@ -6,16 +6,64 @@ import EmployeeTable from "../components/employees/EmployeeTable";
 import { fetchEmployeeAssignmentHistory } from "../services/employeeApi";
 import { openReportPreset } from "../utils/reportShortcuts";
 
+const DOCUMENT_TYPE_LABELS = {
+  SIGNED_CONTRACT: "Contrato firmado",
+  CONTRACT: "Contrato",
+  NAF: "Número de afiliación",
+  MODEL_145: "Modelo 145",
+  SEXUAL_OFFENCES_CERTIFICATE: "Certificado delitos sexuales",
+  DATA_CONSENT: "Consentimiento de datos",
+  CONFIDENTIALITY_COMMITMENT: "Compromiso de confidencialidad",
+  DNI_NIE: "DNI / NIE",
+  ID_DOCUMENT: "Documento identificativo",
+  BANK_CERTIFICATE: "Certificado bancario",
+  ACADEMIC_TITLE: "Título académico",
+  PRL_CERTIFICATE: "Certificado PRL",
+  MEDICAL_REPORT: "Informe médico",
+};
+
+const STATUS_LABELS = {
+  active: "Activo",
+  inactive: "Inactivo",
+  pending: "Pendiente",
+  received: "Recibido",
+  signed: "Firmado",
+  accepted: "Aceptado",
+  rejected: "Rechazado",
+  expired: "Caducado",
+  draft: "Borrador",
+  generated: "Generada",
+  calculated: "Calculada",
+  paid: "Pagada",
+  reviewed: "Revisada",
+  cancelled: "Cancelada",
+  closed: "Cerrada",
+  open: "Abierta",
+};
+
 function normalizeText(value) {
-  return String(value || "")
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .trim();
+  return String(value || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
 }
 
 function formatValue(value) {
   return value || "-";
+}
+
+function translateStatus(value) {
+  if (!value) return "-";
+  return STATUS_LABELS[String(value).toLowerCase()] || value;
+}
+
+function translateDocumentType(value) {
+  if (!value) return "-";
+  return DOCUMENT_TYPE_LABELS[String(value).toUpperCase()] || value;
+}
+
+function formatDateTime(value) {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString("es-ES");
 }
 
 function RecordTab({ active, children, onClick }) {
@@ -99,9 +147,7 @@ export default function EmployeesPage({
 
   const clearFilters = () => setFilters({ id: "", name: "", dni: "", companyId: "", centerId: "", status: "" });
 
-  const availableFilterCenters = useMemo(() => {
-    return workCenters.filter((center) => !filters.companyId || String(center.company_id) === String(filters.companyId));
-  }, [workCenters, filters.companyId]);
+  const availableFilterCenters = useMemo(() => workCenters.filter((center) => !filters.companyId || String(center.company_id) === String(filters.companyId)), [workCenters, filters.companyId]);
 
   const filteredEmployees = useMemo(() => {
     const idFilter = normalizeText(filters.id);
@@ -244,7 +290,7 @@ export default function EmployeesPage({
                 <div style={styles.recordPanelWide}>
                   <h3 style={styles.panelTitle}>Contratos vinculados</h3>
                   {!selectedEmployeeContracts.length ? <p style={styles.empty}>No hay contratos vinculados.</p> : (
-                    <table style={styles.miniTable}><thead><tr><th>Código</th><th>Tipo</th><th>Empresa</th><th>Centro</th><th>Inicio</th><th>Fin</th><th>Estado</th><th>Salario base</th></tr></thead><tbody>{selectedEmployeeContracts.map((contract) => <tr key={contract.id}><td>{contract.contract_code || contract.id}</td><td>{contract.contract_type || "-"}</td><td>{contract.company_name || companyMap[contract.company_id]?.name || "-"}</td><td>{contract.center_name || centerMap[contract.center_id]?.name || "-"}</td><td>{contract.start_date || "-"}</td><td>{contract.end_date || "-"}</td><td>{contract.status || "-"}</td><td>{contract.salary_base || "-"}</td></tr>)}</tbody></table>
+                    <table style={styles.miniTable}><thead><tr><th>Código</th><th>Tipo</th><th>Empresa</th><th>Centro</th><th>Inicio</th><th>Fin</th><th>Estado</th><th>Salario base</th></tr></thead><tbody>{selectedEmployeeContracts.map((contract) => <tr key={contract.id}><td>{contract.contract_code || contract.id}</td><td>{contract.contract_type || "-"}</td><td>{contract.company_name || companyMap[contract.company_id]?.name || "-"}</td><td>{contract.center_name || centerMap[contract.center_id]?.name || "-"}</td><td>{contract.start_date || "-"}</td><td>{contract.end_date || "-"}</td><td>{translateStatus(contract.status)}</td><td>{contract.salary_base || "-"}</td></tr>)}</tbody></table>
                   )}
                 </div>
               )}
@@ -253,7 +299,7 @@ export default function EmployeesPage({
                 <div style={styles.recordPanelWide}>
                   <h3 style={styles.panelTitle}>Incidencias laborales</h3>
                   {!selectedEmployeeIncidents.length ? <p style={styles.empty}>No hay incidencias vinculadas.</p> : (
-                    <table style={styles.miniTable}><thead><tr><th>Tipo</th><th>Inicio</th><th>Fin</th><th>Estado</th><th>Afecta nómina</th><th>Descripción</th></tr></thead><tbody>{selectedEmployeeIncidents.map((incident) => <tr key={incident.id}><td>{incident.incident_type || "-"}</td><td>{incident.start_date || "-"}</td><td>{incident.end_date || "-"}</td><td>{incident.status || "-"}</td><td>{incident.affects_payroll ? "Sí" : "No"}</td><td>{incident.description || "-"}</td></tr>)}</tbody></table>
+                    <table style={styles.miniTable}><thead><tr><th>Tipo</th><th>Inicio</th><th>Fin</th><th>Estado</th><th>Afecta nómina</th><th>Descripción</th></tr></thead><tbody>{selectedEmployeeIncidents.map((incident) => <tr key={incident.id}><td>{incident.incident_type || "-"}</td><td>{incident.start_date || "-"}</td><td>{incident.end_date || "-"}</td><td>{translateStatus(incident.status)}</td><td>{incident.affects_payroll ? "Sí" : "No"}</td><td>{incident.description || "-"}</td></tr>)}</tbody></table>
                   )}
                 </div>
               )}
@@ -262,7 +308,7 @@ export default function EmployeesPage({
                 <div style={styles.recordPanelWide}>
                   <h3 style={styles.panelTitle}>Nóminas generadas</h3>
                   {!selectedEmployeePayrolls.length ? <p style={styles.empty}>No hay nóminas vinculadas.</p> : (
-                    <table style={styles.miniTable}><thead><tr><th>Periodo</th><th>Empresa</th><th>Bruto</th><th>Deducciones</th><th>Neto</th><th>IRPF</th><th>Estado</th></tr></thead><tbody>{selectedEmployeePayrolls.map((payroll) => <tr key={payroll.id}><td>{payroll.period_label || `${payroll.period_month}/${payroll.period_year}`}</td><td>{payroll.company_name || companyMap[payroll.company_id]?.name || "-"}</td><td>{payroll.gross_salary || "-"}</td><td>{payroll.total_deductions || "-"}</td><td>{payroll.net_salary || "-"}</td><td>{payroll.irpf_percentage ?? "-"}%</td><td>{payroll.status || "-"}</td></tr>)}</tbody></table>
+                    <table style={styles.miniTable}><thead><tr><th>Periodo</th><th>Empresa</th><th>Bruto</th><th>Deducciones</th><th>Neto</th><th>IRPF</th><th>Estado</th></tr></thead><tbody>{selectedEmployeePayrolls.map((payroll) => <tr key={payroll.id}><td>{payroll.period_label || `${payroll.period_month}/${payroll.period_year}`}</td><td>{payroll.company_name || companyMap[payroll.company_id]?.name || "-"}</td><td>{payroll.gross_salary || "-"}</td><td>{payroll.total_deductions || "-"}</td><td>{payroll.net_salary || "-"}</td><td>{payroll.irpf_percentage ?? "-"}%</td><td>{translateStatus(payroll.status)}</td></tr>)}</tbody></table>
                   )}
                 </div>
               )}
@@ -274,7 +320,7 @@ export default function EmployeesPage({
                     <button type="button" style={styles.reportButtonSecondary} onClick={() => { window.location.hash = "documents"; window.dispatchEvent(new Event("aulanomina-route-change")); }}>Abrir módulo documentos</button>
                   </div>
                   {!selectedEmployeeDocuments.length ? <p style={styles.empty}>No hay documentos vinculados a este trabajador.</p> : (
-                    <table style={styles.miniTable}><thead><tr><th>Tipo</th><th>Nombre</th><th>Estado</th><th>Fecha emisión</th><th>Fecha caducidad</th><th>Notas</th></tr></thead><tbody>{selectedEmployeeDocuments.map((document) => <tr key={document.id}><td>{document.document_type || "-"}</td><td>{document.name || document.title || "-"}</td><td>{document.status || "-"}</td><td>{document.issue_date || document.created_at || "-"}</td><td>{document.expiration_date || "-"}</td><td>{document.notes || document.description || "-"}</td></tr>)}</tbody></table>
+                    <table style={styles.miniTable}><thead><tr><th>Tipo</th><th>Nombre</th><th>Estado</th><th>Fecha emisión</th><th>Fecha caducidad</th><th>Notas</th></tr></thead><tbody>{selectedEmployeeDocuments.map((document) => <tr key={document.id}><td>{translateDocumentType(document.document_type)}</td><td>{document.name || document.title || "-"}</td><td>{translateStatus(document.status)}</td><td>{formatDateTime(document.issue_date || document.created_at)}</td><td>{formatDateTime(document.expiration_date)}</td><td>{document.notes || document.description || "-"}</td></tr>)}</tbody></table>
                   )}
                 </div>
               )}
