@@ -127,6 +127,32 @@ BASE_COLUMNS_REQUIRED_FOR_DAILY_BASE_BACKFILL = {
     "professional_contingencies_base",
 }
 
+EMPLOYEE_IDENTITY_UNIQUE_INDEXES = [
+    "ix_employees_dni",
+    "ix_employees_email",
+    "ix_employees_naf",
+]
+
+EMPLOYEE_IDENTITY_UNIQUE_CONSTRAINTS = [
+    "employees_dni_key",
+    "employees_email_key",
+    "employees_naf_key",
+]
+
+
+def relax_employee_identity_uniqueness(connection) -> None:
+    """Allow the same person to exist in different companies for educational simulations."""
+
+    for constraint_name in EMPLOYEE_IDENTITY_UNIQUE_CONSTRAINTS:
+        connection.execute(text(f"ALTER TABLE employees DROP CONSTRAINT IF EXISTS {constraint_name}"))
+
+    for index_name in EMPLOYEE_IDENTITY_UNIQUE_INDEXES:
+        connection.execute(text(f"DROP INDEX IF EXISTS {index_name}"))
+
+    connection.execute(text("CREATE INDEX IF NOT EXISTS ix_employees_dni ON employees (dni)"))
+    connection.execute(text("CREATE INDEX IF NOT EXISTS ix_employees_email ON employees (email)"))
+    connection.execute(text("CREATE INDEX IF NOT EXISTS ix_employees_naf ON employees (naf)"))
+
 
 def add_missing_employee_split_25_columns() -> None:
     inspector = inspect(engine)
@@ -144,6 +170,8 @@ def add_missing_employee_split_25_columns() -> None:
 
         if "document_type" in {column["name"] for column in inspect(connection).get_columns("employees")}:
             connection.execute(text("UPDATE employees SET document_type = COALESCE(document_type, 'DNI')"))
+
+        relax_employee_identity_uniqueness(connection)
 
 
 def add_missing_company_center_split_24_columns() -> None:
