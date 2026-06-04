@@ -1,8 +1,8 @@
 import { useMemo, useState } from "react";
 
 import { EDUCATION_LEVEL_OPTIONS } from "../../utils/employeePayloads";
-import { getEmployeeVisibleCode } from "../../utils/visibleCodes";
 import { getSortLabel, nextSortConfig, sortRows } from "../../utils/tableSorting";
+import { getEmployeeVisibleCode } from "../../utils/visibleCodes";
 
 const emptyEditForm = {
   employee_code: "",
@@ -93,6 +93,42 @@ function SectionTitle({ children }) {
   return <h4 style={styles.sectionTitle}>{children}</h4>;
 }
 
+function Field({ label, name, value, onChange, type = "text", required = false, readOnly = false, disabled = false }) {
+  return (
+    <div style={styles.formGroup}>
+      <label>{label}</label>
+      <input
+        name={name}
+        type={type}
+        value={value || ""}
+        onChange={onChange}
+        required={required}
+        readOnly={readOnly}
+        disabled={disabled}
+        style={{ ...styles.input, ...(disabled || readOnly ? styles.readOnlyInput : {}) }}
+      />
+    </div>
+  );
+}
+
+function TextAreaField({ label, name, value, onChange }) {
+  return (
+    <div style={styles.formGroupTextarea}>
+      <label>{label}</label>
+      <textarea name={name} value={value || ""} onChange={onChange} style={styles.textarea} />
+    </div>
+  );
+}
+
+function DetailBox({ label, value, wide = false }) {
+  return (
+    <div style={wide ? styles.detailBoxWide : styles.detailBox}>
+      <span>{label}</span>
+      <strong>{formatValue(value)}</strong>
+    </div>
+  );
+}
+
 export default function EmployeeTable({
   loading,
   employees,
@@ -112,6 +148,7 @@ export default function EmployeeTable({
   const [editError, setEditError] = useState("");
   const [deleteError, setDeleteError] = useState("");
   const [sortConfig, setSortConfig] = useState({ key: "code", direction: "asc" });
+  const [openMenuEmployeeId, setOpenMenuEmployeeId] = useState(null);
 
   const companyMap = useMemo(() => companies.reduce((acc, company) => ({ ...acc, [company.id]: company }), {}), [companies]);
   const centerMap = useMemo(() => workCenters.reduce((acc, center) => ({ ...acc, [center.id]: center }), {}), [workCenters]);
@@ -122,9 +159,10 @@ export default function EmployeeTable({
 
   const getEmployeeCode = (employee) => getEmployeeVisibleCode(employee, employees, contracts);
 
-  const getActiveContract = (employeeId) => contracts.find(
-    (contract) => Number(contract.employee_id) === Number(employeeId) && contract.status === "active"
-  ) || contracts.find((contract) => Number(contract.employee_id) === Number(employeeId));
+  const getActiveContract = (employeeId) => {
+    return contracts.find((contract) => Number(contract.employee_id) === Number(employeeId) && contract.status === "active")
+      || contracts.find((contract) => Number(contract.employee_id) === Number(employeeId));
+  };
 
   const getCompanyName = (employee) => {
     const activeContract = getActiveContract(employee.id);
@@ -165,6 +203,7 @@ export default function EmployeeTable({
     setEditMode(false);
     setEditError("");
     setDeleteError("");
+    setOpenMenuEmployeeId(null);
   };
 
   const openEditModal = (employee) => {
@@ -173,9 +212,10 @@ export default function EmployeeTable({
     setEditMode(true);
     setEditError("");
     setDeleteError("");
+    setOpenMenuEmployeeId(null);
   };
 
-  const closeDetailsModal = () => {
+  const closeModal = () => {
     setSelectedEmployee(null);
     setEditForm(emptyEditForm);
     setEditMode(false);
@@ -203,13 +243,12 @@ export default function EmployeeTable({
 
     try {
       await onUpdateEmployee(selectedEmployee.id, editForm);
-      const updatedEmployee = {
+      setSelectedEmployee({
         ...selectedEmployee,
         ...editForm,
         company_id: editForm.company_id ? Number(editForm.company_id) : null,
         center_id: editForm.center_id ? Number(editForm.center_id) : null,
-      };
-      setSelectedEmployee(updatedEmployee);
+      });
       setEditMode(false);
     } catch (err) {
       setEditError(err.message || "Error al actualizar trabajador");
@@ -221,13 +260,14 @@ export default function EmployeeTable({
     try {
       await onDeleteEmployee(employeeToDelete.id);
       setEmployeeToDelete(null);
-      closeDetailsModal();
+      closeModal();
     } catch (err) {
       setDeleteError(err.message || "Error al desactivar trabajador");
     }
   };
 
   const handleOpenRecord = (employee) => {
+    setOpenMenuEmployeeId(null);
     if (onOpenRecord) {
       onOpenRecord(employee);
       return;
@@ -238,8 +278,9 @@ export default function EmployeeTable({
   };
 
   const handleDuplicate = (employee) => {
+    setOpenMenuEmployeeId(null);
     onDuplicateEmployee?.(employee);
-    closeDetailsModal();
+    closeModal();
   };
 
   return (
@@ -258,12 +299,12 @@ export default function EmployeeTable({
                 {sortHeader("company", "Empresa")}
                 {sortHeader("center", "Centro")}
                 {sortHeader("status", "Estado")}
-                <th style={styles.th}>Acciones</th>
+                <th style={styles.actionsTh}>Acciones</th>
               </tr>
             </thead>
             <tbody>
               {sortedEmployees.map((employee) => (
-                <tr key={employee.id}>
+                <tr key={employee.id} style={styles.tableRow}>
                   <td style={styles.tdStrong}>{getEmployeeCode(employee)}</td>
                   <td style={styles.td}>{employee.dni}</td>
                   <td style={styles.td}>{employee.naf || "-"}</td>
@@ -273,12 +314,25 @@ export default function EmployeeTable({
                   <td style={styles.td}>
                     <span style={employee.is_active ? styles.activeBadge : styles.inactiveBadge}>{employee.is_active ? "Activo" : "Inactivo"}</span>
                   </td>
-                  <td style={styles.td}>
-                    <div style={styles.actionGroup}>
+                  <td style={styles.actionsTd}>
+                    <div style={styles.compactActions}>
                       <button type="button" style={styles.recordButton} onClick={() => handleOpenRecord(employee)}>Expediente</button>
                       <button type="button" style={styles.editButton} onClick={() => openEditModal(employee)}>Editar</button>
-                      <button type="button" style={styles.duplicateButton} onClick={() => handleDuplicate(employee)}>Duplicar</button>
-                      <button type="button" style={styles.detailsButton} onClick={() => openDetailsModal(employee)}>Detalles</button>
+                      <div style={styles.moreWrapper}>
+                        <button
+                          type="button"
+                          style={styles.moreButton}
+                          onClick={() => setOpenMenuEmployeeId((current) => current === employee.id ? null : employee.id)}
+                        >
+                          Más ▾
+                        </button>
+                        {openMenuEmployeeId === employee.id && (
+                          <div style={styles.moreMenu}>
+                            <button type="button" style={styles.moreMenuItem} onClick={() => handleDuplicate(employee)}>Duplicar</button>
+                            <button type="button" style={styles.moreMenuItem} onClick={() => openDetailsModal(employee)}>Detalles</button>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </td>
                 </tr>
@@ -296,34 +350,34 @@ export default function EmployeeTable({
                 <h3 style={styles.modalTitle}>{editMode ? "Editar trabajador" : "Detalles del trabajador"}</h3>
                 <p style={styles.modalSubtitle}>{selectedEmployee.first_name} {selectedEmployee.last_name} · {selectedEmployee.dni || "Sin documento"}</p>
               </div>
-              <button type="button" onClick={closeDetailsModal} style={styles.closeButton}>×</button>
+              <button type="button" onClick={closeModal} style={styles.closeButton}>×</button>
             </div>
 
             {!editMode ? (
               <div style={styles.detailsWrapper}>
                 <div style={styles.detailsGrid}>
-                  <div style={styles.detailBox}><span>Código</span><strong>{formatValue(selectedEmployee.employee_code)}</strong></div>
-                  <div style={styles.detailBox}><span>Tipo documento</span><strong>{formatValue(selectedEmployee.document_type)}</strong></div>
-                  <div style={styles.detailBox}><span>Documento</span><strong>{formatValue(selectedEmployee.dni)}</strong></div>
-                  <div style={styles.detailBox}><span>NAF</span><strong>{formatValue(selectedEmployee.naf)}</strong></div>
-                  <div style={styles.detailBox}><span>Estado</span><strong>{selectedEmployee.is_active ? "Activo" : "Inactivo"}</strong></div>
-                  <div style={styles.detailBox}><span>Nombre</span><strong>{formatValue(selectedEmployee.first_name)}</strong></div>
-                  <div style={styles.detailBox}><span>Primer apellido</span><strong>{formatValue(selectedEmployee.last_name)}</strong></div>
-                  <div style={styles.detailBox}><span>Segundo apellido</span><strong>{formatValue(selectedEmployee.second_last_name)}</strong></div>
-                  <div style={styles.detailBox}><span>Sexo</span><strong>{formatValue(selectedEmployee.sex)}</strong></div>
-                  <div style={styles.detailBox}><span>Nacimiento</span><strong>{formatValue(selectedEmployee.birth_date)}</strong></div>
-                  <div style={styles.detailBox}><span>Nacionalidad</span><strong>{formatValue(selectedEmployee.nationality)}</strong></div>
-                  <div style={styles.detailBox}><span>Lugar nacimiento</span><strong>{formatValue(selectedEmployee.birth_place)}</strong></div>
-                  <div style={styles.detailBox}><span>Email</span><strong>{formatValue(selectedEmployee.email)}</strong></div>
-                  <div style={styles.detailBox}><span>Móvil</span><strong>{formatValue(selectedEmployee.mobile_phone || selectedEmployee.phone)}</strong></div>
-                  <div style={styles.detailBox}><span>Empresa</span><strong>{getCompanyName(selectedEmployee)}</strong></div>
-                  <div style={styles.detailBox}><span>Centro</span><strong>{getCenterName(selectedEmployee)}</strong></div>
-                  <div style={styles.detailBoxWide}><span>Domicilio</span><strong>{formatValue(selectedEmployee.domicile || selectedEmployee.address)}</strong></div>
-                  <div style={styles.detailBox}><span>Nivel formativo</span><strong>{formatValue(selectedEmployee.education_level)}</strong></div>
-                  <div style={styles.detailBox}><span>Título académico</span><strong>{formatValue(selectedEmployee.academic_title)}</strong></div>
-                  <div style={styles.detailBox}><span>Profesión principal</span><strong>{formatValue(selectedEmployee.main_profession)}</strong></div>
-                  <div style={styles.detailBox}><span>Idiomas</span><strong>{formatValue(selectedEmployee.languages)}</strong></div>
-                  <div style={styles.detailBoxWide}><span>Observaciones</span><strong>{formatValue(selectedEmployee.observations)}</strong></div>
+                  <DetailBox label="Código" value={selectedEmployee.employee_code} />
+                  <DetailBox label="Tipo documento" value={selectedEmployee.document_type} />
+                  <DetailBox label="Documento" value={selectedEmployee.dni} />
+                  <DetailBox label="NAF" value={selectedEmployee.naf} />
+                  <DetailBox label="Estado" value={selectedEmployee.is_active ? "Activo" : "Inactivo"} />
+                  <DetailBox label="Nombre" value={selectedEmployee.first_name} />
+                  <DetailBox label="Primer apellido" value={selectedEmployee.last_name} />
+                  <DetailBox label="Segundo apellido" value={selectedEmployee.second_last_name} />
+                  <DetailBox label="Sexo" value={selectedEmployee.sex} />
+                  <DetailBox label="Nacimiento" value={selectedEmployee.birth_date} />
+                  <DetailBox label="Nacionalidad" value={selectedEmployee.nationality} />
+                  <DetailBox label="Lugar nacimiento" value={selectedEmployee.birth_place} />
+                  <DetailBox label="Email" value={selectedEmployee.email} />
+                  <DetailBox label="Móvil" value={selectedEmployee.mobile_phone || selectedEmployee.phone} />
+                  <DetailBox label="Empresa" value={getCompanyName(selectedEmployee)} />
+                  <DetailBox label="Centro" value={getCenterName(selectedEmployee)} />
+                  <DetailBox label="Domicilio" value={selectedEmployee.domicile || selectedEmployee.address} wide />
+                  <DetailBox label="Nivel formativo" value={selectedEmployee.education_level} />
+                  <DetailBox label="Título académico" value={selectedEmployee.academic_title} />
+                  <DetailBox label="Profesión principal" value={selectedEmployee.main_profession} />
+                  <DetailBox label="Idiomas" value={selectedEmployee.languages} />
+                  <DetailBox label="Observaciones" value={selectedEmployee.observations} wide />
                 </div>
 
                 <div style={styles.modalActionsSplit}>
@@ -339,53 +393,110 @@ export default function EmployeeTable({
               <form onSubmit={handleEditSubmit} style={styles.form}>
                 <SectionTitle>Asignación inicial</SectionTitle>
                 <div style={styles.formRow}>
-                  <div style={styles.formGroupCode}><label>Código trabajador</label><input name="employee_code" value={editForm.employee_code} readOnly disabled style={{ ...styles.input, ...styles.readOnlyInput }} /></div>
-                  <div style={styles.formGroup}><label>Empresa</label><select name="company_id" value={editForm.company_id} onChange={handleEditChange} style={styles.input}><option value="">Sin empresa</option>{companies.map((company) => <option key={company.id} value={company.id}>{company.name}</option>)}</select></div>
-                  <div style={styles.formGroup}><label>Centro</label><select name="center_id" value={editForm.center_id} onChange={handleEditChange} style={styles.input} disabled={!editForm.company_id}><option value="">Sin centro</option>{availableCenters.map((center) => <option key={center.id} value={center.id}>{center.name}</option>)}</select></div>
+                  <Field label="Código trabajador" name="employee_code" value={editForm.employee_code} onChange={handleEditChange} disabled />
+                  <div style={styles.formGroup}>
+                    <label>Empresa</label>
+                    <select name="company_id" value={editForm.company_id} onChange={handleEditChange} style={styles.input}>
+                      <option value="">Sin empresa</option>
+                      {companies.map((company) => <option key={company.id} value={company.id}>{company.name}</option>)}
+                    </select>
+                  </div>
+                  <div style={styles.formGroup}>
+                    <label>Centro</label>
+                    <select name="center_id" value={editForm.center_id} onChange={handleEditChange} style={styles.input} disabled={!editForm.company_id}>
+                      <option value="">Sin centro</option>
+                      {availableCenters.map((center) => <option key={center.id} value={center.id}>{center.name}</option>)}
+                    </select>
+                  </div>
                 </div>
 
                 <SectionTitle>Identificación personal</SectionTitle>
                 <div style={styles.formRow}>
-                  <div style={styles.formGroupSmall}><label>Tipo documento</label><select name="document_type" value={editForm.document_type} onChange={handleEditChange} required style={styles.input}><option value="DNI">DNI</option><option value="NIE">NIE</option><option value="PASAPORTE">Pasaporte</option></select></div>
-                  <div style={styles.formGroupDniWide}><label>Documento</label><input name="dni" value={editForm.dni} onChange={handleEditChange} required style={styles.input} /></div>
-                  <div style={styles.formGroupNaf}><label>NAF</label><input name="naf" value={editForm.naf} onChange={handleEditChange} style={styles.input} /></div>
+                  <div style={styles.formGroup}>
+                    <label>Tipo documento</label>
+                    <select name="document_type" value={editForm.document_type} onChange={handleEditChange} required style={styles.input}>
+                      <option value="DNI">DNI</option>
+                      <option value="NIE">NIE</option>
+                      <option value="PASAPORTE">Pasaporte</option>
+                    </select>
+                  </div>
+                  <Field label="Documento" name="dni" value={editForm.dni} onChange={handleEditChange} required />
+                  <Field label="NAF" name="naf" value={editForm.naf} onChange={handleEditChange} />
                 </div>
-
                 <div style={styles.formRow}>
-                  <div style={styles.formGroup}><label>Nombre</label><input name="first_name" value={editForm.first_name} onChange={handleEditChange} required style={styles.input} /></div>
-                  <div style={styles.formGroup}><label>Primer apellido</label><input name="last_name" value={editForm.last_name} onChange={handleEditChange} required style={styles.input} /></div>
-                  <div style={styles.formGroup}><label>Segundo apellido</label><input name="second_last_name" value={editForm.second_last_name} onChange={handleEditChange} style={styles.input} /></div>
+                  <Field label="Nombre" name="first_name" value={editForm.first_name} onChange={handleEditChange} required />
+                  <Field label="Primer apellido" name="last_name" value={editForm.last_name} onChange={handleEditChange} required />
+                  <Field label="Segundo apellido" name="second_last_name" value={editForm.second_last_name} onChange={handleEditChange} />
                 </div>
-
                 <div style={styles.formRow}>
-                  <div style={styles.formGroupSmall}><label>Sexo</label><select name="sex" value={editForm.sex} onChange={handleEditChange} style={styles.input}><option value="">No indicado</option><option value="Hombre">Hombre</option><option value="Mujer">Mujer</option><option value="Otro">Otro / no especificado</option></select></div>
-                  <div style={styles.formGroupSmall}><label>Fecha nacimiento</label><input name="birth_date" type="date" value={editForm.birth_date} onChange={handleEditChange} style={styles.input} /></div>
-                  <div style={styles.formGroup}><label>Nacionalidad</label><input name="nationality" value={editForm.nationality} onChange={handleEditChange} style={styles.input} /></div>
-                  <div style={styles.formGroup}><label>Lugar de nacimiento</label><input name="birth_place" value={editForm.birth_place} onChange={handleEditChange} style={styles.input} /></div>
+                  <div style={styles.formGroup}>
+                    <label>Sexo</label>
+                    <select name="sex" value={editForm.sex} onChange={handleEditChange} style={styles.input}>
+                      <option value="">No indicado</option>
+                      <option value="Hombre">Hombre</option>
+                      <option value="Mujer">Mujer</option>
+                      <option value="Otro">Otro / no especificado</option>
+                    </select>
+                  </div>
+                  <Field label="Fecha nacimiento" name="birth_date" value={editForm.birth_date} onChange={handleEditChange} type="date" />
+                  <Field label="Nacionalidad" name="nationality" value={editForm.nationality} onChange={handleEditChange} />
+                  <Field label="Lugar de nacimiento" name="birth_place" value={editForm.birth_place} onChange={handleEditChange} />
                 </div>
 
                 <SectionTitle>Contacto y domicilio</SectionTitle>
-                <div style={styles.formRow}><div style={styles.formGroupWide}><label>Domicilio</label><input name="domicile" value={editForm.domicile} onChange={handleEditChange} style={styles.input} /></div><div style={styles.formGroupWide}><label>Dirección</label><input name="address" value={editForm.address} onChange={handleEditChange} style={styles.input} /></div></div>
-                <div style={styles.formRow}><div style={styles.formGroup}><label>Ciudad</label><input name="city" value={editForm.city} onChange={handleEditChange} style={styles.input} /></div><div style={styles.formGroup}><label>Provincia</label><input name="province" value={editForm.province} onChange={handleEditChange} style={styles.input} /></div><div style={styles.formGroupSmall}><label>Código postal</label><input name="postal_code" value={editForm.postal_code} onChange={handleEditChange} style={styles.input} /></div></div>
-                <div style={styles.formRow}><div style={styles.formGroupSmall}><label>Teléfono fijo</label><input name="landline_phone" value={editForm.landline_phone} onChange={handleEditChange} style={styles.input} /></div><div style={styles.formGroupSmall}><label>Móvil</label><input name="mobile_phone" value={editForm.mobile_phone} onChange={handleEditChange} style={styles.input} /></div><div style={styles.formGroupSmall}><label>Teléfono general</label><input name="phone" value={editForm.phone} onChange={handleEditChange} style={styles.input} /></div><div style={styles.formGroupSmall}><label>Fax</label><input name="fax" value={editForm.fax} onChange={handleEditChange} style={styles.input} /></div></div>
-                <div style={styles.formRow}><div style={styles.formGroup}><label>Correo electrónico</label><input name="email" type="email" value={editForm.email} onChange={handleEditChange} style={styles.input} /></div><div style={styles.formGroup}><label>Web</label><input name="website" value={editForm.website} onChange={handleEditChange} style={styles.input} /></div></div>
+                <div style={styles.formRow}>
+                  <Field label="Domicilio" name="domicile" value={editForm.domicile} onChange={handleEditChange} />
+                  <Field label="Dirección" name="address" value={editForm.address} onChange={handleEditChange} />
+                  <Field label="Ciudad" name="city" value={editForm.city} onChange={handleEditChange} />
+                  <Field label="Provincia" name="province" value={editForm.province} onChange={handleEditChange} />
+                  <Field label="Código postal" name="postal_code" value={editForm.postal_code} onChange={handleEditChange} />
+                  <Field label="Teléfono fijo" name="landline_phone" value={editForm.landline_phone} onChange={handleEditChange} />
+                  <Field label="Móvil" name="mobile_phone" value={editForm.mobile_phone} onChange={handleEditChange} />
+                  <Field label="Teléfono general" name="phone" value={editForm.phone} onChange={handleEditChange} />
+                  <Field label="Fax" name="fax" value={editForm.fax} onChange={handleEditChange} />
+                  <Field label="Correo electrónico" name="email" value={editForm.email} onChange={handleEditChange} type="email" />
+                  <Field label="Web" name="website" value={editForm.website} onChange={handleEditChange} />
+                </div>
 
                 <SectionTitle>Formación y perfil profesional</SectionTitle>
                 <div style={styles.formRow}>
-                  <div style={styles.formGroup}><label>Nivel formativo</label><select name="education_level" value={editForm.education_level} onChange={handleEditChange} style={styles.input}><option value="">Seleccionar nivel</option>{EDUCATION_LEVEL_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}</select></div>
-                  <div style={styles.formGroup}><label>Título académico</label><input name="academic_title" value={editForm.academic_title} onChange={handleEditChange} style={styles.input} /></div>
-                  <div style={styles.formGroupSmall}><label>Fecha concesión</label><input name="academic_title_date" type="date" value={editForm.academic_title_date} onChange={handleEditChange} style={styles.input} /></div>
+                  <div style={styles.formGroup}>
+                    <label>Nivel formativo</label>
+                    <select name="education_level" value={editForm.education_level} onChange={handleEditChange} style={styles.input}>
+                      <option value="">Seleccionar nivel</option>
+                      {EDUCATION_LEVEL_OPTIONS.map((option) => <option key={option} value={option}>{option}</option>)}
+                    </select>
+                  </div>
+                  <Field label="Título académico" name="academic_title" value={editForm.academic_title} onChange={handleEditChange} />
+                  <Field label="Fecha concesión" name="academic_title_date" value={editForm.academic_title_date} onChange={handleEditChange} type="date" />
+                  <Field label="Profesión principal" name="main_profession" value={editForm.main_profession} onChange={handleEditChange} />
                 </div>
-                <div style={styles.formRow}><div style={styles.formGroup}><label>Profesión principal</label><input name="main_profession" value={editForm.main_profession} onChange={handleEditChange} style={styles.input} /></div></div>
-                <div style={styles.formRow}><div style={styles.formGroupTextarea}><label>Otros cursos</label><textarea name="other_courses" value={editForm.other_courses} onChange={handleEditChange} style={styles.textarea} /></div><div style={styles.formGroupTextarea}><label>Acreditaciones</label><textarea name="accreditations" value={editForm.accreditations} onChange={handleEditChange} style={styles.textarea} /></div><div style={styles.formGroupTextarea}><label>Idiomas</label><textarea name="languages" value={editForm.languages} onChange={handleEditChange} style={styles.textarea} /></div></div>
+                <div style={styles.formRow}>
+                  <TextAreaField label="Otros cursos" name="other_courses" value={editForm.other_courses} onChange={handleEditChange} />
+                  <TextAreaField label="Acreditaciones" name="accreditations" value={editForm.accreditations} onChange={handleEditChange} />
+                  <TextAreaField label="Idiomas" name="languages" value={editForm.languages} onChange={handleEditChange} />
+                </div>
 
                 <SectionTitle>Representante y observaciones</SectionTitle>
-                <div style={styles.formRow}><div style={styles.formGroup}><label>Representante en calidad de</label><input name="representative_role" value={editForm.representative_role} onChange={handleEditChange} style={styles.input} /></div><div style={styles.formGroupSmall}><label>NIF representante</label><input name="representative_nif" value={editForm.representative_nif} onChange={handleEditChange} style={styles.input} /></div><div style={styles.formGroup}><label>Nombre y apellidos representante</label><input name="representative_full_name" value={editForm.representative_full_name} onChange={handleEditChange} style={styles.input} /></div></div>
-                <div style={styles.formRow}><div style={styles.formGroupWide}><label>Observaciones</label><textarea name="observations" value={editForm.observations} onChange={handleEditChange} style={styles.textareaLarge} /></div></div>
+                <div style={styles.formRow}>
+                  <Field label="Representante en calidad de" name="representative_role" value={editForm.representative_role} onChange={handleEditChange} />
+                  <Field label="NIF representante" name="representative_nif" value={editForm.representative_nif} onChange={handleEditChange} />
+                  <Field label="Nombre y apellidos representante" name="representative_full_name" value={editForm.representative_full_name} onChange={handleEditChange} />
+                </div>
+                <div style={styles.formRow}>
+                  <TextAreaField label="Observaciones" name="observations" value={editForm.observations} onChange={handleEditChange} />
+                </div>
 
-                <label style={styles.checkboxLabel}><input name="is_active" type="checkbox" checked={editForm.is_active} onChange={handleEditChange} />Trabajador activo</label>
+                <label style={styles.checkboxLabel}>
+                  <input name="is_active" type="checkbox" checked={editForm.is_active} onChange={handleEditChange} />
+                  Trabajador activo
+                </label>
+
                 {editError && <div style={styles.error}>{editError}</div>}
-                <div style={styles.modalActionsRight}><button type="button" onClick={handleCancelEdit} style={styles.cancelButton}>Cancelar</button><button type="submit" disabled={submitting} style={styles.saveButton}>{submitting ? "Guardando..." : "Guardar cambios"}</button></div>
+                <div style={styles.modalActionsRight}>
+                  <button type="button" onClick={handleCancelEdit} style={styles.cancelButton}>Cancelar</button>
+                  <button type="submit" disabled={submitting} style={styles.saveButton}>{submitting ? "Guardando..." : "Guardar cambios"}</button>
+                </div>
               </form>
             )}
           </div>
@@ -395,10 +506,19 @@ export default function EmployeeTable({
       {employeeToDelete && (
         <div style={styles.modalBackdrop}>
           <div style={styles.confirmModal}>
-            <div style={styles.modalHeader}><div><h3 style={styles.modalTitle}>Eliminar trabajador</h3><p style={styles.modalSubtitle}>Esta acción desactivará al trabajador.</p></div><button type="button" onClick={() => setEmployeeToDelete(null)} style={styles.closeButton}>×</button></div>
+            <div style={styles.modalHeader}>
+              <div>
+                <h3 style={styles.modalTitle}>Eliminar trabajador</h3>
+                <p style={styles.modalSubtitle}>Esta acción desactivará al trabajador.</p>
+              </div>
+              <button type="button" onClick={() => setEmployeeToDelete(null)} style={styles.closeButton}>×</button>
+            </div>
             <p style={styles.confirmText}>¿Seguro que quieres eliminar/desactivar a {employeeToDelete.first_name} {employeeToDelete.last_name}?</p>
             {deleteError && <div style={styles.error}>{deleteError}</div>}
-            <div style={styles.modalActions}><button type="button" onClick={() => setEmployeeToDelete(null)} style={styles.cancelButton}>Cancelar</button><button type="button" onClick={handleConfirmDelete} disabled={submitting} style={styles.dangerButton}>{submitting ? "Eliminando..." : "Confirmar eliminación"}</button></div>
+            <div style={styles.modalActions}>
+              <button type="button" onClick={() => setEmployeeToDelete(null)} style={styles.cancelButton}>Cancelar</button>
+              <button type="button" onClick={handleConfirmDelete} disabled={submitting} style={styles.dangerButton}>{submitting ? "Eliminando..." : "Confirmar eliminación"}</button>
+            </div>
           </div>
         </div>
       )}
@@ -408,20 +528,27 @@ export default function EmployeeTable({
 
 const styles = {
   empty: { margin: 0, color: "#6b7280", fontSize: "14px" },
-  tableWrapper: { overflowX: "auto" },
+  tableWrapper: { overflowX: "auto", overflowY: "visible" },
   table: { width: "100%", borderCollapse: "collapse" },
-  th: { textAlign: "left", padding: "12px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb", whiteSpace: "nowrap" },
+  tableRow: { height: "56px" },
+  th: { textAlign: "left", padding: "10px 12px", borderBottom: "1px solid #d1d5db", backgroundColor: "#f9fafb", whiteSpace: "nowrap" },
+  actionsTh: { textAlign: "left", padding: "10px 12px", borderBottom: "1px solid #d1d5db", backgroundColor: "#f9fafb", whiteSpace: "nowrap", width: "260px" },
   sortButton: { width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px", padding: 0, border: "none", backgroundColor: "transparent", color: "inherit", font: "inherit", fontWeight: 900, cursor: "pointer", textAlign: "left" },
   sortIcon: { color: "#6b7280", fontSize: "12px" },
-  td: { padding: "12px", borderBottom: "1px solid #eee", whiteSpace: "nowrap" },
-  tdStrong: { padding: "12px", borderBottom: "1px solid #eee", whiteSpace: "nowrap", fontWeight: 900 },
-  actionGroup: { display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" },
+  td: { padding: "10px 12px", borderBottom: "1px solid #e5e7eb", whiteSpace: "nowrap", verticalAlign: "middle" },
+  tdStrong: { padding: "10px 12px", borderBottom: "1px solid #e5e7eb", whiteSpace: "nowrap", verticalAlign: "middle", fontWeight: 900 },
+  actionsTd: { padding: "10px 12px", borderBottom: "1px solid #e5e7eb", whiteSpace: "nowrap", verticalAlign: "middle", position: "relative" },
+  compactActions: { display: "flex", gap: "6px", alignItems: "center", flexWrap: "nowrap" },
   activeBadge: { backgroundColor: "#dcfce7", color: "#166534", padding: "4px 8px", borderRadius: "999px", fontSize: "12px", fontWeight: 800 },
   inactiveBadge: { backgroundColor: "#fee2e2", color: "#991b1b", padding: "4px 8px", borderRadius: "999px", fontSize: "12px", fontWeight: 800 },
-  recordButton: { backgroundColor: "#f8f3b5", color: "#111827", border: "1px solid #111827", borderRadius: "8px", padding: "7px 10px", cursor: "pointer", fontWeight: 800 },
-  editButton: { backgroundColor: "#111827", color: "#ffffff", border: "1px solid #111827", borderRadius: "8px", padding: "7px 10px", cursor: "pointer", fontWeight: 800 },
-  duplicateButton: { backgroundColor: "#ffffff", color: "#111827", border: "1px solid #9ca3af", borderRadius: "8px", padding: "7px 10px", cursor: "pointer", fontWeight: 800 },
-  detailsButton: { backgroundColor: "#ffffff", color: "#111827", border: "1px solid #d1d5db", borderRadius: "8px", padding: "7px 10px", cursor: "pointer", fontWeight: 800 },
+  recordButton: { backgroundColor: "#f8f3b5", color: "#111827", border: "1px solid #111827", borderRadius: "7px", padding: "7px 9px", cursor: "pointer", fontWeight: 850, fontSize: "12px" },
+  editButton: { backgroundColor: "#111827", color: "#ffffff", border: "1px solid #111827", borderRadius: "7px", padding: "7px 9px", cursor: "pointer", fontWeight: 850, fontSize: "12px" },
+  duplicateButton: { backgroundColor: "#ffffff", color: "#111827", border: "1px solid #9ca3af", borderRadius: "7px", padding: "7px 9px", cursor: "pointer", fontWeight: 800, fontSize: "12px" },
+  detailsButton: { backgroundColor: "#ffffff", color: "#111827", border: "1px solid #d1d5db", borderRadius: "7px", padding: "7px 9px", cursor: "pointer", fontWeight: 800, fontSize: "12px" },
+  moreWrapper: { position: "relative" },
+  moreButton: { backgroundColor: "#ffffff", color: "#111827", border: "1px solid #d1d5db", borderRadius: "7px", padding: "7px 9px", cursor: "pointer", fontWeight: 850, fontSize: "12px" },
+  moreMenu: { position: "absolute", right: 0, top: "calc(100% + 6px)", minWidth: "150px", backgroundColor: "#ffffff", border: "1px solid #d1d5db", borderRadius: "8px", boxShadow: "0 12px 24px rgba(17, 24, 39, 0.14)", zIndex: 30, padding: "6px" },
+  moreMenuItem: { width: "100%", textAlign: "left", backgroundColor: "transparent", border: "none", borderRadius: "6px", padding: "8px 10px", cursor: "pointer", fontWeight: 800, color: "#111827" },
   deleteButton: { backgroundColor: "#fee2e2", color: "#991b1b", border: "1px solid #fecaca", borderRadius: "8px", padding: "10px 14px", cursor: "pointer", fontWeight: 800 },
   modalBackdrop: { position: "fixed", inset: 0, backgroundColor: "rgba(17, 24, 39, 0.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, padding: "24px" },
   modal: { width: "min(1120px, 100%)", maxHeight: "90vh", overflowY: "auto", backgroundColor: "#ffffff", border: "1px solid #d1d5db", borderRadius: "12px", boxShadow: "0 18px 40px rgba(17, 24, 39, 0.18)", padding: "22px" },
@@ -436,17 +563,11 @@ const styles = {
   detailBoxWide: { border: "1px solid #e5e7eb", backgroundColor: "#f9fafb", borderRadius: "10px", padding: "12px", display: "flex", flexDirection: "column", gap: "4px", gridColumn: "1 / -1" },
   form: { display: "flex", flexDirection: "column", gap: "14px" },
   sectionTitle: { margin: "6px 0 0", paddingTop: "8px", borderTop: "1px solid #e5e7eb", fontSize: "14px", fontWeight: 900, color: "#111827" },
-  formRow: { display: "flex", gap: "16px", flexWrap: "wrap" },
-  formGroup: { flex: 1, minWidth: "200px", display: "flex", flexDirection: "column", gap: "6px" },
-  formGroupWide: { flex: 1, minWidth: "100%", display: "flex", flexDirection: "column", gap: "6px" },
-  formGroupTextarea: { flex: 1, minWidth: "240px", display: "flex", flexDirection: "column", gap: "6px" },
-  formGroupCode: { width: "150px", display: "flex", flexDirection: "column", gap: "6px" },
-  formGroupDniWide: { width: "260px", display: "flex", flexDirection: "column", gap: "6px" },
-  formGroupNaf: { width: "230px", display: "flex", flexDirection: "column", gap: "6px" },
-  formGroupSmall: { width: "190px", display: "flex", flexDirection: "column", gap: "6px" },
+  formRow: { display: "flex", gap: "14px", flexWrap: "wrap" },
+  formGroup: { flex: "1 1 210px", minWidth: "200px", display: "flex", flexDirection: "column", gap: "6px" },
+  formGroupTextarea: { flex: "1 1 260px", minWidth: "240px", display: "flex", flexDirection: "column", gap: "6px" },
   input: { padding: "10px 12px", border: "1px solid #ccc", borderRadius: "8px", fontSize: "14px" },
-  textarea: { minHeight: "78px", padding: "10px 12px", border: "1px solid #ccc", borderRadius: "8px", fontSize: "14px", resize: "vertical" },
-  textareaLarge: { minHeight: "100px", padding: "10px 12px", border: "1px solid #ccc", borderRadius: "8px", fontSize: "14px", resize: "vertical" },
+  textarea: { minHeight: "86px", padding: "10px 12px", border: "1px solid #ccc", borderRadius: "8px", fontSize: "14px", resize: "vertical" },
   readOnlyInput: { backgroundColor: "#f3f4f6", color: "#6b7280", cursor: "not-allowed", fontWeight: 800 },
   checkboxLabel: { display: "flex", alignItems: "center", gap: "8px", fontWeight: 700 },
   confirmText: { margin: "0 0 16px", color: "#374151", lineHeight: 1.5 },
