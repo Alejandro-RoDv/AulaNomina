@@ -7,7 +7,6 @@ const overlayPages = [
   "company-centers",
   "company-list",
   "companies-list",
-  "employee-record",
   "documents",
   "alerts",
   "reports",
@@ -23,6 +22,7 @@ const overlayPages = [
 ];
 
 const companyPages = ["company-companies", "company-centers", "company-list", "companies-list"];
+const employeePages = ["employees", "employees-list", "employee-record"];
 const conceptPages = ["payroll-concepts", "permanent-payroll-concepts"];
 const payrollPages = ["payroll-monthly-preparation", "payroll-individual", "payroll-simulation", "payroll-history"];
 const teachingPages = ["teacher-dashboard", "teaching-alerts", "case-studies", "assignments", "corrections", "student-demo", "students", "groups", "progress"];
@@ -58,12 +58,6 @@ export default function Sidebar({ activePage, setActivePage }) {
       if (companyPages.includes(overlayPage)) {
         setCompanyMenuOpen(true);
         setActivePage("companies");
-        return;
-      }
-
-      if (overlayPage === "employee-record") {
-        setEmployeeMenuOpen(true);
-        setActivePage("employees");
         return;
       }
 
@@ -106,7 +100,8 @@ export default function Sidebar({ activePage, setActivePage }) {
           enabled: true,
           menu: "employee",
           children: [
-            { id: "employees", label: "Trabajadores", enabled: true },
+            { id: "employees", label: "Nuevo trabajador", enabled: true },
+            { id: "employees-list", label: "Listado trabajadores", enabled: true },
             { id: "employee-record", label: "Expediente", enabled: true },
           ],
         },
@@ -209,8 +204,8 @@ export default function Sidebar({ activePage, setActivePage }) {
       return;
     }
 
-    if (item.id === "employee-record") {
-      activateHashRoute(item.id, "employees");
+    if (employeePages.includes(item.id)) {
+      activateMainRoute(item.id);
       return;
     }
 
@@ -244,7 +239,7 @@ export default function Sidebar({ activePage, setActivePage }) {
                 const childPages = item.menu === "company"
                   ? companyPages.map(normalizePageId)
                   : item.menu === "employee"
-                    ? ["employees", "employee-record"]
+                    ? employeePages
                     : item.menu === "payroll"
                       ? payrollPages
                       : conceptPages;
