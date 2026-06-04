@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { fetchContracts, resetDemo } from "../services/api";
 import { fetchCollectiveAgreements } from "../services/collectiveAgreementApi";
 import { fetchCompanies } from "../services/companyApi";
+import { fetchDocuments } from "../services/documentApi";
 import { fetchAllEmployees, fetchNextEmployeeCode } from "../services/employeeApi";
 import { fetchIncidents } from "../services/incidentApi";
 import { fetchPayrolls } from "../services/payrollApi";
@@ -24,6 +25,7 @@ export function useAppData({ onLoadError, onNextEmployeeCode } = {}) {
   const [workCenters, setWorkCenters] = useState([]);
   const [incidents, setIncidents] = useState([]);
   const [payrolls, setPayrolls] = useState([]);
+  const [documents, setDocuments] = useState([]);
   const [collectiveAgreements, setCollectiveAgreements] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -52,6 +54,7 @@ export function useAppData({ onLoadError, onNextEmployeeCode } = {}) {
       workCentersData,
       incidentsData,
       payrollsData,
+      documentsData,
       collectiveAgreementsData,
       nextEmployeeCodeData,
     ] = await Promise.all([
@@ -61,6 +64,7 @@ export function useAppData({ onLoadError, onNextEmployeeCode } = {}) {
       safeRequest(fetchWorkCenters, [], "centros"),
       safeRequest(fetchIncidents, [], "incidencias"),
       safeRequest(fetchPayrolls, [], "nóminas"),
+      safeRequest(fetchDocuments, [], "documentos"),
       safeRequest(fetchCollectiveAgreements, [], "convenios"),
       safeRequest(fetchNextEmployeeCode, null, "siguiente código de trabajador"),
     ]);
@@ -71,6 +75,7 @@ export function useAppData({ onLoadError, onNextEmployeeCode } = {}) {
     setWorkCenters(workCentersData);
     setIncidents(incidentsData);
     setPayrolls(payrollsData);
+    setDocuments(documentsData);
     setCollectiveAgreements(collectiveAgreementsData);
 
     if (nextEmployeeCodeData?.employee_code || nextEmployeeCodeData?.next_code) {
@@ -117,6 +122,7 @@ export function useAppData({ onLoadError, onNextEmployeeCode } = {}) {
     workCenters,
     incidents,
     payrolls,
+    documents,
     collectiveAgreements,
     loading,
     loadData,
