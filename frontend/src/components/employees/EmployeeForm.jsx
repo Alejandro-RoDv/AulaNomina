@@ -70,23 +70,9 @@ export default function EmployeeForm({
               <option value="PASAPORTE">Pasaporte</option>
             </select>
           </div>
-          {form.document_type === "NIE" && (
-            <div style={styles.formGroupTiny}>
-              <label>Letra NIE</label>
-              <input name="nie_prefix" value={form.nie_prefix} onChange={onChange} maxLength="1" style={styles.input} />
-            </div>
-          )}
-          <div style={styles.formGroupDni}>
-            <label>{form.document_type === "PASAPORTE" ? "Pasaporte" : "Nº documento completo"}</label>
-            <input name="dni" value={form.dni} onChange={onChange} required style={styles.input} />
-          </div>
-          <div style={styles.formGroupSmall}>
-            <label>Nº documento</label>
-            <input name="document_number" value={form.document_number} onChange={onChange} style={styles.input} />
-          </div>
-          <div style={styles.formGroupTiny}>
-            <label>Letra</label>
-            <input name="document_letter" value={form.document_letter} onChange={onChange} maxLength="1" style={styles.input} />
+          <div style={styles.formGroupDniWide}>
+            <label>{form.document_type === "PASAPORTE" ? "Pasaporte" : "Documento"}</label>
+            <input name="dni" value={form.dni} onChange={onChange} required style={styles.input} placeholder="Ej. 56070451W" />
           </div>
           <div style={styles.formGroupNaf}>
             <label>NAF</label>
@@ -272,10 +258,9 @@ const styles = {
   formGroupWide: { flex: 1, minWidth: "100%", display: "flex", flexDirection: "column", gap: "6px" },
   formGroupTextarea: { flex: 1, minWidth: "260px", display: "flex", flexDirection: "column", gap: "6px" },
   formGroupCode: { width: "220px", flex: "0 0 220px", display: "flex", flexDirection: "column", gap: "6px" },
-  formGroupDni: { width: "240px", flex: "0 0 240px", display: "flex", flexDirection: "column", gap: "6px" },
+  formGroupDniWide: { width: "360px", flex: "0 0 360px", display: "flex", flexDirection: "column", gap: "6px" },
   formGroupNaf: { width: "240px", flex: "0 0 240px", display: "flex", flexDirection: "column", gap: "6px" },
   formGroupSmall: { width: "220px", flex: "0 0 220px", display: "flex", flexDirection: "column", gap: "6px" },
-  formGroupTiny: { width: "100px", flex: "0 0 100px", display: "flex", flexDirection: "column", gap: "6px" },
   input: { padding: "10px 12px", border: "1px solid #d1d5db", borderRadius: "8px", fontSize: "14px" },
   textarea: { minHeight: "86px", padding: "10px 12px", border: "1px solid #d1d5db", borderRadius: "8px", fontSize: "14px", resize: "vertical" },
   textareaLarge: { minHeight: "110px", padding: "10px 12px", border: "1px solid #d1d5db", borderRadius: "8px", fontSize: "14px", resize: "vertical" },
