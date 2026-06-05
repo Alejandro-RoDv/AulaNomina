@@ -49,6 +49,7 @@ export default function ContractsPage({
   contractSuccess,
   contractSubmitting,
 }) {
+  const [activeSection, setActiveSection] = useState("new");
   const [filters, setFilters] = useState({
     id: "",
     employee: "",
@@ -62,19 +63,17 @@ export default function ContractsPage({
     [contracts, employees]
   );
 
+  const activeContractsCount = contractsWithDisplayCodes.filter((contract) => contract.status === "active").length;
+  const transformedContractsCount = contractsWithDisplayCodes.filter((contract) => contract.status === "transformed" || contract.transformation_from_contract_id).length;
+  const bonifiedContractsCount = contractsWithDisplayCodes.filter((contract) => contract.bonus_type).length;
+
   const handleFilterChange = (event) => {
     const { name, value } = event.target;
     setFilters((prev) => ({ ...prev, [name]: value }));
   };
 
   const clearFilters = () => {
-    setFilters({
-      id: "",
-      employee: "",
-      company: "",
-      contractType: "",
-      status: "",
-    });
+    setFilters({ id: "", employee: "", company: "", contractType: "", status: "" });
   };
 
   const getEmployeeText = (contract) => {
@@ -102,7 +101,7 @@ export default function ContractsPage({
     const statusFilter = normalizeText(filters.status);
 
     return contractsWithDisplayCodes.filter((contract) => {
-      const contractId = normalizeText(`${contract.contract_display_code} ${contract.id}`);
+      const contractId = normalizeText(`${contract.contract_display_code} ${contract.id} ${contract.contract_code || ""}`);
       const employeeText = normalizeText(getEmployeeText(contract));
       const companyText = normalizeText(getCompanyText(contract));
       const contractType = normalizeText(contract.contract_type);
@@ -120,74 +119,112 @@ export default function ContractsPage({
 
   return (
     <div style={styles.wrapper}>
-      <PageCard title="Nuevo contrato" subtitle="Registra un contrato laboral simulado.">
-        <ContractForm
-          form={contractForm}
-          employees={employees}
-          companies={companies}
-          workCenters={workCenters}
-          contracts={contracts}
-          collectiveAgreements={collectiveAgreements}
-          onChange={onContractChange}
-          onSubmit={onContractSubmit}
-          error={contractError}
-          success={contractSuccess}
-          submitting={contractSubmitting}
-        />
-      </PageCard>
-
-      <PageCard title="Listado de contratos" subtitle="Contratos creados en el sistema.">
-        <div style={styles.filters}>
-          <div style={styles.filterGroupCode}>
-            <label>Código</label>
-            <input name="id" value={filters.id} onChange={handleFilterChange} placeholder="Ej. 1.1" style={styles.input} />
-          </div>
-          <div style={styles.filterGroupEmployee}>
-            <label>Empleado</label>
-            <input name="employee" value={filters.employee} onChange={handleFilterChange} placeholder="Nombre, DNI o ID" style={styles.input} />
-          </div>
-          <div style={styles.filterGroupCompany}>
-            <label>Empresa / centro / CCC</label>
-            <input name="company" value={filters.company} onChange={handleFilterChange} placeholder="Empresa, centro, CIF o CCC" style={styles.input} />
-          </div>
-          <div style={styles.filterGroupType}>
-            <label>Tipo</label>
-            <select name="contractType" value={filters.contractType} onChange={handleFilterChange} style={styles.input}>
-              <option value="">Todos</option>
-              <option value="indefinido">Indefinido</option>
-              <option value="temporal">Temporal</option>
-              <option value="practicas">Prácticas</option>
-              <option value="formacion">Formación</option>
-            </select>
-          </div>
-          <div style={styles.filterGroupStatus}>
-            <label>Estado</label>
-            <select name="status" value={filters.status} onChange={handleFilterChange} style={styles.input}>
-              <option value="">Todos</option>
-              <option value="active">Activo</option>
-              <option value="ended">Finalizado</option>
-            </select>
-          </div>
-          <button type="button" onClick={clearFilters} style={styles.clearButton}>Limpiar filtros</button>
+      <div style={styles.moduleHeader}>
+        <div>
+          <h2 style={styles.title}>Contratos</h2>
+          <p style={styles.subtitle}>Alta contractual, transformación, jornada, bonificaciones e historial de vida laboral interna.</p>
         </div>
+        <div style={styles.statsGrid}>
+          <Metric label="Contratos" value={contractsWithDisplayCodes.length} />
+          <Metric label="Activos" value={activeContractsCount} />
+          <Metric label="Transformaciones" value={transformedContractsCount} />
+          <Metric label="Bonificados" value={bonifiedContractsCount} />
+        </div>
+      </div>
 
-        <ContractTable
-          loading={loading}
-          contracts={filteredContracts}
-          employees={employees}
-          companies={companies}
-          workCenters={workCenters}
-          onUpdateContract={onUpdateContract}
-          onDeleteContract={onDeleteContract}
-          submitting={contractSubmitting}
-        />
-      </PageCard>
+      <div style={styles.tabs}>
+        <button type="button" onClick={() => setActiveSection("new")} style={activeSection === "new" ? styles.tabActive : styles.tab}>Nuevo contrato</button>
+        <button type="button" onClick={() => setActiveSection("history")} style={activeSection === "history" ? styles.tabActive : styles.tab}>Historial de contratos</button>
+      </div>
+
+      {activeSection === "new" && (
+        <PageCard title="Nuevo contrato" subtitle="Registra un contrato laboral simulado con datos de afiliación, jornada, bonificación y registro.">
+          <ContractForm
+            form={contractForm}
+            employees={employees}
+            companies={companies}
+            workCenters={workCenters}
+            contracts={contracts}
+            collectiveAgreements={collectiveAgreements}
+            onChange={onContractChange}
+            onSubmit={onContractSubmit}
+            error={contractError}
+            success={contractSuccess}
+            submitting={contractSubmitting}
+          />
+        </PageCard>
+      )}
+
+      {activeSection === "history" && (
+        <PageCard title="Historial de contratos" subtitle="Consulta contratos anteriores, activos, transformados, bonificaciones e inactividad registrada.">
+          <div style={styles.filters}>
+            <div style={styles.filterGroupCode}>
+              <label>Código</label>
+              <input name="id" value={filters.id} onChange={handleFilterChange} placeholder="Ej. 1.1 o 402" style={styles.input} />
+            </div>
+            <div style={styles.filterGroupEmployee}>
+              <label>Empleado</label>
+              <input name="employee" value={filters.employee} onChange={handleFilterChange} placeholder="Nombre, DNI o ID" style={styles.input} />
+            </div>
+            <div style={styles.filterGroupCompany}>
+              <label>Empresa / centro / CCC</label>
+              <input name="company" value={filters.company} onChange={handleFilterChange} placeholder="Empresa, centro, CIF o CCC" style={styles.input} />
+            </div>
+            <div style={styles.filterGroupType}>
+              <label>Tipo</label>
+              <select name="contractType" value={filters.contractType} onChange={handleFilterChange} style={styles.input}>
+                <option value="">Todos</option>
+                <option value="indefinido">Indefinido</option>
+                <option value="temporal">Temporal</option>
+                <option value="practicas">Prácticas</option>
+                <option value="formacion">Formación</option>
+                <option value="sustitucion">Sustitución</option>
+              </select>
+            </div>
+            <div style={styles.filterGroupStatus}>
+              <label>Estado</label>
+              <select name="status" value={filters.status} onChange={handleFilterChange} style={styles.input}>
+                <option value="">Todos</option>
+                <option value="active">Activo</option>
+                <option value="ended">Finalizado</option>
+                <option value="transformed">Transformado</option>
+                <option value="replaced">Sustituido</option>
+                <option value="cancelled">Anulado</option>
+              </select>
+            </div>
+            <button type="button" onClick={clearFilters} style={styles.clearButton}>Limpiar filtros</button>
+          </div>
+
+          <ContractTable
+            loading={loading}
+            contracts={filteredContracts}
+            employees={employees}
+            companies={companies}
+            workCenters={workCenters}
+            onUpdateContract={onUpdateContract}
+            onDeleteContract={onDeleteContract}
+            submitting={contractSubmitting}
+          />
+        </PageCard>
+      )}
     </div>
   );
 }
 
+function Metric({ label, value }) {
+  return <div style={styles.metric}><span>{label}</span><strong>{value}</strong></div>;
+}
+
 const styles = {
   wrapper: { display: "flex", flexDirection: "column", gap: "20px" },
+  moduleHeader: { display: "flex", justifyContent: "space-between", gap: "18px", alignItems: "flex-start", border: "1px solid #e5e7eb", borderRadius: "14px", padding: "18px", backgroundColor: "#ffffff" },
+  title: { margin: 0, fontSize: "24px", color: "#111827" },
+  subtitle: { margin: "6px 0 0", color: "#6b7280", fontSize: "14px", maxWidth: "760px" },
+  statsGrid: { display: "grid", gridTemplateColumns: "repeat(4, minmax(100px, 1fr))", gap: "10px" },
+  metric: { border: "1px solid #e5e7eb", borderRadius: "10px", padding: "10px 12px", backgroundColor: "#f9fafb", display: "flex", flexDirection: "column", gap: "4px", minWidth: "96px" },
+  tabs: { display: "flex", gap: "10px", borderBottom: "1px solid #e5e7eb", paddingBottom: "10px" },
+  tab: { backgroundColor: "#f3f4f6", color: "#111827", border: "1px solid #d1d5db", borderRadius: "10px", padding: "10px 14px", cursor: "pointer", fontWeight: 800 },
+  tabActive: { backgroundColor: "#111827", color: "white", border: "1px solid #111827", borderRadius: "10px", padding: "10px 14px", cursor: "pointer", fontWeight: 800 },
   filters: { display: "grid", gridTemplateColumns: "86px 250px minmax(300px, 1fr) 150px 150px 124px", columnGap: "14px", rowGap: "10px", alignItems: "end", marginBottom: "18px" },
   filterGroupCode: { minWidth: 0, display: "flex", flexDirection: "column", gap: "6px" },
   filterGroupEmployee: { minWidth: 0, display: "flex", flexDirection: "column", gap: "6px" },
