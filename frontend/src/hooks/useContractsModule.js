@@ -45,6 +45,22 @@ function parseSalaryLinesFromContractExtra(contractExtra = {}) {
     .filter((line) => line.name && Number(line.amount) > 0);
 }
 
+function cleanContractExtraForPersistence(contractExtra = {}) {
+  const cleanExtra = { ...contractExtra };
+  delete cleanExtra.salaryLines;
+
+  if (typeof cleanExtra.bonus_observations === "string" && cleanExtra.bonus_observations.includes("Complementos:")) {
+    cleanExtra.bonus_observations = cleanExtra.bonus_observations
+      .split("|")
+      .filter((segment) => !segment.includes("Complementos:"))
+      .map((segment) => segment.trim())
+      .filter(Boolean)
+      .join(" | ");
+  }
+
+  return cleanExtra;
+}
+
 export function useContractsModule({ onDataChanged }) {
   const [contractForm, setContractForm] = useState(initialContractForm);
   const [contractSubmitting, setContractSubmitting] = useState(false);
@@ -61,10 +77,13 @@ export function useContractsModule({ onDataChanged }) {
     setContractError("");
     setContractSuccess("");
 
+    const contractExtra = advancedPayload.contractExtra || {};
+    const cleanContractExtra = cleanContractExtraForPersistence(contractExtra);
+    const salaryLines = advancedPayload.salaryLines || parseSalaryLinesFromContractExtra(contractExtra);
     const socialSecurityPayload = advancedPayload.socialSecurity || null;
     const validationErrors = validateContractWorkflow(
       contractForm,
-      advancedPayload.contractExtra || {},
+      cleanContractExtra,
       socialSecurityPayload
     );
 
@@ -76,9 +95,9 @@ export function useContractsModule({ onDataChanged }) {
     try {
       setContractSubmitting(true);
       await createContract(
-        buildContractPayload(contractForm, advancedPayload.contractExtra),
+        buildContractPayload(contractForm, cleanContractExtra),
         normalizeSocialSecurityPayload(socialSecurityPayload),
-        advancedPayload.salaryLines || parseSalaryLinesFromContractExtra(advancedPayload.contractExtra)
+        salaryLines
       );
       setContractSuccess("Contrato, alta SS y estructura retributiva creados correctamente");
       setContractForm(initialContractForm);
