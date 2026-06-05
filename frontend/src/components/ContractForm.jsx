@@ -15,7 +15,7 @@ const EMPTY_EXTRA = {
   contract_family: "",
   seniority_date: "",
   seniority_criterion: "start_date",
-  termination_reason: "",
+  termination_reason: "1",
   transformation_from_contract_id: "",
   transformation_date: "",
   transformation_reason: "",
@@ -188,9 +188,22 @@ function catalogOrFallback(items, fallback) {
   return items?.length ? items : fallback;
 }
 
-function buildSsPayload(ssForm, form, extraForm) {
+function getSituationLabel(catalogs, code) {
+  const situation = catalogs.situations.find((item) => String(item.code) === String(code));
+  return situation?.description || "Alta";
+}
+
+function getSituationCodeForDates(endDate, currentCode) {
+  if (!endDate) return "1";
+  return currentCode && currentCode !== "1" ? currentCode : "93";
+}
+
+function buildSsPayload(ssForm, form, extraForm, catalogs) {
+  const situationCode = getSituationCodeForDates(form.end_date, extraForm.termination_reason || ssForm.situation_code);
   return {
     ...ssForm,
+    situation_code: situationCode,
+    situation_description: getSituationLabel(catalogs, situationCode),
     registration_date: ssForm.registration_date || form.start_date,
     contribution_group: ssForm.contribution_group || extraForm.contribution_group,
     monthly_or_daily_contribution: ssForm.monthly_or_daily_contribution || extraForm.monthly_or_daily_contribution,
@@ -291,6 +304,11 @@ export default function ContractForm({
       if (!ssForm.registration_date) updateSs({ registration_date: value });
       if (extraForm.seniority_criterion === "start_date") updateExtra({ seniority_date: value });
     }
+    if (name === "end_date") {
+      const situationCode = getSituationCodeForDates(value, extraForm.termination_reason);
+      updateExtra({ termination_reason: situationCode });
+      updateSs({ situation_code: situationCode, situation_description: getSituationLabel(catalogs, situationCode) });
+    }
   };
 
   const handleEmployeeChange = (event) => {
@@ -323,6 +341,13 @@ export default function ContractForm({
   const handleExtraChange = (event) => {
     const { name, value, type, checked } = event.target;
     const nextValue = type === "checkbox" ? checked : value;
+
+    if (name === "termination_reason") {
+      const situationCode = getSituationCodeForDates(form.end_date, value);
+      updateExtra({ termination_reason: situationCode });
+      updateSs({ situation_code: situationCode, situation_description: getSituationLabel(catalogs, situationCode) });
+      return;
+    }
 
     if (name === "contract_code") {
       const selected = catalogs.contracts.find((item) => item.contract_code === value);
@@ -387,13 +412,16 @@ export default function ContractForm({
   };
 
   const handleSubmit = (event) => {
+    const situationCode = getSituationCodeForDates(form.end_date, extraForm.termination_reason);
     onSubmit(event, {
       contractExtra: {
         ...extraForm,
+        termination_reason: situationCode,
         gross_annual_salary: String(Math.round(totalAnnual * 100) / 100),
-        bonus_observations: [extraForm.bonus_observations, salaryLines.length ? `Complementos: ${salaryLines.map((line) => `${line.name} ${line.amount}`).join("; ")}` : ""].filter(Boolean).join(" | "),
+        bonus_observations: extraForm.bonus_observations,
       },
-      socialSecurity: buildSsPayload(ssForm, form, extraForm),
+      socialSecurity: buildSsPayload(ssForm, form, { ...extraForm, termination_reason: situationCode }, catalogs),
+      salaryLines,
     });
   };
 
@@ -408,7 +436,7 @@ export default function ContractForm({
           <Field label="Tipo"><select name="contract_type" value={form.contract_type} onChange={handleBaseChange} required style={styles.input}><option value="">Selecciona tipo</option><option value="indefinido">Indefinido</option><option value="temporal">Temporal</option><option value="practicas">Prácticas</option><option value="formacion">Formación</option><option value="sustitucion">Sustitución</option></select></Field>
           <Field label="Fecha alta"><input type="date" name="start_date" value={form.start_date} onChange={handleBaseChange} required style={styles.input} /></Field>
           <Field label="Fecha baja"><input type="date" name="end_date" value={form.end_date} onChange={handleBaseChange} style={styles.input} /></Field>
-          <Field label="Causa baja"><input name="termination_reason" value={extraForm.termination_reason} onChange={handleExtraChange} style={styles.input} /></Field>
+          <Field label="Causa baja / situación RED"><select name="termination_reason" value={getSituationCodeForDates(form.end_date, extraForm.termination_reason)} onChange={handleExtraChange} style={styles.input} disabled={!form.end_date}>{catalogs.situations.map((item) => <option key={item.code} value={item.code}>{item.code} · {item.description}</option>)}</select></Field>
           <Field label="Estado"><select name="status" value={form.status} onChange={handleBaseChange} style={styles.input}><option value="active">Activo</option><option value="ended">Finalizado</option><option value="transformed">Transformado</option><option value="replaced">Sustituido</option><option value="cancelled">Anulado</option></select></Field>
           <Field label="Antigüedad"><input type="date" name="seniority_date" value={extraForm.seniority_date} onChange={handleExtraChange} style={styles.input} /></Field>
         </div>
