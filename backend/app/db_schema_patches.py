@@ -61,6 +61,7 @@ CONTRACT_LABOR_COLUMNS = {
     "red_occupation_code": "VARCHAR",
     "red_reduction_code": "VARCHAR",
     "gross_annual_salary": "NUMERIC(10, 2)",
+    "contract_registry_status": "VARCHAR DEFAULT 'not_registered'",
 }
 
 COMPANY_SPLIT_24_COLUMNS = {
