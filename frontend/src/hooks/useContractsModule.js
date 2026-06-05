@@ -20,7 +20,7 @@ const initialContractForm = {
 };
 
 function formatValidationErrors(errors) {
-  return `Validaciones didácticas pendientes: ${errors
+  return `Validaciones pendientes: ${errors
     .map((error, index) => `${index + 1}. ${error}`)
     .join(" ")}`;
 }
@@ -57,9 +57,10 @@ export function useContractsModule({ onDataChanged }) {
       setContractSubmitting(true);
       await createContract(
         buildContractPayload(contractForm, advancedPayload.contractExtra),
-        normalizeSocialSecurityPayload(socialSecurityPayload)
+        normalizeSocialSecurityPayload(socialSecurityPayload),
+        advancedPayload.salaryLines || []
       );
-      setContractSuccess("Contrato y alta SS creados correctamente");
+      setContractSuccess("Contrato, alta SS y estructura retributiva creados correctamente");
       setContractForm(initialContractForm);
       await onDataChanged();
     } catch (err) {
