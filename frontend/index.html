@@ -5,6 +5,17 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>frontend</title>
+    <style>
+      /* Capa global de seguridad para modales.
+         Evita que cabeceras o barras internas queden por encima de ventanas emergentes. */
+      header[style] {
+        z-index: 1 !important;
+      }
+
+      div[style*="position: fixed"][style*="inset"] {
+        z-index: 5000 !important;
+      }
+    </style>
   </head>
   <body>
     <div id="root"></div>
