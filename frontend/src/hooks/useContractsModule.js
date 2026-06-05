@@ -25,6 +25,26 @@ function formatValidationErrors(errors) {
     .join(" ")}`;
 }
 
+function parseSalaryLinesFromContractExtra(contractExtra = {}) {
+  if (Array.isArray(contractExtra.salaryLines)) return contractExtra.salaryLines;
+  const observations = String(contractExtra.bonus_observations || "");
+  const marker = "Complementos:";
+  if (!observations.includes(marker)) return [];
+  return observations
+    .split(marker)[1]
+    .split("|")[0]
+    .split(";")
+    .map((rawLine) => rawLine.trim())
+    .filter(Boolean)
+    .map((rawLine, index) => {
+      const parts = rawLine.split(" ");
+      const amount = Number(parts.pop() || 0);
+      const name = parts.join(" ").trim() || `Complemento ${index + 1}`;
+      return { id: index + 1, name, amount, type: "complement" };
+    })
+    .filter((line) => line.name && Number(line.amount) > 0);
+}
+
 export function useContractsModule({ onDataChanged }) {
   const [contractForm, setContractForm] = useState(initialContractForm);
   const [contractSubmitting, setContractSubmitting] = useState(false);
@@ -58,7 +78,7 @@ export function useContractsModule({ onDataChanged }) {
       await createContract(
         buildContractPayload(contractForm, advancedPayload.contractExtra),
         normalizeSocialSecurityPayload(socialSecurityPayload),
-        advancedPayload.salaryLines || []
+        advancedPayload.salaryLines || parseSalaryLinesFromContractExtra(advancedPayload.contractExtra)
       );
       setContractSuccess("Contrato, alta SS y estructura retributiva creados correctamente");
       setContractForm(initialContractForm);
