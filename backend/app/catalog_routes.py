@@ -18,9 +18,13 @@ router = APIRouter(tags=["catalogs"])
 router.include_router(social_security_registration_router)
 
 
+def sort_contract_codes(codes):
+    return sorted(codes, key=lambda item: int(item.get("contract_code") or 0))
+
+
 @router.get("/catalogs/contracts")
 def get_contract_codes():
-    return CONTRACT_CODES
+    return sort_contract_codes(CONTRACT_CODES)
 
 
 @router.get("/catalogs/contribution-groups")
@@ -71,7 +75,7 @@ def get_monthly_daily_contribution_types():
 @router.get("/catalogs/all")
 def get_all_catalogs():
     return {
-        "contracts": CONTRACT_CODES,
+        "contracts": sort_contract_codes(CONTRACT_CODES),
         "contribution_groups": CONTRIBUTION_GROUPS,
         "situations": SITUATION_CODES,
         "unemployed_conditions": UNEMPLOYED_CONDITIONS,
