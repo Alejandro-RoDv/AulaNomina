@@ -34,6 +34,7 @@ function buildContractsWithDisplayCodes(contracts, employees) {
 }
 
 export default function ContractsPage({
+  mode = "new",
   loading,
   contracts,
   employees,
@@ -49,7 +50,6 @@ export default function ContractsPage({
   contractSuccess,
   contractSubmitting,
 }) {
-  const [activeSection, setActiveSection] = useState("new");
   const [filters, setFilters] = useState({
     id: "",
     employee: "",
@@ -117,12 +117,14 @@ export default function ContractsPage({
     });
   }, [contractsWithDisplayCodes, employees, companies, workCenters, filters]);
 
+  const isHistory = mode === "history";
+
   return (
     <div style={styles.wrapper}>
       <div style={styles.moduleHeader}>
         <div>
-          <h2 style={styles.title}>Contratos</h2>
-          <p style={styles.subtitle}>Alta contractual, transformación, jornada, bonificaciones e historial de vida laboral interna.</p>
+          <h2 style={styles.title}>{isHistory ? "Historial de contratos" : "Nuevo contrato"}</h2>
+          <p style={styles.subtitle}>{isHistory ? "Consulta contratos anteriores, activos, transformados, bonificaciones e inactividad registrada." : "Alta contractual, transformación, jornada, bonificaciones, afiliación y registro."}</p>
         </div>
         <div style={styles.statsGrid}>
           <Metric label="Contratos" value={contractsWithDisplayCodes.length} />
@@ -132,12 +134,7 @@ export default function ContractsPage({
         </div>
       </div>
 
-      <div style={styles.tabs}>
-        <button type="button" onClick={() => setActiveSection("new")} style={activeSection === "new" ? styles.tabActive : styles.tab}>Nuevo contrato</button>
-        <button type="button" onClick={() => setActiveSection("history")} style={activeSection === "history" ? styles.tabActive : styles.tab}>Historial de contratos</button>
-      </div>
-
-      {activeSection === "new" && (
+      {!isHistory && (
         <PageCard title="Nuevo contrato" subtitle="Registra un contrato laboral simulado con datos de afiliación, jornada, bonificación y registro.">
           <ContractForm
             form={contractForm}
@@ -155,7 +152,7 @@ export default function ContractsPage({
         </PageCard>
       )}
 
-      {activeSection === "history" && (
+      {isHistory && (
         <PageCard title="Historial de contratos" subtitle="Consulta contratos anteriores, activos, transformados, bonificaciones e inactividad registrada.">
           <div style={styles.filters}>
             <div style={styles.filterGroupCode}>
@@ -222,9 +219,6 @@ const styles = {
   subtitle: { margin: "6px 0 0", color: "#6b7280", fontSize: "14px", maxWidth: "760px" },
   statsGrid: { display: "grid", gridTemplateColumns: "repeat(4, minmax(100px, 1fr))", gap: "10px" },
   metric: { border: "1px solid #e5e7eb", borderRadius: "10px", padding: "10px 12px", backgroundColor: "#f9fafb", display: "flex", flexDirection: "column", gap: "4px", minWidth: "96px" },
-  tabs: { display: "flex", gap: "10px", borderBottom: "1px solid #e5e7eb", paddingBottom: "10px" },
-  tab: { backgroundColor: "#f3f4f6", color: "#111827", border: "1px solid #d1d5db", borderRadius: "10px", padding: "10px 14px", cursor: "pointer", fontWeight: 800 },
-  tabActive: { backgroundColor: "#111827", color: "white", border: "1px solid #111827", borderRadius: "10px", padding: "10px 14px", cursor: "pointer", fontWeight: 800 },
   filters: { display: "grid", gridTemplateColumns: "86px 250px minmax(300px, 1fr) 150px 150px 124px", columnGap: "14px", rowGap: "10px", alignItems: "end", marginBottom: "18px" },
   filterGroupCode: { minWidth: 0, display: "flex", flexDirection: "column", gap: "6px" },
   filterGroupEmployee: { minWidth: 0, display: "flex", flexDirection: "column", gap: "6px" },
