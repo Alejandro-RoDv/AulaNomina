@@ -1,3 +1,5 @@
+import { useEffect, useState } from "react";
+
 import logo from "../../assets/aulanomina-logo.svg";
 
 const groups = [
@@ -5,7 +7,16 @@ const groups = [
     title: "Datos",
     items: [
       { id: "dashboard", label: "Panel", enabled: true },
-      { id: "companies", label: "Empresas / centros", enabled: true },
+      {
+        id: "companies-menu",
+        label: "Empresas / centros",
+        enabled: true,
+        children: [
+          { id: "companies", label: "Nueva empresa", enabled: true, hash: "#company-companies", modeGroup: "companies", modeValue: "new" },
+          { id: "companies", label: "Centros", enabled: true, hash: "#company-centers", modeGroup: "companies", modeValue: "centers" },
+          { id: "companies", label: "Listado empresas", enabled: true, hash: "#company-list", modeGroup: "companies", modeValue: "list" },
+        ],
+      },
       {
         id: "worker-menu",
         label: "Trabajador",
@@ -21,8 +32,8 @@ const groups = [
         label: "Contratos",
         enabled: true,
         children: [
-          { id: "contracts", label: "Nuevo contrato", enabled: true, contractMode: "new" },
-          { id: "contracts", label: "Historial contratos", enabled: true, contractMode: "history" },
+          { id: "contracts", label: "Nuevo contrato", enabled: true, modeGroup: "contracts", modeValue: "new" },
+          { id: "contracts", label: "Historial contratos", enabled: true, modeGroup: "contracts", modeValue: "history" },
         ],
       },
       { id: "collective-agreements", label: "Convenios", enabled: true },
@@ -54,20 +65,76 @@ const groups = [
   },
 ];
 
+const modeStorageKeys = {
+  contracts: "aulanomina:contractsMode",
+  companies: "aulanomina:companiesMode",
+};
+
+const modeEvents = {
+  contracts: "aulanomina-contract-mode",
+  companies: "aulanomina-route-change",
+};
+
+function getItemKey(item) {
+  if (item.modeGroup && item.modeValue) return `${item.id}:${item.modeGroup}:${item.modeValue}`;
+  if (item.hash) return `${item.id}:${item.hash}`;
+  return item.id;
+}
+
+function getInitialActiveKey(activePage) {
+  if (activePage === "contracts") {
+    const mode = window.sessionStorage.getItem(modeStorageKeys.contracts) || "new";
+    return `contracts:contracts:${mode}`;
+  }
+  if (activePage === "companies") {
+    const mode = window.sessionStorage.getItem(modeStorageKeys.companies) || getCompanyModeFromHash();
+    return `companies:companies:${mode}`;
+  }
+  return activePage;
+}
+
+function getCompanyModeFromHash() {
+  if (window.location.hash === "#company-centers") return "centers";
+  if (window.location.hash === "#company-list") return "list";
+  return "new";
+}
+
+function applyItemNavigation(item) {
+  if (item.hash) window.location.hash = item.hash;
+
+  if (item.modeGroup && item.modeValue) {
+    const storageKey = modeStorageKeys[item.modeGroup];
+    if (storageKey) window.sessionStorage.setItem(storageKey, item.modeValue);
+  }
+
+  const eventName = modeEvents[item.modeGroup];
+  if (eventName) window.dispatchEvent(new Event(eventName));
+}
+
 export default function Sidebar({ activePage, setActivePage }) {
+  const [activeNavKey, setActiveNavKey] = useState(() => getInitialActiveKey(activePage));
+
+  useEffect(() => {
+    setActiveNavKey(getInitialActiveKey(activePage));
+  }, [activePage]);
+
   const handleNavClick = (item) => {
     if (!item.enabled) return;
-    if (item.contractMode) {
-      window.sessionStorage.setItem("aulanomina:contractsMode", item.contractMode);
-      window.dispatchEvent(new Event("aulanomina-contract-mode"));
-    }
+    applyItemNavigation(item);
+    setActiveNavKey(getItemKey(item));
     setActivePage(item.id);
   };
 
   const isItemActive = (item) => {
-    if (item.id !== "contracts") return activePage === item.id;
-    const currentMode = window.sessionStorage.getItem("aulanomina:contractsMode") || "new";
-    return activePage === "contracts" && (!item.contractMode || item.contractMode === currentMode);
+    const itemKey = getItemKey(item);
+    if (activeNavKey === itemKey) return true;
+    if (item.id !== activePage) return false;
+    return !item.modeGroup && !item.hash;
+  };
+
+  const isParentActive = (item) => {
+    if (activePage === item.id) return true;
+    return item.children?.some((child) => isItemActive(child));
   };
 
   return (
@@ -82,7 +149,7 @@ export default function Sidebar({ activePage, setActivePage }) {
             <div style={styles.groupItems}>
               {group.items.map((item) => (
                 <div key={`${item.id}-${item.label}`} style={styles.itemBlock}>
-                  <button type="button" disabled={!item.enabled} onClick={() => !item.children && handleNavClick(item)} style={{ ...styles.navItem, ...(activePage === item.id || item.children?.some(isItemActive) ? styles.navItemActive : {}), ...(!item.enabled ? styles.navItemDisabled : {}) }}>
+                  <button type="button" disabled={!item.enabled} onClick={() => !item.children && handleNavClick(item)} style={{ ...styles.navItem, ...(isParentActive(item) ? styles.navItemActive : {}), ...(!item.enabled ? styles.navItemDisabled : {}) }}>
                     {item.label}
                   </button>
                   {item.children && (
