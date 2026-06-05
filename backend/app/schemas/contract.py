@@ -17,8 +17,21 @@ class ContractBase(BaseModel):
     contract_family: Optional[str] = None
 
     start_date: date
+    seniority_date: Optional[date] = None
+    seniority_criterion: Optional[str] = None
     end_date: Optional[date] = None
+    termination_reason: Optional[str] = None
     status: Optional[str] = "active"
+
+    transformation_from_contract_id: Optional[int] = None
+    transformation_date: Optional[date] = None
+    transformation_reason: Optional[str] = None
+
+    bonus_type: Optional[str] = None
+    bonus_start_date: Optional[date] = None
+    bonus_end_date: Optional[date] = None
+    bonus_fixed_fee: Optional[Decimal] = None
+    bonus_observations: Optional[str] = None
 
     contribution_group: Optional[str] = None
     professional_category: Optional[str] = None
@@ -35,6 +48,54 @@ class ContractBase(BaseModel):
     monthly_hours: Optional[float] = None
     annual_hours: Optional[float] = None
     partiality_coefficient: Optional[float] = None
+    ordinary_hours: Optional[float] = None
+    ordinary_hours_period: Optional[str] = None
+    comparison_reference_type: Optional[str] = None
+    comparison_hours: Optional[float] = None
+    work_distribution: Optional[str] = None
+    pay_accrual_mode: Optional[str] = None
+    contribution_hours_mode: Optional[str] = None
+
+    legal_workday_reduction_cause: Optional[str] = None
+    legal_workday_reduction_start: Optional[date] = None
+    legal_workday_reduction_end: Optional[date] = None
+    legal_workday_reduction_percentage: Optional[float] = None
+    inactivity_start_date: Optional[date] = None
+    inactivity_return_date: Optional[date] = None
+    inactivity_start_communication_date: Optional[date] = None
+    inactivity_return_communication_date: Optional[date] = None
+
+    works_holidays: bool = False
+    holiday_scope: Optional[str] = None
+    holiday_only_service_days: bool = False
+    schedule_notes: Optional[str] = None
+
+    health_card_number: Optional[str] = None
+    subrogation: bool = False
+    subrogation_company_origin: Optional[str] = None
+    subrogation_date: Optional[date] = None
+    recognized_seniority_date: Optional[date] = None
+    affects_extra_payments: bool = False
+
+    relation_type: Optional[str] = None
+    representation_type: Optional[str] = None
+    relation_subtype: Optional[str] = None
+    registration_number: Optional[str] = None
+    authorization_number: Optional[str] = None
+    red_key: Optional[str] = None
+    red_cont: Optional[str] = None
+    cno_code: Optional[str] = None
+    cno_description: Optional[str] = None
+    company_cnae: Optional[str] = None
+    occupation: Optional[str] = None
+    it_rate: Optional[float] = None
+    ims_rate: Optional[float] = None
+    function_description: Optional[str] = None
+    section: Optional[str] = None
+    group_name: Optional[str] = None
+    contract_registry_number: Optional[str] = None
+    contract_registry_date: Optional[date] = None
+    contract_registry_office: Optional[str] = None
 
     monthly_or_daily_contribution: Optional[str] = None
     red_occupation_code: Optional[str] = None
@@ -47,9 +108,9 @@ class ContractBase(BaseModel):
     @field_validator("status")
     @classmethod
     def validate_status(cls, value):
-        allowed_status = {"active", "ended", "deleted"}
+        allowed_status = {"active", "ended", "deleted", "transformed", "replaced", "cancelled"}
         if value not in allowed_status:
-            raise ValueError("status debe ser 'active', 'ended' o 'deleted'")
+            raise ValueError("status debe ser active, ended, deleted, transformed, replaced o cancelled")
         return value
 
     @field_validator("contract_type")
@@ -89,28 +150,31 @@ class ContractBase(BaseModel):
 
     @model_validator(mode="after")
     def validate_working_day_consistency(self):
+        if self.end_date and self.start_date and self.end_date < self.start_date:
+            raise ValueError("end_date no puede ser menor que start_date")
+        if self.bonus_end_date and self.bonus_start_date and self.bonus_end_date < self.bonus_start_date:
+            raise ValueError("bonus_end_date no puede ser menor que bonus_start_date")
+        if self.legal_workday_reduction_end and self.legal_workday_reduction_start and self.legal_workday_reduction_end < self.legal_workday_reduction_start:
+            raise ValueError("La fecha fin de reducción no puede ser anterior a la fecha inicio")
+
         if self.full_time_weekly_hours is not None and self.full_time_weekly_hours <= 0:
             raise ValueError("full_time_weekly_hours debe ser mayor que 0")
-
         if self.weekly_hours is not None and self.weekly_hours < 0:
             raise ValueError("weekly_hours no puede ser negativa")
-
-        for field_name in ("annual_agreement_hours", "monthly_hours", "annual_hours"):
+        for field_name in ("annual_agreement_hours", "monthly_hours", "annual_hours", "ordinary_hours", "comparison_hours"):
             value = getattr(self, field_name)
             if value is not None and value < 0:
                 raise ValueError(f"{field_name} no puede ser negativo")
-
         if self.partiality_coefficient is not None and not 0 <= self.partiality_coefficient <= 100:
             raise ValueError("partiality_coefficient debe estar entre 0 y 100")
-
+        if self.legal_workday_reduction_percentage is not None and not 0 <= self.legal_workday_reduction_percentage <= 100:
+            raise ValueError("legal_workday_reduction_percentage debe estar entre 0 y 100")
         if self.working_day_type == "full_time" and self.partiality_coefficient not in (None, 100):
             raise ValueError("En jornada completa el coeficiente de parcialidad debe ser 100")
-
         if self.working_day_type == "part_time" and self.weekly_hours and self.full_time_weekly_hours:
             calculated = round((self.weekly_hours / self.full_time_weekly_hours) * 100, 2)
             if self.partiality_coefficient is None:
                 self.partiality_coefficient = calculated
-
         return self
 
 
@@ -121,16 +185,24 @@ class ContractCreate(ContractBase):
 class ContractUpdate(BaseModel):
     company_id: Optional[int] = None
     center_id: Optional[int] = None
-
     contract_type: Optional[str] = None
     contract_code: Optional[str] = None
     contract_code_description: Optional[str] = None
     contract_family: Optional[str] = None
-
     start_date: Optional[date] = None
+    seniority_date: Optional[date] = None
+    seniority_criterion: Optional[str] = None
     end_date: Optional[date] = None
+    termination_reason: Optional[str] = None
     status: Optional[str] = None
-
+    transformation_from_contract_id: Optional[int] = None
+    transformation_date: Optional[date] = None
+    transformation_reason: Optional[str] = None
+    bonus_type: Optional[str] = None
+    bonus_start_date: Optional[date] = None
+    bonus_end_date: Optional[date] = None
+    bonus_fixed_fee: Optional[Decimal] = None
+    bonus_observations: Optional[str] = None
     contribution_group: Optional[str] = None
     professional_category: Optional[str] = None
     job_position: Optional[str] = None
@@ -138,7 +210,6 @@ class ContractUpdate(BaseModel):
     collective_agreement_id: Optional[int] = None
     professional_category_id: Optional[int] = None
     salary_table_row_id: Optional[int] = None
-
     working_day_type: Optional[str] = None
     weekly_hours: Optional[float] = None
     full_time_weekly_hours: Optional[float] = None
@@ -146,11 +217,53 @@ class ContractUpdate(BaseModel):
     monthly_hours: Optional[float] = None
     annual_hours: Optional[float] = None
     partiality_coefficient: Optional[float] = None
-
+    ordinary_hours: Optional[float] = None
+    ordinary_hours_period: Optional[str] = None
+    comparison_reference_type: Optional[str] = None
+    comparison_hours: Optional[float] = None
+    work_distribution: Optional[str] = None
+    pay_accrual_mode: Optional[str] = None
+    contribution_hours_mode: Optional[str] = None
+    legal_workday_reduction_cause: Optional[str] = None
+    legal_workday_reduction_start: Optional[date] = None
+    legal_workday_reduction_end: Optional[date] = None
+    legal_workday_reduction_percentage: Optional[float] = None
+    inactivity_start_date: Optional[date] = None
+    inactivity_return_date: Optional[date] = None
+    inactivity_start_communication_date: Optional[date] = None
+    inactivity_return_communication_date: Optional[date] = None
+    works_holidays: Optional[bool] = None
+    holiday_scope: Optional[str] = None
+    holiday_only_service_days: Optional[bool] = None
+    schedule_notes: Optional[str] = None
+    health_card_number: Optional[str] = None
+    subrogation: Optional[bool] = None
+    subrogation_company_origin: Optional[str] = None
+    subrogation_date: Optional[date] = None
+    recognized_seniority_date: Optional[date] = None
+    affects_extra_payments: Optional[bool] = None
+    relation_type: Optional[str] = None
+    representation_type: Optional[str] = None
+    relation_subtype: Optional[str] = None
+    registration_number: Optional[str] = None
+    authorization_number: Optional[str] = None
+    red_key: Optional[str] = None
+    red_cont: Optional[str] = None
+    cno_code: Optional[str] = None
+    cno_description: Optional[str] = None
+    company_cnae: Optional[str] = None
+    occupation: Optional[str] = None
+    it_rate: Optional[float] = None
+    ims_rate: Optional[float] = None
+    function_description: Optional[str] = None
+    section: Optional[str] = None
+    group_name: Optional[str] = None
+    contract_registry_number: Optional[str] = None
+    contract_registry_date: Optional[date] = None
+    contract_registry_office: Optional[str] = None
     monthly_or_daily_contribution: Optional[str] = None
     red_occupation_code: Optional[str] = None
     red_reduction_code: Optional[str] = None
-
     salary_base: Optional[Decimal] = None
     gross_annual_salary: Optional[Decimal] = None
     pay_schedule: Optional[str] = None
@@ -160,9 +273,9 @@ class ContractUpdate(BaseModel):
     def validate_status(cls, value):
         if value is None:
             return value
-        allowed_status = {"active", "ended", "deleted"}
+        allowed_status = {"active", "ended", "deleted", "transformed", "replaced", "cancelled"}
         if value not in allowed_status:
-            raise ValueError("status debe ser 'active', 'ended' o 'deleted'")
+            raise ValueError("status debe ser active, ended, deleted, transformed, replaced o cancelled")
         return value
 
     @field_validator("pay_schedule")
@@ -196,47 +309,11 @@ class ContractUpdate(BaseModel):
         return value
 
 
-class ContractResponse(BaseModel):
+class ContractResponse(ContractBase):
     id: int
-    employee_id: int
-    company_id: Optional[int] = None
-    center_id: Optional[int] = None
     employee_name: Optional[str] = None
     company_name: Optional[str] = None
-
-    contract_type: str
-    contract_code: Optional[str] = None
-    contract_code_description: Optional[str] = None
-    contract_family: Optional[str] = None
-
-    start_date: date
-    end_date: Optional[date]
-    status: str
-
-    contribution_group: Optional[str] = None
-    professional_category: Optional[str] = None
-    job_position: Optional[str] = None
-    collective_agreement_code: Optional[str] = None
-    collective_agreement_id: Optional[int] = None
     collective_agreement_name: Optional[str] = None
-    professional_category_id: Optional[int] = None
-    salary_table_row_id: Optional[int] = None
-
-    working_day_type: Optional[str] = None
-    weekly_hours: Optional[float] = None
-    full_time_weekly_hours: Optional[float] = None
-    annual_agreement_hours: Optional[float] = None
-    monthly_hours: Optional[float] = None
-    annual_hours: Optional[float] = None
-    partiality_coefficient: Optional[float] = None
-
-    monthly_or_daily_contribution: Optional[str] = None
-    red_occupation_code: Optional[str] = None
-    red_reduction_code: Optional[str] = None
-
-    salary_base: Optional[Decimal]
-    gross_annual_salary: Optional[Decimal] = None
-    pay_schedule: str
     created_at: datetime
     ss_registration: Optional[SocialSecurityRegistrationResponse] = None
 
