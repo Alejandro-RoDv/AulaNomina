@@ -49,15 +49,10 @@ const EMPTY_EXTRA = {
   legal_workday_reduction_start: "",
   legal_workday_reduction_end: "",
   legal_workday_reduction_percentage: "",
-  inactivity_start_date: "",
-  inactivity_return_date: "",
-  inactivity_start_communication_date: "",
-  inactivity_return_communication_date: "",
   works_holidays: false,
   holiday_scope: "",
   holiday_only_service_days: false,
   schedule_notes: "",
-  health_card_number: "",
   subrogation: false,
   subrogation_company_origin: "",
   subrogation_date: "",
@@ -66,19 +61,12 @@ const EMPTY_EXTRA = {
   relation_type: "employee",
   representation_type: "none",
   relation_subtype: "",
-  registration_number: "",
-  authorization_number: "",
-  red_key: "",
-  red_cont: "",
   cno_code: "",
   cno_description: "",
   company_cnae: "",
   occupation: "",
   it_rate: "0.800",
   ims_rate: "0.700",
-  function_description: "",
-  section: "",
-  group_name: "",
   contract_registry_number: "",
   contract_registry_date: "",
   contract_registry_office: "",
@@ -198,6 +186,19 @@ function getSituationCodeForDates(endDate, currentCode) {
   return currentCode && currentCode !== "1" ? currentCode : "93";
 }
 
+function getRowBaseSalary(row) {
+  return row?.base_salary ?? row?.monthly_salary ?? row?.salary ?? "";
+}
+
+function getConceptAmount(concept) {
+  return concept?.default_amount ?? concept?.amount ?? concept?.default_unit_price ?? 0;
+}
+
+function getConceptSourceLabel(concept) {
+  if (!concept) return "Manual";
+  return concept.agreement_id ? "Convenio" : "Genérico";
+}
+
 function buildSsPayload(ssForm, form, extraForm, catalogs) {
   const situationCode = getSituationCodeForDates(form.end_date, extraForm.termination_reason || ssForm.situation_code);
   return {
@@ -214,32 +215,7 @@ function buildSsPayload(ssForm, form, extraForm, catalogs) {
   };
 }
 
-function getRowBaseSalary(row) {
-  return row?.base_salary ?? row?.monthly_salary ?? row?.salary ?? "";
-}
-
-function getConceptAmount(concept) {
-  return concept?.default_amount ?? concept?.amount ?? concept?.default_unit_price ?? 0;
-}
-
-function getConceptSourceLabel(concept) {
-  if (!concept) return "Manual";
-  return concept.agreement_id ? "Convenio" : "Genérico";
-}
-
-export default function ContractForm({
-  form,
-  employees,
-  companies,
-  workCenters,
-  contracts = [],
-  collectiveAgreements = [],
-  onChange,
-  onSubmit,
-  error,
-  success,
-  submitting,
-}) {
+export default function ContractForm({ form, employees, companies, workCenters, contracts = [], collectiveAgreements = [], onChange, onSubmit, error, success, submitting }) {
   const [catalogs, setCatalogs] = useState(DEFAULT_CATALOGS);
   const [catalogError, setCatalogError] = useState("");
   const [extraForm, setExtraForm] = useState(EMPTY_EXTRA);
@@ -253,29 +229,25 @@ export default function ContractForm({
 
   useEffect(() => {
     let active = true;
-    fetchCatalogs()
-      .then((data) => {
-        if (!active) return;
-        setCatalogs({ ...DEFAULT_CATALOGS, ...data });
-        setCatalogError("");
-      })
-      .catch((err) => {
-        if (active) setCatalogError(err.message || "No se pudieron cargar los catálogos laborales");
-      });
+    fetchCatalogs().then((data) => {
+      if (!active) return;
+      setCatalogs({ ...DEFAULT_CATALOGS, ...data });
+      setCatalogError("");
+    }).catch((err) => {
+      if (active) setCatalogError(err.message || "No se pudieron cargar los catálogos laborales");
+    });
     return () => { active = false; };
   }, []);
 
   useEffect(() => {
     let active = true;
-    fetchPayrollConcepts()
-      .then((data) => {
-        if (!active) return;
-        setPayrollConcepts((data || []).filter((concept) => concept.is_active !== false && concept.concept_type === "DEVENGO"));
-        setConceptError("");
-      })
-      .catch((err) => {
-        if (active) setConceptError(err.message || "No se pudieron cargar los conceptos de convenio");
-      });
+    fetchPayrollConcepts().then((data) => {
+      if (!active) return;
+      setPayrollConcepts((data || []).filter((concept) => concept.is_active !== false && concept.concept_type === "DEVENGO"));
+      setConceptError("");
+    }).catch((err) => {
+      if (active) setConceptError(err.message || "No se pudieron cargar los conceptos de convenio");
+    });
     return () => { active = false; };
   }, []);
 
@@ -378,14 +350,12 @@ export default function ContractForm({
   const handleExtraChange = (event) => {
     const { name, value, type, checked } = event.target;
     const nextValue = type === "checkbox" ? checked : value;
-
     if (name === "termination_reason") {
       const situationCode = getSituationCodeForDates(form.end_date, value);
       updateExtra({ termination_reason: situationCode });
       updateSs({ situation_code: situationCode, situation_description: getSituationLabel(catalogs, situationCode) });
       return;
     }
-
     if (name === "contract_code") {
       const selected = catalogs.contracts.find((item) => item.contract_code === value);
       const nextWorkingDay = value.startsWith("5") ? "part_time" : value.startsWith("3") ? "fixed_discontinuous" : value.startsWith("4") || value.startsWith("1") ? "full_time" : extraForm.working_day_type;
@@ -396,7 +366,6 @@ export default function ContractForm({
       if (selected?.contract_family) onChange({ target: { name: "contract_type", value: inferContractType(selected.contract_family) } });
       return;
     }
-
     if (["weekly_hours", "full_time_weekly_hours", "ordinary_hours", "comparison_hours"].includes(name)) {
       const next = { ...extraForm, [name]: value };
       const calculated = calculatePartiality(next.weekly_hours, next.full_time_weekly_hours);
@@ -405,7 +374,6 @@ export default function ContractForm({
       setExtraForm(next);
       return;
     }
-
     if (name === "working_day_type") {
       const patch = { working_day_type: value };
       if (value === "full_time") {
@@ -416,12 +384,6 @@ export default function ContractForm({
       updateExtra(patch);
       return;
     }
-
-    if (name === "seniority_criterion") {
-      updateExtra({ seniority_criterion: value, seniority_date: value === "start_date" ? form.start_date : extraForm.seniority_date });
-      return;
-    }
-
     updateExtra({ [name]: nextValue });
   };
 
@@ -436,25 +398,30 @@ export default function ContractForm({
     updateSs({ [name]: nextValue });
   };
 
-  const addSalaryLine = () => {
-    setSalaryLines((prev) => [...prev, { id: Date.now(), concept_id: "", name: "", amount: "0", type: "custom", source_type: "manual", applies_workday_percentage: true }]);
+  const handleContributionGroupChange = (event) => {
+    handleExtraChange(event);
+    updateSs({ contribution_group: event.target.value, red_contribution_group: event.target.value });
   };
+
+  const handleContributionTypeChange = (event) => {
+    handleExtraChange(event);
+    updateSs({ monthly_or_daily_contribution: event.target.value });
+  };
+
+  const addSalaryLine = () => setSalaryLines((prev) => [...prev, { id: Date.now(), concept_id: "", name: "", amount: "0", type: "custom", source_type: "manual", applies_workday_percentage: true }]);
 
   const addConceptSalaryLine = (concept) => {
     if (!concept) return;
-    setSalaryLines((prev) => [
-      ...prev,
-      {
-        id: Date.now(),
-        concept_id: concept.id,
-        agreement_id: concept.agreement_id || null,
-        name: concept.name,
-        amount: String(getConceptAmount(concept)),
-        type: concept.category === "PLUS" ? "plus" : "complement",
-        source_type: concept.agreement_id ? "agreement" : "generic",
-        applies_workday_percentage: concept.applies_workday_percentage ?? true,
-      },
-    ]);
+    setSalaryLines((prev) => [...prev, {
+      id: Date.now(),
+      concept_id: concept.id,
+      agreement_id: concept.agreement_id || null,
+      name: concept.name,
+      amount: String(getConceptAmount(concept)),
+      type: concept.category === "PLUS" ? "plus" : "complement",
+      source_type: concept.agreement_id ? "agreement" : "generic",
+      applies_workday_percentage: concept.applies_workday_percentage ?? true,
+    }]);
   };
 
   const updateSalaryLine = (id, patch) => {
@@ -479,9 +446,7 @@ export default function ContractForm({
     setSalaryLines((prev) => prev.map((line) => (line.id === id ? { ...line, ...patch } : line)));
   };
 
-  const removeSalaryLine = (id) => {
-    setSalaryLines((prev) => prev.filter((line) => line.id !== id));
-  };
+  const removeSalaryLine = (id) => setSalaryLines((prev) => prev.filter((line) => line.id !== id));
 
   const handleSubmit = (event) => {
     const situationCode = getSituationCodeForDates(form.end_date, extraForm.termination_reason);
@@ -520,6 +485,19 @@ export default function ContractForm({
         {activeOtherContracts.length > 0 && <OtherContractsCard contracts={activeOtherContracts} companies={companies} workCenters={workCenters} />}
       </Section>
 
+      <Section title="Datos RED">
+        <div style={styles.formGrid}>
+          <Field label="Grupo cotización"><select name="contribution_group" value={extraForm.contribution_group} onChange={handleContributionGroupChange} style={styles.input}><option value="">Selecciona grupo</option>{catalogs.contribution_groups.map((item) => <option key={item.code} value={item.code}>{item.code} · {item.description}</option>)}</select></Field>
+          <Field label="Indicador cotización"><select name="monthly_or_daily_contribution" value={extraForm.monthly_or_daily_contribution} onChange={handleContributionTypeChange} style={styles.input}>{catalogOrFallback(catalogs.monthly_daily_contribution_types, [{ code: "monthly", description: "Cotización mensual" }, { code: "daily", description: "Cotización diaria" }]).map((item) => <option key={item.code} value={item.code}>{item.description}</option>)}</select></Field>
+          <Field label="CNO"><input name="cno_code" value={extraForm.cno_code} onChange={handleExtraChange} style={styles.input} /></Field>
+          <Field label="Descripción CNO"><input name="cno_description" value={extraForm.cno_description} onChange={handleExtraChange} style={styles.input} /></Field>
+          <Field label="CNAE"><input name="company_cnae" value={extraForm.company_cnae} onChange={handleExtraChange} style={styles.input} /></Field>
+          <Field label="Ocupación"><input name="occupation" value={extraForm.occupation} onChange={handleExtraChange} style={styles.input} /></Field>
+          <Field label="IT"><input type="number" step="0.001" name="it_rate" value={extraForm.it_rate} onChange={handleExtraChange} style={styles.input} /></Field>
+          <Field label="IMS"><input type="number" step="0.001" name="ims_rate" value={extraForm.ims_rate} onChange={handleExtraChange} style={styles.input} /></Field>
+        </div>
+      </Section>
+
       <Section title="Retribución">
         <div style={styles.formGrid}>
           <Field label="Convenio"><select value={extraForm.collective_agreement_id} onChange={handleAgreementChange} style={styles.input}><option value="">Sin convenio</option>{collectiveAgreements.map((agreement) => <option key={agreement.id} value={agreement.id}>{agreement.name} · {agreement.agreement_code || "sin código"}</option>)}</select></Field>
@@ -550,7 +528,7 @@ export default function ContractForm({
           <ActionCard title="Parcialidad" text={isPartialContract ? `${extraForm.weekly_hours || 0} h/sem · ${extraForm.partiality_coefficient || 0}%` : "Solo disponible para contratos parciales"} disabled={!isPartialContract} onClick={() => setActiveModal("partiality")} />
           <ActionCard title="Reducción / Subrogación / Relación" text="Situaciones especiales" onClick={() => setActiveModal("special")} />
           <ActionCard title="Bonificación" text={extraForm.bonus_type ? "Bonificación configurada" : "Sin bonificación"} onClick={() => setActiveModal("bonus")} />
-          <ActionCard title="Datos RED y registro" text="Afiliación, CNO, CNAE, registro" onClick={() => setActiveModal("red")} />
+          <ActionCard title="Datos de registro" text="Registro del contrato" onClick={() => setActiveModal("registry")} />
         </div>
       </Section>
 
@@ -566,7 +544,7 @@ export default function ContractForm({
 
       {activeModal === "bonus" && <Modal title="Bonificación" onClose={() => setActiveModal(null)}><div style={styles.formGrid}><Field label="Tipo bonificación"><select name="bonus_type" value={extraForm.bonus_type} onChange={handleExtraChange} style={styles.input}>{BONUS_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></Field><Field label="Inicio"><input type="date" name="bonus_start_date" value={extraForm.bonus_start_date} onChange={handleExtraChange} style={styles.input} /></Field><Field label="Fin"><input type="date" name="bonus_end_date" value={extraForm.bonus_end_date} onChange={handleExtraChange} style={styles.input} /></Field><Field label="Cuota fija"><input type="number" step="0.01" name="bonus_fixed_fee" value={extraForm.bonus_fixed_fee} onChange={handleExtraChange} style={styles.input} /></Field><Field label="Observaciones"><textarea name="bonus_observations" value={extraForm.bonus_observations} onChange={handleExtraChange} style={styles.textarea} /></Field></div></Modal>}
 
-      {activeModal === "red" && <Modal title="Datos RED y registro" onClose={() => setActiveModal(null)}><div style={styles.formGrid}><Field label="Grupo cotización"><select name="contribution_group" value={extraForm.contribution_group} onChange={(event) => { handleExtraChange(event); updateSs({ contribution_group: event.target.value, red_contribution_group: event.target.value }); }} style={styles.input}><option value="">Selecciona grupo</option>{catalogs.contribution_groups.map((item) => <option key={item.code} value={item.code}>{item.code} · {item.description}</option>)}</select></Field><Field label="Indicador cotización"><select name="monthly_or_daily_contribution" value={extraForm.monthly_or_daily_contribution} onChange={(event) => { handleExtraChange(event); updateSs({ monthly_or_daily_contribution: event.target.value }); }} style={styles.input}>{catalogOrFallback(catalogs.monthly_daily_contribution_types, [{ code: "monthly", description: "Cotización mensual" }, { code: "daily", description: "Cotización diaria" }]).map((item) => <option key={item.code} value={item.code}>{item.description}</option>)}</select></Field><Field label="CNO"><input name="cno_code" value={extraForm.cno_code} onChange={handleExtraChange} style={styles.input} /></Field><Field label="Descripción CNO"><input name="cno_description" value={extraForm.cno_description} onChange={handleExtraChange} style={styles.input} /></Field><Field label="CNAE"><input name="company_cnae" value={extraForm.company_cnae} onChange={handleExtraChange} style={styles.input} /></Field><Field label="Ocupación"><input name="occupation" value={extraForm.occupation} onChange={handleExtraChange} style={styles.input} /></Field><Field label="IT"><input type="number" step="0.001" name="it_rate" value={extraForm.it_rate} onChange={handleExtraChange} style={styles.input} /></Field><Field label="IMS"><input type="number" step="0.001" name="ims_rate" value={extraForm.ims_rate} onChange={handleExtraChange} style={styles.input} /></Field><Field label="Nº registro contrato"><input name="contract_registry_number" value={extraForm.contract_registry_number} onChange={handleExtraChange} style={styles.input} /></Field><Field label="Fecha registro"><input type="date" name="contract_registry_date" value={extraForm.contract_registry_date} onChange={handleExtraChange} style={styles.input} /></Field><Field label="Oficina registro"><input name="contract_registry_office" value={extraForm.contract_registry_office} onChange={handleExtraChange} style={styles.input} /></Field><Field label="Situación SS"><select name="situation_code" value={ssForm.situation_code} onChange={handleSsChange} style={styles.input}>{catalogOrFallback(catalogs.situations, [{ code: "1", description: "Alta" }]).map((item) => <option key={item.code} value={item.code}>{item.code} · {item.description}</option>)}</select></Field></div></Modal>}
+      {activeModal === "registry" && <Modal title="Datos de registro" onClose={() => setActiveModal(null)}><div style={styles.formGrid}><Field label="Nº registro contrato"><input name="contract_registry_number" value={extraForm.contract_registry_number} onChange={handleExtraChange} style={styles.input} /></Field><Field label="Fecha registro"><input type="date" name="contract_registry_date" value={extraForm.contract_registry_date} onChange={handleExtraChange} style={styles.input} /></Field><Field label="Oficina registro"><input name="contract_registry_office" value={extraForm.contract_registry_office} onChange={handleExtraChange} style={styles.input} /></Field></div></Modal>}
     </form>
   );
 }
