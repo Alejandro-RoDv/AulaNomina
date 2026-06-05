@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 
-import { fetchCatalogs } from "../services/api";
+import { fetchCatalogs, fetchPayrollConcepts } from "../services/api";
 import { fetchCollectiveAgreement } from "../services/collectiveAgreementApi";
 import { getEmployeeVisibleCode } from "../utils/visibleCodes";
 
@@ -218,6 +218,15 @@ function getRowBaseSalary(row) {
   return row?.base_salary ?? row?.monthly_salary ?? row?.salary ?? "";
 }
 
+function getConceptAmount(concept) {
+  return concept?.default_amount ?? concept?.amount ?? concept?.default_unit_price ?? 0;
+}
+
+function getConceptSourceLabel(concept) {
+  if (!concept) return "Manual";
+  return concept.agreement_id ? "Convenio" : "Genérico";
+}
+
 export default function ContractForm({
   form,
   employees,
@@ -239,6 +248,8 @@ export default function ContractForm({
   const [agreementLoading, setAgreementLoading] = useState(false);
   const [activeModal, setActiveModal] = useState(null);
   const [salaryLines, setSalaryLines] = useState([]);
+  const [payrollConcepts, setPayrollConcepts] = useState([]);
+  const [conceptError, setConceptError] = useState("");
 
   useEffect(() => {
     let active = true;
@@ -250,6 +261,20 @@ export default function ContractForm({
       })
       .catch((err) => {
         if (active) setCatalogError(err.message || "No se pudieron cargar los catálogos laborales");
+      });
+    return () => { active = false; };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    fetchPayrollConcepts()
+      .then((data) => {
+        if (!active) return;
+        setPayrollConcepts((data || []).filter((concept) => concept.is_active !== false && concept.concept_type === "DEVENGO"));
+        setConceptError("");
+      })
+      .catch((err) => {
+        if (active) setConceptError(err.message || "No se pudieron cargar los conceptos de convenio");
       });
     return () => { active = false; };
   }, []);
@@ -288,6 +313,17 @@ export default function ContractForm({
   const salaryRows = salaryTables.flatMap((table) => (table.rows || []).map((row) => ({ ...row, table_name: table.name })));
   const selectedSalaryRow = salaryRows.find((row) => String(row.id) === String(extraForm.salary_table_row_id));
   const isPartialContract = extraForm.working_day_type === "part_time" || String(extraForm.contract_code || "").startsWith("5");
+  const availableConcepts = useMemo(() => {
+    const agreementId = extraForm.collective_agreement_id ? Number(extraForm.collective_agreement_id) : null;
+    return payrollConcepts
+      .filter((concept) => !concept.agreement_id || (agreementId && Number(concept.agreement_id) === agreementId))
+      .sort((a, b) => {
+        const sourceA = a.agreement_id ? 0 : 1;
+        const sourceB = b.agreement_id ? 0 : 1;
+        if (sourceA !== sourceB) return sourceA - sourceB;
+        return String(a.name || "").localeCompare(String(b.name || ""), "es");
+      });
+  }, [payrollConcepts, extraForm.collective_agreement_id]);
   const baseMonthly = toNumber(form.salary_base || getRowBaseSalary(selectedSalaryRow));
   const supplementsMonthly = salaryLines.reduce((sum, line) => sum + toNumber(line.amount), 0);
   const totalMonthly = baseMonthly + supplementsMonthly;
@@ -322,6 +358,7 @@ export default function ContractForm({
     const agreementId = event.target.value;
     const selected = collectiveAgreements.find((agreement) => String(agreement.id) === String(agreementId));
     updateExtra({ collective_agreement_id: agreementId, collective_agreement_code: selected?.agreement_code || "", professional_category_id: "", salary_table_row_id: "", professional_category: "" });
+    setSalaryLines((prev) => prev.filter((line) => !line.concept_id || !line.agreement_id || String(line.agreement_id) === String(agreementId)));
   };
 
   const handleCategoryChange = (event) => {
@@ -400,10 +437,45 @@ export default function ContractForm({
   };
 
   const addSalaryLine = () => {
-    setSalaryLines((prev) => [...prev, { id: Date.now(), name: "Plus", amount: "0", type: "complement" }]);
+    setSalaryLines((prev) => [...prev, { id: Date.now(), concept_id: "", name: "", amount: "0", type: "custom", source_type: "manual", applies_workday_percentage: true }]);
+  };
+
+  const addConceptSalaryLine = (concept) => {
+    if (!concept) return;
+    setSalaryLines((prev) => [
+      ...prev,
+      {
+        id: Date.now(),
+        concept_id: concept.id,
+        agreement_id: concept.agreement_id || null,
+        name: concept.name,
+        amount: String(getConceptAmount(concept)),
+        type: concept.category === "PLUS" ? "plus" : "complement",
+        source_type: concept.agreement_id ? "agreement" : "generic",
+        applies_workday_percentage: concept.applies_workday_percentage ?? true,
+      },
+    ]);
   };
 
   const updateSalaryLine = (id, patch) => {
+    if (patch.concept_id !== undefined) {
+      const concept = availableConcepts.find((item) => String(item.id) === String(patch.concept_id));
+      if (concept) {
+        setSalaryLines((prev) => prev.map((line) => (line.id === id ? {
+          ...line,
+          concept_id: concept.id,
+          agreement_id: concept.agreement_id || null,
+          name: concept.name,
+          amount: String(getConceptAmount(concept)),
+          type: concept.category === "PLUS" ? "plus" : "complement",
+          source_type: concept.agreement_id ? "agreement" : "generic",
+          applies_workday_percentage: concept.applies_workday_percentage ?? true,
+        } : line)));
+        return;
+      }
+      setSalaryLines((prev) => prev.map((line) => (line.id === id ? { ...line, concept_id: "", agreement_id: null, source_type: "manual", ...patch } : line)));
+      return;
+    }
     setSalaryLines((prev) => prev.map((line) => (line.id === id ? { ...line, ...patch } : line)));
   };
 
@@ -459,13 +531,15 @@ export default function ContractForm({
           <Field label="Puesto"><input name="job_position" value={extraForm.job_position} onChange={handleExtraChange} style={styles.input} /></Field>
         </div>
         {agreementLoading && <div style={styles.infoBox}>Cargando detalle del convenio...</div>}
+        {conceptError && <div style={styles.warning}>{conceptError}</div>}
         <div style={styles.salaryPanel}>
           <div style={styles.salaryHeader}>
-            <div><strong>Complementos y pluses</strong><div style={styles.muted}>Se suman al salario base mensual para obtener la retribución estimada.</div></div>
-            <button type="button" onClick={addSalaryLine} style={styles.secondaryButton}>Añadir plus</button>
+            <div><strong>Complementos y pluses</strong><div style={styles.muted}>Selecciona conceptos genéricos o los propios del convenio. El importe se puede ajustar.</div></div>
+            <button type="button" onClick={addSalaryLine} style={styles.secondaryButton}>Añadir manual</button>
           </div>
+          {availableConcepts.length > 0 && <div style={styles.conceptPicker}>{availableConcepts.map((concept) => <button type="button" key={concept.id} onClick={() => addConceptSalaryLine(concept)} style={concept.agreement_id ? styles.conceptButtonAgreement : styles.conceptButtonGeneric}>{getConceptSourceLabel(concept)} · {concept.name} · {money(getConceptAmount(concept))}</button>)}</div>}
           {salaryLines.length === 0 && <div style={styles.emptyLine}>Sin complementos añadidos.</div>}
-          {salaryLines.map((line) => <div key={line.id} style={styles.salaryLine}><input value={line.name} onChange={(event) => updateSalaryLine(line.id, { name: event.target.value })} style={styles.input} /><select value={line.type} onChange={(event) => updateSalaryLine(line.id, { type: event.target.value })} style={styles.input}><option value="complement">Complemento</option><option value="plus">Plus</option><option value="improvement">Mejora voluntaria</option></select><input type="number" step="0.01" value={line.amount} onChange={(event) => updateSalaryLine(line.id, { amount: event.target.value })} style={styles.input} /><button type="button" onClick={() => removeSalaryLine(line.id)} style={styles.dangerButton}>Quitar</button></div>)}
+          {salaryLines.map((line) => <div key={line.id} style={styles.salaryLine}><select value={line.concept_id || ""} onChange={(event) => updateSalaryLine(line.id, { concept_id: event.target.value })} style={styles.input}><option value="">Manual</option>{availableConcepts.map((concept) => <option key={concept.id} value={concept.id}>{getConceptSourceLabel(concept)} · {concept.name}</option>)}</select><input value={line.name} onChange={(event) => updateSalaryLine(line.id, { name: event.target.value })} style={styles.input} placeholder="Nombre del plus" /><select value={line.type} onChange={(event) => updateSalaryLine(line.id, { type: event.target.value })} style={styles.input}><option value="complement">Complemento</option><option value="plus">Plus</option><option value="improvement">Mejora voluntaria</option><option value="custom">Manual</option></select><input type="number" step="0.01" value={line.amount} onChange={(event) => updateSalaryLine(line.id, { amount: event.target.value })} style={styles.input} /><button type="button" onClick={() => removeSalaryLine(line.id)} style={styles.dangerButton}>Quitar</button></div>)}
           <div style={styles.salaryTotals}><span>Base: {money(baseMonthly)}</span><span>Complementos: {money(supplementsMonthly)}</span><strong>Total mensual: {money(totalMonthly)}</strong><strong>Total anual: {money(totalAnnual)}</strong></div>
         </div>
       </Section>
@@ -533,15 +607,18 @@ const styles = {
   summaryCard: { border: "1px solid #e5e7eb", borderRadius: "10px", padding: "10px 12px", backgroundColor: "#f9fafb", display: "flex", flexDirection: "column", gap: "4px" },
   salaryPanel: { marginTop: "14px", border: "1px solid #e5e7eb", borderRadius: "10px", padding: "12px", backgroundColor: "#f9fafb" },
   salaryHeader: { display: "flex", justifyContent: "space-between", gap: "12px", alignItems: "center", marginBottom: "10px" },
-  salaryLine: { display: "grid", gridTemplateColumns: "1fr 180px 140px 90px", gap: "10px", marginTop: "8px" },
+  salaryLine: { display: "grid", gridTemplateColumns: "220px 1fr 170px 120px 90px", gap: "10px", marginTop: "8px" },
   salaryTotals: { marginTop: "12px", display: "flex", gap: "16px", flexWrap: "wrap", fontSize: "13px" },
+  conceptPicker: { display: "flex", gap: "8px", flexWrap: "wrap", marginBottom: "10px" },
+  conceptButtonAgreement: { border: "1px solid #f59e0b", backgroundColor: "#fffbeb", borderRadius: "999px", padding: "7px 10px", cursor: "pointer", fontSize: "12px", fontWeight: 800 },
+  conceptButtonGeneric: { border: "1px solid #d1d5db", backgroundColor: "#ffffff", borderRadius: "999px", padding: "7px 10px", cursor: "pointer", fontSize: "12px", fontWeight: 800 },
   emptyLine: { color: "#6b7280", fontSize: "13px" },
   muted: { color: "#6b7280", fontSize: "12px", marginTop: "2px" },
   actionGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "12px" },
   actionCard: { textAlign: "left", border: "1px solid #d1d5db", borderRadius: "10px", padding: "12px", backgroundColor: "#ffffff", cursor: "pointer", display: "flex", flexDirection: "column", gap: "5px" },
   actionCardDisabled: { opacity: 0.45, cursor: "not-allowed", backgroundColor: "#f3f4f6" },
   infoBox: { marginTop: "12px", padding: "10px 12px", borderRadius: "8px", backgroundColor: "#fef3c7", color: "#111827", fontSize: "13px", fontWeight: 700 },
-  warning: { backgroundColor: "#fef3c7", color: "#92400e", padding: "10px 12px", borderRadius: "8px" },
+  warning: { backgroundColor: "#fef3c7", color: "#92400e", padding: "10px 12px", borderRadius: "8px", marginTop: "10px" },
   checkboxRow: { marginTop: "14px", padding: "10px 12px", borderRadius: "8px", backgroundColor: "#f9fafb", border: "1px solid #e5e7eb", display: "flex", gap: "18px", flexWrap: "wrap" },
   checkboxLabel: { display: "flex", alignItems: "center", gap: "8px", fontWeight: 700, fontSize: "13px" },
   button: { backgroundColor: "#111827", color: "white", border: "none", borderRadius: "8px", padding: "12px 18px", fontSize: "14px", cursor: "pointer", width: "fit-content" },
