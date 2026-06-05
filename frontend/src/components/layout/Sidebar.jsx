@@ -1,220 +1,73 @@
-import { useEffect, useState } from "react";
-
 import logo from "../../assets/aulanomina-logo.svg";
 
-const overlayPages = [
-  "company-companies",
-  "company-centers",
-  "company-list",
-  "companies-list",
-  "documents",
-  "alerts",
-  "reports",
-  "teacher-dashboard",
-  "teaching-alerts",
-  "case-studies",
-  "assignments",
-  "corrections",
-  "student-demo",
-  "students",
-  "groups",
-  "progress",
+const groups = [
+  {
+    title: "Datos",
+    items: [
+      { id: "dashboard", label: "Panel", enabled: true },
+      { id: "companies", label: "Empresas / centros", enabled: true },
+      {
+        id: "worker-menu",
+        label: "Trabajador",
+        enabled: true,
+        children: [
+          { id: "employees", label: "Nuevo trabajador", enabled: true },
+          { id: "employees-list", label: "Listado trabajadores", enabled: true },
+          { id: "employee-record", label: "Expediente", enabled: true },
+        ],
+      },
+      {
+        id: "contracts-menu",
+        label: "Contratos",
+        enabled: true,
+        children: [
+          { id: "contracts", label: "Nuevo contrato", enabled: true, contractMode: "new" },
+          { id: "contracts", label: "Historial contratos", enabled: true, contractMode: "history" },
+        ],
+      },
+      { id: "collective-agreements", label: "Convenios", enabled: true },
+      { id: "documents", label: "Documentos", enabled: true },
+      { id: "alerts", label: "Alertas laborales", enabled: true },
+      { id: "reports", label: "Informes", enabled: true },
+    ],
+  },
+  {
+    title: "Acciones",
+    items: [
+      { id: "payroll-concepts", label: "Historial conceptos", enabled: true },
+      { id: "permanent-payroll-concepts", label: "Conceptos permanentes", enabled: true },
+      { id: "payroll-monthly-preparation", label: "Preparar mensuales", enabled: true },
+      { id: "payroll-individual", label: "Nómina individual", enabled: true },
+      { id: "payroll-simulation", label: "Simulación", enabled: true },
+      { id: "payroll-history", label: "Histórico nóminas", enabled: true },
+      { id: "irpf", label: "IRPF", enabled: true },
+    ],
+  },
+  {
+    title: "Seg. Social",
+    items: [
+      { id: "incidents", label: "Incidencias", enabled: true },
+      { id: "affiliations", label: "Altas y bajas", enabled: false },
+      { id: "variations", label: "Variaciones", enabled: false },
+      { id: "communications", label: "Comunicados", enabled: false },
+    ],
+  },
 ];
 
-const companyPages = ["company-companies", "company-centers", "company-list", "companies-list"];
-const employeePages = ["employees", "employees-list", "employee-record"];
-const conceptPages = ["payroll-concepts", "permanent-payroll-concepts"];
-const payrollPages = ["payroll-monthly-preparation", "payroll-individual", "payroll-simulation", "payroll-history"];
-const teachingPages = ["teacher-dashboard", "teaching-alerts", "case-studies", "assignments", "corrections", "student-demo", "students", "groups", "progress"];
-const overlayHashes = overlayPages.map((page) => `#${page}`);
-
-function getOverlayPageFromHash() {
-  const page = window.location.hash.replace("#", "");
-  return overlayPages.includes(page) ? page : null;
-}
-
-function normalizePageId(pageId) {
-  if (pageId === "companies-list") return "company-list";
-  if (pageId === "companies") {
-    if (window.location.hash === "#company-list" || window.location.hash === "#companies-list") return "company-list";
-    if (window.location.hash === "#company-centers") return "company-centers";
-    return "company-companies";
-  }
-  return pageId;
-}
-
 export default function Sidebar({ activePage, setActivePage }) {
-  const [hashActivePage, setHashActivePage] = useState(getOverlayPageFromHash());
-  const [companyMenuOpen, setCompanyMenuOpen] = useState(true);
-  const [employeeMenuOpen, setEmployeeMenuOpen] = useState(true);
-  const [conceptMenuOpen, setConceptMenuOpen] = useState(true);
-  const [payrollMenuOpen, setPayrollMenuOpen] = useState(true);
-
-  useEffect(() => {
-    const syncActivePageFromHash = () => {
-      const overlayPage = getOverlayPageFromHash();
-      setHashActivePage(overlayPage);
-
-      if (companyPages.includes(overlayPage)) {
-        setCompanyMenuOpen(true);
-        setActivePage("companies");
-        return;
-      }
-
-      if (overlayPage) {
-        setActivePage(overlayPage);
-      }
-    };
-
-    syncActivePageFromHash();
-    window.addEventListener("hashchange", syncActivePageFromHash);
-    window.addEventListener("aulanomina-route-change", syncActivePageFromHash);
-
-    return () => {
-      window.removeEventListener("hashchange", syncActivePageFromHash);
-      window.removeEventListener("aulanomina-route-change", syncActivePageFromHash);
-    };
-  }, [setActivePage]);
-
-  const currentActivePage = normalizePageId(hashActivePage || activePage);
-
-  const groups = [
-    {
-      title: "Datos",
-      items: [
-        { id: "dashboard", label: "Panel", enabled: true },
-        {
-          id: "company-menu",
-          label: "Empresa",
-          enabled: true,
-          menu: "company",
-          children: [
-            { id: "company-companies", label: "Nueva empresa", enabled: true },
-            { id: "company-centers", label: "Centros", enabled: true },
-            { id: "company-list", label: "Listado empresas", enabled: true },
-          ],
-        },
-        {
-          id: "employee-menu",
-          label: "Trabajador",
-          enabled: true,
-          menu: "employee",
-          children: [
-            { id: "employees", label: "Nuevo trabajador", enabled: true },
-            { id: "employees-list", label: "Listado trabajadores", enabled: true },
-            { id: "employee-record", label: "Expediente", enabled: true },
-          ],
-        },
-        { id: "contracts", label: "Contratos", enabled: true },
-        { id: "collective-agreements", label: "Convenios", enabled: true },
-        { id: "documents", label: "Documentos", enabled: true },
-        { id: "alerts", label: "Alertas laborales", enabled: true },
-        { id: "reports", label: "Informes", enabled: true },
-      ],
-    },
-    {
-      title: "Acciones",
-      items: [
-        {
-          id: "concepts-menu",
-          label: "Conceptos",
-          enabled: true,
-          menu: "concepts",
-          children: [
-            { id: "payroll-concepts", label: "Historial conceptos", enabled: true },
-            { id: "permanent-payroll-concepts", label: "Conceptos permanentes", enabled: true },
-          ],
-        },
-        {
-          id: "payroll-menu",
-          label: "Nóminas",
-          enabled: true,
-          menu: "payroll",
-          children: [
-            { id: "payroll-monthly-preparation", label: "Preparar mensuales", enabled: true },
-            { id: "payroll-individual", label: "Nómina individual", enabled: true },
-            { id: "payroll-simulation", label: "Simulación", enabled: true },
-            { id: "payroll-history", label: "Histórico nóminas", enabled: true },
-          ],
-        },
-        { id: "irpf", label: "IRPF", enabled: true },
-        { id: "tax", label: "Mod. 111/190", enabled: false },
-        { id: "social-security", label: "Seguros sociales", enabled: false },
-      ],
-    },
-    {
-      title: "Seg. Social",
-      items: [
-        { id: "incidents", label: "Incidencias", enabled: true },
-        { id: "affiliations", label: "Altas y bajas", enabled: false },
-        { id: "variations", label: "Variaciones", enabled: false },
-        { id: "communications", label: "Comunicados", enabled: false },
-      ],
-    },
-    {
-      title: "Docencia",
-      separator: true,
-      items: [
-        { id: "teacher-dashboard", label: "Panel profesor", enabled: true },
-        { id: "teaching-alerts", label: "Alertas docentes", enabled: true },
-        { id: "case-studies", label: "Casos prácticos", enabled: true },
-        { id: "assignments", label: "Asignar caso", enabled: true },
-        { id: "corrections", label: "Correcciones", enabled: true },
-        { id: "student-demo", label: "Vista alumno", enabled: true },
-        { id: "students", label: "Alumnos", enabled: true },
-        { id: "groups", label: "Grupos", enabled: true },
-        { id: "progress", label: "Progreso", enabled: true },
-      ],
-    },
-  ];
-
-  const clearHashIfNeeded = () => {
-    if (overlayHashes.includes(window.location.hash)) {
-      window.history.replaceState(null, "", window.location.pathname + window.location.search);
-      window.dispatchEvent(new Event("aulanomina-route-change"));
-    }
-  };
-
-  const activateHashRoute = (routeId, basePage = routeId) => {
-    setActivePage(basePage);
-    setHashActivePage(routeId);
-    window.location.hash = routeId;
-    window.dispatchEvent(new Event("aulanomina-route-change"));
-  };
-
-  const activateMainRoute = (routeId) => {
-    setHashActivePage(null);
-    clearHashIfNeeded();
-    setActivePage(routeId);
-  };
-
   const handleNavClick = (item) => {
     if (!item.enabled) return;
-
-    if (item.children) {
-      if (item.menu === "company") setCompanyMenuOpen((prev) => !prev);
-      if (item.menu === "employee") setEmployeeMenuOpen((prev) => !prev);
-      if (item.menu === "concepts") setConceptMenuOpen((prev) => !prev);
-      if (item.menu === "payroll") setPayrollMenuOpen((prev) => !prev);
-      return;
+    if (item.contractMode) {
+      window.sessionStorage.setItem("aulanomina:contractsMode", item.contractMode);
+      window.dispatchEvent(new Event("aulanomina-contract-mode"));
     }
+    setActivePage(item.id);
+  };
 
-    if (companyPages.includes(item.id)) {
-      activateHashRoute(item.id, "companies");
-      return;
-    }
-
-    if (employeePages.includes(item.id)) {
-      activateMainRoute(item.id);
-      return;
-    }
-
-    if (["documents", "alerts", "reports", ...teachingPages].includes(item.id)) {
-      activateHashRoute(item.id, item.id);
-      return;
-    }
-
-    activateMainRoute(item.id);
+  const isItemActive = (item) => {
+    if (item.id !== "contracts") return activePage === item.id;
+    const currentMode = window.sessionStorage.getItem("aulanomina:contractsMode") || "new";
+    return activePage === "contracts" && (!item.contractMode || item.contractMode === currentMode);
   };
 
   return (
@@ -222,69 +75,27 @@ export default function Sidebar({ activePage, setActivePage }) {
       <div style={styles.logoPanel}>
         <img src={logo} alt="AulaNomina" style={styles.logo} />
       </div>
-
       <div style={styles.menuPanel}>
         {groups.map((group) => (
           <section key={group.title} style={styles.group}>
-            {group.separator && <div style={styles.erpSeparator} />}
             <p style={styles.groupTitle}>{group.title}</p>
             <div style={styles.groupItems}>
-              {group.items.map((item) => {
-                const submenuOpen = item.children && (
-                  item.menu === "company" ? companyMenuOpen :
-                  item.menu === "employee" ? employeeMenuOpen :
-                  item.menu === "payroll" ? payrollMenuOpen :
-                  conceptMenuOpen
-                );
-                const childPages = item.menu === "company"
-                  ? companyPages.map(normalizePageId)
-                  : item.menu === "employee"
-                    ? employeePages
-                    : item.menu === "payroll"
-                      ? payrollPages
-                      : conceptPages;
-                const isActive = currentActivePage === item.id || (item.children && childPages.includes(currentActivePage));
-
-                return (
-                  <div key={item.id} style={styles.itemBlock}>
-                    <button
-                      type="button"
-                      disabled={!item.enabled}
-                      onClick={() => handleNavClick(item)}
-                      style={{
-                        ...styles.navItem,
-                        ...(isActive ? styles.navItemActive : {}),
-                        ...(!item.enabled ? styles.navItemDisabled : {}),
-                      }}
-                    >
-                      {item.children ? `${submenuOpen ? "▾" : "▸"} ${item.label}` : item.label}
-                    </button>
-
-                    {item.children && submenuOpen && (
-                      <div style={styles.submenu}>
-                        {item.children.map((child) => {
-                          const childActive = currentActivePage === child.id;
-                          return (
-                            <button
-                              key={child.id}
-                              type="button"
-                              disabled={!child.enabled}
-                              onClick={() => handleNavClick(child)}
-                              style={{
-                                ...styles.subNavItem,
-                                ...(childActive ? styles.subNavItemActive : {}),
-                                ...(!child.enabled ? styles.navItemDisabled : {}),
-                              }}
-                            >
-                              {child.label}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+              {group.items.map((item) => (
+                <div key={`${item.id}-${item.label}`} style={styles.itemBlock}>
+                  <button type="button" disabled={!item.enabled} onClick={() => !item.children && handleNavClick(item)} style={{ ...styles.navItem, ...(activePage === item.id || item.children?.some(isItemActive) ? styles.navItemActive : {}), ...(!item.enabled ? styles.navItemDisabled : {}) }}>
+                    {item.label}
+                  </button>
+                  {item.children && (
+                    <div style={styles.submenu}>
+                      {item.children.map((child) => (
+                        <button key={`${child.id}-${child.label}`} type="button" disabled={!child.enabled} onClick={() => handleNavClick(child)} style={{ ...styles.subNavItem, ...(isItemActive(child) ? styles.subNavItemActive : {}), ...(!child.enabled ? styles.navItemDisabled : {}) }}>
+                          {child.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
             </div>
           </section>
         ))}
@@ -294,34 +105,11 @@ export default function Sidebar({ activePage, setActivePage }) {
 }
 
 const styles = {
-  sidebar: {
-    width: "272px",
-    minHeight: "100vh",
-    backgroundColor: "#f8f3b5",
-    borderRight: "3px solid #111111",
-    boxSizing: "border-box",
-    display: "flex",
-    flexDirection: "column",
-    position: "fixed",
-    left: 0,
-    top: 0,
-    bottom: 0,
-  },
-  logoPanel: {
-    height: "132px",
-    backgroundColor: "#ffffff",
-    borderBottom: "3px solid #111111",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: "4px 8px",
-    boxSizing: "border-box",
-    overflow: "hidden",
-  },
+  sidebar: { width: "272px", minHeight: "100vh", backgroundColor: "#f8f3b5", borderRight: "3px solid #111111", boxSizing: "border-box", display: "flex", flexDirection: "column", position: "fixed", left: 0, top: 0, bottom: 0 },
+  logoPanel: { height: "132px", backgroundColor: "#ffffff", borderBottom: "3px solid #111111", display: "flex", alignItems: "center", justifyContent: "center", padding: "4px 8px", boxSizing: "border-box", overflow: "hidden" },
   logo: { width: "275px", maxWidth: "110%", maxHeight: "130px", objectFit: "contain", display: "block" },
   menuPanel: { flex: 1, padding: "18px 14px 26px", overflowY: "auto" },
   group: { marginBottom: "28px" },
-  erpSeparator: { height: "3px", backgroundColor: "#111111", margin: "8px 0 22px", width: "100%" },
   groupTitle: { margin: "0 0 10px", color: "#111111", fontSize: "20px", fontWeight: 900, letterSpacing: "0.02em", textTransform: "uppercase" },
   groupItems: { display: "flex", flexDirection: "column", gap: "7px" },
   itemBlock: { display: "flex", flexDirection: "column", gap: "5px" },
