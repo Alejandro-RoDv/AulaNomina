@@ -9,6 +9,20 @@ const CONTRACT_NUMERIC_FIELDS = new Set([
   "collective_agreement_id",
   "professional_category_id",
   "salary_table_row_id",
+  "bonus_fixed_fee",
+  "ordinary_hours",
+  "comparison_hours",
+  "legal_workday_reduction_percentage",
+  "it_rate",
+  "ims_rate",
+  "transformation_from_contract_id",
+]);
+
+const CONTRACT_BOOLEAN_FIELDS = new Set([
+  "works_holidays",
+  "holiday_only_service_days",
+  "subrogation",
+  "affects_extra_payments",
 ]);
 
 const SOCIAL_SECURITY_NUMERIC_FIELDS = new Set([
@@ -27,9 +41,17 @@ function toNumberOrNull(value) {
   return Number.isNaN(number) ? null : number;
 }
 
+function toBoolean(value) {
+  return value === true || value === "true" || value === "on";
+}
+
 export function normalizeContractExtras(extra = {}) {
   return Object.entries(extra).reduce((acc, [key, value]) => {
     if (value === "" || value === undefined || value === null) return acc;
+    if (CONTRACT_BOOLEAN_FIELDS.has(key)) {
+      acc[key] = toBoolean(value);
+      return acc;
+    }
     acc[key] = CONTRACT_NUMERIC_FIELDS.has(key) ? Number(value) : value;
     return acc;
   }, {});
@@ -67,9 +89,21 @@ export function validateContractWorkflow(form, contractExtra = {}, socialSecurit
   const workingTimeReduction = toNumberOrNull(ss.working_time_reduction);
   const initialCtp = toNumberOrNull(ss.initial_ctp);
   const registrationDate = ss.registration_date || form.start_date;
+  const bonusStart = contractExtra.bonus_start_date;
+  const bonusEnd = contractExtra.bonus_end_date;
+  const reductionStart = contractExtra.legal_workday_reduction_start;
+  const reductionEnd = contractExtra.legal_workday_reduction_end;
 
   if (form.end_date && form.start_date && form.end_date < form.start_date) {
     errors.push("La fecha fin del contrato no puede ser anterior a la fecha de inicio.");
+  }
+
+  if (bonusEnd && bonusStart && bonusEnd < bonusStart) {
+    errors.push("La fecha fin de bonificación no puede ser anterior a la fecha de inicio.");
+  }
+
+  if (reductionEnd && reductionStart && reductionEnd < reductionStart) {
+    errors.push("La fecha fin de reducción de jornada no puede ser anterior a la fecha de inicio.");
   }
 
   if (contractCode.startsWith("5") && workingDayType !== "part_time") {
@@ -85,62 +119,33 @@ export function validateContractWorkflow(form, contractExtra = {}, socialSecurit
   }
 
   if (workingDayType === "part_time") {
-    if (!hasValue(partialityCoefficient)) {
-      errors.push("La jornada parcial requiere coeficiente de parcialidad.");
-    }
-
-    if (!hasValue(weeklyHours) || !hasValue(fullTimeWeeklyHours)) {
-      errors.push("La jornada parcial requiere horas semanales y jornada completa de referencia.");
-    }
-
-    if (partialityCoefficient !== null && (partialityCoefficient <= 0 || partialityCoefficient >= 100)) {
-      errors.push("En jornada parcial el coeficiente de parcialidad debe ser mayor que 0 y menor que 100.");
-    }
+    if (!hasValue(partialityCoefficient)) errors.push("La jornada parcial requiere coeficiente de parcialidad.");
+    if (!hasValue(weeklyHours) || !hasValue(fullTimeWeeklyHours)) errors.push("La jornada parcial requiere horas semanales y jornada completa de referencia.");
+    if (partialityCoefficient !== null && (partialityCoefficient <= 0 || partialityCoefficient >= 100)) errors.push("En jornada parcial el coeficiente de parcialidad debe ser mayor que 0 y menor que 100.");
   }
 
   if (workingDayType === "full_time" && partialityCoefficient !== null && partialityCoefficient !== 100) {
     errors.push("En jornada completa el coeficiente de parcialidad debe ser 100.");
   }
 
-  [
-    [weeklyHours, "Las horas semanales no pueden ser negativas."],
-    [fullTimeWeeklyHours, "La jornada completa de referencia debe ser mayor que 0."],
-    [annualAgreementHours, "La jornada anual de convenio no puede ser negativa."],
-    [monthlyHours, "Las horas mensuales no pueden ser negativas."],
-    [annualHours, "Las horas anuales no pueden ser negativas."],
-  ].forEach(([value, message]) => {
+  [[weeklyHours, "Las horas semanales no pueden ser negativas."], [fullTimeWeeklyHours, "La jornada completa de referencia debe ser mayor que 0."], [annualAgreementHours, "La jornada anual de convenio no puede ser negativa."], [monthlyHours, "Las horas mensuales no pueden ser negativas."], [annualHours, "Las horas anuales no pueden ser negativas."]].forEach(([value, message]) => {
     if (value !== null && value < 0) errors.push(message);
   });
 
-  if (fullTimeWeeklyHours !== null && fullTimeWeeklyHours === 0) {
-    errors.push("La jornada completa de referencia debe ser mayor que 0.");
-  }
+  if (fullTimeWeeklyHours !== null && fullTimeWeeklyHours === 0) errors.push("La jornada completa de referencia debe ser mayor que 0.");
 
   if (workingTimeReduction !== null) {
-    if (initialCtp === null) {
-      errors.push("Si existe reducción de jornada, debe indicarse el C.T.P. inicial.");
-    } else if (initialCtp <= workingTimeReduction) {
-      errors.push("El C.T.P. inicial debe ser mayor que la reducción de jornada.");
-    }
+    if (initialCtp === null) errors.push("Si existe reducción de jornada, debe indicarse el C.T.P. inicial.");
+    else if (initialCtp <= workingTimeReduction) errors.push("El C.T.P. inicial debe ser mayor que la reducción de jornada.");
   }
 
   if (ss.is_replacement) {
-    if (!ss.replacement_cause_code) {
-      errors.push("Si se marca sustitución/relevo, debe indicarse la causa de sustitución.");
-    }
-
-    if (!ss.replaced_worker_naf) {
-      errors.push("Si se marca sustitución/relevo, debe indicarse el NAF de la persona sustituida.");
-    }
+    if (!ss.replacement_cause_code) errors.push("Si se marca sustitución/relevo, debe indicarse la causa de sustitución.");
+    if (!ss.replaced_worker_naf) errors.push("Si se marca sustitución/relevo, debe indicarse el NAF de la persona sustituida.");
   }
 
-  if (ss.situation_code === "1" && !registrationDate) {
-    errors.push("La situación de alta requiere fecha de alta.");
-  }
-
-  if (registrationDate && form.start_date && registrationDate !== form.start_date) {
-    errors.push("La fecha de alta debe coincidir con la fecha de inicio del contrato en esta simulación MVP.");
-  }
+  if (ss.situation_code === "1" && !registrationDate) errors.push("La situación de alta requiere fecha de alta.");
+  if (registrationDate && form.start_date && registrationDate !== form.start_date) errors.push("La fecha de alta debe coincidir con la fecha de inicio del contrato en esta simulación MVP.");
 
   return errors;
 }
