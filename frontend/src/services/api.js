@@ -20,6 +20,10 @@ export async function resetDemo() {
   );
 }
 
+export async function fetchPayrollConcepts() {
+  return apiRequest("/payroll-concepts", {}, "Error al cargar conceptos salariales");
+}
+
 export async function fetchContractSalarySummary(contractId) {
   return apiRequest(
     `/contracts/${contractId}/salary-summary`,
@@ -125,24 +129,29 @@ export async function createContractSalaryLines(contractId, salaryLines = []) {
     const amount = Number(line.amount || 0);
     if (!line.name || amount <= 0) continue;
 
-    const concept = await createPayrollConcept({
-      name: line.name,
-      code: `CTO_${contractId}_${index + 1}_${normalizeConceptCode(line.name)}`,
-      category: normalizeConceptCategory(line.type),
-      concept_type: "DEVENGO",
-      salary_nature: "SALARIAL",
-      source_type: "CUSTOM",
-      calculation_type: "FIXED_AMOUNT",
-      default_amount: amount,
-      default_unit_price: amount,
-      applies_workday_percentage: true,
-      is_system: false,
-      is_taxable: true,
-      is_contribution_base: true,
-      is_active: true,
-      display_order: 100 + index,
-      notes: "Creado desde la estructura retributiva del contrato",
-    });
+    let concept = null;
+    if (line.concept_id) {
+      concept = { id: Number(line.concept_id), name: line.name };
+    } else {
+      concept = await createPayrollConcept({
+        name: line.name,
+        code: `CTO_${contractId}_${index + 1}_${normalizeConceptCode(line.name)}`,
+        category: normalizeConceptCategory(line.type),
+        concept_type: "DEVENGO",
+        salary_nature: "SALARIAL",
+        source_type: "CUSTOM",
+        calculation_type: "FIXED_AMOUNT",
+        default_amount: amount,
+        default_unit_price: amount,
+        applies_workday_percentage: line.applies_workday_percentage ?? true,
+        is_system: false,
+        is_taxable: true,
+        is_contribution_base: true,
+        is_active: true,
+        display_order: 100 + index,
+        notes: "Creado desde la estructura retributiva del contrato",
+      });
+    }
 
     const contractLine = await createContractPayrollConcept(contractId, {
       concept_id: concept.id,
@@ -152,7 +161,7 @@ export async function createContractSalaryLines(contractId, salaryLines = []) {
       amount,
       is_active: true,
       display_order: 100 + index,
-      notes: `Tipo: ${line.type || "complement"}`,
+      notes: `Tipo: ${line.type || "complement"}${line.source_type ? ` · Origen: ${line.source_type}` : ""}`,
     });
 
     createdLines.push(contractLine);
