@@ -77,7 +77,91 @@ async function upsertSocialSecurityRegistration(contractId, payload) {
   }
 }
 
-export async function createContract(contractPayload, socialSecurityPayload = null) {
+function normalizeConceptCode(value) {
+  return String(value || "PLUS")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .toUpperCase()
+    .slice(0, 32) || "PLUS";
+}
+
+function normalizeConceptCategory(type) {
+  if (type === "plus") return "PLUS";
+  if (type === "improvement") return "COMPLEMENTO";
+  return "COMPLEMENTO";
+}
+
+export async function createPayrollConcept(payload) {
+  return apiRequest(
+    "/payroll-concepts",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    },
+    "Error al crear concepto salarial"
+  );
+}
+
+export async function createContractPayrollConcept(contractId, payload) {
+  return apiRequest(
+    `/contracts/${contractId}/payroll-concepts`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    },
+    "Error al asociar concepto permanente al contrato"
+  );
+}
+
+export async function createContractSalaryLines(contractId, salaryLines = []) {
+  if (!contractId || !salaryLines.length) return [];
+
+  const createdLines = [];
+  for (const [index, line] of salaryLines.entries()) {
+    const amount = Number(line.amount || 0);
+    if (!line.name || amount <= 0) continue;
+
+    const concept = await createPayrollConcept({
+      name: line.name,
+      code: `CTO_${contractId}_${index + 1}_${normalizeConceptCode(line.name)}`,
+      category: normalizeConceptCategory(line.type),
+      concept_type: "DEVENGO",
+      salary_nature: "SALARIAL",
+      source_type: "CUSTOM",
+      calculation_type: "FIXED_AMOUNT",
+      default_amount: amount,
+      default_unit_price: amount,
+      applies_workday_percentage: true,
+      is_system: false,
+      is_taxable: true,
+      is_contribution_base: true,
+      is_active: true,
+      display_order: 100 + index,
+      notes: "Creado desde la estructura retributiva del contrato",
+    });
+
+    const contractLine = await createContractPayrollConcept(contractId, {
+      concept_id: concept.id,
+      description: line.name,
+      quantity: 1,
+      unit_price: amount,
+      amount,
+      is_active: true,
+      display_order: 100 + index,
+      notes: `Tipo: ${line.type || "complement"}`,
+    });
+
+    createdLines.push(contractLine);
+  }
+
+  return createdLines;
+}
+
+export async function createContract(contractPayload, socialSecurityPayload = null, salaryLines = []) {
   const contract = await apiRequest(
     "/contracts",
     {
@@ -90,6 +174,10 @@ export async function createContract(contractPayload, socialSecurityPayload = nu
 
   if (socialSecurityPayload && contract?.id) {
     await createSocialSecurityRegistration(contract.id, socialSecurityPayload);
+  }
+
+  if (contract?.id && salaryLines.length) {
+    await createContractSalaryLines(contract.id, salaryLines);
   }
 
   return contract;
