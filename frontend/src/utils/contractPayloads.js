@@ -78,6 +78,7 @@ export function normalizeSocialSecurityPayload(payload = null) {
 export function validateContractWorkflow(form, contractExtra = {}, socialSecurity = null) {
   const errors = [];
   const ss = socialSecurity || {};
+  const status = contractExtra.status || form.status;
   const contractCode = contractExtra.contract_code || form.contract_code || "";
   const workingDayType = contractExtra.working_day_type || form.working_day_type;
   const partialityCoefficient = toNumberOrNull(contractExtra.partiality_coefficient || form.partiality_coefficient);
@@ -93,6 +94,8 @@ export function validateContractWorkflow(form, contractExtra = {}, socialSecurit
   const bonusEnd = contractExtra.bonus_end_date;
   const reductionStart = contractExtra.legal_workday_reduction_start;
   const reductionEnd = contractExtra.legal_workday_reduction_end;
+
+  if (status === "draft") return [];
 
   if (form.end_date && form.start_date && form.end_date < form.start_date) {
     errors.push("La fecha fin del contrato no puede ser anterior a la fecha de inicio.");
