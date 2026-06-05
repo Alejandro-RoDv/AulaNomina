@@ -108,6 +108,7 @@ class Contract(Base):
     contract_registry_number = Column(String, nullable=True)
     contract_registry_date = Column(Date, nullable=True)
     contract_registry_office = Column(String, nullable=True)
+    contract_registry_status = Column(String, default="not_registered", nullable=True)
 
     # Cotización / RED simulado mínimo en contrato
     monthly_or_daily_contribution = Column(String, nullable=True)
