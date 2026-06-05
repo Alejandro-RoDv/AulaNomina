@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import PageCard from "../components/layout/PageCard";
 import ContractForm from "../components/ContractForm";
@@ -10,6 +10,10 @@ function normalizeText(value) {
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .trim();
+}
+
+function getStoredMode() {
+  return window.sessionStorage.getItem("aulanomina:contractsMode") || "new";
 }
 
 function buildContractsWithDisplayCodes(contracts, employees) {
@@ -34,7 +38,7 @@ function buildContractsWithDisplayCodes(contracts, employees) {
 }
 
 export default function ContractsPage({
-  mode = "new",
+  mode = null,
   loading,
   contracts,
   employees,
@@ -50,6 +54,7 @@ export default function ContractsPage({
   contractSuccess,
   contractSubmitting,
 }) {
+  const [contractMode, setContractMode] = useState(getStoredMode);
   const [filters, setFilters] = useState({
     id: "",
     employee: "",
@@ -57,6 +62,12 @@ export default function ContractsPage({
     contractType: "",
     status: "",
   });
+
+  useEffect(() => {
+    const syncContractMode = () => setContractMode(getStoredMode());
+    window.addEventListener("aulanomina-contract-mode", syncContractMode);
+    return () => window.removeEventListener("aulanomina-contract-mode", syncContractMode);
+  }, []);
 
   const contractsWithDisplayCodes = useMemo(
     () => buildContractsWithDisplayCodes(contracts, employees),
@@ -117,7 +128,7 @@ export default function ContractsPage({
     });
   }, [contractsWithDisplayCodes, employees, companies, workCenters, filters]);
 
-  const isHistory = mode === "history";
+  const isHistory = (mode || contractMode) === "history";
 
   return (
     <div style={styles.wrapper}>
