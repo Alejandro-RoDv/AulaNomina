@@ -15,6 +15,16 @@
       div[style*="position: fixed"][style*="inset"] {
         z-index: 5000 !important;
       }
+
+      /* Evita el botón inferior ancho de "Tramitar baja" en los formularios modales.
+         La acción sigue disponible en el panel lateral del modal. */
+      div[style*="border-top"][style*="justify-content: space-between"] > button:first-child {
+        display: none !important;
+      }
+
+      div[style*="border-top"][style*="justify-content: space-between"] {
+        justify-content: flex-end !important;
+      }
     </style>
   </head>
   <body>
