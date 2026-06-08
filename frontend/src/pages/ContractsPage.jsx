@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 
 import PageCard from "../components/layout/PageCard";
 import ContractForm from "../components/ContractFormProfessional";
+import ContractPrintPage from "../components/ContractPrintPage";
 import ContractTable from "../components/ContractTable";
 
 function getStoredMode() {
@@ -33,11 +34,13 @@ export default function ContractsPage({
     return () => window.removeEventListener("aulanomina-contract-mode", syncContractMode);
   }, []);
 
-  const isHistory = (mode || contractMode) === "history";
+  const currentMode = mode || contractMode;
+  const isHistory = currentMode === "history";
+  const isPrint = currentMode === "print";
 
   return (
     <div style={styles.wrapper}>
-      {!isHistory && (
+      {!isHistory && !isPrint && (
         <PageCard title="Nuevo contrato" subtitle="Alta contractual, retribución, jornada, bonificaciones, afiliación y registro.">
           <ContractForm
             form={contractForm}
@@ -68,6 +71,16 @@ export default function ContractsPage({
             submitting={contractSubmitting}
           />
         </PageCard>
+      )}
+
+      {isPrint && (
+        <ContractPrintPage
+          loading={loading}
+          contracts={contracts}
+          employees={employees}
+          companies={companies}
+          workCenters={workCenters}
+        />
       )}
     </div>
   );
