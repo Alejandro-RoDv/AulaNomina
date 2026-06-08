@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 
 import PageCard from "../components/layout/PageCard";
 import ContractForm from "../components/ContractFormProfessional";
-import ContractPrintPage from "../components/ContractPrintPage";
+import ContractPrintPage from "../components/ContractPrintPageV2";
 import ContractTable from "../components/ContractTable";
 
 function getStoredMode() {
