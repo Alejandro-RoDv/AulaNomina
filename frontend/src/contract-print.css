@@ -20,12 +20,27 @@
     visibility: hidden !important;
   }
 
+  div:has(> #contract-print-preview) {
+    display: block !important;
+    gap: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    background: #ffffff !important;
+    box-shadow: none !important;
+  }
+
+  div:has(> #contract-print-preview) > section:not(#contract-print-preview) {
+    display: none !important;
+  }
+
   #contract-print-preview,
   #contract-print-preview * {
     visibility: visible !important;
   }
 
   #contract-print-preview {
+    display: block !important;
     position: static !important;
     width: auto !important;
     max-width: none !important;
@@ -75,7 +90,8 @@
     transform: none !important;
   }
 
-  .contract-print-sheet:last-of-type {
+  #contract-print-preview > div:last-child > .contract-print-sheet:last-child,
+  #contract-print-preview .contract-print-sheet:last-of-type {
     page-break-after: auto !important;
     break-after: auto !important;
   }
