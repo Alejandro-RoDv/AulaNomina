@@ -9,7 +9,7 @@ function buildPrintDocument(sheetsHtml) {
   <meta charset="utf-8" />
   <title>Impresión contratos</title>
   <style>
-    @page { size: A4 portrait; margin: 6mm; }
+    @page { size: A4 portrait; margin: 8mm; }
 
     * { box-sizing: border-box; }
 
@@ -25,13 +25,13 @@ function buildPrintDocument(sheetsHtml) {
     .contract-print-sheet {
       display: block !important;
       position: relative !important;
-      width: 198mm !important;
+      width: 194mm !important;
       min-width: 0 !important;
-      max-width: 198mm !important;
-      min-height: 285mm !important;
-      height: auto !important;
+      max-width: 194mm !important;
+      min-height: 0 !important;
+      height: 260mm !important;
       margin: 0 auto !important;
-      padding: 8mm 10mm !important;
+      padding: 7mm 9mm !important;
       border: 0 !important;
       box-shadow: none !important;
       background: #ffffff !important;
@@ -39,7 +39,7 @@ function buildPrintDocument(sheetsHtml) {
       overflow: hidden !important;
       break-after: page !important;
       page-break-after: always !important;
-      break-inside: avoid-page !important;
+      break-inside: avoid !important;
       page-break-inside: avoid !important;
       transform: none !important;
       font-family: Arial, sans-serif !important;
@@ -75,11 +75,16 @@ function buildPrintDocument(sheetsHtml) {
 function openIsolatedContractPrint() {
   const sheets = getContractPrintSheets();
   if (!sheets.length) {
-    window.alert("Primero selecciona contratos y pulsa Imprimir / visualizar.");
+    window.alert("Primero pulsa Visualizar para generar la previsualización de los contratos seleccionados.");
     return;
   }
 
-  const sheetsHtml = sheets.map((sheet) => sheet.outerHTML).join("\n");
+  const clonedSheets = sheets.map((sheet) => {
+    const clone = sheet.cloneNode(true);
+    clone.removeAttribute("style");
+    return clone.outerHTML;
+  });
+  const sheetsHtml = clonedSheets.join("\n");
 
   const printWindow = window.open("", "aulanomina_contract_print", "width=980,height=900");
 
@@ -93,16 +98,39 @@ function openIsolatedContractPrint() {
   printWindow.document.close();
 }
 
-function isContractPrintButton(target) {
-  const button = target?.closest?.("button");
-  if (!button) return false;
-  return button.textContent?.trim() === "Abrir impresión" && Boolean(document.querySelector("#contract-print-preview"));
+function getButton(target) {
+  return target?.closest?.("button") || null;
+}
+
+function isContractPrintArea() {
+  return Boolean(document.querySelector("#contract-print-preview"));
+}
+
+function renameContractPrintButtons() {
+  if (!isContractPrintArea()) return;
+
+  Array.from(document.querySelectorAll("button")).forEach((button) => {
+    const text = button.textContent?.trim();
+    if (text?.startsWith("Imprimir / visualizar")) {
+      const count = text.match(/\(([^)]+)\)/)?.[1];
+      button.textContent = count ? `Visualizar (${count})` : "Visualizar";
+    }
+    if (text === "Abrir impresión") {
+      button.textContent = "Imprimir";
+    }
+  });
+}
+
+function isPrintButton(target) {
+  const button = getButton(target);
+  if (!button || !isContractPrintArea()) return false;
+  return button.textContent?.trim() === "Imprimir";
 }
 
 window.addEventListener(
   "click",
   (event) => {
-    if (!isContractPrintButton(event.target)) return;
+    if (!isPrintButton(event.target)) return;
 
     event.preventDefault();
     event.stopPropagation();
@@ -111,3 +139,8 @@ window.addEventListener(
   },
   true
 );
+
+const observer = new MutationObserver(renameContractPrintButtons);
+observer.observe(document.documentElement, { childList: true, subtree: true, characterData: true });
+window.addEventListener("load", renameContractPrintButtons);
+window.addEventListener("aulanomina-contract-mode", () => window.setTimeout(renameContractPrintButtons, 0));
