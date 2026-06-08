@@ -34,6 +34,7 @@ const groups = [
         children: [
           { id: "contracts", label: "Nuevo contrato", enabled: true, modeGroup: "contracts", modeValue: "new" },
           { id: "contracts", label: "Historial contratos", enabled: true, modeGroup: "contracts", modeValue: "history" },
+          { id: "contracts", label: "Impresión contratos", enabled: true, modeGroup: "contracts", modeValue: "print" },
         ],
       },
       { id: "collective-agreements", label: "Convenios", enabled: true },
