@@ -65,7 +65,7 @@ function buildPrintDocument(sheetsHtml) {
       window.setTimeout(() => {
         window.focus();
         window.print();
-      }, 150);
+      }, 250);
     });
   </script>
 </body>
@@ -80,7 +80,8 @@ function openIsolatedContractPrint() {
   }
 
   const sheetsHtml = sheets.map((sheet) => sheet.outerHTML).join("\n");
-  const printWindow = window.open("", "aulanomina_contract_print", "width=980,height=900,noopener,noreferrer");
+
+  const printWindow = window.open("", "aulanomina_contract_print", "width=980,height=900");
 
   if (!printWindow) {
     window.alert("El navegador ha bloqueado la ventana de impresión. Permite ventanas emergentes para AulaNomina.");
