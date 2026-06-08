@@ -444,7 +444,7 @@ export default function ContractPrintPage({ loading, contracts, employees, compa
         {!previewContracts.length && <p style={styles.subtitle}>Selecciona contratos y pulsa “Imprimir / visualizar”.</p>}
         {previewContracts.map((contract) => (
           <div key={contract.id} style={styles.contractPreviewBlock}>
-            <div style={styles.contractDivider}>{getEmployeeName(contract, employees)} · código {getContractCode(contract) || "-"}</div>
+            <div data-contract-print-divider="true" style={styles.contractDivider}>{getEmployeeName(contract, employees)} · código {getContractCode(contract) || "-"}</div>
             {buildPages(contract).map((page, index) => <ContractSheet key={`${contract.id}-${page.number}-${index}`} page={page} contract={contract} employees={employees} companies={companies} workCenters={workCenters} />)}
           </div>
         ))}
