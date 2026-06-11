@@ -21,6 +21,45 @@ const ACTION_LABELS = {
   employees: "Ver trabajador",
 };
 
+const PAGE_BY_SOURCE = {
+  employees: "employee-record",
+  contracts: "contracts",
+  incidents: "incidents",
+  payrolls: "payroll-history",
+};
+
+function openPage(page) {
+  window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
+  window.dispatchEvent(new Event("aulanomina-route-change"));
+  window.dispatchEvent(new CustomEvent("aulanomina-open-page", { detail: { page } }));
+}
+
+function openOverlay(hash, page) {
+  window.location.hash = hash;
+  window.dispatchEvent(new Event("aulanomina-route-change"));
+  window.dispatchEvent(new CustomEvent("aulanomina-open-page", { detail: { page } }));
+}
+
+function openTimelineSource(event) {
+  if (event.source === "contracts") {
+    window.sessionStorage.setItem("aulanomina:contractsMode", "history");
+    window.dispatchEvent(new Event("aulanomina-contract-mode"));
+  }
+
+  if (event.source === "documents") {
+    openOverlay("#documents", "documents");
+    return;
+  }
+
+  if (event.source === "alerts") {
+    openOverlay("#alerts", "alerts");
+    return;
+  }
+
+  const page = PAGE_BY_SOURCE[event.source];
+  if (page) openPage(page);
+}
+
 function formatDate(value) {
   if (!value) return "-";
   const date = new Date(value);
@@ -103,7 +142,7 @@ function TimelineEvent({ event }) {
             )}
           </div>
           {actionLabel && (
-            <button type="button" style={styles.actionButton} title="Acción visual preparada para navegación futura">
+            <button type="button" style={styles.actionButton} onClick={() => openTimelineSource(event)}>
               {actionLabel}
             </button>
           )}
