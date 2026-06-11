@@ -23,6 +23,20 @@ const SOURCE_LABELS = {
   payroll: "Nóminas",
 };
 
+const workerTabs = [
+  { page: "employees", label: "Nuevo trabajador", titles: ["Nuevo trabajador"] },
+  { page: "employees-list", label: "Listado trabajadores", titles: ["Listado de trabajadores"] },
+  { page: "employee-record", label: "Expediente", titles: ["Expediente del trabajador"] },
+];
+
+const contractTabs = [
+  { mode: "new", label: "Nuevo contrato" },
+  { mode: "history", label: "Historial contratos" },
+  { mode: "print", label: "Impresión contratos" },
+];
+
+const overlayHashes = new Set(["#documents", "#alerts", "#reports"]);
+
 function getSeverityStyle(severity) {
   if (severity === "critical") return styles.alertSeverityCritical;
   if (severity === "high") return styles.alertSeverityHigh;
@@ -35,6 +49,31 @@ function formatDate(value) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "Sin fecha";
   return date.toLocaleDateString("es-ES");
+}
+
+function getStoredContractMode() {
+  if (typeof window === "undefined") return "new";
+  return window.sessionStorage.getItem("aulanomina:contractsMode") || "new";
+}
+
+function clearOverlayHash() {
+  if (typeof window === "undefined") return;
+  if (!overlayHashes.has(window.location.hash)) return;
+  window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
+  window.dispatchEvent(new Event("aulanomina-route-change"));
+}
+
+function openAppPage(page) {
+  clearOverlayHash();
+  window.dispatchEvent(new CustomEvent("aulanomina-open-page", { detail: { page } }));
+}
+
+function isWorkerTitle(title) {
+  return workerTabs.some((tab) => tab.titles.includes(title));
+}
+
+function getWorkerTabActive(title, tab) {
+  return tab.titles.includes(title);
 }
 
 export default function Header({
@@ -51,6 +90,7 @@ export default function Header({
   const [alertsOpen, setAlertsOpen] = useState(false);
   const [alertsLoading, setAlertsLoading] = useState(false);
   const [alertsError, setAlertsError] = useState("");
+  const [contractMode, setContractMode] = useState(getStoredContractMode);
   const [alertData, setAlertData] = useState({
     documents: [],
     contracts: [],
@@ -77,6 +117,8 @@ export default function Header({
 
   const alertStats = useMemo(() => getAlertStats(alerts), [alerts]);
   const previewAlerts = alerts.slice(0, 5);
+  const showWorkerTabs = isWorkerTitle(title);
+  const showContractTabs = title === "Contratos";
 
   const loadHeaderAlerts = async () => {
     try {
@@ -105,15 +147,32 @@ export default function Header({
     loadHeaderAlerts();
 
     const handleRefresh = () => loadHeaderAlerts();
+    const handleContractMode = () => setContractMode(getStoredContractMode());
     window.addEventListener("aulanomina-alerts-refresh", handleRefresh);
+    window.addEventListener("aulanomina-contract-mode", handleContractMode);
 
-    return () => window.removeEventListener("aulanomina-alerts-refresh", handleRefresh);
+    return () => {
+      window.removeEventListener("aulanomina-alerts-refresh", handleRefresh);
+      window.removeEventListener("aulanomina-contract-mode", handleContractMode);
+    };
   }, []);
 
   const openAlertsPage = () => {
     setAlertsOpen(false);
     window.location.hash = "alerts";
     window.dispatchEvent(new Event("aulanomina-route-change"));
+  };
+
+  const changeWorkerTab = (page) => {
+    openAppPage(page);
+  };
+
+  const changeContractTab = (mode) => {
+    window.sessionStorage.setItem("aulanomina:contractsMode", mode);
+    setContractMode(mode);
+    clearOverlayHash();
+    window.dispatchEvent(new Event("aulanomina-contract-mode"));
+    window.dispatchEvent(new CustomEvent("aulanomina-open-page", { detail: { page: "contracts" } }));
   };
 
   return (
@@ -202,6 +261,26 @@ export default function Header({
         <h1 style={styles.title}>{title}</h1>
         {subtitle && <p style={styles.subtitle}>{subtitle}</p>}
       </div>
+
+      {showWorkerTabs && (
+        <nav style={styles.moduleTabs} aria-label="Navegación trabajador">
+          {workerTabs.map((tab) => (
+            <button key={tab.page} type="button" onClick={() => changeWorkerTab(tab.page)} style={getWorkerTabActive(title, tab) ? styles.moduleTabActive : styles.moduleTab}>
+              {tab.label}
+            </button>
+          ))}
+        </nav>
+      )}
+
+      {showContractTabs && (
+        <nav style={styles.moduleTabs} aria-label="Navegación contratos">
+          {contractTabs.map((tab) => (
+            <button key={tab.mode} type="button" onClick={() => changeContractTab(tab.mode)} style={contractMode === tab.mode ? styles.moduleTabActive : styles.moduleTab}>
+              {tab.label}
+            </button>
+          ))}
+        </nav>
+      )}
 
       {settingsOpen && (
         <div style={styles.modalOverlay}>
@@ -303,7 +382,7 @@ const styles = {
   statusBox: { color: "#111111", backgroundColor: "rgba(255, 255, 255, 0.65)", border: "1px solid rgba(0, 0, 0, 0.25)", padding: "5px 10px", fontSize: "12px", fontWeight: 800, textTransform: "uppercase" },
   settingsButton: { color: "#111111", backgroundColor: "#ffffff", border: "1px solid #111111", padding: "6px 12px", fontSize: "12px", fontWeight: 900, textTransform: "uppercase", cursor: "pointer" },
   titleBlock: {
-    padding: "24px 34px 20px",
+    padding: "24px 34px 14px",
     boxSizing: "border-box",
     backgroundColor: "#ffffff",
     position: "relative",
@@ -311,6 +390,9 @@ const styles = {
   },
   title: { margin: 0, color: "#111111", fontSize: "32px", lineHeight: 1.1, fontWeight: 950 },
   subtitle: { margin: "8px 0 0", color: "#4b5563", fontSize: "15px", fontWeight: 700 },
+  moduleTabs: { display: "flex", gap: "8px", padding: "0 34px 16px", backgroundColor: "#ffffff", flexWrap: "wrap", position: "relative", zIndex: 41 },
+  moduleTab: { backgroundColor: "#ffffff", color: "#374151", border: "1px solid #d1d5db", borderRadius: "8px", padding: "10px 14px", cursor: "pointer", fontWeight: 900 },
+  moduleTabActive: { backgroundColor: "#111827", color: "#ffffff", border: "1px solid #111827", borderRadius: "8px", padding: "10px 14px", cursor: "pointer", fontWeight: 900 },
   modalOverlay: { position: "fixed", inset: 0, zIndex: 50, display: "flex", alignItems: "flex-start", justifyContent: "flex-end", backgroundColor: "rgba(17, 24, 39, 0.35)", padding: "72px 34px", boxSizing: "border-box" },
   modalBox: { width: "420px", backgroundColor: "#ffffff", border: "2px solid #111111", boxShadow: "0 18px 40px rgba(0, 0, 0, 0.22)", padding: "22px", boxSizing: "border-box" },
   modalHeader: { display: "flex", justifyContent: "space-between", gap: "16px", alignItems: "flex-start", marginBottom: "18px" },
