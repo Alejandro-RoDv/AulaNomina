@@ -15,6 +15,7 @@ import ContractsPage from "./pages/ContractsPage";
 import EmployeesPage from "./pages/EmployeesPage";
 import IncidentsPage from "./pages/IncidentsPage";
 import IrpfPage from "./pages/IrpfPage";
+import ModuleDashboardPage from "./pages/ModuleDashboardPage";
 import PayrollConceptsPage from "./pages/PayrollConceptsPage";
 import PayrollHistoryPage from "./pages/PayrollHistoryPage";
 import PayrollIndividualPage from "./pages/PayrollIndividualPage";
@@ -165,6 +166,9 @@ export default function App() {
 
   function getTitle() {
     if (activePage === "dashboard") return "Dashboard";
+    if (activePage === "companies-dashboard") return "Empresas / Centros";
+    if (activePage === "workers-dashboard") return "Trabajador";
+    if (activePage === "contracts-dashboard") return "Contratos";
     if (activePage === "companies") return "Empresas / Centros";
     if (activePage === "employees") return "Nuevo trabajador";
     if (activePage === "employees-list") return "Listado de trabajadores";
@@ -189,6 +193,9 @@ export default function App() {
 
   function getSubtitle() {
     if (activePage === "dashboard") return "Resumen del entorno de simulación";
+    if (activePage === "companies-dashboard") return "Resumen visual del módulo de empresas, centros y estructura organizativa";
+    if (activePage === "workers-dashboard") return "Resumen visual del módulo de trabajadores y expedientes";
+    if (activePage === "contracts-dashboard") return "Resumen visual del módulo contractual";
     if (activePage === "companies") return "Gestión de empresas madre y centros de trabajo";
     if (activePage === "employees") return "Alta de datos personales y administrativos del trabajador";
     if (activePage === "employees-list") return "Consulta y mantenimiento operativo de trabajadores";
@@ -247,6 +254,18 @@ export default function App() {
     );
   }
 
+  function renderModuleDashboard(type) {
+    return (
+      <ModuleDashboardPage
+        type={type}
+        companies={companies}
+        workCenters={workCenters}
+        employees={employees}
+        contracts={contracts}
+      />
+    );
+  }
+
   function renderPage() {
     if (overlayPages.has(activePage)) return null;
 
@@ -263,6 +282,10 @@ export default function App() {
         />
       );
     }
+
+    if (activePage === "companies-dashboard") return renderModuleDashboard("companies");
+    if (activePage === "workers-dashboard") return renderModuleDashboard("workers");
+    if (activePage === "contracts-dashboard") return renderModuleDashboard("contracts");
 
     if (activePage === "collective-agreements") {
       return (
