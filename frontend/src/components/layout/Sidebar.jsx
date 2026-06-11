@@ -38,9 +38,9 @@ const groups = [
         ],
       },
       { id: "collective-agreements", label: "Convenios", enabled: true },
-      { id: "documents", label: "Documentos", enabled: true },
-      { id: "alerts", label: "Alertas laborales", enabled: true },
-      { id: "reports", label: "Informes", enabled: true },
+      { id: "documents", label: "Documentos", enabled: true, hash: "#documents" },
+      { id: "alerts", label: "Alertas laborales", enabled: true, hash: "#alerts" },
+      { id: "reports", label: "Informes", enabled: true, hash: "#reports" },
     ],
   },
   {
@@ -108,7 +108,7 @@ function applyItemNavigation(item) {
     if (storageKey) window.sessionStorage.setItem(storageKey, item.modeValue);
   }
 
-  const eventName = modeEvents[item.modeGroup];
+  const eventName = item.hash ? "aulanomina-route-change" : modeEvents[item.modeGroup];
   if (eventName) window.dispatchEvent(new Event(eventName));
 }
 
