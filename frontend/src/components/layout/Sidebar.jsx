@@ -8,7 +8,7 @@ const panelItem = { id: "dashboard", label: "Panel", enabled: true };
 const groups = [
   {
     id: "master-data",
-    title: "Datos maestros",
+    title: "Datos empresa",
     items: [
       {
         id: "companies-dashboard",
@@ -32,7 +32,7 @@ const groups = [
   },
   {
     id: "labor-management",
-    title: "Gestión laboral",
+    title: "Gestión de personal",
     items: [
       {
         id: "workers-dashboard",
