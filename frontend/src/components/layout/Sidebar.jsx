@@ -107,8 +107,15 @@ const groups = [
     id: "teaching",
     title: "Docencia",
     items: [
-      { id: "case-studies", label: "Casos prácticos", enabled: true, hash: "#case-studies" },
       { id: "teacher-dashboard", label: "Panel docente", enabled: true, hash: "#teacher-dashboard" },
+      { id: "case-studies", label: "Casos prácticos", enabled: true, hash: "#case-studies" },
+      { id: "assignments", label: "Asignaciones", enabled: true, hash: "#assignments" },
+      { id: "corrections", label: "Correcciones", enabled: true, hash: "#corrections" },
+      { id: "students", label: "Alumnos", enabled: true, hash: "#students" },
+      { id: "groups", label: "Grupos", enabled: true, hash: "#groups" },
+      { id: "progress", label: "Progreso", enabled: true, hash: "#progress" },
+      { id: "student-demo", label: "Vista alumno", enabled: true, hash: "#student-demo" },
+      { id: "teaching-alerts", label: "Alertas docentes", enabled: true, hash: "#teaching-alerts" },
     ],
   },
 ];
