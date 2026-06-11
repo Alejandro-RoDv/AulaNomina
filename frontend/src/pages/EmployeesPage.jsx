@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import PageCard from "../components/layout/PageCard";
 import EmployeeForm from "../components/employees/EmployeeForm";
 import EmployeeTable from "../components/employees/EmployeeTable";
+import EmployeeTimeline from "../components/employees/EmployeeTimeline";
 import { fetchEmployeeAssignmentHistory } from "../services/employeeApi";
 import { openReportPreset } from "../utils/reportShortcuts";
 
@@ -258,6 +259,7 @@ export default function EmployeesPage({
                 <RecordTab active={recordTab === "payrolls"} onClick={() => setRecordTab("payrolls")}>Nóminas</RecordTab>
                 <RecordTab active={recordTab === "documents"} onClick={() => setRecordTab("documents")}>Documentos</RecordTab>
                 <RecordTab active={recordTab === "history"} onClick={() => setRecordTab("history")}>Histórico empresa/centro</RecordTab>
+                <RecordTab active={recordTab === "timeline"} onClick={() => setRecordTab("timeline")}>Vida laboral</RecordTab>
                 <RecordTab active={recordTab === "summary"} onClick={() => setRecordTab("summary")}>Resumen</RecordTab>
               </div>
 
@@ -320,7 +322,7 @@ export default function EmployeesPage({
                     <button type="button" style={styles.reportButtonSecondary} onClick={() => { window.location.hash = "documents"; window.dispatchEvent(new Event("aulanomina-route-change")); }}>Abrir módulo documentos</button>
                   </div>
                   {!selectedEmployeeDocuments.length ? <p style={styles.empty}>No hay documentos vinculados a este trabajador.</p> : (
-                    <table style={styles.miniTable}><thead><tr><th>Tipo</th><th>Nombre</th><th>Estado</th><th>Fecha emisión</th><th>Fecha caducidad</th><th>Notas</th></tr></thead><tbody>{selectedEmployeeDocuments.map((document) => <tr key={document.id}><td>{translateDocumentType(document.document_type)}</td><td>{document.name || document.title || "-"}</td><td>{translateStatus(document.status)}</td><td>{formatDateTime(document.issue_date || document.created_at)}</td><td>{formatDateTime(document.expiration_date)}</td><td>{document.notes || document.description || "-"}</td></tr>)}</tbody></table>
+                    <table style={styles.miniTable}><thead><tr><th>Tipo</th><th>Nombre</th><th>Estado</th><th>Fecha emisión</th><th>Fecha caducidad</th><th>Notas</th></tr></thead><tbody>{selectedEmployeeDocuments.map((document) => <tr key={document.id}><td>{translateDocumentType(document.document_type)}</td><td>{document.name || document.title || document.document_name || "-"}</td><td>{translateStatus(document.status)}</td><td>{formatDateTime(document.issue_date || document.created_at)}</td><td>{formatDateTime(document.expiry_date || document.expiration_date)}</td><td>{document.notes || document.description || "-"}</td></tr>)}</tbody></table>
                   )}
                 </div>
               )}
@@ -338,6 +340,19 @@ export default function EmployeesPage({
                     </table>
                   )}
                 </div>
+              )}
+
+              {recordTab === "timeline" && (
+                <EmployeeTimeline
+                  employee={selectedRecordEmployee}
+                  contracts={contracts}
+                  incidents={incidents}
+                  payrolls={payrolls}
+                  documents={documents}
+                  alerts={[]}
+                  companies={companies}
+                  workCenters={workCenters}
+                />
               )}
 
               {recordTab === "summary" && (
