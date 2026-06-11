@@ -3,15 +3,9 @@ import { useEffect, useState } from "react";
 import logo from "../../assets/aulanomina-logo.svg";
 
 const SIDEBAR_STORAGE_KEY = "aulanomina:sidebarExpandedGroups";
+const panelItem = { id: "dashboard", label: "Panel", enabled: true };
 
 const groups = [
-  {
-    id: "panel",
-    title: "Panel",
-    items: [
-      { id: "dashboard", label: "Dashboard general", enabled: true },
-    ],
-  },
   {
     id: "master-data",
     title: "Datos maestros",
@@ -258,6 +252,10 @@ export default function Sidebar({ activePage, setActivePage }) {
         <img src={logo} alt="AulaNomina" style={styles.logo} />
       </div>
       <div style={styles.menuPanel}>
+        <button type="button" style={activePage === panelItem.id ? styles.panelButtonActive : styles.panelButton} onClick={() => handleNavClick(panelItem)}>
+          {panelItem.label}
+        </button>
+
         {groups.map((group) => {
           const isExpanded = Boolean(expandedGroups[group.id]);
           const isGroupActive = groupContainsActiveItem(group, activePage, activeNavKey);
@@ -300,6 +298,8 @@ const styles = {
   logoPanel: { height: "132px", backgroundColor: "#ffffff", borderBottom: "3px solid #111111", display: "flex", alignItems: "center", justifyContent: "center", padding: "4px 8px", boxSizing: "border-box", overflow: "hidden" },
   logo: { width: "275px", maxWidth: "110%", maxHeight: "130px", objectFit: "contain", display: "block" },
   menuPanel: { flex: 1, padding: "16px 10px 26px", overflowY: "auto" },
+  panelButton: { width: "100%", textAlign: "left", backgroundColor: "transparent", border: "none", color: "#111111", padding: "9px 8px", cursor: "pointer", fontSize: "16px", fontWeight: 950, letterSpacing: "0.03em", textTransform: "uppercase", marginBottom: "8px" },
+  panelButtonActive: { width: "100%", textAlign: "left", backgroundColor: "#ffffff", border: "3px solid #111111", boxShadow: "3px 3px 0 #111111", color: "#111111", padding: "9px 8px", cursor: "pointer", fontSize: "16px", fontWeight: 950, letterSpacing: "0.03em", textTransform: "uppercase", marginBottom: "8px" },
   group: { marginBottom: "8px" },
   groupToggle: { width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px", backgroundColor: "transparent", border: "none", color: "#111111", padding: "9px 8px", cursor: "pointer", fontSize: "16px", fontWeight: 950, letterSpacing: "0.03em", textTransform: "uppercase", textAlign: "left" },
   groupToggleActive: { backgroundColor: "rgba(255, 255, 255, 0.72)", outline: "2px solid #111111", boxShadow: "3px 3px 0 #111111" },
