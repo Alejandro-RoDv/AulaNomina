@@ -8,9 +8,10 @@ const groups = [
     items: [
       { id: "dashboard", label: "Panel", enabled: true },
       {
-        id: "companies-menu",
+        id: "companies-dashboard",
         label: "Empresas / centros",
         enabled: true,
+        parentOf: "companies",
         children: [
           { id: "companies", label: "Nueva empresa", enabled: true, hash: "#company-companies", modeGroup: "companies", modeValue: "new" },
           { id: "companies", label: "Centros", enabled: true, hash: "#company-centers", modeGroup: "companies", modeValue: "centers" },
@@ -18,9 +19,10 @@ const groups = [
         ],
       },
       {
-        id: "worker-menu",
+        id: "workers-dashboard",
         label: "Trabajador",
         enabled: true,
+        parentOf: "workers",
         children: [
           { id: "employees", label: "Nuevo trabajador", enabled: true },
           { id: "employees-list", label: "Listado trabajadores", enabled: true },
@@ -28,9 +30,10 @@ const groups = [
         ],
       },
       {
-        id: "contracts-menu",
+        id: "contracts-dashboard",
         label: "Contratos",
         enabled: true,
+        parentOf: "contracts",
         children: [
           { id: "contracts", label: "Nuevo contrato", enabled: true, modeGroup: "contracts", modeValue: "new" },
           { id: "contracts", label: "Historial contratos", enabled: true, modeGroup: "contracts", modeValue: "history" },
@@ -104,7 +107,8 @@ function getCompanyModeFromHash() {
 
 function clearOverlayHashIfNeeded(item) {
   if (item.hash) return false;
-  if (!overlayHashes.has(window.location.hash)) return false;
+  if (!window.location.hash) return false;
+  if (!overlayHashes.has(window.location.hash) && !window.location.hash.startsWith("#company-")) return false;
 
   window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
   return true;
@@ -167,7 +171,7 @@ export default function Sidebar({ activePage, setActivePage }) {
             <div style={styles.groupItems}>
               {group.items.map((item) => (
                 <div key={`${item.id}-${item.label}`} style={styles.itemBlock}>
-                  <button type="button" disabled={!item.enabled} onClick={() => !item.children && handleNavClick(item)} style={{ ...styles.navItem, ...(isParentActive(item) ? styles.navItemActive : {}), ...(!item.enabled ? styles.navItemDisabled : {}) }}>
+                  <button type="button" disabled={!item.enabled} onClick={() => handleNavClick(item)} style={{ ...styles.navItem, ...(isParentActive(item) ? styles.navItemActive : {}), ...(!item.enabled ? styles.navItemDisabled : {}) }}>
                     {item.label}
                   </button>
                   {item.children && (
