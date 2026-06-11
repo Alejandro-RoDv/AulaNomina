@@ -76,6 +76,8 @@ const modeEvents = {
   companies: "aulanomina-route-change",
 };
 
+const overlayHashes = new Set(["#documents", "#alerts", "#reports"]);
+
 function getItemKey(item) {
   if (item.modeGroup && item.modeValue) return `${item.id}:${item.modeGroup}:${item.modeValue}`;
   if (item.hash) return `${item.id}:${item.hash}`;
@@ -100,15 +102,30 @@ function getCompanyModeFromHash() {
   return "new";
 }
 
+function clearOverlayHashIfNeeded(item) {
+  if (item.hash) return false;
+  if (!overlayHashes.has(window.location.hash)) return false;
+
+  window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
+  return true;
+}
+
 function applyItemNavigation(item) {
-  if (item.hash) window.location.hash = item.hash;
+  let routeChanged = false;
+
+  if (item.hash) {
+    if (window.location.hash !== item.hash) window.location.hash = item.hash;
+    routeChanged = true;
+  } else {
+    routeChanged = clearOverlayHashIfNeeded(item);
+  }
 
   if (item.modeGroup && item.modeValue) {
     const storageKey = modeStorageKeys[item.modeGroup];
     if (storageKey) window.sessionStorage.setItem(storageKey, item.modeValue);
   }
 
-  const eventName = item.hash ? "aulanomina-route-change" : modeEvents[item.modeGroup];
+  const eventName = item.hash || routeChanged ? "aulanomina-route-change" : modeEvents[item.modeGroup];
   if (eventName) window.dispatchEvent(new Event(eventName));
 }
 
