@@ -12,6 +12,15 @@ const FILTERS = [
   { id: "alerts", label: "Alertas", groups: ["alerts"] },
 ];
 
+const ACTION_LABELS = {
+  contracts: "Ver contrato",
+  incidents: "Ver incidencia",
+  payrolls: "Ver nómina",
+  documents: "Ver documento",
+  alerts: "Ver alerta",
+  employees: "Ver trabajador",
+};
+
 function formatDate(value) {
   if (!value) return "-";
   const date = new Date(value);
@@ -49,16 +58,28 @@ function groupEventsByYear(events) {
   }, {});
 }
 
+function getMetadataItems(event) {
+  return [
+    event.metadata?.companyName,
+    event.metadata?.centerName,
+    event.metadata?.contractCode ? `Contrato ${event.metadata.contractCode}` : "",
+    event.metadata?.periodLabel ? `Periodo ${event.metadata.periodLabel}` : "",
+  ].filter(Boolean);
+}
+
 function TimelineStat({ label, value, subtle }) {
   return (
     <div style={subtle ? styles.statBoxSubtle : styles.statBox}>
-      <span>{label}</span>
-      <strong>{value}</strong>
+      <span style={styles.statLabel}>{label}</span>
+      <strong style={styles.statValue}>{value}</strong>
     </div>
   );
 }
 
 function TimelineEvent({ event }) {
+  const metadataItems = getMetadataItems(event);
+  const actionLabel = ACTION_LABELS[event.source];
+
   return (
     <div style={styles.eventRow}>
       <div style={styles.dateCell}>{formatDate(event.date)}</div>
@@ -71,16 +92,22 @@ function TimelineEvent({ event }) {
           <span style={{ ...styles.eventBadge, borderColor: event.color, color: event.color }}>{event.label}</span>
           <span style={styles.eventSource}>{event.source}</span>
         </div>
-        <h4 style={styles.eventTitle}>{event.title}</h4>
-        <p style={styles.eventDescription}>{event.description || "Sin detalle registrado."}</p>
-        {!!event.metadata && (
-          <div style={styles.metadataRow}>
-            {event.metadata.companyName && <span>{event.metadata.companyName}</span>}
-            {event.metadata.centerName && <span>{event.metadata.centerName}</span>}
-            {event.metadata.contractCode && <span>Contrato {event.metadata.contractCode}</span>}
-            {event.metadata.periodLabel && <span>Periodo {event.metadata.periodLabel}</span>}
+        <div style={styles.eventMainRow}>
+          <div style={styles.eventContent}>
+            <h4 style={styles.eventTitle}>{event.title}</h4>
+            <p style={styles.eventDescription}>{event.description || "Sin detalle registrado."}</p>
+            {!!metadataItems.length && (
+              <div style={styles.metadataRow}>
+                {metadataItems.map((item) => <span key={item} style={styles.metadataPill}>{item}</span>)}
+              </div>
+            )}
           </div>
-        )}
+          {actionLabel && (
+            <button type="button" style={styles.actionButton} title="Acción visual preparada para navegación futura">
+              {actionLabel}
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -176,9 +203,11 @@ const styles = {
   title: { margin: 0, fontSize: "18px", color: "#111827", fontWeight: 950 },
   subtitle: { margin: "8px 0 0", maxWidth: "760px", color: "#4b5563", fontSize: "13px", lineHeight: 1.5 },
   employeeSummary: { border: "1px solid #e5e7eb", borderRadius: "10px", padding: "10px 12px", backgroundColor: "#f9fafb", display: "flex", flexDirection: "column", gap: "4px", minWidth: "280px", fontSize: "13px", color: "#4b5563" },
-  statsGrid: { display: "grid", gridTemplateColumns: "repeat(7, minmax(0, 1fr))", gap: "10px" },
+  statsGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(128px, 1fr))", gap: "10px" },
   statBox: { border: "1px solid #e5e7eb", borderRadius: "10px", padding: "10px", backgroundColor: "#f9fafb", display: "flex", flexDirection: "column", gap: "4px", minWidth: 0 },
   statBoxSubtle: { border: "1px solid #e5e7eb", borderRadius: "10px", padding: "10px", backgroundColor: "#ffffff", display: "flex", flexDirection: "column", gap: "4px", minWidth: 0 },
+  statLabel: { color: "#6b7280", fontSize: "11px", fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.04em" },
+  statValue: { color: "#111827", fontSize: "15px", fontWeight: 950, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" },
   filters: { display: "flex", gap: "8px", flexWrap: "wrap", borderTop: "1px solid #f3f4f6", paddingTop: "12px" },
   filterButton: { backgroundColor: "#ffffff", color: "#374151", border: "1px solid #d1d5db", borderRadius: "999px", padding: "8px 11px", fontSize: "12px", fontWeight: 900, cursor: "pointer" },
   filterButtonActive: { backgroundColor: "#111827", color: "#ffffff", border: "1px solid #111827", borderRadius: "999px", padding: "8px 11px", fontSize: "12px", fontWeight: 950, cursor: "pointer" },
@@ -193,11 +222,15 @@ const styles = {
   verticalLine: { flex: 1, width: "1px", backgroundColor: "#e5e7eb", marginTop: "4px" },
   eventCard: { border: "1px solid #e5e7eb", borderRadius: "10px", padding: "11px 12px", marginBottom: "10px", backgroundColor: "#ffffff" },
   eventTopRow: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: "10px", marginBottom: "6px" },
+  eventMainRow: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "12px" },
+  eventContent: { minWidth: 0, flex: "1 1 auto" },
   eventBadge: { border: "1px solid", borderRadius: "999px", padding: "3px 7px", fontSize: "11px", fontWeight: 950, backgroundColor: "#ffffff" },
   eventSource: { color: "#9ca3af", fontSize: "11px", fontWeight: 800, textTransform: "uppercase" },
   eventTitle: { margin: 0, color: "#111827", fontSize: "14px", fontWeight: 950 },
   eventDescription: { margin: "5px 0 0", color: "#4b5563", fontSize: "13px", lineHeight: 1.45 },
   metadataRow: { display: "flex", gap: "6px", flexWrap: "wrap", marginTop: "8px" },
+  metadataPill: { border: "1px solid #e5e7eb", borderRadius: "999px", padding: "3px 7px", backgroundColor: "#f9fafb", color: "#4b5563", fontSize: "11px", fontWeight: 800 },
+  actionButton: { flex: "0 0 auto", backgroundColor: "#ffffff", color: "#111827", border: "1px solid #d1d5db", borderRadius: "8px", padding: "7px 9px", cursor: "pointer", fontSize: "12px", fontWeight: 900 },
   empty: { margin: 0, color: "#6b7280", fontSize: "14px" },
   emptyState: { border: "1px dashed #d1d5db", borderRadius: "12px", padding: "18px", backgroundColor: "#f9fafb", color: "#4b5563" },
 };
