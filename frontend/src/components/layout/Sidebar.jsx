@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 
 import logo from "../../assets/aulanomina-logo.svg";
 
+const SIDEBAR_STORAGE_KEY = "aulanomina:sidebarExpandedGroups";
+
 const groups = [
   {
     id: "panel",
@@ -19,7 +21,6 @@ const groups = [
         label: "Empresas / centros",
         enabled: true,
         children: [
-          { id: "companies-dashboard", label: "Dashboard empresas", enabled: true },
           { id: "companies", label: "Nueva empresa", enabled: true, hash: "#company-companies", modeGroup: "companies", modeValue: "new" },
           { id: "companies", label: "Centros", enabled: true, hash: "#company-centers", modeGroup: "companies", modeValue: "centers" },
           { id: "companies", label: "Listado empresas", enabled: true, hash: "#company-list", modeGroup: "companies", modeValue: "list" },
@@ -44,7 +45,6 @@ const groups = [
         label: "Trabajadores",
         enabled: true,
         children: [
-          { id: "workers-dashboard", label: "Dashboard trabajadores", enabled: true },
           { id: "employees", label: "Nuevo trabajador", enabled: true },
           { id: "employees-list", label: "Listado trabajadores", enabled: true },
           { id: "employee-record", label: "Expediente", enabled: true },
@@ -55,7 +55,6 @@ const groups = [
         label: "Contratos",
         enabled: true,
         children: [
-          { id: "contracts-dashboard", label: "Dashboard contratos", enabled: true },
           { id: "contracts", label: "Nuevo contrato", enabled: true, modeGroup: "contracts", modeValue: "new" },
           { id: "contracts", label: "Historial contratos", enabled: true, modeGroup: "contracts", modeValue: "history" },
           { id: "contracts", label: "Impresión contratos", enabled: true, modeGroup: "contracts", modeValue: "print" },
@@ -148,6 +147,20 @@ function getInitialActiveKey(activePage) {
   return activePage;
 }
 
+function getStoredExpandedGroups() {
+  if (typeof window === "undefined") return {};
+  try {
+    return JSON.parse(window.localStorage.getItem(SIDEBAR_STORAGE_KEY) || "{}");
+  } catch {
+    return {};
+  }
+}
+
+function storeExpandedGroups(value) {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(SIDEBAR_STORAGE_KEY, JSON.stringify(value));
+}
+
 function getCompanyModeFromHash() {
   if (window.location.hash === "#company-centers") return "centers";
   if (window.location.hash === "#company-list") return "list";
@@ -181,31 +194,50 @@ function applyItemNavigation(item) {
   if (eventName) window.dispatchEvent(new Event(eventName));
 }
 
+function itemMatchesPage(item, activePage, activeNavKey) {
+  return item.id === activePage || getItemKey(item) === activeNavKey;
+}
+
+function groupContainsActiveItem(group, activePage, activeNavKey) {
+  return group.items.some((item) => itemMatchesPage(item, activePage, activeNavKey) || item.children?.some((child) => itemMatchesPage(child, activePage, activeNavKey)));
+}
+
 function findGroupIdForPage(activePage, activeNavKey) {
-  const group = groups.find((section) => section.items.some((item) => item.id === activePage || getItemKey(item) === activeNavKey || item.children?.some((child) => child.id === activePage || getItemKey(child) === activeNavKey)));
+  const group = groups.find((section) => groupContainsActiveItem(section, activePage, activeNavKey));
   return group?.id || null;
 }
 
 export default function Sidebar({ activePage, setActivePage }) {
   const [activeNavKey, setActiveNavKey] = useState(() => getInitialActiveKey(activePage));
-  const [expandedGroups, setExpandedGroups] = useState({});
+  const [expandedGroups, setExpandedGroups] = useState(getStoredExpandedGroups);
 
   useEffect(() => {
     setActiveNavKey(getInitialActiveKey(activePage));
   }, [activePage]);
 
   const toggleGroup = (groupId) => {
-    setExpandedGroups((prev) => ({ ...prev, [groupId]: !prev[groupId] }));
+    setExpandedGroups((prev) => {
+      const next = { ...prev, [groupId]: !prev[groupId] };
+      storeExpandedGroups(next);
+      return next;
+    });
   };
 
   const handleNavClick = (item) => {
     if (!item.enabled) return;
     applyItemNavigation(item);
-    setActiveNavKey(getItemKey(item));
+    const itemKey = getItemKey(item);
+    setActiveNavKey(itemKey);
     setActivePage(item.id);
 
-    const groupId = findGroupIdForPage(item.id, getItemKey(item));
-    if (groupId) setExpandedGroups((prev) => ({ ...prev, [groupId]: true }));
+    const groupId = findGroupIdForPage(item.id, itemKey);
+    if (groupId) {
+      setExpandedGroups((prev) => {
+        const next = { ...prev, [groupId]: true };
+        storeExpandedGroups(next);
+        return next;
+      });
+    }
   };
 
   const isItemActive = (item) => {
@@ -228,9 +260,10 @@ export default function Sidebar({ activePage, setActivePage }) {
       <div style={styles.menuPanel}>
         {groups.map((group) => {
           const isExpanded = Boolean(expandedGroups[group.id]);
+          const isGroupActive = groupContainsActiveItem(group, activePage, activeNavKey);
           return (
             <section key={group.id} style={styles.group}>
-              <button type="button" style={styles.groupToggle} onClick={() => toggleGroup(group.id)} aria-expanded={isExpanded}>
+              <button type="button" style={{ ...styles.groupToggle, ...(isGroupActive ? styles.groupToggleActive : {}) }} onClick={() => toggleGroup(group.id)} aria-expanded={isExpanded}>
                 <span>{group.title}</span>
                 <strong>{isExpanded ? "−" : "+"}</strong>
               </button>
@@ -269,7 +302,8 @@ const styles = {
   menuPanel: { flex: 1, padding: "16px 10px 26px", overflowY: "auto" },
   group: { marginBottom: "8px" },
   groupToggle: { width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px", backgroundColor: "transparent", border: "none", color: "#111111", padding: "9px 8px", cursor: "pointer", fontSize: "16px", fontWeight: 950, letterSpacing: "0.03em", textTransform: "uppercase", textAlign: "left" },
-  groupItems: { display: "flex", flexDirection: "column", gap: "7px", paddingTop: "4px", paddingBottom: "10px" },
+  groupToggleActive: { backgroundColor: "rgba(255, 255, 255, 0.72)", outline: "2px solid #111111", boxShadow: "3px 3px 0 #111111" },
+  groupItems: { display: "flex", flexDirection: "column", gap: "7px", paddingTop: "8px", paddingBottom: "10px" },
   itemBlock: { display: "flex", flexDirection: "column", gap: "5px" },
   navItem: { width: "100%", textAlign: "left", backgroundColor: "transparent", border: "none", borderRadius: 0, color: "#111111", padding: "6px 10px", cursor: "pointer", fontSize: "13px", fontWeight: 950, letterSpacing: "0.05em", textTransform: "uppercase" },
   navItemActive: { backgroundColor: "#ffffff", border: "3px solid #111111", boxShadow: "3px 3px 0 #111111" },
