@@ -12,6 +12,7 @@ Implementado:
 - Catálogo de conceptos de convenio.
 - Conceptos salariales asociados al convenio y, opcionalmente, a categoría profesional.
 - CRUD de reglas, detalles, catálogo y conceptos salariales.
+- Actualización segura de opciones JSON de reglas: las opciones nuevas se fusionan con las existentes para no borrar campos futuros.
 - Cabecera ERP ampliada de convenio:
   - denominación oficial,
   - denominación interna,
@@ -64,6 +65,13 @@ Implementado:
 - Modal de consulta de reglas, catálogo y conceptos salariales.
 - Acción `Cargar base` desde el modal.
 - Edición rápida para crear reglas y conceptos de catálogo.
+- Formularios rápidos de parametrización para:
+  - opciones globales,
+  - SMI/IPREM,
+  - vacaciones,
+  - pagas extra,
+  - antigüedad,
+  - complementos IT.
 - Cliente API para parametrización por convenio.
 - Cliente API para parametrización efectiva por contrato.
 
@@ -76,9 +84,10 @@ Implementado:
 5. Pulsar `Parametrización`.
 6. Pulsar `Cargar base`.
 7. Revisar reglas y conceptos creados.
-8. Crear reglas o conceptos adicionales con edición rápida.
-9. Asociar un contrato a ese convenio.
-10. Consultar la parametrización aplicable al contrato mediante el endpoint de contrato.
+8. Editar los bloques rápidos: SMI/IPREM, pagas extra, vacaciones, antigüedad e IT.
+9. Crear reglas o conceptos adicionales con edición rápida.
+10. Asociar un contrato a ese convenio.
+11. Consultar la parametrización aplicable al contrato mediante el endpoint de contrato.
 
 ## Pendiente
 
@@ -87,9 +96,9 @@ Implementado:
 La UI actual resuelve la demo técnica, pero debe migrarse a una pestaña React integrada dentro de `CollectiveAgreementsPage.jsx`:
 
 - Pestaña `Parametrización`.
-- Formularios por bloque: SMI/IPREM, cotización, vacaciones, pagas extra, antigüedad, IT.
 - Gestión de detalles de reglas.
 - Alta de conceptos salariales por categoría.
+- Pantallas completas para cotización, bases, pagas extra, vacaciones, antigüedad e IT.
 
 ### Motor de nómina
 
