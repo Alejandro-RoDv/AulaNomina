@@ -1,0 +1,160 @@
+import { API_BASE_URL } from "./services/httpClient";
+
+let lastRenderedKey = "";
+let loading = false;
+
+function isConveniosPage() {
+  return Array.from(document.querySelectorAll("h2")).some((node) => node.textContent?.trim() === "Convenios colectivos");
+}
+
+function selectedAgreementId() {
+  const select = Array.from(document.querySelectorAll("select")).find((node) => node.selectedOptions?.[0]?.textContent?.includes("·"));
+  return select?.value || null;
+}
+
+function modalBody() {
+  return document.querySelector("[data-agreement-parameterization-modal='true'] section > div");
+}
+
+function escapeHtml(value) {
+  return String(value ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
+}
+
+function bool(value) {
+  return value === true || value === "true" || value === "on";
+}
+
+function nullableNumber(value) {
+  if (value === null || value === undefined || String(value).trim() === "") return null;
+  const parsed = Number(String(value).replace(",", "."));
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+async function requestJson(path, options = {}) {
+  const response = await fetch(`${API_BASE_URL}${path}`, options);
+  const contentType = response.headers.get("content-type") || "";
+  const data = contentType.includes("application/json") ? await response.json() : null;
+  if (!response.ok) throw new Error(data?.detail || `Error ${response.status}`);
+  return data;
+}
+
+function findRule(data, code) {
+  return (data.rule_headers || []).find((rule) => rule.code === code) || null;
+}
+
+function input(name, label, value = "", type = "text") {
+  return `<label style="display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:800;color:#374151;">${label}<input name="${name}" type="${type}" value="${escapeHtml(value ?? "")}" style="height:30px;border:1px solid #d1d5db;padding:0 8px;font-size:12px;background:#fff;"></label>`;
+}
+
+function checkbox(name, label, checked = false) {
+  return `<label style="display:flex;align-items:center;gap:7px;font-size:12px;font-weight:800;color:#374151;"><input name="${name}" type="checkbox" ${checked ? "checked" : ""}>${label}</label>`;
+}
+
+function select(name, label, value, options) {
+  return `<label style="display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:800;color:#374151;">${label}<select name="${name}" style="height:32px;border:1px solid #d1d5db;padding:0 8px;font-size:12px;background:#fff;">${options.map(([optionValue, text]) => `<option value="${escapeHtml(optionValue)}" ${String(optionValue) === String(value ?? "") ? "selected" : ""}>${escapeHtml(text)}</option>`).join("")}</select></label>`;
+}
+
+function card(title, rule, inner) {
+  if (!rule) {
+    return `<section style="border:1px solid #e5e7eb;background:#fff;padding:12px;"><h4 style="margin:0 0 8px;font-size:14px;font-weight:850;color:#111827;">${title}</h4><p style="margin:0;color:#92400e;font-size:12px;font-weight:700;">Regla no encontrada. Pulsa primero Cargar base.</p></section>`;
+  }
+  return `<form data-rule-code="${escapeHtml(rule.code)}" data-rule-id="${rule.id}" style="border:1px solid #e5e7eb;background:#fff;padding:12px;display:grid;gap:9px;"><h4 style="margin:0;font-size:14px;font-weight:850;color:#111827;">${title}</h4>${inner}<button type="submit" style="height:30px;border:1px solid #111827;background:#111827;color:#fff;font-weight:850;cursor:pointer;">Guardar</button></form>`;
+}
+
+function renderForms(data) {
+  const global = findRule(data, "GLOBAL");
+  const smi = findRule(data, "SMI_IPREM");
+  const vacation = findRule(data, "VAC_AUTO");
+  const extra = findRule(data, "PEXTRA");
+  const seniority = findRule(data, "ANT");
+  const it = findRule(data, "IT");
+
+  return `
+    <div data-parameterization-forms="true" style="margin:0 0 14px;border:1px solid #d1d5db;background:#f9fafb;padding:12px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px;">
+        <div><strong style="font-size:14px;color:#111827;">Bloques rápidos de parametrización</strong><p style="margin:2px 0 0;color:#6b7280;font-size:12px;font-weight:650;">Edita opciones principales guardadas como reglas del convenio. No calcula todavía la nómina.</p></div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;">
+        ${card("Opciones globales", global, `${checkbox("prorratear_pagas_extra", "Prorratear pagas extra", global?.options?.prorratear_pagas_extra)}${checkbox("boe_alerts_prepared", "Preparado para alertas BOE", global?.options?.boe_alerts_prepared)}`)}
+        ${card("SMI / IPREM", smi, `<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">${input("smi_diario", "SMI diario", smi?.options?.smi_diario)}${input("smi_mensual", "SMI mensual", smi?.options?.smi_mensual)}${input("iprem_diario", "IPREM diario", smi?.options?.iprem_diario)}${input("iprem_mensual", "IPREM mensual", smi?.options?.iprem_mensual)}</div>`)}
+        ${card("Vacaciones", vacation, `<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">${input("numero_dias", "Número de días", vacation?.options?.numero_dias)}${select("tipo_dias", "Tipo de días", vacation?.options?.tipo_dias, [["naturales", "Naturales"], ["laborables", "Laborables"]])}</div>${checkbox("devenga_it", "Devenga durante IT", vacation?.options?.devenga_it)}${checkbox("cotizacion", "Cotiza", vacation?.options?.cotizacion)}${checkbox("computo_diario", "Cómputo diario", vacation?.options?.computo_diario)}`)}
+        ${card("Pagas extra", extra, `<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">${input("codigo_cra", "Código CRA", extra?.options?.codigo_cra)}${input("pagas", "Pagas", (extra?.options?.pagas || []).join(", "))}</div>${checkbox("prorrateo", "Prorrateo", extra?.options?.prorrateo)}${checkbox("cotizacion", "Cotiza", extra?.options?.cotizacion)}${checkbox("devenga_it", "Devenga IT", extra?.options?.devenga_it)}`)}
+        ${card("Antigüedad", seniority, `${select("forma_pago", "Forma de pago", seniority?.options?.forma_pago, [["mensual", "Mensual"], ["paga_extra", "Paga extra"], ["anual", "Anual"]])}${select("criterio_devengo", "Criterio devengo", seniority?.options?.criterio_devengo, [["fecha_antiguedad", "Fecha antigüedad"], ["fecha_alta", "Fecha alta"], ["manual", "Manual"]])}${checkbox("computo_diario", "Cómputo diario", seniority?.options?.computo_diario)}${checkbox("salto_mes_baja", "Salto en mes de baja", seniority?.options?.salto_mes_baja)}`)}
+        ${card("Complementos IT", it, `<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">${input("tramos", "Número de tramos", it?.options?.tramos)}${input("limite_general", "Límite general", it?.options?.limites?.general || "")}</div><label style="display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:800;color:#374151;">Diagnósticos<textarea name="diagnosticos" style="min-height:54px;border:1px solid #d1d5db;padding:7px;font-size:12px;">${escapeHtml((it?.options?.diagnosticos || []).join(", "))}</textarea></label>`)}
+      </div>
+    </div>
+  `;
+}
+
+function optionsFromForm(ruleCode, form) {
+  const data = new FormData(form);
+  if (ruleCode === "GLOBAL") {
+    return { prorratear_pagas_extra: bool(data.get("prorratear_pagas_extra")), boe_alerts_prepared: bool(data.get("boe_alerts_prepared")) };
+  }
+  if (ruleCode === "SMI_IPREM") {
+    return { smi_diario: nullableNumber(data.get("smi_diario")), smi_mensual: nullableNumber(data.get("smi_mensual")), iprem_diario: nullableNumber(data.get("iprem_diario")), iprem_mensual: nullableNumber(data.get("iprem_mensual")) };
+  }
+  if (ruleCode === "VAC_AUTO") {
+    return { numero_dias: nullableNumber(data.get("numero_dias")), tipo_dias: data.get("tipo_dias"), devenga_it: bool(data.get("devenga_it")), cotizacion: bool(data.get("cotizacion")), computo_diario: bool(data.get("computo_diario")) };
+  }
+  if (ruleCode === "PEXTRA") {
+    return { codigo_cra: data.get("codigo_cra") || null, pagas: String(data.get("pagas") || "").split(",").map((item) => item.trim()).filter(Boolean), prorrateo: bool(data.get("prorrateo")), cotizacion: bool(data.get("cotizacion")), devenga_it: bool(data.get("devenga_it")) };
+  }
+  if (ruleCode === "ANT") {
+    return { forma_pago: data.get("forma_pago"), criterio_devengo: data.get("criterio_devengo"), computo_diario: bool(data.get("computo_diario")), salto_mes_baja: bool(data.get("salto_mes_baja")) };
+  }
+  if (ruleCode === "IT") {
+    return { tramos: nullableNumber(data.get("tramos")), conceptos: [], diagnosticos: String(data.get("diagnosticos") || "").split(",").map((item) => item.trim()).filter(Boolean), limites: { general: data.get("limite_general") || null } };
+  }
+  return {};
+}
+
+function bindForms(container) {
+  container.querySelectorAll("form[data-rule-code]").forEach((form) => {
+    if (form.dataset.bound === "true") return;
+    form.dataset.bound = "true";
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const ruleId = form.dataset.ruleId;
+      const ruleCode = form.dataset.ruleCode;
+      try {
+        await requestJson(`/collective-agreements/rule-headers/${ruleId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ options: optionsFromForm(ruleCode, form) }),
+        });
+        lastRenderedKey = "";
+        document.querySelector("[data-parameterization-forms='true']")?.remove();
+        await ensureForms();
+      } catch (error) {
+        window.alert(error.message || "Error al guardar parametrización");
+      }
+    });
+  });
+}
+
+async function ensureForms() {
+  if (!isConveniosPage()) return;
+  const body = modalBody();
+  const agreementId = selectedAgreementId();
+  if (!body || !agreementId || loading) return;
+  const key = `${agreementId}:${body.textContent?.length || 0}`;
+  if (key === lastRenderedKey && body.querySelector("[data-parameterization-forms='true']")) return;
+
+  loading = true;
+  try {
+    const data = await requestJson(`/collective-agreements/${agreementId}/parameterization`);
+    body.querySelector("[data-parameterization-forms='true']")?.remove();
+    body.insertAdjacentHTML("afterbegin", renderForms(data));
+    bindForms(body);
+    lastRenderedKey = key;
+  } catch (error) {
+    console.warn("No se pudieron cargar formularios de parametrización", error);
+  } finally {
+    loading = false;
+  }
+}
+
+const observer = new MutationObserver(() => window.requestAnimationFrame(ensureForms));
+observer.observe(document.documentElement, { childList: true, subtree: true });
+window.addEventListener("load", ensureForms);
