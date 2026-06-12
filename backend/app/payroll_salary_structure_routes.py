@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
+from app.agreement_parameterization_routes import router as agreement_parameterization_router
 from app.crud.payroll_salary_structure import (
     build_payroll_breakdown,
     create_contract_payroll_concept,
@@ -51,6 +52,7 @@ from app.services.contract_salary_summary import (
 )
 
 router = APIRouter(tags=["payroll-salary-structure"])
+router.include_router(agreement_parameterization_router)
 
 
 def get_db():
