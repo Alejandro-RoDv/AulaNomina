@@ -11,6 +11,8 @@ class CollectiveAgreement(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, nullable=False)
+    official_name = Column(String, nullable=True)
+    internal_name = Column(String, nullable=True)
     agreement_code = Column(String, nullable=True, index=True)
     sector = Column(String, nullable=True)
     territorial_scope = Column(String, nullable=True)
@@ -19,6 +21,9 @@ class CollectiveAgreement(Base):
     publication_date = Column(Date, nullable=True)
     effective_from = Column(Date, nullable=True)
     effective_to = Column(Date, nullable=True)
+    is_extendable = Column(Boolean, default=False, nullable=False)
+    boe_alerts_enabled = Column(Boolean, default=False, nullable=False)
+    boe_search_terms = Column(Text, nullable=True)
     status = Column(String, default="draft", nullable=False)
     source_url = Column(String, nullable=True)
     notes = Column(Text, nullable=True)
@@ -64,6 +69,9 @@ class CollectiveAgreement(Base):
         back_populates="collective_agreement",
         cascade="all, delete-orphan",
     )
+    parameterized_rules = relationship("AgreementRuleHeader", cascade="all, delete-orphan")
+    concept_catalog = relationship("AgreementConceptCatalog", cascade="all, delete-orphan")
+    salary_concepts = relationship("AgreementSalaryConcept", cascade="all, delete-orphan")
 
 
 class ProfessionalGroup(Base):
