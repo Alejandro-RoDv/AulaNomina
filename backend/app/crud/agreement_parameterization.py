@@ -71,7 +71,10 @@ def update_rule_header(db: Session, rule_id: int, payload: AgreementRuleHeaderUp
     if not db_rule:
         return None
     for key, value in payload.model_dump(exclude_unset=True).items():
-        setattr(db_rule, key, value)
+        if key == "options" and isinstance(value, dict):
+            setattr(db_rule, key, {**(db_rule.options or {}), **value})
+        else:
+            setattr(db_rule, key, value)
     db.commit()
     db.refresh(db_rule)
     return db_rule
@@ -103,7 +106,10 @@ def update_rule_detail(db: Session, detail_id: int, payload: AgreementRuleDetail
     if not db_detail:
         return None
     for key, value in payload.model_dump(exclude_unset=True).items():
-        setattr(db_detail, key, value)
+        if key == "options" and isinstance(value, dict):
+            setattr(db_detail, key, {**(db_detail.options or {}), **value})
+        else:
+            setattr(db_detail, key, value)
     db.commit()
     db.refresh(db_detail)
     return db_detail
