@@ -179,3 +179,7 @@ export async function updateAgreementSalaryConcept(conceptId, payload) {
 export async function deleteAgreementSalaryConcept(conceptId) {
   return deleteRequest(`/collective-agreements/salary-concepts/${conceptId}`, "Error al eliminar concepto salarial de convenio");
 }
+
+export async function fetchContractAgreementParameterization(contractId) {
+  return apiRequest(`/contracts/${contractId}/agreement-parameterization`, {}, "Error al cargar parametrización aplicable al contrato");
+}
