@@ -123,3 +123,59 @@ export async function updateLeaveRule(ruleId, payload) {
 export async function deleteLeaveRule(ruleId) {
   return deleteRequest(`/collective-agreements/leave-rules/${ruleId}`, "Error al eliminar permiso");
 }
+
+export async function fetchAgreementParameterization(agreementId) {
+  return apiRequest(`/collective-agreements/${agreementId}/parameterization`, {}, "Error al cargar parametrización del convenio");
+}
+
+export async function seedAgreementParameterization(agreementId) {
+  return apiRequest(`/collective-agreements/${agreementId}/parameterization/seed`, { method: "POST" }, "Error al cargar parametrización base");
+}
+
+export async function createAgreementRuleHeader(agreementId, payload) {
+  return jsonRequest(`/collective-agreements/${agreementId}/rule-headers`, "POST", payload, "Error al crear regla de convenio");
+}
+
+export async function updateAgreementRuleHeader(ruleId, payload) {
+  return jsonRequest(`/collective-agreements/rule-headers/${ruleId}`, "PUT", payload, "Error al actualizar regla de convenio");
+}
+
+export async function deleteAgreementRuleHeader(ruleId) {
+  return deleteRequest(`/collective-agreements/rule-headers/${ruleId}`, "Error al eliminar regla de convenio");
+}
+
+export async function createAgreementRuleDetail(ruleId, payload) {
+  return jsonRequest(`/collective-agreements/rule-headers/${ruleId}/details`, "POST", payload, "Error al crear detalle de regla");
+}
+
+export async function updateAgreementRuleDetail(detailId, payload) {
+  return jsonRequest(`/collective-agreements/rule-details/${detailId}`, "PUT", payload, "Error al actualizar detalle de regla");
+}
+
+export async function deleteAgreementRuleDetail(detailId) {
+  return deleteRequest(`/collective-agreements/rule-details/${detailId}`, "Error al eliminar detalle de regla");
+}
+
+export async function createAgreementConceptCatalogItem(agreementId, payload) {
+  return jsonRequest(`/collective-agreements/${agreementId}/concept-catalog`, "POST", payload, "Error al crear concepto de catálogo");
+}
+
+export async function updateAgreementConceptCatalogItem(itemId, payload) {
+  return jsonRequest(`/collective-agreements/concept-catalog/${itemId}`, "PUT", payload, "Error al actualizar concepto de catálogo");
+}
+
+export async function deactivateAgreementConceptCatalogItem(itemId) {
+  return deleteRequest(`/collective-agreements/concept-catalog/${itemId}`, "Error al desactivar concepto de catálogo");
+}
+
+export async function createAgreementSalaryConcept(agreementId, payload) {
+  return jsonRequest(`/collective-agreements/${agreementId}/salary-concepts`, "POST", payload, "Error al crear concepto salarial de convenio");
+}
+
+export async function updateAgreementSalaryConcept(conceptId, payload) {
+  return jsonRequest(`/collective-agreements/salary-concepts/${conceptId}`, "PUT", payload, "Error al actualizar concepto salarial de convenio");
+}
+
+export async function deleteAgreementSalaryConcept(conceptId) {
+  return deleteRequest(`/collective-agreements/salary-concepts/${conceptId}`, "Error al eliminar concepto salarial de convenio");
+}
