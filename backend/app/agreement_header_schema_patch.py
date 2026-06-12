@@ -32,3 +32,16 @@ def add_missing_collective_agreement_header_columns() -> None:
                 """
             )
         )
+        connection.execute(
+            text(
+                """
+                UPDATE collective_agreements
+                SET official_name = COALESCE(official_name, 'Convenio colectivo simulado de servicios administrativos'),
+                    internal_name = COALESCE(internal_name, 'Convenio demo administración 2026'),
+                    is_extendable = COALESCE(is_extendable, TRUE),
+                    boe_alerts_enabled = COALESCE(boe_alerts_enabled, TRUE),
+                    boe_search_terms = COALESCE(boe_search_terms, 'servicios administrativos gestión empresarial convenio colectivo')
+                WHERE agreement_code = 'SIM-ADM-2026'
+                """
+            )
+        )
