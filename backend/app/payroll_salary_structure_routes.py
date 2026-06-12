@@ -46,6 +46,7 @@ from app.schemas.payroll_salary_structure import (
     PayrollItemUpdate,
 )
 from app.schemas.work_calendar import WorkCalendarCreate, WorkCalendarResponse, WorkCalendarUpdate
+from app.services.agreement_parameterization_resolver import build_contract_agreement_parameterization
 from app.services.contract_salary_summary import (
     build_contract_salary_summary,
     simulate_contract_workday_change,
@@ -153,6 +154,14 @@ def create_contract_payroll_concept_endpoint(
 @router.get("/contracts/{contract_id}/salary-summary", response_model=ContractSalarySummaryResponse)
 def read_contract_salary_summary(contract_id: int, db: Session = Depends(get_db)):
     return build_contract_salary_summary(db, contract_id)
+
+
+@router.get("/contracts/{contract_id}/agreement-parameterization")
+def read_contract_agreement_parameterization(contract_id: int, db: Session = Depends(get_db)):
+    result = build_contract_agreement_parameterization(db, contract_id)
+    if result is None:
+        raise HTTPException(status_code=404, detail="Contrato no encontrado")
+    return result
 
 
 @router.post("/contracts/{contract_id}/simulate-workday", response_model=ContractWorkdaySimulationResponse)
