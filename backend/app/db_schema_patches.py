@@ -1,5 +1,6 @@
 from sqlalchemy import inspect, text
 
+from app.agreement_header_schema_patch import add_missing_collective_agreement_header_columns
 from app.db import engine
 
 
@@ -245,6 +246,7 @@ def add_missing_contract_labor_columns() -> None:
 def add_missing_payroll_contribution_columns() -> None:
     """Add Split 18 payroll contribution columns and later MVP bridge columns."""
 
+    add_missing_collective_agreement_header_columns()
     add_missing_employee_split_25_columns()
     add_missing_company_center_split_24_columns()
     add_missing_contract_labor_columns()
