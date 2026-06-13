@@ -111,6 +111,8 @@ class AgreementRuleDetailBase(BaseModel):
     display_order: int = 1
     professional_category_id: Optional[int] = None
     concept_catalog_id: Optional[int] = None
+    minimum_value: Optional[Decimal] = None
+    maximum_value: Optional[Decimal] = None
     amount: Optional[Decimal] = None
     percentage: Optional[Decimal] = None
     company_percentage: Optional[Decimal] = None
@@ -134,6 +136,8 @@ class AgreementRuleDetailUpdate(BaseModel):
     display_order: Optional[int] = None
     professional_category_id: Optional[int] = None
     concept_catalog_id: Optional[int] = None
+    minimum_value: Optional[Decimal] = None
+    maximum_value: Optional[Decimal] = None
     amount: Optional[Decimal] = None
     percentage: Optional[Decimal] = None
     company_percentage: Optional[Decimal] = None
