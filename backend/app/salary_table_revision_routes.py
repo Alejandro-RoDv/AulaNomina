@@ -15,10 +15,8 @@ from app.schemas.salary_table_activation import (
     SalaryTableContractMigrationResponse,
 )
 from app.schemas.salary_table_revision import SalaryTableRevisionRequest, SalaryTableRevisionResponse
-from app.services.salary_regularization import (
-    build_salary_regularization_preview,
-    generate_salary_regularizations,
-)
+from app.services.salary_regularization import generate_salary_regularizations
+from app.services.salary_regularization_guard import build_guarded_salary_regularization_preview
 from app.services.salary_table_activation import (
     activate_salary_table,
     build_salary_table_activation_preview,
@@ -79,7 +77,7 @@ def salary_table_regularization_preview_endpoint(
     payload: SalaryRegularizationPreviewRequest,
     db: Session = Depends(get_db),
 ):
-    return build_salary_regularization_preview(db, table_id, payload)
+    return build_guarded_salary_regularization_preview(db, table_id, payload)
 
 
 @router.post("/{table_id}/regularizations", response_model=SalaryRegularizationGenerateResponse)
