@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import AgreementCriteriaPanel from "../components/agreements/AgreementCriteriaPanel";
 import AgreementSalaryStructurePanel from "../components/agreements/AgreementSalaryStructurePanel";
+import SalaryTableRevisionPanel from "../components/agreements/SalaryTableRevisionPanel";
 import { fetchCollectiveAgreement } from "../services/collectiveAgreementApi";
 import CollectiveAgreementsManagementPage from "./CollectiveAgreementsPage.jsx";
 
@@ -34,18 +35,37 @@ export default function CollectiveAgreementsWorkspacePage(props) {
     return agreements.find((item) => String(item.id) === String(selectedId)) || agreements[0];
   }, [agreements, selectedId]);
 
-  useEffect(() => {
-    if (view === "management") return;
+  async function loadSelectedAgreement(showLoading = true) {
     if (!selected?.id) {
       setAgreement(null);
-      setLoading(false);
-      return;
+      return null;
     }
+    if (showLoading) setLoading(true);
+    setError("");
+    try {
+      const data = await fetchCollectiveAgreement(selected.id);
+      setAgreement(data);
+      return data;
+    } catch (err) {
+      setError(err.message || "No se pudo cargar el convenio.");
+      return null;
+    } finally {
+      if (showLoading) setLoading(false);
+    }
+  }
 
+  useEffect(() => {
+    if (view === "management") return;
     let active = true;
     setAgreement(null);
     setLoading(true);
     setError("");
+
+    if (!selected?.id) {
+      setLoading(false);
+      return () => { active = false; };
+    }
+
     fetchCollectiveAgreement(selected.id)
       .then((data) => active && setAgreement(data))
       .catch((err) => active && setError(err.message || "No se pudo cargar el convenio."))
@@ -102,7 +122,12 @@ export default function CollectiveAgreementsWorkspacePage(props) {
                 <Summary label="Ámbito" value={agreement.territorial_scope || "—"} />
               </section>
               {view === "criteria" && <AgreementCriteriaPanel agreement={agreement} categories={agreement.professional_categories || []} onOpenTab={openManagementTab} />}
-              {view === "salary" && <AgreementSalaryStructurePanel agreement={agreement} />}
+              {view === "salary" && (
+                <>
+                  <SalaryTableRevisionPanel agreement={agreement} onCompleted={() => loadSelectedAgreement(false)} />
+                  <AgreementSalaryStructurePanel agreement={agreement} />
+                </>
+              )}
             </>
           )}
         </div>
