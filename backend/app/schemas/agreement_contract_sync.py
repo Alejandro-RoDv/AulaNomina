@@ -14,6 +14,7 @@ class AgreementContractSyncResponse(BaseModel):
     agreement_id: int
     agreement_name: Optional[str] = None
     professional_category_id: Optional[int] = None
+    salary_table_id: Optional[int] = None
     salary_table_row_id: Optional[int] = None
     salary_table_row_linked: bool = False
     agreement_salary_concepts_found: int = 0
