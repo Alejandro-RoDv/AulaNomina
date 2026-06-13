@@ -112,6 +112,7 @@ function renderParameterization(data) {
   const conceptRows = salaryConcepts.map((item) => [escapeHtml(item.character), escapeHtml(item.name), escapeHtml(item.scope), escapeHtml(item.payment_type || "—"), escapeHtml(item.calculation_type), item.contributes ? "Sí" : "No", item.taxable ? "Sí" : "No", escapeHtml(item.cra_code || "—")]);
 
   return `
+    <div data-parameterization-forms-host="true"></div>
     <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:16px;">${statCards}</div>
     <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:10px;">
       <h4 style="margin:0;font-size:15px;font-weight:850;color:#111827;">Reglas parametrizadas</h4>
@@ -123,6 +124,14 @@ function renderParameterization(data) {
     <h4 style="margin:18px 0 10px;font-size:15px;font-weight:850;color:#111827;">Conceptos salariales asociados</h4>
     ${renderTable(["Carácter", "Denominación", "Ámbito", "Pago", "Cálculo", "Cotiza", "IRPF", "CRA"], conceptRows, "Sin conceptos salariales asociados a categorías.")}
   `;
+}
+
+function notifyParameterizationRendered(modal, agreementId, data) {
+  window.dispatchEvent(
+    new CustomEvent("agreement-parameterization:rendered", {
+      detail: { modal, agreementId, data },
+    }),
+  );
 }
 
 async function openParameterizationModal() {
@@ -139,6 +148,7 @@ async function openParameterizationModal() {
     if (!response.ok) throw new Error(`Error ${response.status}`);
     const data = await response.json();
     renderShell(modal, "Parametrización del convenio", renderParameterization(data));
+    notifyParameterizationRendered(modal, agreementId, data);
     modal.querySelector("[data-seed-parameterization]")?.addEventListener("click", async () => {
       const seedResponse = await fetch(`${API_BASE_URL}/collective-agreements/${agreementId}/parameterization/seed`, { method: "POST" });
       if (!seedResponse.ok) throw new Error(`Error ${seedResponse.status}`);
