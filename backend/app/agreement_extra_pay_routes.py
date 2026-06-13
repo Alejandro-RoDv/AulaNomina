@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
+from app.contract_extra_pay_routes import router as contract_extra_pay_router
 from app.db import SessionLocal
 from app.schemas.agreement_extra_pay import (
     AgreementExtraPayCandidate,
@@ -26,6 +27,7 @@ from app.services.agreement_extra_pay import (
 
 
 router = APIRouter(prefix="/collective-agreements", tags=["agreement-extra-pays"])
+router.include_router(contract_extra_pay_router)
 
 
 def get_db():
