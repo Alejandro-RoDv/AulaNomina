@@ -1,5 +1,5 @@
 from calendar import monthrange
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal, ROUND_HALF_UP
 
 from fastapi import HTTPException
@@ -130,41 +130,40 @@ def next_maturity(start: date, module_years: int, completed_modules: int, max_mo
     return safe_anniversary(start, next_number * module_years)
 
 
+def base_preview(contract: Contract, seniority_date: date, source: str, as_of: date, warnings: list[str]) -> dict:
+    return {
+        "contract_id": contract.id,
+        "employee_id": contract.employee_id,
+        "employee_code": contract.employee.employee_code if contract.employee else None,
+        "employee_name": contract.employee_name,
+        "contract_code": contract.contract_code,
+        "seniority_date": seniority_date,
+        "seniority_date_source": source,
+        "as_of_date": as_of,
+        "warnings": warnings,
+    }
+
+
 def build_contract_seniority_preview(db: Session, contract: Contract, as_of: date) -> dict:
     seniority_date, source = seniority_date_for_contract(contract)
     warnings = []
     if source == "contract_start_date":
         warnings.append("No hay fecha de antigüedad específica; se utiliza la fecha de inicio del contrato.")
 
+    common = base_preview(contract, seniority_date, source, as_of, warnings)
     if not contract.collective_agreement_id:
         return {
-            "contract_id": contract.id,
-            "employee_id": contract.employee_id,
-            "employee_code": contract.employee.employee_code if contract.employee else None,
-            "employee_name": contract.employee_name,
-            "contract_code": contract.contract_code,
-            "seniority_date": seniority_date,
-            "seniority_date_source": source,
-            "as_of_date": as_of,
+            **common,
             "eligibility": "blocked",
             "reason": "El contrato no tiene convenio vinculado.",
-            "warnings": warnings,
         }
 
     rule = load_applicable_seniority_rule(db, contract, as_of)
     if not rule:
         return {
-            "contract_id": contract.id,
-            "employee_id": contract.employee_id,
-            "employee_code": contract.employee.employee_code if contract.employee else None,
-            "employee_name": contract.employee_name,
-            "contract_code": contract.contract_code,
-            "seniority_date": seniority_date,
-            "seniority_date_source": source,
-            "as_of_date": as_of,
+            **common,
             "eligibility": "blocked",
             "reason": "No existe una regla de antigüedad aplicable.",
-            "warnings": warnings,
         }
 
     years = completed_years(seniority_date, as_of)
@@ -175,6 +174,18 @@ def build_contract_seniority_preview(db: Session, contract: Contract, as_of: dat
         capped = True
 
     per_module, amount_source = amount_per_module(contract, rule)
+    if per_module <= 0:
+        return {
+            **common,
+            "rule_id": rule.id,
+            "rule_name": rule.name,
+            "module_years": rule.module_years,
+            "max_modules": rule.max_modules,
+            "eligibility": "blocked",
+            "reason": "La regla aplicable no produce un importe por módulo.",
+            "warnings": warnings + [f"Importe resuelto desde {amount_source}."],
+        }
+
     monthly_amount = as_money(per_module * modules)
     dates = maturity_dates(seniority_date, rule.module_years, rule.max_modules, as_of)
     maturities = [
@@ -190,14 +201,7 @@ def build_contract_seniority_preview(db: Session, contract: Contract, as_of: dat
     warnings.append(f"Importe por módulo resuelto desde {amount_source}.")
 
     return {
-        "contract_id": contract.id,
-        "employee_id": contract.employee_id,
-        "employee_code": contract.employee.employee_code if contract.employee else None,
-        "employee_name": contract.employee_name,
-        "contract_code": contract.contract_code,
-        "seniority_date": seniority_date,
-        "seniority_date_source": source,
-        "as_of_date": as_of,
+        **common,
         "rule_id": rule.id,
         "rule_name": rule.name,
         "module_years": rule.module_years,
@@ -214,7 +218,13 @@ def build_contract_seniority_preview(db: Session, contract: Contract, as_of: dat
     }
 
 
-def calculate_monthly_seniority(db: Session, contract: Contract, period_month: int, period_year: int, contribution_days: int = 30) -> dict:
+def calculate_monthly_seniority(
+    db: Session,
+    contract: Contract,
+    period_month: int,
+    period_year: int,
+    contribution_days: int = 30,
+) -> dict:
     if period_month < 1 or period_month > 12:
         return {"amount": Decimal("0.00"), "rule": None, "lines": [], "warnings": []}
 
@@ -223,31 +233,29 @@ def calculate_monthly_seniority(db: Session, contract: Contract, period_month: i
     period_end = date(period_year, period_month, last_day)
     preview = build_contract_seniority_preview(db, contract, period_end)
     if preview["eligibility"] != "eligible":
-        return {"amount": Decimal("0.00"), "rule": None, "lines": [], "warnings": preview.get("warnings", []) + [preview.get("reason")]}
+        warnings = list(preview.get("warnings", []))
+        if preview.get("reason"):
+            warnings.append(preview["reason"])
+        return {"amount": Decimal("0.00"), "rule": None, "lines": [], "warnings": warnings}
 
     rule = db.query(AgreementSeniorityRule).filter(AgreementSeniorityRule.id == preview["rule_id"]).first()
     seniority_date, _ = seniority_date_for_contract(contract)
     per_module = as_money(preview["amount_per_module"])
-    modules_before = completed_years(seniority_date, period_start.replace(day=1)) // rule.module_years
-    if safe_anniversary(seniority_date, modules_before * rule.module_years) == period_start and modules_before > 0:
-        pass
-    elif period_start > seniority_date:
-        day_before = period_start.fromordinal(period_start.toordinal() - 1)
-        modules_before = completed_years(seniority_date, day_before) // rule.module_years
-    else:
-        modules_before = 0
+
+    day_before_period = period_start - timedelta(days=1)
+    modules_before = completed_years(seniority_date, day_before_period) // rule.module_years
     if rule.max_modules is not None:
         modules_before = min(modules_before, rule.max_modules)
 
-    full_amount = as_money(per_module * modules_before)
+    accrued_amount = as_money(per_module * modules_before)
     lines = []
-    if full_amount > 0:
+    if accrued_amount > 0:
         lines.append({
             "rule_id": rule.id,
             "concept_name": rule.name,
             "module_number": modules_before,
             "maturity_date": None,
-            "amount": full_amount,
+            "amount": accrued_amount,
             "detail": f"{modules_before} módulos consolidados",
         })
 
@@ -258,8 +266,8 @@ def calculate_monthly_seniority(db: Session, contract: Contract, period_month: i
             continue
         if rule.daily_proration_on_maturity:
             eligible_days = period_end.day - maturity.day + 1
-            ratio = as_ratio(Decimal(eligible_days) / Decimal(last_day))
-            amount = as_money(per_module * ratio)
+            maturity_ratio = as_ratio(Decimal(eligible_days) / Decimal(last_day))
+            amount = as_money(per_module * maturity_ratio)
         else:
             eligible_days = last_day
             amount = per_module
@@ -271,18 +279,19 @@ def calculate_monthly_seniority(db: Session, contract: Contract, period_month: i
             "amount": amount,
             "detail": f"Vencimiento módulo {module_number}: {eligible_days}/{last_day} días",
         })
-        full_amount += amount
+        accrued_amount += amount
 
-    remuneration_ratio = as_ratio(Decimal(max(0, min(30, contribution_days))) / Decimal("30"))
-    final_amount = as_money(full_amount * remuneration_ratio)
-    if full_amount > 0 and remuneration_ratio != Decimal("1.0000"):
+    normalized_days = max(0, min(30, contribution_days))
+    remuneration_ratio = as_ratio(Decimal(normalized_days) / Decimal("30"))
+    final_amount = as_money(accrued_amount * remuneration_ratio)
+    if accrued_amount > 0 and remuneration_ratio != Decimal("1.0000"):
         lines.append({
             "rule_id": rule.id,
             "concept_name": rule.name,
             "module_number": modules_end,
             "maturity_date": None,
-            "amount": as_money(final_amount - full_amount),
-            "detail": f"Ajuste por días cotizados: {contribution_days}/30",
+            "amount": as_money(final_amount - accrued_amount),
+            "detail": f"Ajuste por días cotizados: {normalized_days}/30",
         })
 
     return {
