@@ -142,6 +142,7 @@ export default function PayrollTable({
               <th style={styles.th}>Trabajador</th>
               <th style={styles.th}>Empresa</th>
               <th style={styles.thPeriod}>Periodo</th>
+              <th style={styles.thAmount}>Antigüedad</th>
               <th style={styles.thAmount}>Bruto</th>
               <th style={styles.thAmount}>Deducciones</th>
               <th style={styles.thAmount}>Neto</th>
@@ -159,6 +160,7 @@ export default function PayrollTable({
                     <td style={styles.td}>{payroll.employee_name || payroll.employee_id}</td>
                     <td style={styles.td}>{payroll.company_name || payroll.company_id}</td>
                     <td style={styles.td}>{formatPeriod(payroll)}</td>
+                    <td style={styles.tdAmount}>{formatCurrency(payroll.seniority_amount || 0)}</td>
                     <td style={styles.tdAmount}>{formatCurrency(payroll.gross_salary)}</td>
                     <td style={styles.tdAmount}>{formatCurrency(payroll.total_deductions)}</td>
                     <td style={styles.tdAmountStrong}>{formatCurrency(payroll.net_salary)}</td>
@@ -176,7 +178,7 @@ export default function PayrollTable({
                   </tr>
                   {isExpanded && (
                     <tr>
-                      <td colSpan="9" style={styles.expandedCell}>
+                      <td colSpan="10" style={styles.expandedCell}>
                         <div style={styles.expandedHeader}>
                           <strong>Conceptos de nómina</strong>
                           <span>Nómina {getPayrollCode(payroll)} · {payroll.employee_name || payroll.employee_id}</span>
@@ -190,7 +192,7 @@ export default function PayrollTable({
             })}
             {payrolls.length === 0 && (
               <tr>
-                <td style={styles.td} colSpan="9">No hay nóminas generadas.</td>
+                <td style={styles.td} colSpan="10">No hay nóminas generadas.</td>
               </tr>
             )}
           </tbody>
@@ -221,7 +223,7 @@ export default function PayrollTable({
 
 const styles = {
   tableWrapper: { overflowX: "auto", width: "100%" },
-  table: { width: "100%", minWidth: "1100px", borderCollapse: "collapse", tableLayout: "fixed" },
+  table: { width: "100%", minWidth: "1220px", borderCollapse: "collapse", tableLayout: "fixed" },
   th: { textAlign: "left", padding: "12px 10px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" },
   thCode: { width: "150px", textAlign: "left", padding: "12px 10px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb" },
   thPeriod: { width: "96px", textAlign: "left", padding: "12px 10px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb" },
