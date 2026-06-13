@@ -1,7 +1,8 @@
 from datetime import datetime
 
-from sqlalchemy import Boolean, Column, Date, DateTime, ForeignKey, Integer, Numeric, String, Text
-from sqlalchemy.orm import relationship
+from fastapi import HTTPException
+from sqlalchemy import Boolean, Column, Date, DateTime, ForeignKey, Integer, Numeric, String, Text, event, inspect
+from sqlalchemy.orm import Session, relationship
 
 from app.db import Base
 
@@ -254,3 +255,55 @@ class LeaveRule(Base):
     collective_agreement = relationship("CollectiveAgreement", back_populates="leave_rules")
     professional_group = relationship("ProfessionalGroup")
     professional_category = relationship("ProfessionalCategory")
+
+
+@event.listens_for(Session, "before_flush")
+def enforce_single_active_salary_table(session, flush_context, instances):
+    changed_objects = set(session.new).union(session.dirty)
+    candidates = [
+        item
+        for item in changed_objects
+        if isinstance(item, SalaryTable)
+        and item.status == "active"
+        and (item in session.new or inspect(item).attrs.status.history.has_changes())
+    ]
+    if not candidates:
+        return
+
+    candidates_by_agreement = {}
+    for candidate in candidates:
+        candidates_by_agreement.setdefault(candidate.collective_agreement_id, []).append(candidate)
+
+    for agreement_id, agreement_candidates in candidates_by_agreement.items():
+        if agreement_id is None:
+            continue
+        if len(agreement_candidates) > 1:
+            raise HTTPException(
+                status_code=409,
+                detail="Solo puede existir una tabla salarial activa por convenio. Utiliza el flujo de activación controlada.",
+            )
+
+        candidate = agreement_candidates[0]
+        with session.no_autoflush:
+            persisted_active = (
+                session.query(SalaryTable)
+                .filter(
+                    SalaryTable.collective_agreement_id == agreement_id,
+                    SalaryTable.status == "active",
+                )
+                .all()
+            )
+
+        conflicts = [
+            table
+            for table in persisted_active
+            if table not in session.deleted
+            and table is not candidate
+            and table.id != candidate.id
+            and table.status == "active"
+        ]
+        if conflicts:
+            raise HTTPException(
+                status_code=409,
+                detail="Ya existe una tabla salarial activa para este convenio. Utiliza el flujo de activación controlada.",
+            )
