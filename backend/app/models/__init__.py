@@ -16,6 +16,7 @@ from app.models.correction import Correction
 from app.models.student import Student
 from app.models.student_group import StudentGroup
 from app.models.case_assignment import CaseAssignment
+from app.models.agreement_extra_pay import AgreementExtraPay, AgreementExtraPayConcept
 from app.models.agreement_parameterization import (
     AgreementConceptCatalog,
     AgreementRuleDetail,
