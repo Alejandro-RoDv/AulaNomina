@@ -1,5 +1,6 @@
 from decimal import Decimal
 
+from sqlalchemy import or_
 from sqlalchemy.orm import Session, selectinload
 
 from app.models.agreement_parameterization import AgreementConceptCatalog, AgreementRuleHeader, AgreementSalaryConcept
@@ -25,6 +26,8 @@ def _detail_to_dict(detail):
         "display_order": detail.display_order,
         "professional_category_id": detail.professional_category_id,
         "concept_catalog_id": detail.concept_catalog_id,
+        "minimum_value": _amount(detail.minimum_value),
+        "maximum_value": _amount(detail.maximum_value),
         "amount": _amount(detail.amount),
         "percentage": _amount(detail.percentage),
         "company_percentage": _amount(detail.company_percentage),
@@ -71,6 +74,7 @@ def _catalog_to_dict(item):
 def _salary_concept_to_dict(item):
     return {
         "id": item.id,
+        "salary_table_id": item.salary_table_id,
         "professional_category_id": item.professional_category_id,
         "concept_catalog_id": item.concept_catalog_id,
         "character": item.character,
@@ -103,6 +107,7 @@ def build_contract_agreement_parameterization(db: Session, contract_id: int):
             "concept_catalog": [],
         }
 
+    salary_table_id = contract.salary_table_row.salary_table_id if contract.salary_table_row else None
     rules = (
         db.query(AgreementRuleHeader)
         .options(selectinload(AgreementRuleHeader.details))
@@ -110,13 +115,17 @@ def build_contract_agreement_parameterization(db: Session, contract_id: int):
         .order_by(AgreementRuleHeader.rule_type, AgreementRuleHeader.name)
         .all()
     )
-    salary_concepts = (
+    salary_query = (
         db.query(AgreementSalaryConcept)
         .filter(AgreementSalaryConcept.collective_agreement_id == contract.collective_agreement_id, AgreementSalaryConcept.is_active == True)
-        .filter((AgreementSalaryConcept.professional_category_id == None) | (AgreementSalaryConcept.professional_category_id == contract.professional_category_id))
-        .order_by(AgreementSalaryConcept.character, AgreementSalaryConcept.name)
-        .all()
+        .filter(or_(AgreementSalaryConcept.professional_category_id.is_(None), AgreementSalaryConcept.professional_category_id == contract.professional_category_id))
     )
+    if salary_table_id:
+        salary_query = salary_query.filter(or_(AgreementSalaryConcept.salary_table_id.is_(None), AgreementSalaryConcept.salary_table_id == salary_table_id))
+    else:
+        salary_query = salary_query.filter(AgreementSalaryConcept.salary_table_id.is_(None))
+    salary_concepts = salary_query.order_by(AgreementSalaryConcept.character, AgreementSalaryConcept.name).all()
+
     catalog = (
         db.query(AgreementConceptCatalog)
         .filter(AgreementConceptCatalog.collective_agreement_id == contract.collective_agreement_id, AgreementConceptCatalog.is_active == True)
@@ -129,7 +138,7 @@ def build_contract_agreement_parameterization(db: Session, contract_id: int):
     if not catalog:
         warnings.append("El convenio asociado no tiene catálogo de conceptos.")
     if contract.professional_category_id and not salary_concepts:
-        warnings.append("No hay conceptos salariales específicos para la categoría del contrato.")
+        warnings.append("No hay conceptos salariales específicos para la categoría y tabla salarial del contrato.")
 
     agreement = contract.collective_agreement
     return {
@@ -140,6 +149,7 @@ def build_contract_agreement_parameterization(db: Session, contract_id: int):
             "professional_category_id": contract.professional_category_id,
             "professional_category": contract.professional_category,
             "salary_table_row_id": contract.salary_table_row_id,
+            "salary_table_id": salary_table_id,
             "salary_base": _amount(contract.salary_base),
             "pay_schedule": contract.pay_schedule,
         },
