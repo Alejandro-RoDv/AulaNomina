@@ -140,7 +140,7 @@ export default function SalaryTableRevisionPanel({ agreement, onCompleted }) {
             <Field label="Ejercicio"><input type="number" min="1900" max="2200" value={form.year} onChange={(event) => setForm({ ...form, year: event.target.value })} style={styles.input} required /></Field>
             <Field label="Vigente desde"><input type="date" value={form.effective_from} onChange={(event) => setForm({ ...form, effective_from: event.target.value })} style={styles.input} /></Field>
             <Field label="Vigente hasta"><input type="date" value={form.effective_to} onChange={(event) => setForm({ ...form, effective_to: event.target.value })} style={styles.input} /></Field>
-            <Field label="Estado inicial"><select value={form.status} onChange={(event) => setForm({ ...form, status: event.target.value })} style={styles.input}><option value="draft">Borrador</option><option value="pending_review">Pendiente de revisión</option><option value="active">Activa</option><option value="historical">Histórica</option></select></Field>
+            <Field label="Estado inicial"><select value={form.status} onChange={(event) => setForm({ ...form, status: event.target.value })} style={styles.input}><option value="draft">Borrador</option><option value="pending_review">Pendiente de revisión</option><option value="historical">Histórica</option></select></Field>
             <Field label="Incremento general"><div style={styles.percentage}><input type="number" min="0" max="1000" step="0.01" value={form.increment_percentage} onChange={(event) => setForm({ ...form, increment_percentage: event.target.value })} style={styles.input} /><span>%</span></div></Field>
           </div>
 
@@ -156,6 +156,7 @@ export default function SalaryTableRevisionPanel({ agreement, onCompleted }) {
           <div style={styles.notice}>
             <strong>Aplicación del porcentaje</strong>
             <span>Se incrementan las filas y los conceptos salariales. Las deducciones se copian sin variación. Los conceptos generales sin ejercicio continúan aplicándose y no se duplican.</span>
+            <span>La tabla se crea sin activar. La activación y la migración de contratos se realizan después desde el bloque específico.</span>
           </div>
 
           <div style={styles.actions}>
