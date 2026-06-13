@@ -7,6 +7,7 @@ from sqlalchemy import or_
 from sqlalchemy.orm import Session, joinedload
 
 from app.models.agreement_parameterization import AgreementSalaryConcept
+from app.models.collective_agreement import SalaryTable, SalaryTableRow
 from app.models.contract import Contract
 from app.models.payroll_salary_structure import ContractPayrollConcept, PayrollConcept
 from app.services.payroll_amounts import money
@@ -88,6 +89,35 @@ def _candidate_priority(candidate: dict, contract: Contract) -> tuple:
     has_amount = _decimal(candidate.get("amount")) != Decimal("0.00")
     is_parameterized = candidate.get("source") == "agreement_salary_concept"
     return (1 if has_amount else 0, 1 if category_specific else 0, 1 if is_parameterized else 0)
+
+
+def _resolve_salary_table_row(db: Session, contract: Contract) -> bool:
+    if contract.salary_table_row:
+        return False
+    if not contract.professional_category_id:
+        return False
+
+    base_query = (
+        db.query(SalaryTableRow)
+        .join(SalaryTable, SalaryTable.id == SalaryTableRow.salary_table_id)
+        .filter(
+            SalaryTable.collective_agreement_id == contract.collective_agreement_id,
+            SalaryTableRow.professional_category_id == contract.professional_category_id,
+        )
+    )
+    salary_row = (
+        base_query.filter(SalaryTable.status == "active")
+        .order_by(SalaryTable.year.desc(), SalaryTable.id.desc(), SalaryTableRow.id.desc())
+        .first()
+    )
+    if not salary_row:
+        salary_row = base_query.order_by(SalaryTable.year.desc(), SalaryTable.id.desc(), SalaryTableRow.id.desc()).first()
+    if not salary_row:
+        return False
+
+    contract.salary_table_row_id = salary_row.id
+    contract.salary_table_row = salary_row
+    return True
 
 
 def _build_candidates(contract: Contract, agreement_concepts: list[AgreementSalaryConcept]) -> dict[str, dict]:
@@ -201,6 +231,8 @@ def sync_agreement_concepts_to_contract(
     if not contract.collective_agreement_id:
         raise HTTPException(status_code=400, detail="El contrato no tiene un convenio colectivo vinculado")
 
+    salary_table_row_linked = _resolve_salary_table_row(db, contract)
+
     agreement_concepts = (
         db.query(AgreementSalaryConcept)
         .options(joinedload(AgreementSalaryConcept.catalog_concept))
@@ -225,6 +257,13 @@ def sync_agreement_concepts_to_contract(
     contract_concepts_created = 0
     contract_concepts_reactivated = 0
     contract_concepts_skipped = 0
+
+    if salary_table_row_linked:
+        warnings.append("Se ha vinculado automáticamente la fila salarial activa correspondiente a la categoría del contrato.")
+    elif not contract.salary_table_row_id and contract.professional_category_id:
+        warnings.append("No se encontró una fila salarial del convenio para la categoría del contrato.")
+    elif not contract.professional_category_id:
+        warnings.append("El contrato no tiene categoría profesional vinculada; solo se aplican conceptos globales del convenio.")
 
     salary_candidate = candidates.pop("salary_base", None)
     if salary_candidate and _decimal(salary_candidate.get("amount")) > 0:
@@ -310,6 +349,7 @@ def sync_agreement_concepts_to_contract(
         "agreement_name": contract.collective_agreement.name if contract.collective_agreement else None,
         "professional_category_id": contract.professional_category_id,
         "salary_table_row_id": contract.salary_table_row_id,
+        "salary_table_row_linked": salary_table_row_linked,
         "agreement_salary_concepts_found": len(agreement_concepts),
         "resolved_candidates": len(candidates) + (1 if salary_candidate else 0),
         "salary_base_updated": salary_base_updated,
