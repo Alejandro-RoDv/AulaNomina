@@ -59,6 +59,7 @@ class AgreementConceptCatalogResponse(AgreementConceptCatalogBase):
 
 
 class AgreementSalaryConceptBase(BaseModel):
+    salary_table_id: Optional[int] = None
     professional_category_id: Optional[int] = None
     concept_catalog_id: Optional[int] = None
     character: str = "salarial"
@@ -79,6 +80,7 @@ class AgreementSalaryConceptCreate(AgreementSalaryConceptBase):
 
 
 class AgreementSalaryConceptUpdate(BaseModel):
+    salary_table_id: Optional[int] = None
     professional_category_id: Optional[int] = None
     concept_catalog_id: Optional[int] = None
     character: Optional[str] = None
