@@ -11,6 +11,7 @@ from app.models.payroll import Payroll
 from app.models.tax_profile import TaxProfile
 from app.models.work_center import WorkCenter
 from app.schemas.payroll import PayrollCreate, PayrollFutureSimulationRequest, PayrollPrepareRequest, PayrollUpdate
+from app.services.contract_salary_summary import get_partiality
 from app.services.irpf_calculator import calculate_irpf_2026
 from app.services.monthly_extra_pay_proration import sync_monthly_proration_items
 from app.services.payroll_amounts import money
@@ -154,6 +155,14 @@ def tax_profile_to_calculation_payload(
     return payload
 
 
+def estimate_contract_annual_salary(contract: Contract) -> Decimal:
+    if contract.gross_annual_salary is not None and Decimal(str(contract.gross_annual_salary)) > 0:
+        return money(contract.gross_annual_salary)
+    monthly_salary = money(contract.salary_base or Decimal("0.00"))
+    partiality_ratio = Decimal(str(get_partiality(contract))) / Decimal("100")
+    return money(monthly_salary * partiality_ratio * Decimal("14"))
+
+
 def resolve_irpf_percentage(
     db: Session,
     employee: Employee,
@@ -161,7 +170,7 @@ def resolve_irpf_percentage(
     irpf_mode: str,
     manual_percentage: Decimal | None,
 ):
-    expected_annual_salary = money(contract.salary_base or Decimal("0.00"))
+    expected_annual_salary = estimate_contract_annual_salary(contract)
     tax_profile = db.query(TaxProfile).filter(TaxProfile.employee_id == employee.id).first()
     payload = tax_profile_to_calculation_payload(tax_profile, employee, contract, expected_annual_salary)
     calculation = calculate_irpf_2026(payload)
