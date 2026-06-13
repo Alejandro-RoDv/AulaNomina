@@ -27,6 +27,14 @@ Implementado:
   - `POST /collective-agreements/{agreement_id}/parameterization/seed`
 - Endpoint de parametrización efectiva por contrato:
   - `GET /contracts/{contract_id}/agreement-parameterization`
+- Puente convenio -> conceptos permanentes del contrato:
+  - `POST /contracts/{contract_id}/load-agreement-concepts`
+  - resuelve conceptos globales y específicos por categoría,
+  - utiliza la fila salarial asignada al contrato,
+  - vincula automáticamente la fila salarial activa si falta,
+  - actualiza el salario base solo si está vacío o se confirma su sobrescritura,
+  - evita duplicar o sobrescribir conceptos permanentes activos,
+  - reactiva conceptos de convenio previamente desactivados.
 
 ### Base de datos
 
@@ -74,6 +82,11 @@ Implementado:
   - complementos IT.
 - Cliente API para parametrización por convenio.
 - Cliente API para parametrización efectiva por contrato.
+- Acción `Cargar desde convenio` en Conceptos permanentes:
+  - confirmación independiente para sobrescribir o conservar salario base,
+  - resumen de conceptos creados, reactivados y conservados,
+  - observaciones sobre categoría y fila salarial,
+  - columna de origen: Sistema, Convenio o Personalizado.
 
 ## Uso esperado en demo
 
@@ -85,9 +98,11 @@ Implementado:
 6. Pulsar `Cargar base`.
 7. Revisar reglas y conceptos creados.
 8. Editar los bloques rápidos: SMI/IPREM, pagas extra, vacaciones, antigüedad e IT.
-9. Crear reglas o conceptos adicionales con edición rápida.
-10. Asociar un contrato a ese convenio.
-11. Consultar la parametrización aplicable al contrato mediante el endpoint de contrato.
+9. Asociar un contrato al convenio y a una categoría profesional.
+10. Entrar en `Conceptos permanentes` y seleccionar el contrato.
+11. Pulsar `Cargar desde convenio`.
+12. Revisar salario base, complementos creados, fila salarial vinculada y origen de cada concepto.
+13. Preparar una nómina y cargar los conceptos permanentes del contrato.
 
 ## Pendiente
 
@@ -102,9 +117,15 @@ La UI actual resuelve la demo técnica, pero debe migrarse a una pestaña React 
 
 ### Motor de nómina
 
-Pendiente consumir `GET /contracts/{contract_id}/agreement-parameterization` desde el cálculo de nómina simulada.
+El convenio ya puede alimentar la estructura salarial permanente del contrato. Sigue pendiente que el motor de nómina consuma directamente las reglas avanzadas de parametrización para:
 
-El motor no debe tener lógica fija de convenio en código. Debe leer reglas y conceptos parametrizados y aplicar, como mínimo, las reglas globales de pagas extra, vacaciones, antigüedad y tipos de cotización.
+- prorrateo de pagas extra,
+- vacaciones,
+- antigüedad por vencimientos,
+- complementos IT,
+- tipos y bases de cotización.
+
+El motor no debe tener lógica fija de convenio en código. Debe leer reglas y conceptos parametrizados.
 
 ### Bloques funcionales pendientes
 
