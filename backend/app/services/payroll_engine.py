@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from app.models.contract import Contract
 from app.models.employee import Employee
 from app.models.incident import Incident
+from app.services.agreement_seniority import calculate_monthly_seniority
 from app.services.contribution_base_calculator import calculate_contribution_bases
 from app.services.contract_salary_summary import get_partiality
 from app.services.monthly_extra_pay_proration import resolve_monthly_extra_pay_proration
@@ -50,21 +51,14 @@ def get_effective_period_dates(period_month: int, period_year: int) -> tuple[dat
 
 
 def calculate_contract_base_salary(contract: Contract, period_month: int) -> Decimal:
-    """Return the monthly contract salary adjusted by the contract partiality.
-
-    Contract.salary_base is the theoretical monthly amount stored by the
-    contract and salary-table modules. Gross annual salary has its own field.
-    """
     if period_month == EXTRA_COMPLEMENTARY:
         return Decimal("0.00")
-
     monthly_salary = money(contract.salary_base or Decimal("0.00"))
     partiality_ratio = Decimal(str(get_partiality(contract))) / Decimal("100")
     return money(monthly_salary * partiality_ratio)
 
 
 def calculate_extra_pay_proration(contract: Contract, period_month: int) -> Decimal:
-    """Legacy fallback retained for contracts without agreement parameterization."""
     pay_schedule = contract.pay_schedule or "not_prorated_14"
     if period_month not in MONTHLY_PERIODS or pay_schedule != "prorated_12":
         return Decimal("0.00")
@@ -72,12 +66,7 @@ def calculate_extra_pay_proration(contract: Contract, period_month: int) -> Deci
     return money((monthly_salary * Decimal("2")) / Decimal("12"))
 
 
-def get_period_incidents(
-    db: Session,
-    contract: Contract,
-    period_start: date,
-    period_end: date,
-) -> list[Incident]:
+def get_period_incidents(db: Session, contract: Contract, period_start: date, period_end: date) -> list[Incident]:
     return db.query(Incident).filter(
         Incident.contract_id == contract.id,
         Incident.start_date <= period_end,
@@ -116,11 +105,11 @@ def calculate_it_days(day_result: dict) -> tuple[int, int]:
 def calculate_simulated_earning_lines(
     base_salary: Decimal,
     salary_supplements: Decimal,
+    seniority_amount: Decimal,
     variable_incentives: Decimal,
     extra_pay_proration: Decimal,
     day_result: dict,
 ) -> dict:
-    """Build simple visible earning lines for the MVP payroll receipt."""
     daily_base_salary = money(base_salary / STANDARD_MONTH_DAYS) if STANDARD_MONTH_DAYS else Decimal("0.00")
     it_days, work_accident_days = calculate_it_days(day_result)
     non_contribution_days = int(day_result.get("non_contribution_days") or 0)
@@ -143,6 +132,7 @@ def calculate_simulated_earning_lines(
         + temporary_disability_benefit
         + company_disability_complement
         + money(salary_supplements)
+        + money(seniority_amount)
         + money(variable_incentives)
         + money(extra_pay_proration)
     )
@@ -165,43 +155,46 @@ def build_empty_earning_lines(gross_salary: Decimal) -> dict:
     }
 
 
-def add_preadjusted_proration_to_bases(
+def add_preadjusted_amount_to_bases(
     base_result: dict,
-    extra_pay_proration: Decimal,
+    amount: Decimal,
+    concept_name: str,
     contribution_days: int,
+    contributes: bool = True,
+    taxable: bool = True,
 ) -> dict:
-    """Add an already accrued-day-adjusted proration without applying day ratio twice."""
-    proration = money(extra_pay_proration)
-    base_result["common_contingencies_base"] = money(
-        base_result["common_contingencies_base"] + proration
-    )
-    base_result["professional_contingencies_base"] = money(
-        base_result["professional_contingencies_base"] + proration
-    )
-    base_result["unemployment_training_fogasa_base"] = base_result["professional_contingencies_base"]
-    base_result["included_common_concepts_total"] = money(
-        base_result["included_common_concepts_total"] + proration
-    )
-    base_result["included_professional_concepts_total"] = money(
-        base_result["included_professional_concepts_total"] + proration
-    )
-    base_result["taxable_irpf_concepts_total"] = money(
-        base_result["taxable_irpf_concepts_total"] + proration
-    )
+    adjusted = money(amount)
+    if contributes:
+        base_result["common_contingencies_base"] = money(base_result["common_contingencies_base"] + adjusted)
+        base_result["professional_contingencies_base"] = money(base_result["professional_contingencies_base"] + adjusted)
+        base_result["unemployment_training_fogasa_base"] = base_result["professional_contingencies_base"]
+        base_result["included_common_concepts_total"] = money(base_result["included_common_concepts_total"] + adjusted)
+        base_result["included_professional_concepts_total"] = money(base_result["included_professional_concepts_total"] + adjusted)
+    if taxable:
+        base_result["taxable_irpf_concepts_total"] = money(base_result["taxable_irpf_concepts_total"] + adjusted)
 
+    found = False
     for concept in base_result.get("salary_concepts", []):
-        if concept.get("name") == "Prorrata pagas extra":
-            concept["amount"] = proration
+        if concept.get("name") == concept_name:
+            concept["amount"] = adjusted
+            concept["contributes_common"] = contributes
+            concept["contributes_professional"] = contributes
+            concept["taxable_irpf"] = taxable
+            found = True
             break
+    if not found:
+        base_result.setdefault("salary_concepts", []).append({
+            "name": concept_name,
+            "amount": adjusted,
+            "contributes_common": contributes,
+            "contributes_professional": contributes,
+            "taxable_irpf": taxable,
+        })
 
     days = Decimal(str(contribution_days or 0))
     if days > 0:
-        base_result["daily_common_base"] = money(
-            base_result["common_contingencies_base"] / days
-        )
-        base_result["daily_professional_base"] = money(
-            base_result["professional_contingencies_base"] / days
-        )
+        base_result["daily_common_base"] = money(base_result["common_contingencies_base"] / days)
+        base_result["daily_professional_base"] = money(base_result["professional_contingencies_base"] / days)
     else:
         base_result["daily_common_base"] = Decimal("0.00")
         base_result["daily_professional_base"] = Decimal("0.00")
@@ -209,29 +202,44 @@ def add_preadjusted_proration_to_bases(
 
 
 def calculate_special_period_result(
+    db: Session,
     contract: Contract,
     period_month: int,
+    period_year: int,
     salary_supplements: Decimal,
     variable_incentives: Decimal,
     irpf_percentage: Decimal,
 ) -> dict:
-    """Calculate extra payroll periods without duplicating contribution bases."""
     base_salary = calculate_contract_base_salary(contract, period_month)
     extra_pay_proration = Decimal("0.00")
-    gross_salary = money(base_salary + money(salary_supplements) + money(variable_incentives))
+    seniority_result = {"amount": Decimal("0.00"), "rule": None, "lines": [], "warnings": []}
+    if period_month in {EXTRA_JULY, EXTRA_DECEMBER}:
+        source_month = 7 if period_month == EXTRA_JULY else 12
+        candidate = calculate_monthly_seniority(db, contract, source_month, period_year, contribution_days=30)
+        if candidate.get("rule") and candidate["rule"].affects_extra_payments:
+            seniority_result = candidate
+    seniority_amount = money(seniority_result["amount"])
+    gross_salary = money(base_salary + money(salary_supplements) + seniority_amount + money(variable_incentives))
+
+    irpf_base = gross_salary
+    if seniority_result.get("rule") and not seniority_result["rule"].taxable:
+        irpf_base = money(irpf_base - seniority_amount)
 
     amounts = calculate_social_security_amounts_from_bases(
         gross_salary=gross_salary,
         common_contingencies_base=Decimal("0.00"),
         professional_contingencies_base=Decimal("0.00"),
         unemployment_training_fogasa_base=Decimal("0.00"),
-        irpf_base=gross_salary,
+        irpf_base=irpf_base,
         irpf_percentage=irpf_percentage,
     )
 
     return {
         "base_salary": base_salary,
         "salary_supplements": money(salary_supplements),
+        "seniority_amount": seniority_amount,
+        "seniority_lines": seniority_result.get("lines", []),
+        "seniority_warnings": seniority_result.get("warnings", []),
         "variable_incentives": money(variable_incentives),
         "extra_pay_proration": extra_pay_proration,
         "extra_pay_proration_source": "not_applicable",
@@ -261,24 +269,26 @@ def calculate_monthly_period_result(
         raise UnsupportedPayrollPeriodError("Periodo mensual no válido")
 
     incidents = get_period_incidents(db, contract, period_start, period_end)
-    day_result = calculate_payroll_days(
-        incidents=incidents,
-        period_start=period_start,
-        period_end=period_end,
-    )
+    day_result = calculate_payroll_days(incidents=incidents, period_start=period_start, period_end=period_end)
 
     base_salary = calculate_contract_base_salary(contract, period_month)
-    proration_result = resolve_monthly_extra_pay_proration(
+    seniority_result = calculate_monthly_seniority(
         db,
         contract,
         period_month,
         period_year,
+        contribution_days=day_result["contribution_days"],
     )
+    seniority_amount = money(seniority_result["amount"])
+    seniority_rule = seniority_result.get("rule")
+
+    proration_result = resolve_monthly_extra_pay_proration(db, contract, period_month, period_year)
     extra_pay_proration = money(proration_result["total_amount"])
 
     base_result = calculate_contribution_bases(
         base_salary=base_salary,
         salary_supplements=salary_supplements,
+        seniority_amount=Decimal("0.00"),
         variable_incentives=variable_incentives,
         extra_pay_proration=Decimal("0.00"),
         non_salary_compensation=non_salary_compensation,
@@ -286,32 +296,53 @@ def calculate_monthly_period_result(
         contribution_days=day_result["contribution_days"],
         non_contribution_days=day_result["non_contribution_days"],
     )
-    base_result = add_preadjusted_proration_to_bases(
+    base_result = add_preadjusted_amount_to_bases(
+        base_result,
+        seniority_amount,
+        "Antigüedad",
+        day_result["contribution_days"],
+        contributes=bool(seniority_rule.contributes) if seniority_rule else True,
+        taxable=bool(seniority_rule.taxable) if seniority_rule else True,
+    )
+    base_result = add_preadjusted_amount_to_bases(
         base_result,
         extra_pay_proration,
+        "Prorrata pagas extra",
         day_result["contribution_days"],
+        contributes=True,
+        taxable=True,
     )
 
     earning_lines = calculate_simulated_earning_lines(
         base_salary=base_salary,
         salary_supplements=salary_supplements,
+        seniority_amount=seniority_amount,
         variable_incentives=variable_incentives,
         extra_pay_proration=extra_pay_proration,
         day_result=day_result,
     )
+
+    irpf_base = earning_lines["gross_salary"]
+    if seniority_rule and not seniority_rule.taxable:
+        irpf_base = money(irpf_base - seniority_amount)
 
     amounts = calculate_social_security_amounts_from_bases(
         gross_salary=earning_lines["gross_salary"],
         common_contingencies_base=base_result["common_contingencies_base"],
         professional_contingencies_base=base_result["professional_contingencies_base"],
         unemployment_training_fogasa_base=base_result["unemployment_training_fogasa_base"],
-        irpf_base=earning_lines["gross_salary"],
+        irpf_base=irpf_base,
         irpf_percentage=irpf_percentage,
     )
 
     return {
         "base_salary": base_salary,
         "salary_supplements": money(salary_supplements),
+        "seniority_amount": seniority_amount,
+        "seniority_lines": seniority_result.get("lines", []),
+        "seniority_warnings": seniority_result.get("warnings", []),
+        "seniority_completed_modules": seniority_result.get("completed_modules", 0),
+        "seniority_next_maturity_date": seniority_result.get("next_maturity_date"),
         "variable_incentives": money(variable_incentives),
         "extra_pay_proration": extra_pay_proration,
         "extra_pay_proration_source": proration_result["source"],
@@ -343,11 +374,12 @@ def calculate_payroll_engine_result(
     non_salary_compensation: Decimal = Decimal("0.00"),
     overtime_amount: Decimal = Decimal("0.00"),
 ) -> dict:
-    """Orchestrate the full simulated payroll calculation."""
     if period_month in EXTRA_PERIODS:
         result = calculate_special_period_result(
+            db=db,
             contract=contract,
             period_month=period_month,
+            period_year=period_year,
             salary_supplements=salary_supplements,
             variable_incentives=variable_incentives,
             irpf_percentage=irpf_percentage,
