@@ -20,6 +20,19 @@ def _money(value, factor: Decimal | None = None):
     return amount.quantize(MONEY_QUANT, rounding=ROUND_HALF_UP)
 
 
+def _row_has_amounts(row: SalaryTableRow) -> bool:
+    return any(
+        value is not None
+        for value in (
+            row.base_salary,
+            row.seniority_amount,
+            row.specific_complement,
+            row.agreement_plus,
+            row.total_amount,
+        )
+    )
+
+
 def duplicate_salary_table_revision(
     db: Session,
     source_table_id: int,
@@ -69,6 +82,8 @@ def duplicate_salary_table_revision(
         db.flush()
 
         if payload.copy_rows:
+            if not source.rows:
+                warnings.append("La tabla de origen no contiene filas salariales.")
             for row in source.rows or []:
                 db.add(
                     SalaryTableRow(
@@ -88,7 +103,7 @@ def duplicate_salary_table_revision(
                     )
                 )
                 copied_rows += 1
-                if payload.increment_percentage != 0:
+                if payload.increment_percentage != 0 and _row_has_amounts(row):
                     increased_rows += 1
         else:
             warnings.append("La tabla se ha creado sin copiar filas salariales.")
@@ -100,6 +115,8 @@ def duplicate_salary_table_revision(
             .all()
         )
         if payload.copy_concepts:
+            if not source_concepts:
+                warnings.append("La tabla de origen no contiene conceptos salariales versionados.")
             for concept in source_concepts:
                 should_increase = concept.character == "salarial" or (
                     concept.character == "no_salarial" and payload.increase_non_salary
