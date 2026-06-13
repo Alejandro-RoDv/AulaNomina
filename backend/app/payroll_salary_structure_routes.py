@@ -6,7 +6,6 @@ from app.agreement_header_routes import router as agreement_header_router
 from app.agreement_parameterization_routes import router as agreement_parameterization_router
 from app.salary_table_revision_routes import router as salary_table_revision_router
 from app.crud.payroll_salary_structure import (
-    build_payroll_breakdown,
     create_contract_payroll_concept,
     create_payroll_concept,
     create_payroll_item,
@@ -59,6 +58,7 @@ from app.services.contract_salary_summary import (
     build_contract_salary_summary,
     simulate_contract_workday_change,
 )
+from app.services.payroll_breakdown import build_payroll_breakdown
 
 router = APIRouter(tags=["payroll-salary-structure"])
 router.include_router(agreement_header_router)
