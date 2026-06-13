@@ -8,6 +8,7 @@ from app.services.payroll_amounts import money
 
 
 AUTOMATIC_EXTRA_PREFIXES = (PRORATION_CONCEPT_PREFIX, "EXTRA_")
+RETROACTIVE_PREFIX = "RETRO_TABLE_"
 
 
 def build_payroll_breakdown(db: Session, payroll_id: int):
@@ -20,10 +21,12 @@ def build_payroll_breakdown(db: Session, payroll_id: int):
         "devengos_salariales": [],
         "devengos_extrasalariales": [],
         "prorratas_automaticas": [],
+        "regularizaciones_automaticas": [],
         "deducciones": [],
         "bases_informativas": [],
         "total_devengos": Decimal("0.00"),
         "total_prorrata_automatica": Decimal("0.00"),
+        "total_regularizacion_automatica": Decimal("0.00"),
         "total_deducciones": Decimal("0.00"),
         "base_irpf_manual": Decimal("0.00"),
         "irpf_percentage": irpf_percentage,
@@ -39,6 +42,12 @@ def build_payroll_breakdown(db: Session, payroll_id: int):
         concept_code = concept.code if concept else ""
         is_taxable = bool(concept.is_taxable) if concept else True
         item_amount = money(item.amount)
+
+        if concept_code.startswith(RETROACTIVE_PREFIX):
+            breakdown["regularizaciones_automaticas"].append(item)
+            breakdown["total_regularizacion_automatica"] += item_amount
+            breakdown["total_devengos"] += item_amount
+            continue
 
         if concept_code.startswith(AUTOMATIC_EXTRA_PREFIXES):
             breakdown["prorratas_automaticas"].append(item)
@@ -64,6 +73,7 @@ def build_payroll_breakdown(db: Session, payroll_id: int):
 
     breakdown["total_devengos"] = money(breakdown["total_devengos"])
     breakdown["total_prorrata_automatica"] = money(breakdown["total_prorrata_automatica"])
+    breakdown["total_regularizacion_automatica"] = money(breakdown["total_regularizacion_automatica"])
     breakdown["total_deducciones"] = money(breakdown["total_deducciones"])
     breakdown["base_irpf_manual"] = money(breakdown["base_irpf_manual"])
     breakdown["irpf_manual"] = money(
