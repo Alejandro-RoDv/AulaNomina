@@ -90,6 +90,8 @@ class AgreementRuleDetail(Base):
     display_order = Column(Integer, default=1, nullable=False)
     professional_category_id = Column(Integer, ForeignKey("professional_categories.id"), nullable=True)
     concept_catalog_id = Column(Integer, ForeignKey("agreement_concept_catalog.id"), nullable=True)
+    minimum_value = Column(Numeric(10, 2), nullable=True)
+    maximum_value = Column(Numeric(10, 2), nullable=True)
     amount = Column(Numeric(10, 2), nullable=True)
     percentage = Column(Numeric(7, 4), nullable=True)
     company_percentage = Column(Numeric(7, 4), nullable=True)
