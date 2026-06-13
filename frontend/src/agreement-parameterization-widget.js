@@ -47,12 +47,18 @@ function createModal() {
   overlay.style.display = "flex";
   overlay.style.alignItems = "center";
   overlay.style.justifyContent = "center";
-  overlay.style.padding = "28px";
+  overlay.style.padding = "16px";
+  overlay.style.boxSizing = "border-box";
+  overlay.style.overflow = "hidden";
 
   const modal = document.createElement("section");
-  modal.style.width = "min(1180px, 96vw)";
-  modal.style.maxHeight = "88vh";
-  modal.style.overflow = "auto";
+  modal.style.width = "100%";
+  modal.style.maxWidth = "1180px";
+  modal.style.maxHeight = "calc(100vh - 32px)";
+  modal.style.minWidth = "0";
+  modal.style.boxSizing = "border-box";
+  modal.style.overflowX = "hidden";
+  modal.style.overflowY = "auto";
   modal.style.background = "#fff";
   modal.style.border = "1px solid #d1d5db";
   modal.style.boxShadow = "0 20px 45px rgba(15,23,42,.22)";
@@ -67,14 +73,14 @@ function createModal() {
 
 function renderShell(modal, title, body) {
   modal.innerHTML = `
-    <header style="display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 16px;border-bottom:1px solid #e5e7eb;background:#f9fafb;">
-      <div>
-        <h3 style="margin:0;font-size:18px;font-weight:850;color:#111827;">${title}</h3>
-        <p style="margin:3px 0 0;color:#6b7280;font-size:13px;font-weight:600;">Reglas Cabecera → Detalle leídas desde la API de convenios.</p>
+    <header style="display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 16px;border-bottom:1px solid #e5e7eb;background:#f9fafb;box-sizing:border-box;position:sticky;top:0;z-index:3;">
+      <div style="min-width:0;">
+        <h3 style="margin:0;font-size:18px;font-weight:850;color:#111827;overflow-wrap:anywhere;">${title}</h3>
+        <p style="margin:3px 0 0;color:#6b7280;font-size:13px;font-weight:600;overflow-wrap:anywhere;">Reglas Cabecera → Detalle leídas desde la API de convenios.</p>
       </div>
-      <button type="button" data-close-parameterization style="width:32px;height:32px;border:1px solid #d1d5db;background:#fff;font-size:20px;cursor:pointer;">×</button>
+      <button type="button" data-close-parameterization style="width:32px;height:32px;min-width:32px;border:1px solid #d1d5db;background:#fff;font-size:20px;cursor:pointer;">×</button>
     </header>
-    <div style="padding:16px;">${body}</div>
+    <div data-parameterization-modal-body="true" style="padding:16px;box-sizing:border-box;min-width:0;overflow-x:hidden;">${body}</div>
   `;
   modal.querySelector("[data-close-parameterization]")?.addEventListener("click", () => modal.parentElement?.remove());
 }
@@ -86,8 +92,8 @@ function escapeHtml(value) {
 function renderTable(columns, rows, emptyText) {
   if (!rows.length) return `<div style="padding:16px;border:1px solid #e5e7eb;background:#f9fafb;color:#6b7280;font-weight:700;">${emptyText}</div>`;
   return `
-    <div style="overflow:auto;border:1px solid #e5e7eb;background:#fff;">
-      <table style="width:100%;border-collapse:collapse;font-size:13px;">
+    <div style="max-width:100%;overflow:auto;border:1px solid #e5e7eb;background:#fff;">
+      <table style="width:100%;min-width:760px;border-collapse:collapse;font-size:13px;">
         <thead><tr>${columns.map((column) => `<th style="text-align:left;padding:9px 10px;border-bottom:1px solid #e5e7eb;background:#f9fafb;color:#374151;white-space:nowrap;">${column}</th>`).join("")}</tr></thead>
         <tbody>${rows.map((row) => `<tr>${row.map((cell) => `<td style="padding:9px 10px;border-bottom:1px solid #f3f4f6;vertical-align:top;">${cell}</td>`).join("")}</tr>`).join("")}</tbody>
       </table>
@@ -106,15 +112,15 @@ function renderParameterization(data) {
     ["Conceptos salariales", salaryConcepts.length],
   ];
 
-  const statCards = stats.map(([label, value]) => `<div style="border:1px solid #e5e7eb;padding:12px;background:#fff;"><strong style="display:block;font-size:22px;color:#111827;">${value}</strong><span style="color:#6b7280;font-weight:700;font-size:12px;">${label}</span></div>`).join("");
-  const ruleRows = rules.map((rule) => [escapeHtml(rule.rule_type), escapeHtml(rule.code || "—"), `<strong>${escapeHtml(rule.name)}</strong>`, escapeHtml(rule.scope), String(rule.details?.length || 0), `<code style="white-space:pre-wrap;">${escapeHtml(JSON.stringify(rule.options || {}, null, 2))}</code>`]);
+  const statCards = stats.map(([label, value]) => `<div style="border:1px solid #e5e7eb;padding:12px;background:#fff;min-width:0;"><strong style="display:block;font-size:22px;color:#111827;">${value}</strong><span style="color:#6b7280;font-weight:700;font-size:12px;overflow-wrap:anywhere;">${label}</span></div>`).join("");
+  const ruleRows = rules.map((rule) => [escapeHtml(rule.rule_type), escapeHtml(rule.code || "—"), `<strong>${escapeHtml(rule.name)}</strong>`, escapeHtml(rule.scope), String(rule.details?.length || 0), `<code style="white-space:pre-wrap;overflow-wrap:anywhere;">${escapeHtml(JSON.stringify(rule.options || {}, null, 2))}</code>`]);
   const catalogRows = catalog.map((item) => [escapeHtml(item.catalog_type), escapeHtml(item.code || "—"), `<strong>${escapeHtml(item.name)}</strong>`, escapeHtml(item.default_nature || "—"), escapeHtml(item.default_cra_code || "—"), item.is_active ? "Activo" : "Inactivo"]);
   const conceptRows = salaryConcepts.map((item) => [escapeHtml(item.character), escapeHtml(item.name), escapeHtml(item.scope), escapeHtml(item.payment_type || "—"), escapeHtml(item.calculation_type), item.contributes ? "Sí" : "No", item.taxable ? "Sí" : "No", escapeHtml(item.cra_code || "—")]);
 
   return `
     <div data-parameterization-forms-host="true"></div>
-    <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:16px;">${statCards}</div>
-    <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:10px;">
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:16px;">${statCards}</div>
+    <div style="display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:12px;margin-bottom:10px;">
       <h4 style="margin:0;font-size:15px;font-weight:850;color:#111827;">Reglas parametrizadas</h4>
       <button type="button" data-seed-parameterization style="height:32px;border:1px solid #eab308;background:#facc15;color:#111827;font-weight:850;padding:0 12px;cursor:pointer;">Cargar base</button>
     </div>
