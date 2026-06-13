@@ -66,6 +66,25 @@ def _validate_extra_pay_values(proration_allowed: bool, proration_default: bool)
         )
 
 
+def _find_extra_pay_duplicate(
+    db: Session,
+    agreement_id: int,
+    salary_table_id: int | None,
+    code: str | None,
+    name: str,
+    exclude_id: int | None = None,
+):
+    query = db.query(AgreementExtraPay).filter(
+        AgreementExtraPay.collective_agreement_id == agreement_id,
+        AgreementExtraPay.salary_table_id == salary_table_id,
+    )
+    if exclude_id is not None:
+        query = query.filter(AgreementExtraPay.id != exclude_id)
+    if code:
+        return query.filter(AgreementExtraPay.code == code).first()
+    return query.filter(AgreementExtraPay.name == name).first()
+
+
 def list_extra_pays(
     db: Session,
     agreement_id: int,
@@ -95,14 +114,13 @@ def create_extra_pay(db: Session, agreement_id: int, payload: AgreementExtraPayC
         _get_salary_table(db, payload.salary_table_id, agreement_id)
     _validate_extra_pay_values(payload.proration_allowed, payload.proration_default)
 
-    duplicate_query = db.query(AgreementExtraPay).filter(
-        AgreementExtraPay.collective_agreement_id == agreement_id,
-        AgreementExtraPay.salary_table_id == payload.salary_table_id,
+    duplicate = _find_extra_pay_duplicate(
+        db,
+        agreement_id,
+        payload.salary_table_id,
+        payload.code,
+        payload.name,
     )
-    if payload.code:
-        duplicate = duplicate_query.filter(AgreementExtraPay.code == payload.code).first()
-    else:
-        duplicate = duplicate_query.filter(AgreementExtraPay.name == payload.name).first()
     if duplicate:
         raise HTTPException(status_code=409, detail="Ya existe una paga extraordinaria equivalente en esta tabla")
 
@@ -135,6 +153,20 @@ def update_extra_pay(db: Session, extra_pay_id: int, payload: AgreementExtraPayU
         if not data["name"]:
             raise HTTPException(status_code=400, detail="La paga extraordinaria debe tener nombre")
 
+    target_table_id = data.get("salary_table_id", extra_pay.salary_table_id)
+    target_code = data.get("code", extra_pay.code)
+    target_name = data.get("name", extra_pay.name)
+    duplicate = _find_extra_pay_duplicate(
+        db,
+        extra_pay.collective_agreement_id,
+        target_table_id,
+        target_code,
+        target_name,
+        exclude_id=extra_pay.id,
+    )
+    if duplicate:
+        raise HTTPException(status_code=409, detail="Ya existe una paga extraordinaria equivalente en esta tabla")
+
     for key, value in data.items():
         setattr(extra_pay, key, value)
     db.commit()
@@ -148,6 +180,23 @@ def delete_extra_pay(db: Session, extra_pay_id: int):
     return extra_pay
 
 
+def _find_line_duplicate(
+    db: Session,
+    extra_pay_id: int,
+    category_id: int | None,
+    concept_key: str,
+    exclude_id: int | None = None,
+):
+    query = db.query(AgreementExtraPayConcept).filter(
+        AgreementExtraPayConcept.extra_pay_id == extra_pay_id,
+        AgreementExtraPayConcept.professional_category_id == category_id,
+        AgreementExtraPayConcept.concept_key == concept_key,
+    )
+    if exclude_id is not None:
+        query = query.filter(AgreementExtraPayConcept.id != exclude_id)
+    return query.first()
+
+
 def _create_extra_pay_concept(
     db: Session,
     extra_pay: AgreementExtraPay,
@@ -157,14 +206,11 @@ def _create_extra_pay_concept(
     if payload.professional_category_id is not None:
         _get_category(db, payload.professional_category_id, extra_pay.collective_agreement_id)
 
-    duplicate = (
-        db.query(AgreementExtraPayConcept)
-        .filter(
-            AgreementExtraPayConcept.extra_pay_id == extra_pay.id,
-            AgreementExtraPayConcept.professional_category_id == payload.professional_category_id,
-            AgreementExtraPayConcept.concept_key == payload.concept_key,
-        )
-        .first()
+    duplicate = _find_line_duplicate(
+        db,
+        extra_pay.id,
+        payload.professional_category_id,
+        payload.concept_key,
     )
     if duplicate:
         raise HTTPException(status_code=409, detail="El concepto ya participa en esta paga para el ámbito seleccionado")
@@ -212,6 +258,18 @@ def update_extra_pay_concept(
     if calculation_mode == "fixed" and fixed_amount is None:
         raise HTTPException(status_code=400, detail="Indica el importe fijo computable")
 
+    target_category_id = data.get("professional_category_id", line.professional_category_id)
+    target_key = data.get("concept_key", line.concept_key)
+    duplicate = _find_line_duplicate(
+        db,
+        line.extra_pay_id,
+        target_category_id,
+        target_key,
+        exclude_id=line.id,
+    )
+    if duplicate:
+        raise HTTPException(status_code=409, detail="El concepto ya participa en esta paga para el ámbito seleccionado")
+
     for key, value in data.items():
         setattr(line, key, value)
     db.commit()
@@ -258,6 +316,9 @@ def resolve_extra_pay_candidates(
 
     result = []
     for candidate in candidates.values():
+        character = candidate.get("character") or "salarial"
+        if character == "deduccion":
+            continue
         result.append(
             {
                 "concept_key": _concept_code(
@@ -267,7 +328,7 @@ def resolve_extra_pay_candidates(
                 ),
                 "name": candidate["name"],
                 "amount": _decimal(candidate.get("amount")),
-                "character": candidate.get("character") or "salarial",
+                "character": character,
                 "source": candidate["source"],
                 "salary_table_id": candidate.get("salary_table_id"),
                 "professional_category_id": candidate.get("professional_category_id"),
@@ -321,15 +382,17 @@ def preview_extra_pay(
         resolved = candidate is not None
         warning = None
 
+        if not resolved:
+            warning = "El concepto ya no existe en la estructura salarial seleccionada."
+            unresolved += 1
+            warnings.append(f"{line.concept_name}: {warning}")
+
         if line.calculation_mode == "fixed":
             computed = _money(line.fixed_amount)
         elif resolved:
             computed = _money(base_amount * Decimal(str(line.percentage or 0)) / Decimal("100"))
         else:
             computed = Decimal("0.00")
-            warning = "El concepto ya no existe en la estructura salarial seleccionada."
-            unresolved += 1
-            warnings.append(f"{line.concept_name}: {warning}")
 
         total += computed
         preview_lines.append(
