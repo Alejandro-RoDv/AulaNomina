@@ -95,24 +95,32 @@ export default function AgreementSalaryStructurePanel({ agreement }) {
   const concepts = parameterization?.salary_concepts || [];
   const catalog = parameterization?.concept_catalog || [];
 
-  const visibleConcepts = useMemo(() => {
+  const tableConcepts = useMemo(() => {
     if (!selectedTable) return [];
     return concepts
       .filter((item) => item.is_active !== false)
-      .filter((item) => item.salary_table_id == null || Number(item.salary_table_id) === Number(selectedTable.id))
-      .filter((item) => selectedCategory ? Number(item.professional_category_id) === Number(selectedCategory.id) : item.professional_category_id == null)
+      .filter((item) => item.salary_table_id == null || Number(item.salary_table_id) === Number(selectedTable.id));
+  }, [concepts, selectedTable]);
+
+  const visibleConcepts = useMemo(() => {
+    return tableConcepts
+      .filter((item) => selectedCategory
+        ? item.professional_category_id == null || Number(item.professional_category_id) === Number(selectedCategory.id)
+        : item.professional_category_id == null)
       .sort((a, b) => String(a.name).localeCompare(String(b.name), "es"));
-  }, [concepts, selectedTable, selectedCategory]);
+  }, [tableConcepts, selectedCategory]);
 
   const conceptCountByCategory = useMemo(() => {
-    const counts = { general: 0 };
-    concepts.forEach((item) => {
-      if (selectedTable && item.salary_table_id != null && Number(item.salary_table_id) !== Number(selectedTable.id)) return;
-      const key = item.professional_category_id == null ? "general" : String(item.professional_category_id);
-      counts[key] = (counts[key] || 0) + 1;
+    const generalCount = tableConcepts.filter((item) => item.professional_category_id == null).length;
+    const counts = { general: generalCount };
+    categories.forEach((category) => { counts[String(category.id)] = generalCount; });
+    tableConcepts.forEach((item) => {
+      if (item.professional_category_id == null) return;
+      const key = String(item.professional_category_id);
+      counts[key] = (counts[key] || generalCount) + 1;
     });
     return counts;
-  }, [concepts, selectedTable]);
+  }, [tableConcepts, categories]);
 
   const totals = useMemo(() => {
     return visibleConcepts.reduce((result, item) => {
@@ -144,7 +152,7 @@ export default function AgreementSalaryStructurePanel({ agreement }) {
     setForm(EMPTY_FORM);
     setMessage("");
     load();
-  }, [agreement?.id]);
+  }, [agreement?.id, salaryTables.length]);
 
   useEffect(() => {
     if (!selectedTable?.id) return;
@@ -195,13 +203,20 @@ export default function AgreementSalaryStructurePanel({ agreement }) {
       return;
     }
 
+    const tableId = form.id
+      ? (form.salary_table_id ? Number(form.salary_table_id) : null)
+      : Number(selectedTable.id);
+    const categoryId = form.id
+      ? (form.professional_category_id ? Number(form.professional_category_id) : null)
+      : (selectedCategory ? Number(selectedCategory.id) : null);
+
     const payload = {
-      salary_table_id: Number(selectedTable.id),
-      professional_category_id: selectedCategory ? Number(selectedCategory.id) : null,
+      salary_table_id: tableId,
+      professional_category_id: categoryId,
       concept_catalog_id: form.concept_catalog_id ? Number(form.concept_catalog_id) : null,
       character: form.character,
       name: form.name.trim(),
-      scope: selectedCategory ? "specific" : "global",
+      scope: categoryId ? "specific" : "global",
       amount: numberOrNull(form.amount),
       payment_type: form.payment_type || null,
       calculation_type: form.calculation_type,
@@ -231,7 +246,7 @@ export default function AgreementSalaryStructurePanel({ agreement }) {
   function editConcept(item) {
     setForm({
       id: item.id,
-      salary_table_id: item.salary_table_id || selectedTable?.id || "",
+      salary_table_id: item.salary_table_id || "",
       professional_category_id: item.professional_category_id || "",
       concept_catalog_id: item.concept_catalog_id || "",
       character: item.character || "salarial",
@@ -275,7 +290,12 @@ export default function AgreementSalaryStructurePanel({ agreement }) {
       ["Complemento específico", selectedRow.specific_complement],
     ].filter(([, amount]) => amount !== null && amount !== undefined && Number(amount) !== 0);
 
-    const existingNames = new Set(visibleConcepts.map((item) => normalizedName(item.name)));
+    const existingNames = new Set(
+      concepts
+        .filter((item) => Number(item.salary_table_id) === Number(selectedTable.id))
+        .filter((item) => Number(item.professional_category_id) === Number(selectedCategory.id))
+        .map((item) => normalizedName(item.name))
+    );
     const pending = candidates.filter(([name]) => !existingNames.has(normalizedName(name)));
     if (!pending.length) {
       setMessage("La fila salarial ya está representada mediante conceptos editables.");
@@ -354,7 +374,7 @@ export default function AgreementSalaryStructurePanel({ agreement }) {
             <div>
               <span style={styles.eyebrow}>{selectedTable?.name}</span>
               <h4 style={styles.categoryTitle}>{selectedCategory?.name || "Conceptos generales del convenio"}</h4>
-              <p style={styles.categorySubtitle}>{selectedCategory ? "Conceptos aplicables a esta categoría." : "Conceptos aplicables a todas las categorías de la tabla."}</p>
+              <p style={styles.categorySubtitle}>{selectedCategory ? "Conceptos generales y específicos aplicables a esta categoría." : "Conceptos aplicables a todas las categorías de la tabla."}</p>
             </div>
             {selectedCategory && <button type="button" onClick={importSalaryRow} disabled={saving || !selectedRow} style={selectedRow ? styles.secondaryButton : styles.disabledButton}>Crear desde fila salarial</button>}
           </section>
@@ -365,14 +385,14 @@ export default function AgreementSalaryStructurePanel({ agreement }) {
             <Stat label="Salariales" value={money(totals.salary)} />
             <Stat label="No salariales" value={money(totals.nonSalary)} />
             <Stat label="Deducciones" value={money(totals.deductions)} />
-            <Stat label="Conceptos" value={visibleConcepts.length} />
+            <Stat label="Conceptos aplicables" value={visibleConcepts.length} />
           </div>
 
           <div style={styles.tableWrap}>
             <table style={styles.table}>
               <thead><tr><th style={styles.th}>Concepto</th><th style={styles.th}>Carácter</th><th style={styles.th}>Importe</th><th style={styles.th}>Pago</th><th style={styles.th}>Cálculo</th><th style={styles.th}>Cotiza</th><th style={styles.th}>IRPF</th><th style={styles.th}>CRA</th><th style={styles.th}>Acciones</th></tr></thead>
               <tbody>
-                {visibleConcepts.map((item) => <tr key={item.id}><td style={styles.td}><strong>{item.name}</strong>{item.salary_table_id == null && <span style={styles.generalBadge}>General sin versión</span>}</td><td style={styles.td}>{characterLabel(item.character)}</td><td style={styles.tdAmount}>{money(item.amount)}</td><td style={styles.td}>{paymentLabel(item.payment_type)}</td><td style={styles.td}>{calculationLabel(item.calculation_type)}</td><td style={styles.td}>{item.contributes ? "Sí" : "No"}</td><td style={styles.td}>{item.taxable ? "Sí" : "No"}</td><td style={styles.td}>{item.cra_code || "—"}</td><td style={styles.td}><div style={styles.actions}><button type="button" onClick={() => editConcept(item)} style={styles.linkButton}>Editar</button><button type="button" onClick={() => removeConcept(item)} style={styles.deleteButton}>Eliminar</button></div></td></tr>)}
+                {visibleConcepts.map((item) => <tr key={item.id}><td style={styles.td}><strong>{item.name}</strong>{item.professional_category_id == null && <span style={styles.generalBadge}>Aplicación general</span>}{item.salary_table_id == null && <span style={styles.generalBadge}>Sin versión anual</span>}</td><td style={styles.td}>{characterLabel(item.character)}</td><td style={styles.tdAmount}>{money(item.amount)}</td><td style={styles.td}>{paymentLabel(item.payment_type)}</td><td style={styles.td}>{calculationLabel(item.calculation_type)}</td><td style={styles.td}>{item.contributes ? "Sí" : "No"}</td><td style={styles.td}>{item.taxable ? "Sí" : "No"}</td><td style={styles.td}>{item.cra_code || "—"}</td><td style={styles.td}><div style={styles.actions}><button type="button" onClick={() => editConcept(item)} style={styles.linkButton}>Editar</button><button type="button" onClick={() => removeConcept(item)} style={styles.deleteButton}>Eliminar</button></div></td></tr>)}
                 {!visibleConcepts.length && <tr><td colSpan="9" style={styles.emptyCell}>No hay conceptos para esta tabla y categoría.</td></tr>}
               </tbody>
             </table>
