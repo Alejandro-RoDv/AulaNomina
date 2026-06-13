@@ -26,7 +26,7 @@ def get_or_create_component_concept(
     values = {
         "name": f"{extra_pay.name} - {line['concept_name']}",
         "category": "PAGA_EXTRA",
-        "concept_type": "DEVENGO",
+        "concept_type": "BASE_INFORMATIVA",
         "salary_nature": "SALARIAL",
         "source_type": "AGREEMENT",
         "agreement_id": extra_pay.collective_agreement_id,
@@ -34,12 +34,12 @@ def get_or_create_component_concept(
         "default_amount": Decimal("0.00"),
         "default_unit_price": Decimal("0.00"),
         "applies_workday_percentage": False,
-        "is_system": False,
-        "is_taxable": True,
+        "is_system": True,
+        "is_taxable": False,
         "is_contribution_base": False,
         "is_active": True,
         "display_order": display_order,
-        "notes": f"Componente generado desde la paga extraordinaria {extra_pay.id}.",
+        "notes": f"Componente informativo generado desde la paga extraordinaria {extra_pay.id}.",
     }
     if not concept:
         concept = PayrollConcept(code=code, **values)
