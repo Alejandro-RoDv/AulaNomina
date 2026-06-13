@@ -28,6 +28,7 @@ class Payroll(Base):
     temporary_disability_benefit = Column(Numeric(10, 2), default=0, nullable=False)
     company_disability_complement = Column(Numeric(10, 2), default=0, nullable=False)
     salary_supplements = Column(Numeric(10, 2), default=0, nullable=False)
+    seniority_amount = Column(Numeric(10, 2), default=0, nullable=False)
     variable_incentives = Column(Numeric(10, 2), default=0, nullable=False)
     extra_pay_proration = Column(Numeric(10, 2), default=0, nullable=False)
     gross_salary = Column(Numeric(10, 2), default=0, nullable=False)
