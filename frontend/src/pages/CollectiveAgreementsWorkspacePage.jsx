@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import AgreementCriteriaPanel from "../components/agreements/AgreementCriteriaPanel";
 import AgreementExtraPayPanelV2 from "../components/agreements/AgreementExtraPayPanelV2";
 import AgreementSalaryStructurePanel from "../components/agreements/AgreementSalaryStructurePanel";
+import AgreementSeniorityPanel from "../components/agreements/AgreementSeniorityPanel";
 import ContractExtraPaySimulationPanel from "../components/agreements/ContractExtraPaySimulationPanel";
 import SalaryRegularizationPanel from "../components/agreements/SalaryRegularizationPanel";
 import SalaryTableActivationPanel from "../components/agreements/SalaryTableActivationPanel";
@@ -125,7 +126,12 @@ export default function CollectiveAgreementsWorkspacePage(props) {
                 <Summary label="Sector" value={agreement.sector || "—"} />
                 <Summary label="Ámbito" value={agreement.territorial_scope || "—"} />
               </section>
-              {view === "criteria" && <AgreementCriteriaPanel agreement={agreement} categories={agreement.professional_categories || []} onOpenTab={openManagementTab} />}
+              {view === "criteria" && (
+                <>
+                  <AgreementCriteriaPanel agreement={agreement} categories={agreement.professional_categories || []} onOpenTab={openManagementTab} />
+                  <AgreementSeniorityPanel agreement={agreement} onChanged={() => loadSelectedAgreement(false)} />
+                </>
+              )}
               {view === "salary" && (
                 <>
                   <SalaryTableRevisionPanel agreement={agreement} onCompleted={() => loadSelectedAgreement(false)} />
