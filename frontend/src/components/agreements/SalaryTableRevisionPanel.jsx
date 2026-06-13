@@ -12,6 +12,7 @@ const EMPTY_FORM = {
   increment_percentage: "0",
   copy_rows: true,
   copy_concepts: true,
+  copy_extra_pays: true,
   increase_non_salary: false,
   mark_source_historical: false,
   notes: "",
@@ -87,6 +88,7 @@ export default function SalaryTableRevisionPanel({ agreement, onCompleted }) {
         increment_percentage: Number(form.increment_percentage || 0),
         copy_rows: form.copy_rows,
         copy_concepts: form.copy_concepts,
+        copy_extra_pays: form.copy_extra_pays,
         increase_non_salary: form.increase_non_salary,
         mark_source_historical: form.mark_source_historical,
         notes: form.notes.trim() || null,
@@ -120,7 +122,8 @@ export default function SalaryTableRevisionPanel({ agreement, onCompleted }) {
           {result && (
             <div style={styles.success}>
               <strong>{result.salary_table.name} creada correctamente.</strong>
-              <span>{result.copied_rows} filas y {result.copied_concepts} conceptos copiados. Incremento aplicado: {Number(result.increment_percentage).toLocaleString("es-ES")} %.</span>
+              <span>{result.copied_rows} filas, {result.copied_concepts} conceptos y {result.copied_extra_pays} pagas extraordinarias copiadas.</span>
+              <span>{result.copied_extra_pay_lines} reglas de participación en pagas extra. Incremento aplicado: {Number(result.increment_percentage).toLocaleString("es-ES")} %.</span>
             </div>
           )}
 
@@ -147,6 +150,7 @@ export default function SalaryTableRevisionPanel({ agreement, onCompleted }) {
           <div style={styles.options}>
             <Check label="Copiar filas salariales" checked={form.copy_rows} onChange={(value) => setForm({ ...form, copy_rows: value })} />
             <Check label="Copiar conceptos editables" checked={form.copy_concepts} onChange={(value) => setForm({ ...form, copy_concepts: value })} />
+            <Check label="Copiar pagas extraordinarias" checked={form.copy_extra_pays} onChange={(value) => setForm({ ...form, copy_extra_pays: value })} />
             <Check label="Aplicar incremento a conceptos no salariales" checked={form.increase_non_salary} onChange={(value) => setForm({ ...form, increase_non_salary: value })} />
             <Check label="Marcar la tabla de origen como histórica" checked={form.mark_source_historical} onChange={(value) => setForm({ ...form, mark_source_historical: value })} />
           </div>
@@ -156,6 +160,7 @@ export default function SalaryTableRevisionPanel({ agreement, onCompleted }) {
           <div style={styles.notice}>
             <strong>Aplicación del porcentaje</strong>
             <span>Se incrementan las filas y los conceptos salariales. Las deducciones se copian sin variación. Los conceptos generales sin ejercicio continúan aplicándose y no se duplican.</span>
+            <span>Las reglas de pagas extra se copian, pero sus porcentajes e importes fijos propios se conservan sin incremento automático.</span>
             <span>La tabla se crea sin activar. La activación y la migración de contratos se realizan después desde el bloque específico.</span>
           </div>
 
