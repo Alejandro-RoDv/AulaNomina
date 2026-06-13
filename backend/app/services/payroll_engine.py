@@ -10,6 +10,7 @@ from app.models.contract import Contract
 from app.models.employee import Employee
 from app.models.incident import Incident
 from app.services.contribution_base_calculator import calculate_contribution_bases
+from app.services.contract_salary_summary import get_partiality
 from app.services.monthly_extra_pay_proration import resolve_monthly_extra_pay_proration
 from app.services.payroll_amounts import calculate_social_security_amounts_from_bases, money
 from app.services.payroll_days_calculator import calculate_payroll_days
@@ -49,30 +50,26 @@ def get_effective_period_dates(period_month: int, period_year: int) -> tuple[dat
 
 
 def calculate_contract_base_salary(contract: Contract, period_month: int) -> Decimal:
-    """Calculate the ordinary or extra payroll base amount from annual salary.
+    """Return the monthly contract salary adjusted by the contract partiality.
 
-    Current contract.salary_base is treated as agreed gross annual salary.
-    For both 12-pay prorated and 14-pay non-prorated contracts, the ordinary
-    base amount remains annual_salary / 14. In 12-pay contracts the extra-pay
-    proration is added separately in ordinary monthly payrolls.
+    Contract.salary_base is the theoretical monthly amount stored by the
+    contract and salary-table modules. Gross annual salary has its own field.
     """
-    annual_salary = money(contract.salary_base or Decimal("0.00"))
     if period_month == EXTRA_COMPLEMENTARY:
         return Decimal("0.00")
-    if period_month in {EXTRA_JULY, EXTRA_DECEMBER}:
-        return money(annual_salary / Decimal("14"))
-    return money(annual_salary / Decimal("14"))
+
+    monthly_salary = money(contract.salary_base or Decimal("0.00"))
+    partiality_ratio = Decimal(str(get_partiality(contract))) / Decimal("100")
+    return money(monthly_salary * partiality_ratio)
 
 
 def calculate_extra_pay_proration(contract: Contract, period_month: int) -> Decimal:
     """Legacy fallback retained for contracts without agreement parameterization."""
-    annual_salary = money(contract.salary_base or Decimal("0.00"))
     pay_schedule = contract.pay_schedule or "not_prorated_14"
-    if period_month not in MONTHLY_PERIODS:
+    if period_month not in MONTHLY_PERIODS or pay_schedule != "prorated_12":
         return Decimal("0.00")
-    if pay_schedule != "prorated_12":
-        return Decimal("0.00")
-    return money(((annual_salary / Decimal("14")) * Decimal("2")) / Decimal("12"))
+    monthly_salary = calculate_contract_base_salary(contract, period_month)
+    return money((monthly_salary * Decimal("2")) / Decimal("12"))
 
 
 def get_period_incidents(
