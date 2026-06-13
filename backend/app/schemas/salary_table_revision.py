@@ -52,4 +52,4 @@ class SalaryTableRevisionResponse(BaseModel):
     increased_rows: int = 0
     increased_concepts: int = 0
     increment_percentage: Decimal = Decimal("0.00")
-    warnings: list[str] = []
+    warnings: list[str] = Field(default_factory=list)
