@@ -10,6 +10,7 @@ from app.models.contract import Contract
 from app.models.employee import Employee
 from app.models.incident import Incident
 from app.services.contribution_base_calculator import calculate_contribution_bases
+from app.services.monthly_extra_pay_proration import resolve_monthly_extra_pay_proration
 from app.services.payroll_amounts import calculate_social_security_amounts_from_bases, money
 from app.services.payroll_days_calculator import calculate_payroll_days
 
@@ -31,7 +32,6 @@ class UnsupportedPayrollPeriodError(ValueError):
 def get_period_dates(period_month: int, period_year: int) -> tuple[date | None, date | None]:
     if period_month not in MONTHLY_PERIODS:
         return None, None
-
     last_day = monthrange(period_year, period_month)[1]
     return date(period_year, period_month, 1), date(period_year, period_month, last_day)
 
@@ -56,28 +56,22 @@ def calculate_contract_base_salary(contract: Contract, period_month: int) -> Dec
     base amount remains annual_salary / 14. In 12-pay contracts the extra-pay
     proration is added separately in ordinary monthly payrolls.
     """
-
     annual_salary = money(contract.salary_base or Decimal("0.00"))
-
     if period_month == EXTRA_COMPLEMENTARY:
         return Decimal("0.00")
-
     if period_month in {EXTRA_JULY, EXTRA_DECEMBER}:
         return money(annual_salary / Decimal("14"))
-
     return money(annual_salary / Decimal("14"))
 
 
 def calculate_extra_pay_proration(contract: Contract, period_month: int) -> Decimal:
+    """Legacy fallback retained for contracts without agreement parameterization."""
     annual_salary = money(contract.salary_base or Decimal("0.00"))
     pay_schedule = contract.pay_schedule or "not_prorated_14"
-
     if period_month not in MONTHLY_PERIODS:
         return Decimal("0.00")
-
     if pay_schedule != "prorated_12":
         return Decimal("0.00")
-
     return money(((annual_salary / Decimal("14")) * Decimal("2")) / Decimal("12"))
 
 
@@ -129,14 +123,7 @@ def calculate_simulated_earning_lines(
     extra_pay_proration: Decimal,
     day_result: dict,
 ) -> dict:
-    """Build simple visible earning lines for the MVP payroll receipt.
-
-    This is not a full legal IT engine. It only makes the demo explainable:
-    - unpaid/non-contribution days reduce normal salary;
-    - IT days split normal salary into simulated benefit + company complement;
-    - vacations remain informative and do not reduce the monthly amount.
-    """
-
+    """Build simple visible earning lines for the MVP payroll receipt."""
     daily_base_salary = money(base_salary / STANDARD_MONTH_DAYS) if STANDARD_MONTH_DAYS else Decimal("0.00")
     it_days, work_accident_days = calculate_it_days(day_result)
     non_contribution_days = int(day_result.get("non_contribution_days") or 0)
@@ -189,10 +176,9 @@ def calculate_special_period_result(
     irpf_percentage: Decimal,
 ) -> dict:
     """Calculate extra payroll periods without duplicating contribution bases."""
-
     base_salary = calculate_contract_base_salary(contract, period_month)
     extra_pay_proration = Decimal("0.00")
-    gross_salary = money(base_salary + money(salary_supplements) + money(variable_incentives) + extra_pay_proration)
+    gross_salary = money(base_salary + money(salary_supplements) + money(variable_incentives))
 
     amounts = calculate_social_security_amounts_from_bases(
         gross_salary=gross_salary,
@@ -208,6 +194,9 @@ def calculate_special_period_result(
         "salary_supplements": money(salary_supplements),
         "variable_incentives": money(variable_incentives),
         "extra_pay_proration": extra_pay_proration,
+        "extra_pay_proration_source": "not_applicable",
+        "extra_pay_proration_lines": [],
+        "extra_pay_proration_warnings": [],
         **build_empty_day_result(),
         **build_empty_earning_lines(gross_salary),
         "daily_common_base": Decimal("0.00"),
@@ -239,7 +228,13 @@ def calculate_monthly_period_result(
     )
 
     base_salary = calculate_contract_base_salary(contract, period_month)
-    extra_pay_proration = calculate_extra_pay_proration(contract, period_month)
+    proration_result = resolve_monthly_extra_pay_proration(
+        db,
+        contract,
+        period_month,
+        period_year,
+    )
+    extra_pay_proration = money(proration_result["total_amount"])
 
     base_result = calculate_contribution_bases(
         base_salary=base_salary,
@@ -274,6 +269,9 @@ def calculate_monthly_period_result(
         "salary_supplements": money(salary_supplements),
         "variable_incentives": money(variable_incentives),
         "extra_pay_proration": extra_pay_proration,
+        "extra_pay_proration_source": proration_result["source"],
+        "extra_pay_proration_lines": proration_result["lines"],
+        "extra_pay_proration_warnings": proration_result["warnings"],
         **day_result,
         **earning_lines,
         "daily_common_base": base_result["daily_common_base"],
@@ -301,7 +299,6 @@ def calculate_payroll_engine_result(
     overtime_amount: Decimal = Decimal("0.00"),
 ) -> dict:
     """Orchestrate the full simulated payroll calculation."""
-
     if period_month in EXTRA_PERIODS:
         result = calculate_special_period_result(
             contract=contract,
