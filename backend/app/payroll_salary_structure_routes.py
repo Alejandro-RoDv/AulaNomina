@@ -28,6 +28,10 @@ from app.crud.work_calendar import (
     update_work_calendar,
 )
 from app.db import SessionLocal
+from app.schemas.agreement_contract_sync import (
+    AgreementContractSyncRequest,
+    AgreementContractSyncResponse,
+)
 from app.schemas.contract import (
     ContractSalarySummaryResponse,
     ContractWorkdaySimulationRequest,
@@ -47,6 +51,7 @@ from app.schemas.payroll_salary_structure import (
     PayrollItemUpdate,
 )
 from app.schemas.work_calendar import WorkCalendarCreate, WorkCalendarResponse, WorkCalendarUpdate
+from app.services.agreement_contract_concept_sync import sync_agreement_concepts_to_contract
 from app.services.agreement_parameterization_resolver import build_contract_agreement_parameterization
 from app.services.contract_salary_summary import (
     build_contract_salary_summary,
@@ -164,6 +169,23 @@ def read_contract_agreement_parameterization(contract_id: int, db: Session = Dep
     if result is None:
         raise HTTPException(status_code=404, detail="Contrato no encontrado")
     return result
+
+
+@router.post(
+    "/contracts/{contract_id}/load-agreement-concepts",
+    response_model=AgreementContractSyncResponse,
+)
+def load_agreement_concepts_into_contract_endpoint(
+    contract_id: int,
+    request: AgreementContractSyncRequest,
+    db: Session = Depends(get_db),
+):
+    return sync_agreement_concepts_to_contract(
+        db,
+        contract_id,
+        overwrite_salary_base=request.overwrite_salary_base,
+        reactivate_inactive=request.reactivate_inactive,
+    )
 
 
 @router.post("/contracts/{contract_id}/simulate-workday", response_model=ContractWorkdaySimulationResponse)
