@@ -4,6 +4,11 @@ import AgreementCriteriaPanel from "../components/agreements/AgreementCriteriaPa
 import { fetchCollectiveAgreement } from "../services/collectiveAgreementApi";
 import CollectiveAgreementsManagementPage from "./CollectiveAgreementsPage.jsx";
 
+const MANAGEMENT_TAB_LABELS = {
+  seniority: "Antigüedad",
+  rules: "Jornada y permisos",
+};
+
 export default function CollectiveAgreementsWorkspacePage(props) {
   const agreements = props.collectiveAgreements || [];
   const [view, setView] = useState("management");
@@ -18,8 +23,15 @@ export default function CollectiveAgreementsWorkspacePage(props) {
   }, [agreements, selectedId]);
 
   useEffect(() => {
-    if (view !== "criteria" || !selected?.id) return;
+    if (view !== "criteria") return;
+    if (!selected?.id) {
+      setAgreement(null);
+      setLoading(false);
+      return;
+    }
+
     let active = true;
+    setAgreement(null);
     setLoading(true);
     setError("");
     fetchCollectiveAgreement(selected.id)
@@ -28,6 +40,16 @@ export default function CollectiveAgreementsWorkspacePage(props) {
       .finally(() => active && setLoading(false));
     return () => { active = false; };
   }, [view, selected?.id]);
+
+  function openManagementTab(targetTab) {
+    setView("management");
+    const targetLabel = MANAGEMENT_TAB_LABELS[targetTab];
+    if (!targetLabel) return;
+    window.setTimeout(() => {
+      const button = Array.from(document.querySelectorAll("button")).find((item) => item.textContent?.trim() === targetLabel);
+      button?.click();
+    }, 0);
+  }
 
   return (
     <div style={styles.wrapper}>
@@ -64,7 +86,7 @@ export default function CollectiveAgreementsWorkspacePage(props) {
                 <Summary label="Sector" value={agreement.sector || "—"} />
                 <Summary label="Ámbito" value={agreement.territorial_scope || "—"} />
               </section>
-              <AgreementCriteriaPanel agreement={agreement} categories={agreement.professional_categories || []} onOpenTab={() => setView("management")} />
+              <AgreementCriteriaPanel agreement={agreement} categories={agreement.professional_categories || []} onOpenTab={openManagementTab} />
             </>
           )}
         </div>
@@ -79,16 +101,16 @@ function Summary({ label, value }) {
 
 const styles = {
   wrapper: { display: "flex", flexDirection: "column", gap: "12px" },
-  tabs: { display: "flex", gap: "2px", borderBottom: "1px solid #d1d5db", background: "#fff" },
+  tabs: { display: "flex", flexWrap: "wrap", gap: "2px", borderBottom: "1px solid #d1d5db", background: "#fff" },
   tab: { border: 0, borderBottom: "3px solid transparent", background: "transparent", padding: "10px 14px", color: "#4b5563", fontSize: "13px", fontWeight: 750, cursor: "pointer" },
   tabActive: { border: 0, borderBottom: "3px solid #facc15", background: "#fff", padding: "10px 14px", color: "#111827", fontSize: "13px", fontWeight: 850, cursor: "pointer" },
   criteriaArea: { display: "flex", flexDirection: "column", gap: "10px" },
-  header: { display: "grid", gridTemplateColumns: "minmax(260px, 1fr) minmax(320px, 480px)", gap: "18px", alignItems: "end", border: "1px solid #e5e7eb", background: "#fff", padding: "14px" },
+  header: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "18px", alignItems: "end", border: "1px solid #e5e7eb", background: "#fff", padding: "14px" },
   title: { margin: 0, fontSize: "20px", fontWeight: 850, color: "#111827" },
   subtitle: { margin: "4px 0 0", color: "#6b7280", fontSize: "12px", fontWeight: 600 },
   label: { display: "flex", flexDirection: "column", gap: "5px", color: "#374151", fontSize: "12px", fontWeight: 800 },
   select: { width: "100%", height: "36px", border: "1px solid #d1d5db", background: "#fff", padding: "6px 9px", fontSize: "13px" },
-  summary: { display: "grid", gridTemplateColumns: "minmax(240px, 1.4fr) repeat(3, minmax(130px, .7fr))", gap: "12px", border: "1px solid #e5e7eb", borderLeft: "3px solid #facc15", background: "#fff", padding: "10px 12px" },
+  summary: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: "12px", border: "1px solid #e5e7eb", borderLeft: "3px solid #facc15", background: "#fff", padding: "10px 12px" },
   summaryItem: { display: "flex", flexDirection: "column", gap: "2px", color: "#374151", fontSize: "12px" },
   notice: { border: "1px solid #e5e7eb", background: "#f9fafb", color: "#4b5563", padding: "12px", fontSize: "12px", fontWeight: 750 },
   error: { border: "1px solid #fecaca", background: "#fef2f2", color: "#991b1b", padding: "10px", fontSize: "12px", fontWeight: 750 },
