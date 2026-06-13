@@ -168,7 +168,8 @@ Antes de activar una tabla se obtiene una vista previa con:
 - contratos bloqueados,
 - motivo del bloqueo,
 - salario base de la fila destino,
-- categorías con filas duplicadas.
+- categorías con filas duplicadas,
+- comparación de conceptos permanentes.
 
 Un contrato queda bloqueado cuando:
 
@@ -193,6 +194,29 @@ Endpoint:
 
 `POST /collective-agreements/salary-tables/{table_id}/activate`
 
+### Comparación de conceptos permanentes
+
+Para cada contrato migrable se comparan los conceptos actuales con los que corresponderían en la tabla nueva.
+
+Estados disponibles:
+
+- `Nuevo`: todavía no existe en el contrato.
+- `Importe distinto`: existe, pero el importe no coincide.
+- `A reactivar`: existe, pero está desactivado.
+- `Sin cambios`: ya coincide con la estructura nueva.
+- `Posible baja`: pertenece al convenio anterior y ya no existe en la estructura destino.
+- `Conservado`: concepto personalizado o de sistema que no debe tocarse.
+
+La selección por defecto incluye únicamente:
+
+- conceptos nuevos,
+- conceptos con cambio de importe,
+- conceptos que deben reactivarse.
+
+Las posibles bajas requieren selección expresa. Los conceptos sin cambios, personalizados y de sistema no se pueden modificar desde esta operación.
+
+La comparación utiliza el código estable del concepto de convenio. Un cambio de denominación no crea por sí solo un duplicado.
+
 ### Migración explícita de contratos
 
 Después de activar la tabla se pueden seleccionar los contratos migrables.
@@ -203,13 +227,23 @@ La migración:
 - ignora contratos sin categoría o sin fila equivalente,
 - permite conservar el salario base actual,
 - permite sustituir expresamente el salario base por el de la nueva fila,
-- no recalcula automáticamente conceptos permanentes ya cargados.
+- crea únicamente los conceptos seleccionados,
+- actualiza únicamente los importes seleccionados,
+- reactiva únicamente los conceptos seleccionados,
+- desactiva únicamente las posibles bajas seleccionadas,
+- conserva los conceptos personalizados y de sistema.
 
-Los conceptos permanentes deben revisarse o volver a cargarse desde el convenio después de la migración.
+La fila salarial, el salario base y las acciones de conceptos se ejecutan dentro de la misma transacción. Si falla una acción seleccionada, se revierte la operación completa.
 
 Endpoint:
 
 `POST /collective-agreements/salary-tables/{table_id}/migrate-contracts`
+
+El cuerpo admite `concept_actions`, con:
+
+- `contract_id`,
+- `concept_key`,
+- `action`: `upsert` o `deactivate`.
 
 ## Validaciones backend
 
@@ -220,7 +254,10 @@ El API comprueba que:
 - el concepto de catálogo pertenece al convenio,
 - la tabla está activa antes de migrar contratos,
 - los contratos pertenecen al convenio de la tabla,
-- existe una fila equivalente para la categoría.
+- existe una fila equivalente para la categoría,
+- las acciones de conceptos pertenecen a contratos seleccionados,
+- solo se desactivan conceptos obsoletos y activos del convenio,
+- los conceptos personalizados y de sistema no reciben acciones automáticas.
 
 No se permite vincular accidentalmente datos de convenios diferentes.
 
@@ -234,6 +271,25 @@ Al cargar conceptos de convenio en un contrato:
 4. se priorizan conceptos de la tabla exacta;
 5. se priorizan conceptos específicos de la categoría;
 6. se evita mezclar ejercicios salariales diferentes.
+
+## Pruebas
+
+Se incluyen pruebas con `unittest` y SQLite en memoria:
+
+`backend/tests/test_salary_table_concept_migration.py`
+
+Ejecución desde `backend`:
+
+```bash
+python -m unittest discover -s tests -p "test_*.py"
+```
+
+Casos cubiertos:
+
+- clasificación de nuevos, modificados, reactivados y obsoletos,
+- conservación de conceptos personalizados,
+- aplicación exacta de acciones seleccionadas,
+- migración conjunta de fila salarial, salario base y conceptos.
 
 ## Validación manual
 
@@ -249,19 +305,21 @@ Al cargar conceptos de convenio en un contrato:
 10. Seleccionar la tabla nueva.
 11. Pulsar `Revisar contratos afectados`.
 12. Comprobar migrables, bloqueados y ya actualizados.
-13. Activar la tabla.
-14. Verificar que la anterior pasa a histórica.
-15. Seleccionar uno o varios contratos migrables.
-16. Decidir si se actualiza también el salario base.
-17. Migrar los contratos seleccionados.
-18. Volver a ejecutar la vista previa.
-19. Comprobar que aparecen como `Ya actualizada`.
-20. Revisar o recargar los conceptos permanentes del contrato.
+13. Revisar la comparación de conceptos.
+14. Mantener seleccionados los cambios recomendados.
+15. Seleccionar expresamente cualquier posible baja que deba desactivarse.
+16. Activar la tabla.
+17. Verificar que la anterior pasa a histórica.
+18. Seleccionar uno o varios contratos migrables.
+19. Decidir si se actualiza también el salario base.
+20. Migrar los contratos seleccionados.
+21. Revisar el resumen de conceptos creados, actualizados, reactivados y desactivados.
+22. Volver a ejecutar la vista previa.
+23. Comprobar que los contratos aparecen como `Ya actualizada`.
 
 ## Pendiente posterior
 
-- Revisión salarial selectiva por concepto o categoría.
-- Actualización controlada de conceptos permanentes durante la migración.
+- Revisión salarial selectiva por categoría antes de duplicar la tabla.
 - Conceptos participantes en pagas extraordinarias.
 - Fórmulas de porcentaje y cálculo por unidad.
 - Histórico de cambios y fecha de publicación de cada revisión.
