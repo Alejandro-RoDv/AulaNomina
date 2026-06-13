@@ -115,6 +115,60 @@ export async function deleteSalaryTableRow(rowId) {
   return deleteRequest(`/collective-agreements/salary-table-rows/${rowId}`, "Error al eliminar fila salarial");
 }
 
+export async function fetchAgreementSeniorityRules(agreementId, includeInactive = false) {
+  const query = includeInactive ? "?include_inactive=true" : "";
+  return apiRequest(
+    `/collective-agreements/${agreementId}/seniority-rules${query}`,
+    {},
+    "Error al cargar las reglas de antigüedad"
+  );
+}
+
+export async function createAgreementSeniorityRule(agreementId, payload) {
+  return jsonRequest(
+    `/collective-agreements/${agreementId}/seniority-rules`,
+    "POST",
+    payload,
+    "Error al crear la regla de antigüedad"
+  );
+}
+
+export async function updateAgreementSeniorityRule(ruleId, payload) {
+  return jsonRequest(
+    `/collective-agreements/seniority-rules/${ruleId}`,
+    "PUT",
+    payload,
+    "Error al actualizar la regla de antigüedad"
+  );
+}
+
+export async function deactivateAgreementSeniorityRule(ruleId) {
+  return deleteRequest(
+    `/collective-agreements/seniority-rules/${ruleId}`,
+    "Error al desactivar la regla de antigüedad"
+  );
+}
+
+export async function fetchAgreementSeniorityPreview(agreementId, asOf, activeContractsOnly = true) {
+  const params = new URLSearchParams();
+  if (asOf) params.set("as_of", asOf);
+  params.set("active_contracts_only", activeContractsOnly ? "true" : "false");
+  return apiRequest(
+    `/collective-agreements/${agreementId}/seniority-preview?${params.toString()}`,
+    {},
+    "Error al calcular los vencimientos de antigüedad"
+  );
+}
+
+export async function fetchContractSeniorityPreview(contractId, asOf) {
+  const query = asOf ? `?as_of=${encodeURIComponent(asOf)}` : "";
+  return apiRequest(
+    `/contracts/${contractId}/seniority-preview${query}`,
+    {},
+    "Error al calcular la antigüedad del contrato"
+  );
+}
+
 export async function createWorkTimeRule(agreementId, payload) {
   return jsonRequest(`/collective-agreements/${agreementId}/work-time-rules`, "POST", payload, "Error al crear regla de jornada");
 }
