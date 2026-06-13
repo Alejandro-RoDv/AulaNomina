@@ -1,12 +1,24 @@
 import { useEffect, useMemo, useState } from "react";
 
 import AgreementCriteriaPanel from "../components/agreements/AgreementCriteriaPanel";
+import AgreementSalaryStructurePanel from "../components/agreements/AgreementSalaryStructurePanel";
 import { fetchCollectiveAgreement } from "../services/collectiveAgreementApi";
 import CollectiveAgreementsManagementPage from "./CollectiveAgreementsPage.jsx";
 
 const MANAGEMENT_TAB_LABELS = {
   seniority: "Antigüedad",
   rules: "Jornada y permisos",
+};
+
+const VIEW_COPY = {
+  criteria: {
+    title: "Criterios laborales del convenio",
+    subtitle: "Parámetros organizados por materia laboral, sin códigos ni estructuras técnicas.",
+  },
+  salary: {
+    title: "Estructura salarial del convenio",
+    subtitle: "Conceptos retributivos versionados por tabla anual y categoría profesional.",
+  },
 };
 
 export default function CollectiveAgreementsWorkspacePage(props) {
@@ -23,7 +35,7 @@ export default function CollectiveAgreementsWorkspacePage(props) {
   }, [agreements, selectedId]);
 
   useEffect(() => {
-    if (view !== "criteria") return;
+    if (view === "management") return;
     if (!selected?.id) {
       setAgreement(null);
       setLoading(false);
@@ -51,21 +63,24 @@ export default function CollectiveAgreementsWorkspacePage(props) {
     }, 0);
   }
 
+  const copy = VIEW_COPY[view];
+
   return (
     <div style={styles.wrapper}>
       <nav style={styles.tabs}>
         <button type="button" onClick={() => setView("management")} style={view === "management" ? styles.tabActive : styles.tab}>Gestión del convenio</button>
+        <button type="button" onClick={() => setView("salary")} style={view === "salary" ? styles.tabActive : styles.tab}>Estructura salarial</button>
         <button type="button" onClick={() => setView("criteria")} style={view === "criteria" ? styles.tabActive : styles.tab}>Criterios laborales</button>
       </nav>
 
       {view === "management" && <CollectiveAgreementsManagementPage {...props} />}
 
-      {view === "criteria" && (
-        <div style={styles.criteriaArea}>
+      {view !== "management" && (
+        <div style={styles.workspaceArea}>
           <section style={styles.header}>
             <div>
-              <h2 style={styles.title}>Criterios laborales del convenio</h2>
-              <p style={styles.subtitle}>Parámetros organizados por materia laboral, sin códigos ni estructuras técnicas.</p>
+              <h2 style={styles.title}>{copy.title}</h2>
+              <p style={styles.subtitle}>{copy.subtitle}</p>
             </div>
             <label style={styles.label}>Convenio
               <select value={selected?.id || ""} onChange={(event) => setSelectedId(event.target.value)} style={styles.select}>
@@ -86,7 +101,8 @@ export default function CollectiveAgreementsWorkspacePage(props) {
                 <Summary label="Sector" value={agreement.sector || "—"} />
                 <Summary label="Ámbito" value={agreement.territorial_scope || "—"} />
               </section>
-              <AgreementCriteriaPanel agreement={agreement} categories={agreement.professional_categories || []} onOpenTab={openManagementTab} />
+              {view === "criteria" && <AgreementCriteriaPanel agreement={agreement} categories={agreement.professional_categories || []} onOpenTab={openManagementTab} />}
+              {view === "salary" && <AgreementSalaryStructurePanel agreement={agreement} />}
             </>
           )}
         </div>
@@ -104,7 +120,7 @@ const styles = {
   tabs: { display: "flex", flexWrap: "wrap", gap: "2px", borderBottom: "1px solid #d1d5db", background: "#fff" },
   tab: { border: 0, borderBottom: "3px solid transparent", background: "transparent", padding: "10px 14px", color: "#4b5563", fontSize: "13px", fontWeight: 750, cursor: "pointer" },
   tabActive: { border: 0, borderBottom: "3px solid #facc15", background: "#fff", padding: "10px 14px", color: "#111827", fontSize: "13px", fontWeight: 850, cursor: "pointer" },
-  criteriaArea: { display: "flex", flexDirection: "column", gap: "10px" },
+  workspaceArea: { display: "flex", flexDirection: "column", gap: "10px" },
   header: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "18px", alignItems: "end", border: "1px solid #e5e7eb", background: "#fff", padding: "14px" },
   title: { margin: 0, fontSize: "20px", fontWeight: 850, color: "#111827" },
   subtitle: { margin: "4px 0 0", color: "#6b7280", fontSize: "12px", fontWeight: 600 },
