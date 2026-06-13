@@ -45,6 +45,7 @@ def build_payroll_breakdown(db: Session, payroll_id: int):
 
         if concept_code.startswith(RETROACTIVE_PREFIX):
             breakdown["regularizaciones_automaticas"].append(item)
+            breakdown["prorratas_automaticas"].append(item)
             breakdown["total_regularizacion_automatica"] += item_amount
             breakdown["total_devengos"] += item_amount
             continue
