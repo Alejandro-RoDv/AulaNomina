@@ -33,9 +33,9 @@ from app.schemas.agreement_contract_sync import (
     AgreementContractSyncRequest,
     AgreementContractSyncResponse,
 )
-from app.schemas.contract import (
+from app.schemas.contract import ContractWorkdaySimulationRequest
+from app.schemas.contract_salary_summary_v2 import (
     ContractSalarySummaryResponse,
-    ContractWorkdaySimulationRequest,
     ContractWorkdaySimulationResponse,
 )
 from app.schemas.payroll_breakdown import PayrollBreakdownResponse
@@ -54,7 +54,7 @@ from app.schemas.payroll_salary_structure import (
 from app.schemas.work_calendar import WorkCalendarCreate, WorkCalendarResponse, WorkCalendarUpdate
 from app.services.agreement_contract_concept_sync import sync_agreement_concepts_to_contract
 from app.services.agreement_parameterization_resolver import build_contract_agreement_parameterization
-from app.services.contract_salary_summary import (
+from app.services.contract_salary_summary_v2 import (
     build_contract_salary_summary,
     simulate_contract_workday_change,
 )
