@@ -165,6 +165,7 @@ class PayrollPrepareResponseItem(BaseModel):
     incident_summary: list[str] = []
     status: str
     gross_salary: Decimal
+    seniority_amount: Decimal = Decimal("0.00")
     extra_pay_proration: Decimal = Decimal("0.00")
     contribution_days: int = 30
     incident_days: int = 0
@@ -219,6 +220,9 @@ class PayrollFutureSimulationItem(BaseModel):
     temporary_disability_benefit: Decimal = Decimal("0.00")
     company_disability_complement: Decimal = Decimal("0.00")
     salary_supplements: Decimal
+    seniority_amount: Decimal = Decimal("0.00")
+    seniority_lines: list[dict] = []
+    seniority_warnings: list[str] = []
     variable_incentives: Decimal
     extra_pay_proration: Decimal = Decimal("0.00")
     extra_pay_proration_source: Optional[str] = None
@@ -278,6 +282,7 @@ class PayrollResponse(BaseModel):
     temporary_disability_benefit: Decimal = Decimal("0.00")
     company_disability_complement: Decimal = Decimal("0.00")
     salary_supplements: Decimal
+    seniority_amount: Decimal = Decimal("0.00")
     variable_incentives: Decimal = Decimal("0.00")
     extra_pay_proration: Decimal
     gross_salary: Decimal
