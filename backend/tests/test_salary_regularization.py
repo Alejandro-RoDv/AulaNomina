@@ -12,9 +12,10 @@ from app.models.company import Company
 from app.models.contract import Contract
 from app.models.employee import Employee
 from app.models.payroll import Payroll
-from app.models.payroll_salary_structure import PayrollConcept, PayrollItem
+from app.models.payroll_salary_structure import PayrollItem
 from app.schemas.salary_regularization import SalaryRegularizationGenerateRequest, SalaryRegularizationPreviewRequest
 from app.services.salary_regularization import build_salary_regularization_preview, generate_salary_regularizations
+from app.services.salary_regularization_guard import build_guarded_salary_regularization_preview
 
 
 class SalaryRegularizationTest(unittest.TestCase):
@@ -187,9 +188,10 @@ class SalaryRegularizationTest(unittest.TestCase):
         self.assertEqual(item["lines"][1]["remuneration_ratio"], Decimal("0.5000"))
 
     def test_generate_complementary_payroll_and_block_duplicate(self):
+        payload_data = self.preview_payload().model_dump()
+        payload_data["contract_ids"] = [self.contract.id]
         payload = SalaryRegularizationGenerateRequest(
-            **self.preview_payload().model_dump(),
-            contract_ids=[self.contract.id],
+            **payload_data,
             irpf_mode="manual",
             irpf_percentage=Decimal("0.00"),
             status="pending",
@@ -204,6 +206,16 @@ class SalaryRegularizationTest(unittest.TestCase):
         self.assertEqual(len(items), 2)
         self.assertTrue(all(item.concept.code.startswith("RETRO_TABLE_") for item in items))
         self.assertTrue(all(item.concept.concept_type == "BASE_INFORMATIVA" for item in items))
+
+        guarded = build_guarded_salary_regularization_preview(
+            self.db,
+            self.target.id,
+            self.preview_payload(),
+        )
+        self.assertEqual(guarded["eligible_contracts"], 0)
+        self.assertEqual(guarded["blocked_contracts"], 1)
+        self.assertEqual(guarded["total_difference"], Decimal("0.00"))
+        self.assertIn("complementaria activa", guarded["contracts"][0]["reason"])
 
         duplicate = generate_salary_regularizations(self.db, self.target.id, payload)
         self.assertEqual(duplicate["generated_payrolls"], 0)
