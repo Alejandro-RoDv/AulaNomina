@@ -20,6 +20,12 @@ function getMonthLabel(month) {
   return MONTH_OPTIONS.find((item) => Number(item.value) === Number(month))?.label || String(month).padStart(2, "0");
 }
 
+function getProrationSourceLabel(source) {
+  if (source === "configured") return "Convenio";
+  if (source === "legacy") return "Histórica";
+  return "No aplica";
+}
+
 function buildEmptyIncentive() {
   return {
     period_month: "9",
@@ -49,7 +55,9 @@ export default function FuturePayrollSimulator({ employees = [], contracts = [] 
 
   const activeContracts = useMemo(() => {
     if (!form.employee_id) return [];
-    return contracts.filter((contract) => String(contract.employee_id) === String(form.employee_id) && contract.status === "active");
+    return contracts.filter(
+      (contract) => String(contract.employee_id) === String(form.employee_id) && contract.status === "active"
+    );
   }, [contracts, form.employee_id]);
 
   const totals = useMemo(() => {
@@ -57,11 +65,12 @@ export default function FuturePayrollSimulator({ employees = [], contracts = [] 
     return items.reduce(
       (acc, item) => ({
         gross: acc.gross + Number(item.gross_salary || 0),
+        proration: acc.proration + Number(item.extra_pay_proration || 0),
         ss: acc.ss + Number(item.employee_social_security || 0),
         irpf: acc.irpf + Number(item.irpf || 0),
         net: acc.net + Number(item.net_salary || 0),
       }),
-      { gross: 0, ss: 0, irpf: 0, net: 0 }
+      { gross: 0, proration: 0, ss: 0, irpf: 0, net: 0 }
     );
   }, [result]);
 
@@ -91,18 +100,26 @@ export default function FuturePayrollSimulator({ employees = [], contracts = [] 
   };
 
   const addIncentive = () => {
-    setForm((prev) => ({ ...prev, incentives: [...prev.incentives, { ...buildEmptyIncentive(), period_year: prev.period_year }] }));
+    setForm((prev) => ({
+      ...prev,
+      incentives: [...prev.incentives, { ...buildEmptyIncentive(), period_year: prev.period_year }],
+    }));
   };
 
   const updateIncentive = (index, field, value) => {
     setForm((prev) => ({
       ...prev,
-      incentives: prev.incentives.map((item, currentIndex) => currentIndex === index ? { ...item, [field]: value } : item),
+      incentives: prev.incentives.map((item, currentIndex) =>
+        currentIndex === index ? { ...item, [field]: value } : item
+      ),
     }));
   };
 
   const removeIncentive = (index) => {
-    setForm((prev) => ({ ...prev, incentives: prev.incentives.filter((_, currentIndex) => currentIndex !== index) }));
+    setForm((prev) => ({
+      ...prev,
+      incentives: prev.incentives.filter((_, currentIndex) => currentIndex !== index),
+    }));
   };
 
   const handleSubmit = async (event) => {
@@ -114,7 +131,6 @@ export default function FuturePayrollSimulator({ employees = [], contracts = [] 
       setError("Selecciona trabajador y contrato activo");
       return;
     }
-
     if (!form.periods.length) {
       setError("Selecciona al menos un mes para simular");
       return;
@@ -242,6 +258,7 @@ export default function FuturePayrollSimulator({ employees = [], contracts = [] 
         <div style={styles.results}>
           <div style={styles.kpiGrid}>
             <div style={styles.kpi}><span>Bruto previsto</span><strong>{formatCurrency(totals.gross)}</strong></div>
+            <div style={styles.kpi}><span>Prorrata prevista</span><strong>{formatCurrency(totals.proration)}</strong></div>
             <div style={styles.kpi}><span>Seguridad Social</span><strong>{formatCurrency(totals.ss)}</strong></div>
             <div style={styles.kpi}><span>IRPF previsto</span><strong>{formatCurrency(totals.irpf)}</strong></div>
             <div style={styles.kpi}><span>Neto previsto</span><strong>{formatCurrency(totals.net)}</strong></div>
@@ -254,6 +271,8 @@ export default function FuturePayrollSimulator({ employees = [], contracts = [] 
                   <th style={styles.th}>Periodo</th>
                   <th style={styles.thAmount}>Base</th>
                   <th style={styles.thAmount}>Variables</th>
+                  <th style={styles.thAmount}>Prorrata extra</th>
+                  <th style={styles.th}>Origen</th>
                   <th style={styles.thAmount}>Bruto</th>
                   <th style={styles.thAmount}>SS</th>
                   <th style={styles.thAmount}>IRPF %</th>
@@ -267,6 +286,8 @@ export default function FuturePayrollSimulator({ employees = [], contracts = [] 
                     <td style={styles.tdStrong}>{getMonthLabel(item.period_month)} {item.period_year}</td>
                     <td style={styles.tdAmount}>{formatCurrency(item.base_salary)}</td>
                     <td style={styles.tdAmount}>{formatCurrency(item.salary_supplements)}</td>
+                    <td style={styles.tdAmount}>{formatCurrency(item.extra_pay_proration)}</td>
+                    <td style={styles.td}>{getProrationSourceLabel(item.extra_pay_proration_source)}</td>
                     <td style={styles.tdAmount}>{formatCurrency(item.gross_salary)}</td>
                     <td style={styles.tdAmount}>{formatCurrency(item.employee_social_security)}</td>
                     <td style={styles.tdAmount}>{formatPercent(item.irpf_percentage)}</td>
@@ -275,7 +296,7 @@ export default function FuturePayrollSimulator({ employees = [], contracts = [] 
                   </tr>
                 ))}
                 {result.items.length === 0 && (
-                  <tr><td colSpan="8" style={styles.td}>No hay periodos válidos para este contrato.</td></tr>
+                  <tr><td colSpan="10" style={styles.td}>No hay periodos válidos para este contrato.</td></tr>
                 )}
               </tbody>
             </table>
@@ -307,10 +328,10 @@ const styles = {
   warning: { backgroundColor: "#fef3c7", color: "#92400e", padding: "10px 12px", borderRadius: "8px", fontWeight: 800 },
   error: { backgroundColor: "#fee2e2", color: "#991b1b", padding: "10px 12px", borderRadius: "8px", fontWeight: 800 },
   results: { display: "flex", flexDirection: "column", gap: "14px" },
-  kpiGrid: { display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: "12px" },
+  kpiGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: "12px" },
   kpi: { border: "2px solid #111", backgroundColor: "#fff", boxShadow: "3px 3px 0 #f5ef9c", padding: "12px", display: "flex", flexDirection: "column", gap: "5px" },
   tableWrapper: { overflowX: "auto", width: "100%" },
-  table: { width: "100%", minWidth: "920px", borderCollapse: "collapse" },
+  table: { width: "100%", minWidth: "1120px", borderCollapse: "collapse" },
   th: { textAlign: "left", padding: "10px", borderBottom: "2px solid #111", backgroundColor: "#f8f3b5", fontWeight: 900 },
   thAmount: { textAlign: "right", padding: "10px", borderBottom: "2px solid #111", backgroundColor: "#f8f3b5", fontWeight: 900 },
   td: { padding: "10px", borderBottom: "1px solid #e5e7eb" },
