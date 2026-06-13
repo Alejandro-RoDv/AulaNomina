@@ -8,6 +8,7 @@ PAYROLL_CONTRIBUTION_COLUMNS = {
     "worked_base_salary": "NUMERIC(10, 2) DEFAULT 0 NOT NULL",
     "temporary_disability_benefit": "NUMERIC(10, 2) DEFAULT 0 NOT NULL",
     "company_disability_complement": "NUMERIC(10, 2) DEFAULT 0 NOT NULL",
+    "seniority_amount": "NUMERIC(10, 2) DEFAULT 0 NOT NULL",
     "contribution_days": "INTEGER DEFAULT 30 NOT NULL",
     "worked_days": "INTEGER DEFAULT 30 NOT NULL",
     "incident_days": "INTEGER DEFAULT 0 NOT NULL",
@@ -281,6 +282,7 @@ def add_missing_payroll_contribution_columns() -> None:
                         worked_base_salary = COALESCE(NULLIF(worked_base_salary, 0), base_salary, gross_salary, 0),
                         temporary_disability_benefit = COALESCE(temporary_disability_benefit, 0),
                         company_disability_complement = COALESCE(company_disability_complement, 0),
+                        seniority_amount = COALESCE(seniority_amount, 0),
                         daily_common_base = COALESCE(daily_common_base, 0),
                         daily_professional_base = COALESCE(daily_professional_base, 0)
                     """
@@ -300,6 +302,7 @@ def add_missing_payroll_contribution_columns() -> None:
                     worked_base_salary = COALESCE(NULLIF(worked_base_salary, 0), base_salary, gross_salary, 0),
                     temporary_disability_benefit = COALESCE(temporary_disability_benefit, 0),
                     company_disability_complement = COALESCE(company_disability_complement, 0),
+                    seniority_amount = COALESCE(seniority_amount, 0),
                     daily_common_base = COALESCE(
                         NULLIF(daily_common_base, 0),
                         ROUND(
