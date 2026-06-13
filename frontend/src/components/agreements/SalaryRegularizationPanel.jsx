@@ -76,8 +76,6 @@ export default function SalaryRegularizationPanel({ agreement, onGenerated }) {
     [tables, form.target_table_id]
   );
 
-  const eligibleContracts = preview?.contracts?.filter((item) => item.eligibility === "eligible") || [];
-
   function buildPayload(contractIds = []) {
     return {
       source_table_id: Number(form.source_table_id),
@@ -92,23 +90,26 @@ export default function SalaryRegularizationPanel({ agreement, onGenerated }) {
     };
   }
 
-  async function handlePreview(event) {
-    event?.preventDefault();
+  async function loadPreview({ clearResult = true } = {}) {
     if (!form.source_table_id || !form.target_table_id) {
-      setError("Selecciona una tabla de origen y otra de destino.");
-      return;
+      throw new Error("Selecciona una tabla de origen y otra de destino.");
     }
     if (form.source_table_id === form.target_table_id) {
-      setError("La tabla de origen y la tabla de destino deben ser distintas.");
-      return;
+      throw new Error("La tabla de origen y la tabla de destino deben ser distintas.");
     }
+    if (clearResult) setResult(null);
+    const data = await previewSalaryRegularization(form.target_table_id, buildPayload());
+    setPreview(data);
+    setSelectedIds(data.contracts.filter((item) => item.eligibility === "eligible").map((item) => item.contract_id));
+    return data;
+  }
+
+  async function handlePreview(event) {
+    event?.preventDefault();
     setLoading(true);
     setError("");
-    setResult(null);
     try {
-      const data = await previewSalaryRegularization(form.target_table_id, buildPayload());
-      setPreview(data);
-      setSelectedIds(data.contracts.filter((item) => item.eligibility === "eligible").map((item) => item.contract_id));
+      await loadPreview();
     } catch (err) {
       setError(err.message || "No se pudo calcular la regularización.");
       setPreview(null);
@@ -138,9 +139,15 @@ export default function SalaryRegularizationPanel({ agreement, onGenerated }) {
           ? Number(form.irpf_percentage)
           : null,
       });
-      setResult(data);
       await onGenerated?.(data);
-      await handlePreview();
+      try {
+        await loadPreview({ clearResult: false });
+        setSelectedIds([]);
+      } catch {
+        setPreview(null);
+        setSelectedIds([]);
+      }
+      setResult(data);
     } catch (err) {
       setError(err.message || "No se pudieron generar las nóminas complementarias.");
     } finally {
