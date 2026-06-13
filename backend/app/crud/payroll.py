@@ -36,7 +36,6 @@ PERSISTED_PAYROLL_AMOUNT_KEYS = {
     "worked_base_salary",
     "temporary_disability_benefit",
     "company_disability_complement",
-    "seniority_amount",
     "contribution_days",
     "worked_days",
     "incident_days",
