@@ -38,12 +38,12 @@ from app.schemas.contract import (
     ContractWorkdaySimulationRequest,
     ContractWorkdaySimulationResponse,
 )
+from app.schemas.payroll_breakdown import PayrollBreakdownResponse
 from app.schemas.payroll_salary_structure import (
     ContractPayrollConceptCreate,
     ContractPayrollConceptResponse,
     ContractPayrollConceptUpdate,
     LoadContractConceptsResponse,
-    PayrollBreakdownResponse,
     PayrollConceptCreate,
     PayrollConceptResponse,
     PayrollConceptUpdate,
