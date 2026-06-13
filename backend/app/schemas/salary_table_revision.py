@@ -17,6 +17,7 @@ class SalaryTableRevisionRequest(BaseModel):
     copy_rows: bool = True
     copy_concepts: bool = True
     copy_extra_pays: bool = True
+    copy_seniority_rules: bool = True
     increase_non_salary: bool = False
     mark_source_historical: bool = False
     notes: Optional[str] = None
@@ -52,6 +53,7 @@ class SalaryTableRevisionResponse(BaseModel):
     copied_concepts: int = 0
     copied_extra_pays: int = 0
     copied_extra_pay_lines: int = 0
+    copied_seniority_rules: int = 0
     increased_rows: int = 0
     increased_concepts: int = 0
     increment_percentage: Decimal = Decimal("0.00")
