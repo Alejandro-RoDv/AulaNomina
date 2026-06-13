@@ -40,3 +40,11 @@ class AgreementSeniorityRule(Base):
     collective_agreement = relationship("CollectiveAgreement")
     salary_table = relationship("SalaryTable")
     professional_category = relationship("ProfessionalCategory")
+
+    @property
+    def salary_table_name(self):
+        return self.salary_table.name if self.salary_table else None
+
+    @property
+    def professional_category_name(self):
+        return self.professional_category.name if self.professional_category else None
