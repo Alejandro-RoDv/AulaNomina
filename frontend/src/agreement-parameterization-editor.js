@@ -6,7 +6,8 @@ function selectedAgreementId() {
 }
 
 function modalBody() {
-  return document.querySelector("[data-agreement-parameterization-modal='true'] section > div");
+  return document.querySelector("[data-agreement-parameterization-modal='true'] [data-parameterization-modal-body='true']")
+    || document.querySelector("[data-agreement-parameterization-modal='true'] section > div");
 }
 
 async function postJson(path, payload) {
@@ -58,20 +59,25 @@ function ensureEditor() {
   const box = document.createElement("div");
   box.dataset.parameterizationEditor = "true";
   box.style.display = "flex";
+  box.style.flexWrap = "wrap";
   box.style.gap = "8px";
   box.style.alignItems = "center";
   box.style.margin = "0 0 14px";
   box.style.padding = "10px";
   box.style.border = "1px solid #e5e7eb";
   box.style.background = "#f9fafb";
-  box.innerHTML = `<strong style="font-size:13px;color:#111827;margin-right:auto;">Edición rápida</strong><button type="button" data-new-rule>+ Regla</button><button type="button" data-new-catalog>+ Concepto catálogo</button>`;
+  box.style.minWidth = "0";
+  box.style.boxSizing = "border-box";
+  box.innerHTML = `<strong style="font-size:13px;color:#111827;margin-right:auto;min-width:160px;">Edición rápida</strong><button type="button" data-new-rule>+ Regla</button><button type="button" data-new-catalog>+ Concepto catálogo</button>`;
   box.querySelectorAll("button").forEach((button) => {
-    button.style.height = "30px";
+    button.style.minHeight = "30px";
     button.style.border = "1px solid #111827";
     button.style.background = "#111827";
     button.style.color = "#fff";
     button.style.fontWeight = "800";
     button.style.cursor = "pointer";
+    button.style.padding = "5px 9px";
+    button.style.whiteSpace = "normal";
   });
   box.querySelector("[data-new-rule]")?.addEventListener("click", () => createRule().catch((error) => window.alert(error.message)));
   box.querySelector("[data-new-catalog]")?.addEventListener("click", () => createCatalogItem().catch((error) => window.alert(error.message)));
