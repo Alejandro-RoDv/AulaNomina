@@ -1,6 +1,7 @@
 from copy import copy
 from decimal import Decimal
 
+from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.models.contract import Contract
@@ -118,7 +119,7 @@ def simulate_contract_workday_change(db: Session, contract_id: int, request: Con
             money(full_time_weekly_hours * decimal_or_zero(request.target_partiality_coefficient) / Decimal("100"))
         )
     else:
-        raise ValueError("Indica una parcialidad objetivo o unas horas semanales objetivo")
+        raise HTTPException(status_code=400, detail="Indica una parcialidad objetivo o unas horas semanales objetivo")
 
     simulated_contract.monthly_hours = None
     simulated_contract.annual_hours = None
