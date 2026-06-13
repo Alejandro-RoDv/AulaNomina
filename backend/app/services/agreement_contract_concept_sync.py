@@ -85,10 +85,24 @@ def _concept_code(agreement_id: int, semantic_key: str, agreement_concept: Agree
 
 
 def _candidate_priority(candidate: dict, contract: Contract) -> tuple:
-    category_specific = candidate.get("professional_category_id") is not None and candidate.get("professional_category_id") == contract.professional_category_id
+    salary_table_id = contract.salary_table_row.salary_table_id if contract.salary_table_row else None
+    category_specific = (
+        candidate.get("professional_category_id") is not None
+        and candidate.get("professional_category_id") == contract.professional_category_id
+    )
+    table_specific = (
+        candidate.get("salary_table_id") is not None
+        and salary_table_id is not None
+        and candidate.get("salary_table_id") == salary_table_id
+    )
     has_amount = _decimal(candidate.get("amount")) != Decimal("0.00")
     is_parameterized = candidate.get("source") == "agreement_salary_concept"
-    return (1 if has_amount else 0, 1 if category_specific else 0, 1 if is_parameterized else 0)
+    return (
+        1 if has_amount else 0,
+        1 if table_specific else 0,
+        1 if category_specific else 0,
+        1 if is_parameterized else 0,
+    )
 
 
 def _resolve_salary_table_row(db: Session, contract: Contract) -> bool:
@@ -120,6 +134,32 @@ def _resolve_salary_table_row(db: Session, contract: Contract) -> bool:
     return True
 
 
+def _load_agreement_concepts(db: Session, contract: Contract) -> list[AgreementSalaryConcept]:
+    salary_table_id = contract.salary_table_row.salary_table_id if contract.salary_table_row else None
+    query = (
+        db.query(AgreementSalaryConcept)
+        .options(joinedload(AgreementSalaryConcept.catalog_concept))
+        .filter(
+            AgreementSalaryConcept.collective_agreement_id == contract.collective_agreement_id,
+            AgreementSalaryConcept.is_active == True,
+            or_(
+                AgreementSalaryConcept.professional_category_id.is_(None),
+                AgreementSalaryConcept.professional_category_id == contract.professional_category_id,
+            ),
+        )
+    )
+    if salary_table_id:
+        query = query.filter(
+            or_(
+                AgreementSalaryConcept.salary_table_id.is_(None),
+                AgreementSalaryConcept.salary_table_id == salary_table_id,
+            )
+        )
+    else:
+        query = query.filter(AgreementSalaryConcept.salary_table_id.is_(None))
+    return query.all()
+
+
 def _build_candidates(contract: Contract, agreement_concepts: list[AgreementSalaryConcept]) -> dict[str, dict]:
     candidates: dict[str, dict] = {}
 
@@ -135,6 +175,7 @@ def _build_candidates(contract: Contract, agreement_concepts: list[AgreementSala
             "calculation_type": item.calculation_type,
             "payment_type": item.payment_type,
             "cra_code": item.cra_code,
+            "salary_table_id": item.salary_table_id,
             "professional_category_id": item.professional_category_id,
             "source": "agreement_salary_concept",
             "agreement_concept": item,
@@ -161,9 +202,10 @@ def _build_candidates(contract: Contract, agreement_concepts: list[AgreementSala
                 "character": character,
                 "contributes": True,
                 "taxable": True,
-                "calculation_type": "manual",
+                "calculation_type": "importe_fijo",
                 "payment_type": "mensual",
                 "cra_code": None,
+                "salary_table_id": salary_row.salary_table_id,
                 "professional_category_id": contract.professional_category_id,
                 "source": "salary_table_row",
                 "agreement_concept": None,
@@ -232,22 +274,10 @@ def sync_agreement_concepts_to_contract(
         raise HTTPException(status_code=400, detail="El contrato no tiene un convenio colectivo vinculado")
 
     salary_table_row_linked = _resolve_salary_table_row(db, contract)
-
-    agreement_concepts = (
-        db.query(AgreementSalaryConcept)
-        .options(joinedload(AgreementSalaryConcept.catalog_concept))
-        .filter(
-            AgreementSalaryConcept.collective_agreement_id == contract.collective_agreement_id,
-            AgreementSalaryConcept.is_active == True,
-            or_(
-                AgreementSalaryConcept.professional_category_id.is_(None),
-                AgreementSalaryConcept.professional_category_id == contract.professional_category_id,
-            ),
-        )
-        .all()
-    )
-
+    salary_table_id = contract.salary_table_row.salary_table_id if contract.salary_table_row else None
+    agreement_concepts = _load_agreement_concepts(db, contract)
     candidates = _build_candidates(contract, agreement_concepts)
+
     warnings: list[str] = []
     imported_names: list[str] = []
     salary_base_updated = False
@@ -276,7 +306,7 @@ def sync_agreement_concepts_to_contract(
             salary_base_preserved = True
             warnings.append("Se conserva el salario base actual del contrato. No se ha sobrescrito.")
     elif _decimal(contract.salary_base) == Decimal("0.00"):
-        warnings.append("No se encontró un salario base aplicable en la parametrización o tabla salarial del convenio.")
+        warnings.append("No se encontró un salario base aplicable en la tabla salarial del convenio.")
 
     for display_order, candidate in enumerate(candidates.values(), start=10):
         amount = _decimal(candidate.get("amount"))
@@ -294,6 +324,7 @@ def sync_agreement_concepts_to_contract(
         )
         source_note = (
             f"Importado desde {contract.collective_agreement.name if contract.collective_agreement else 'convenio'}; "
+            f"tabla salarial {candidate.get('salary_table_id') or 'general'}; "
             f"origen {candidate['source']}; clave {candidate['semantic_key']}."
         )
 
@@ -348,6 +379,7 @@ def sync_agreement_concepts_to_contract(
         "agreement_id": contract.collective_agreement_id,
         "agreement_name": contract.collective_agreement.name if contract.collective_agreement else None,
         "professional_category_id": contract.professional_category_id,
+        "salary_table_id": salary_table_id,
         "salary_table_row_id": contract.salary_table_row_id,
         "salary_table_row_linked": salary_table_row_linked,
         "agreement_salary_concepts_found": len(agreement_concepts),
