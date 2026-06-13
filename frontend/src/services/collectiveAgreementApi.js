@@ -68,6 +68,15 @@ export async function createSalaryTable(agreementId, payload) {
   return jsonRequest(`/collective-agreements/${agreementId}/salary-tables`, "POST", payload, "Error al crear tabla salarial");
 }
 
+export async function duplicateSalaryTableRevision(sourceTableId, payload) {
+  return jsonRequest(
+    `/collective-agreements/salary-tables/${sourceTableId}/duplicate`,
+    "POST",
+    payload,
+    "Error al crear la revisión de la tabla salarial"
+  );
+}
+
 export async function updateSalaryTable(salaryTableId, payload) {
   return jsonRequest(`/collective-agreements/salary-tables/${salaryTableId}`, "PUT", payload, "Error al actualizar tabla salarial");
 }
