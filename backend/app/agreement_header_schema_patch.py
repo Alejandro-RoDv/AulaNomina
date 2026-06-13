@@ -16,6 +16,10 @@ AGREEMENT_RULE_DETAIL_COLUMNS = {
     "maximum_value": "NUMERIC(10, 2)",
 }
 
+AGREEMENT_SALARY_CONCEPT_COLUMNS = {
+    "salary_table_id": "INTEGER",
+}
+
 
 def add_missing_collective_agreement_header_columns() -> None:
     inspector = inspect(engine)
@@ -29,6 +33,11 @@ def add_missing_collective_agreement_header_columns() -> None:
         if "agreement_rule_details" in table_names
         else set()
     )
+    salary_concept_columns = (
+        {column["name"] for column in inspector.get_columns("agreement_salary_concepts")}
+        if "agreement_salary_concepts" in table_names
+        else set()
+    )
 
     with engine.begin() as connection:
         for column_name, column_definition in AGREEMENT_HEADER_COLUMNS.items():
@@ -39,6 +48,11 @@ def add_missing_collective_agreement_header_columns() -> None:
             for column_name, column_definition in AGREEMENT_RULE_DETAIL_COLUMNS.items():
                 if column_name not in detail_columns:
                     connection.execute(text("ALTER TABLE agreement_rule_details ADD COLUMN " + column_name + " " + column_definition))
+
+        if salary_concept_columns:
+            for column_name, column_definition in AGREEMENT_SALARY_CONCEPT_COLUMNS.items():
+                if column_name not in salary_concept_columns:
+                    connection.execute(text("ALTER TABLE agreement_salary_concepts ADD COLUMN " + column_name + " " + column_definition))
 
         connection.execute(
             text(
