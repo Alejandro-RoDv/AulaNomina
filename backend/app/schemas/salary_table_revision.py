@@ -31,9 +31,9 @@ class SalaryTableRevisionRequest(BaseModel):
     @field_validator("status")
     @classmethod
     def validate_status(cls, value: str):
-        allowed = {"draft", "active", "historical", "pending_review"}
+        allowed = {"draft", "historical", "pending_review"}
         if value not in allowed:
-            raise ValueError("Estado de tabla salarial no válido")
+            raise ValueError("La activación debe realizarse desde el flujo controlado de tablas salariales")
         return value
 
     @model_validator(mode="after")
