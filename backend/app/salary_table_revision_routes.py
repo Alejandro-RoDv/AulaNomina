@@ -1,8 +1,19 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.db import SessionLocal
+from app.schemas.salary_table_activation import (
+    SalaryTableActivationPreviewResponse,
+    SalaryTableActivationResponse,
+    SalaryTableContractMigrationRequest,
+    SalaryTableContractMigrationResponse,
+)
 from app.schemas.salary_table_revision import SalaryTableRevisionRequest, SalaryTableRevisionResponse
+from app.services.salary_table_activation import (
+    activate_salary_table,
+    build_salary_table_activation_preview,
+    migrate_contracts_to_salary_table,
+)
 from app.services.salary_table_revision import duplicate_salary_table_revision
 
 
@@ -27,3 +38,26 @@ def duplicate_salary_table_revision_endpoint(
     db: Session = Depends(get_db),
 ):
     return duplicate_salary_table_revision(db, source_table_id, payload)
+
+
+@router.get("/{table_id}/activation-preview", response_model=SalaryTableActivationPreviewResponse)
+def salary_table_activation_preview_endpoint(
+    table_id: int,
+    active_contracts_only: bool = Query(default=True),
+    db: Session = Depends(get_db),
+):
+    return build_salary_table_activation_preview(db, table_id, active_only=active_contracts_only)
+
+
+@router.post("/{table_id}/activate", response_model=SalaryTableActivationResponse)
+def activate_salary_table_endpoint(table_id: int, db: Session = Depends(get_db)):
+    return activate_salary_table(db, table_id)
+
+
+@router.post("/{table_id}/migrate-contracts", response_model=SalaryTableContractMigrationResponse)
+def migrate_contracts_to_salary_table_endpoint(
+    table_id: int,
+    payload: SalaryTableContractMigrationRequest,
+    db: Session = Depends(get_db),
+):
+    return migrate_contracts_to_salary_table(db, table_id, payload)
