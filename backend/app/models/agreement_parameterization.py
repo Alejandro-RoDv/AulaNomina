@@ -11,11 +11,11 @@ class AgreementConceptCatalog(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     collective_agreement_id = Column(Integer, ForeignKey("collective_agreements.id"), nullable=False, index=True)
-    catalog_type = Column(String, nullable=False, index=True)  # salary, non_salary, deduction
+    catalog_type = Column(String, nullable=False, index=True)
     code = Column(String, nullable=True, index=True)
     name = Column(String, nullable=False)
     description = Column(Text, nullable=True)
-    default_nature = Column(String, nullable=True)  # salarial, no_salarial, deduccion
+    default_nature = Column(String, nullable=True)
     default_payment_type = Column(String, nullable=True)
     default_calculation_type = Column(String, nullable=True)
     default_contributes = Column(Boolean, default=True, nullable=False)
@@ -33,14 +33,15 @@ class AgreementSalaryConcept(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     collective_agreement_id = Column(Integer, ForeignKey("collective_agreements.id"), nullable=False, index=True)
+    salary_table_id = Column(Integer, ForeignKey("salary_tables.id"), nullable=True, index=True)
     professional_category_id = Column(Integer, ForeignKey("professional_categories.id"), nullable=True, index=True)
     concept_catalog_id = Column(Integer, ForeignKey("agreement_concept_catalog.id"), nullable=True)
-    character = Column(String, nullable=False, default="salarial")  # salarial, no_salarial, deduccion
+    character = Column(String, nullable=False, default="salarial")
     name = Column(String, nullable=False)
-    scope = Column(String, nullable=False, default="global")  # global, specific
+    scope = Column(String, nullable=False, default="global")
     amount = Column(Numeric(10, 2), nullable=True)
-    payment_type = Column(String, nullable=True)  # mensual, anual, julio, diciembre, diario, trienio, otro
-    calculation_type = Column(String, nullable=False, default="manual")  # automatico, manual, sin_definir
+    payment_type = Column(String, nullable=True)
+    calculation_type = Column(String, nullable=False, default="manual")
     contributes = Column(Boolean, default=True, nullable=False)
     taxable = Column(Boolean, default=True, nullable=False)
     cra_code = Column(String, nullable=True)
@@ -49,6 +50,7 @@ class AgreementSalaryConcept(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
+    salary_table = relationship("SalaryTable")
     catalog_concept = relationship("AgreementConceptCatalog")
     professional_category = relationship("ProfessionalCategory")
 
