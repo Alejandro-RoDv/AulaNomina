@@ -363,7 +363,7 @@ export default function PayrollDetailsModal({
   const irpfPercentage = calculatePercentage(payroll.irpf, payroll.irpf_base || payroll.gross_salary);
   const receiptGross = manualData.hasManualItems ? manualData.totalDevengos : Number(payroll.gross_salary || 0);
   const receiptDeductions = manualData.hasManualItems
-    ? manualData.totalDeductions + manualData.irpfManual
+    ? manualData.totalDeducciones + manualData.irpfManual
     : Number(payroll.total_deductions || 0);
   const receiptNet = manualData.hasManualItems
     ? manualData.netoManualConIrpf
