@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from app.crud.payroll_salary_structure import ensure_payroll_exists, get_payroll_items
 from app.services.monthly_extra_pay_proration import PRORATION_CONCEPT_PREFIX
 from app.services.payroll_amounts import money
+from app.services.seniority_payroll_items import SENIORITY_CONCEPT_PREFIX
 
 
 AUTOMATIC_EXTRA_PREFIXES = (PRORATION_CONCEPT_PREFIX, "EXTRA_")
@@ -21,11 +22,13 @@ def build_payroll_breakdown(db: Session, payroll_id: int):
         "devengos_salariales": [],
         "devengos_extrasalariales": [],
         "prorratas_automaticas": [],
+        "antiguedad_automatica": [],
         "regularizaciones_automaticas": [],
         "deducciones": [],
         "bases_informativas": [],
         "total_devengos": Decimal("0.00"),
         "total_prorrata_automatica": Decimal("0.00"),
+        "total_antiguedad_automatica": Decimal("0.00"),
         "total_regularizacion_automatica": Decimal("0.00"),
         "total_deducciones": Decimal("0.00"),
         "base_irpf_manual": Decimal("0.00"),
@@ -47,6 +50,13 @@ def build_payroll_breakdown(db: Session, payroll_id: int):
             breakdown["regularizaciones_automaticas"].append(item)
             breakdown["prorratas_automaticas"].append(item)
             breakdown["total_regularizacion_automatica"] += item_amount
+            breakdown["total_devengos"] += item_amount
+            continue
+
+        if concept_code.startswith(SENIORITY_CONCEPT_PREFIX):
+            breakdown["antiguedad_automatica"].append(item)
+            breakdown["prorratas_automaticas"].append(item)
+            breakdown["total_antiguedad_automatica"] += item_amount
             breakdown["total_devengos"] += item_amount
             continue
 
@@ -74,6 +84,7 @@ def build_payroll_breakdown(db: Session, payroll_id: int):
 
     breakdown["total_devengos"] = money(breakdown["total_devengos"])
     breakdown["total_prorrata_automatica"] = money(breakdown["total_prorrata_automatica"])
+    breakdown["total_antiguedad_automatica"] = money(breakdown["total_antiguedad_automatica"])
     breakdown["total_regularizacion_automatica"] = money(breakdown["total_regularizacion_automatica"])
     breakdown["total_deducciones"] = money(breakdown["total_deducciones"])
     breakdown["base_irpf_manual"] = money(breakdown["base_irpf_manual"])
