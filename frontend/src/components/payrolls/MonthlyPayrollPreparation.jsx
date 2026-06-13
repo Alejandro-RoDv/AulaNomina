@@ -35,14 +35,19 @@ export default function MonthlyPayrollPreparation({ companies, workCenters, onPr
   const activeCompanies = companies.filter((company) => company.is_active);
 
   const filteredCenters = useMemo(() => {
-    if (form.company_ids.length !== 1) {
-      return [];
-    }
-
+    if (form.company_ids.length !== 1) return [];
     return workCenters.filter(
       (center) => center.is_active && String(center.company_id) === String(form.company_ids[0])
     );
   }, [form.company_ids, workCenters]);
+
+  const totalProration = useMemo(
+    () => (result?.payrolls || []).reduce(
+      (total, item) => total + Number(item.extra_pay_proration || 0),
+      0
+    ),
+    [result]
+  );
 
   const handleCompanyToggle = (companyId) => {
     setForm((prev) => {
@@ -50,7 +55,6 @@ export default function MonthlyPayrollPreparation({ companies, workCenters, onPr
       const nextCompanyIds = alreadySelected
         ? prev.company_ids.filter((id) => id !== companyId)
         : [...prev.company_ids, companyId];
-
       return {
         ...prev,
         company_ids: nextCompanyIds,
@@ -80,10 +84,8 @@ export default function MonthlyPayrollPreparation({ companies, workCenters, onPr
     event.preventDefault();
     setError("");
     setResult(null);
-
     try {
       setSubmitting(true);
-
       const data = await prepareMonthlyPayrolls({
         company_ids: form.company_ids.map(Number),
         center_id: form.center_id ? Number(form.center_id) : null,
@@ -91,11 +93,8 @@ export default function MonthlyPayrollPreparation({ companies, workCenters, onPr
         period_year: Number(form.period_year),
         status: "pending",
       });
-
       setResult(data);
-      if (onPrepared) {
-        await onPrepared(data);
-      }
+      if (onPrepared) await onPrepared(data);
     } catch (err) {
       setError(err.message || "Error al preparar nóminas");
     } finally {
@@ -182,18 +181,10 @@ export default function MonthlyPayrollPreparation({ companies, workCenters, onPr
       {result && (
         <section style={styles.resultBox}>
           <div style={styles.summaryGrid}>
-            <div style={styles.summaryItem}>
-              <span>Creadas</span>
-              <strong>{result.created_count}</strong>
-            </div>
-            <div style={styles.summaryItem}>
-              <span>Ya existían</span>
-              <strong>{result.existing_count}</strong>
-            </div>
-            <div style={styles.summaryItem}>
-              <span>Omitidas</span>
-              <strong>{result.skipped_count}</strong>
-            </div>
+            <div style={styles.summaryItem}><span>Creadas</span><strong>{result.created_count}</strong></div>
+            <div style={styles.summaryItem}><span>Ya existían</span><strong>{result.existing_count}</strong></div>
+            <div style={styles.summaryItem}><span>Omitidas</span><strong>{result.skipped_count}</strong></div>
+            <div style={styles.summaryItem}><span>Prorrata total</span><strong>{formatMoney(totalProration)} €</strong></div>
           </div>
 
           <div style={styles.tableWrapper}>
@@ -206,6 +197,7 @@ export default function MonthlyPayrollPreparation({ companies, workCenters, onPr
                   <th style={styles.th}>Centro</th>
                   <th style={styles.th}>Incidencias</th>
                   <th style={styles.th}>Estado</th>
+                  <th style={styles.thRight}>Prorrata extra</th>
                   <th style={styles.thRight}>Bruto</th>
                 </tr>
               </thead>
@@ -218,14 +210,13 @@ export default function MonthlyPayrollPreparation({ companies, workCenters, onPr
                     <td style={styles.td}>{item.center_name || "-"}</td>
                     <td style={styles.td}>{item.incident_summary?.length ? item.incident_summary.join("; ") : "Sin incidencias"}</td>
                     <td style={styles.td}>{STATUS_LABELS[item.status] || item.status}</td>
+                    <td style={styles.tdRight}>{formatMoney(item.extra_pay_proration)} €</td>
                     <td style={styles.tdRight}>{formatMoney(item.gross_salary)} €</td>
                   </tr>
                 ))}
 
                 {result.payrolls.length === 0 && (
-                  <tr>
-                    <td colSpan="7" style={styles.emptyCell}>No hay contratos activos para el periodo seleccionado.</td>
-                  </tr>
+                  <tr><td colSpan="8" style={styles.emptyCell}>No hay contratos activos para el periodo seleccionado.</td></tr>
                 )}
               </tbody>
             </table>
@@ -236,13 +227,7 @@ export default function MonthlyPayrollPreparation({ companies, workCenters, onPr
               <h3 style={styles.sectionTitle}>Omitidas con motivo</h3>
               <div style={styles.tableWrapper}>
                 <table style={styles.table}>
-                  <thead>
-                    <tr>
-                      <th style={styles.th}>Trabajador</th>
-                      <th style={styles.th}>Contrato</th>
-                      <th style={styles.th}>Motivo</th>
-                    </tr>
-                  </thead>
+                  <thead><tr><th style={styles.th}>Trabajador</th><th style={styles.th}>Contrato</th><th style={styles.th}>Motivo</th></tr></thead>
                   <tbody>
                     {result.skipped.map((item, index) => (
                       <tr key={`${item.contract_id || "sin-contrato"}-${index}`}>
@@ -290,5 +275,5 @@ const styles = {
   td: { padding: "11px", borderBottom: "1px solid #eee", verticalAlign: "top" },
   tdStrong: { padding: "11px", borderBottom: "1px solid #eee", verticalAlign: "top", fontWeight: 800 },
   tdRight: { padding: "11px", borderBottom: "1px solid #eee", textAlign: "right", whiteSpace: "nowrap", verticalAlign: "top", fontWeight: 800 },
-  emptyCell: { padding: "18px", color: "#6b7280", textAlign: "center", borderBottom: "1px solid #eee" },
+  emptyCell: { padding: "18px", color: "#6b7280", textAlign: "center" },
 };
