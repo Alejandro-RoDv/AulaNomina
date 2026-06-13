@@ -2,6 +2,12 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.db import SessionLocal
+from app.schemas.salary_regularization import (
+    SalaryRegularizationGenerateRequest,
+    SalaryRegularizationGenerateResponse,
+    SalaryRegularizationPreviewRequest,
+    SalaryRegularizationPreviewResponse,
+)
 from app.schemas.salary_table_activation import (
     SalaryTableActivationPreviewResponse,
     SalaryTableActivationResponse,
@@ -9,6 +15,10 @@ from app.schemas.salary_table_activation import (
     SalaryTableContractMigrationResponse,
 )
 from app.schemas.salary_table_revision import SalaryTableRevisionRequest, SalaryTableRevisionResponse
+from app.services.salary_regularization import (
+    build_salary_regularization_preview,
+    generate_salary_regularizations,
+)
 from app.services.salary_table_activation import (
     activate_salary_table,
     build_salary_table_activation_preview,
@@ -61,3 +71,21 @@ def migrate_contracts_to_salary_table_endpoint(
     db: Session = Depends(get_db),
 ):
     return migrate_contracts_to_salary_table(db, table_id, payload)
+
+
+@router.post("/{table_id}/regularization-preview", response_model=SalaryRegularizationPreviewResponse)
+def salary_table_regularization_preview_endpoint(
+    table_id: int,
+    payload: SalaryRegularizationPreviewRequest,
+    db: Session = Depends(get_db),
+):
+    return build_salary_regularization_preview(db, table_id, payload)
+
+
+@router.post("/{table_id}/regularizations", response_model=SalaryRegularizationGenerateResponse)
+def generate_salary_table_regularizations_endpoint(
+    table_id: int,
+    payload: SalaryRegularizationGenerateRequest,
+    db: Session = Depends(get_db),
+):
+    return generate_salary_regularizations(db, table_id, payload)
