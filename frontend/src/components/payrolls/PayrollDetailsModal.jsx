@@ -11,7 +11,9 @@ function formatPeriod(payroll) {
 
 function formatDays(value, fallback = 0) {
   const number = Number(value ?? fallback);
-  return Number.isFinite(number) ? number.toLocaleString("es-ES", { maximumFractionDigits: 0 }) : "0";
+  return Number.isFinite(number)
+    ? number.toLocaleString("es-ES", { maximumFractionDigits: 0 })
+    : "0";
 }
 
 function getStatusLabel(value) {
@@ -38,17 +40,32 @@ function calculatePercentage(amount, base) {
   const numericBase = Number(base || 0);
   if (!numericBase) return "0,00 %";
   const percentage = (Number(amount || 0) / numericBase) * 100;
-  return `${percentage.toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} %`;
+  return `${percentage.toLocaleString("es-ES", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })} %`;
 }
 
 function formatPercentage(value) {
-  return `${Number(value || 0).toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} %`;
+  return `${Number(value || 0).toLocaleString("es-ES", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })} %`;
+}
+
+function isAutomaticProration(item) {
+  return String(item?.concept_code || "").startsWith("PRORRATA_EXTRA_");
 }
 
 function getItemDetail(item) {
+  if (isAutomaticProration(item)) {
+    return item.description || "Prorrata automática";
+  }
   const quantity = Number(item.quantity || 0);
   const unitPrice = Number(item.unit_price || 0);
-  if (unitPrice > 0 && quantity > 0) return `${quantity.toLocaleString("es-ES")} × ${formatCurrency(unitPrice)}`;
+  if (unitPrice > 0 && quantity > 0) {
+    return `${quantity.toLocaleString("es-ES")} × ${formatCurrency(unitPrice)}`;
+  }
   return item.description || "Importe directo";
 }
 
@@ -93,15 +110,35 @@ function printRow(label, detail, amount, bold = false) {
 }
 
 function printConceptRows(items) {
-  return items.map((item) => printRow(item.concept_name || "Concepto", getItemDetail(item), item.amount)).join("");
+  return items
+    .map((item) => printRow(item.concept_name || "Concepto", getItemDetail(item), item.amount))
+    .join("");
 }
 
-function buildReceiptHtml({ payroll, payrollCode, periodLabel, statusLabel, manualData, contributionDays, workedDays, incidentDays, nonContributionDays, receiptGross, receiptDeductions, receiptNet, irpfPercentage }) {
+function buildReceiptHtml({
+  payroll,
+  payrollCode,
+  periodLabel,
+  statusLabel,
+  manualData,
+  contributionDays,
+  workedDays,
+  incidentDays,
+  nonContributionDays,
+  receiptGross,
+  receiptDeductions,
+  receiptNet,
+  irpfPercentage,
+}) {
+  const automaticRows = manualData.automaticProration.length
+    ? printConceptRows(manualData.automaticProration)
+    : printRow("Prorrata pagas extra", "", payroll.extra_pay_proration);
+
   const devengosRows = manualData.hasManualItems
-    ? `${printConceptRows(manualData.devengos)}${manualData.devengos.length === 0 ? printRow("Sin devengos manuales", "", 0) : ""}${printRow("Total devengado según desglose", "", receiptGross, true)}`
+    ? `${printConceptRows(manualData.devengos)}${printConceptRows(manualData.automaticProration)}${manualData.devengos.length === 0 && manualData.automaticProration.length === 0 ? printRow("Sin devengos manuales", "", 0) : ""}${printRow("Total devengado según desglose", "", receiptGross, true)}`
     : [
         printRow("Salario base", `${formatDays(workedDays || contributionDays, 30)} días`, payroll.base_salary),
-        printRow("Prorrata pagas extra", "", payroll.extra_pay_proration),
+        automaticRows,
         printRow("Complementos salariales", "", payroll.salary_supplements),
         printRow("Variables / incentivos", "", payroll.variable_incentives),
         printRow("Total devengado", "", payroll.gross_salary, true),
@@ -194,31 +231,25 @@ function buildReceiptHtml({ payroll, payrollCode, periodLabel, statusLabel, manu
       </div>
       <div class="code"><span>Código nómina</span><strong>${escapeHtml(payrollCode || payroll.id)}</strong></div>
     </section>
-
     <section class="grid2">
       <div class="box"><div class="box-title">Empresa</div><div class="box-body"><p><strong>Nombre:</strong> ${escapeHtml(payroll.company_name || payroll.company_id || "-")}</p><p><strong>CCC:</strong> CCC simulado</p><p><strong>CIF:</strong> CIF simulado</p></div></div>
       <div class="box"><div class="box-title">Trabajador/a</div><div class="box-body"><p><strong>Nombre:</strong> ${escapeHtml(payroll.employee_name || payroll.employee_id || "-")}</p><p><strong>DNI:</strong> Dato no informado</p><p><strong>Grupo:</strong> Grupo simulado</p></div></div>
     </section>
-
     <section class="period">
       <span><strong>Periodo:</strong> ${escapeHtml(periodLabel)}</span>
       <span><strong>Contrato:</strong> ${escapeHtml(payroll.contract_id ? `Contrato ${payroll.contract_id}` : "No informado")}</span>
       <span><strong>Días cotizados:</strong> ${escapeHtml(formatDays(contributionDays, 30))}</span>
       <span><strong>Estado:</strong> ${escapeHtml(statusLabel)}</span>
     </section>
-
-    ${manualData.hasManualItems ? `<div class="notice">Recibo basado en el desglose manual. La base IRPF se calcula solo con conceptos marcados como tributables.</div>` : ""}
-
+    ${manualData.hasManualItems ? `<div class="notice">Recibo basado en el desglose manual. Las líneas automáticas de prorrata se conservan separadas.</div>` : ""}
     <section class="tables">
       <div class="box"><div class="box-title">Devengos</div><table><tbody>${devengosRows}</tbody></table></div>
       <div class="box"><div class="box-title">Deducciones</div><table><tbody>${deduccionesRows}</tbody></table><div class="net"><span>Líquido a percibir</span><strong>${escapeHtml(formatCurrency(receiptNet))}</strong></div></div>
     </section>
-
     <section class="tables">
       <div class="box"><div class="box-title">Bases y días</div><table><tbody>${basesRows}</tbody></table></div>
       <div class="box"><div class="box-title">Coste empresa</div><table><tbody>${costeEmpresaRows}</tbody></table></div>
     </section>
-
     <p class="footer">Recibo generado para fines formativos. No sustituye a una nómina oficial ni a documentación laboral real.</p>
   </main>
   <script>window.addEventListener('load', () => { setTimeout(() => { window.print(); }, 150); });</script>
@@ -270,7 +301,7 @@ export default function PayrollDetailsModal({
         const data = await fetchPayrollBreakdown(payroll.id);
         if (active) setBreakdown(data);
       } catch (err) {
-        if (active) setBreakdownError(err.message || "No se ha podido cargar el desglose manual.");
+        if (active) setBreakdownError(err.message || "No se ha podido cargar el desglose.");
       } finally {
         if (active) setBreakdownLoading(false);
       }
@@ -281,14 +312,32 @@ export default function PayrollDetailsModal({
 
   const manualData = useMemo(() => {
     if (!breakdown) {
-      return { hasManualItems: false, devengos: [], deducciones: [], bases: [], totalDevengos: 0, totalDeducciones: 0, baseIrpfManual: 0, irpfPercentage: 0, irpfManual: 0, netoManual: 0, netoManualConIrpf: 0 };
+      return {
+        hasManualItems: false,
+        devengos: [],
+        automaticProration: [],
+        deducciones: [],
+        bases: [],
+        totalDevengos: 0,
+        totalDeducciones: 0,
+        baseIrpfManual: 0,
+        irpfPercentage: 0,
+        irpfManual: 0,
+        netoManual: 0,
+        netoManualConIrpf: 0,
+      };
     }
-    const devengos = [...(breakdown.devengos_salariales || []), ...(breakdown.devengos_extrasalariales || [])];
+    const devengos = [
+      ...(breakdown.devengos_salariales || []),
+      ...(breakdown.devengos_extrasalariales || []),
+    ];
+    const automaticProration = breakdown.prorratas_automaticas || [];
     const deducciones = breakdown.deducciones || [];
     const bases = breakdown.bases_informativas || [];
     return {
       hasManualItems: devengos.length > 0 || deducciones.length > 0 || bases.length > 0,
       devengos,
+      automaticProration,
       deducciones,
       bases,
       totalDevengos: Number(breakdown.total_devengos || 0),
@@ -313,8 +362,12 @@ export default function PayrollDetailsModal({
   const nonContributionDays = Number(payroll.non_contribution_days ?? 0);
   const irpfPercentage = calculatePercentage(payroll.irpf, payroll.irpf_base || payroll.gross_salary);
   const receiptGross = manualData.hasManualItems ? manualData.totalDevengos : Number(payroll.gross_salary || 0);
-  const receiptDeductions = manualData.hasManualItems ? manualData.totalDeducciones + manualData.irpfManual : Number(payroll.total_deductions || 0);
-  const receiptNet = manualData.hasManualItems ? manualData.netoManualConIrpf : Number(payroll.net_salary || 0);
+  const receiptDeductions = manualData.hasManualItems
+    ? manualData.totalDeductions + manualData.irpfManual
+    : Number(payroll.total_deductions || 0);
+  const receiptNet = manualData.hasManualItems
+    ? manualData.netoManualConIrpf
+    : Number(payroll.net_salary || 0);
 
   const handlePrint = () => {
     const printWindow = window.open("", "_blank", "width=900,height=1200");
@@ -323,11 +376,31 @@ export default function PayrollDetailsModal({
       return;
     }
     printWindow.document.open();
-    printWindow.document.write(buildReceiptHtml({ payroll, payrollCode, periodLabel, statusLabel, manualData, contributionDays, workedDays, incidentDays, nonContributionDays, receiptGross, receiptDeductions, receiptNet, irpfPercentage }));
+    printWindow.document.write(buildReceiptHtml({
+      payroll,
+      payrollCode,
+      periodLabel,
+      statusLabel,
+      manualData,
+      contributionDays,
+      workedDays,
+      incidentDays,
+      nonContributionDays,
+      receiptGross,
+      receiptDeductions,
+      receiptNet,
+      irpfPercentage,
+    }));
     printWindow.document.close();
   };
 
-  const handleBackdropMouseDown = (event) => { if (event.target === event.currentTarget) onClose(); };
+  const handleBackdropMouseDown = (event) => {
+    if (event.target === event.currentTarget) onClose();
+  };
+
+  const automaticProrationRows = manualData.automaticProration.length > 0
+    ? <ConceptAmountRows items={manualData.automaticProration} />
+    : <AmountRow label="Prorrata pagas extra" amount={payroll.extra_pay_proration} />;
 
   return (
     <div style={styles.modalBackdrop} onMouseDown={handleBackdropMouseDown}>
@@ -367,32 +440,121 @@ export default function PayrollDetailsModal({
 
           <div style={styles.periodRow}><span><strong>Periodo:</strong> {periodLabel}</span><span><strong>Contrato:</strong> {payroll.contract_id ? `Contrato ${payroll.contract_id}` : "No informado"}</span><span><strong>Días cotizados:</strong> {formatDays(contributionDays, 30)}</span><span><strong>Estado:</strong> {statusLabel}</span></div>
 
-          {manualData.hasManualItems && <div style={styles.manualNotice}>Recibo basado en el desglose manual. La base IRPF se calcula solo con conceptos marcados como tributables; dietas y kilometraje quedan fuera si están configurados como no tributables.</div>}
+          {manualData.hasManualItems && <div style={styles.manualNotice}>Recibo basado en el desglose manual. Las líneas automáticas de prorrata se conservan separadas.</div>}
 
           <div style={styles.tablesGrid}>
-            <section style={styles.tableBox}><h4 style={styles.tableTitle}>Devengos</h4><table style={styles.table}><tbody>{manualData.hasManualItems ? <>{<ConceptAmountRows items={manualData.devengos} />}{manualData.devengos.length === 0 && <AmountRow label="Sin devengos manuales" amount={0} />}<AmountRow label="Total devengado según desglose" amount={receiptGross} bold /></> : <><AmountRow label="Salario base" detail={`${formatDays(workedDays || contributionDays, 30)} días`} amount={payroll.base_salary} /><AmountRow label="Prorrata pagas extra" amount={payroll.extra_pay_proration} /><AmountRow label="Complementos salariales" amount={payroll.salary_supplements} /><AmountRow label="Variables / incentivos" amount={payroll.variable_incentives} /><AmountRow label="Total devengado" amount={payroll.gross_salary} bold /></>}</tbody></table></section>
-            <section style={styles.tableBox}><h4 style={styles.tableTitle}>Deducciones</h4><table style={styles.table}><tbody>{manualData.hasManualItems ? <>{<ConceptAmountRows items={manualData.deducciones} />}{manualData.deducciones.length === 0 && <AmountRow label="Sin deducciones manuales" amount={0} />}<AmountRow label="IRPF sobre desglose" detail={formatPercentage(manualData.irpfPercentage)} amount={manualData.irpfManual} /><AmountRow label="Total deducciones + IRPF" amount={receiptDeductions} bold /></> : <><AmountRow label="Contingencias comunes" detail="4,70 %" amount={payroll.employee_common_contingencies} /><AmountRow label="Desempleo" detail="1,55 %" amount={payroll.employee_unemployment} /><AmountRow label="Formación profesional" detail="0,10 %" amount={payroll.employee_training} /><AmountRow label="MEI trabajador" detail="0,13 %" amount={payroll.employee_mei} /><AmountRow label="IRPF" detail={irpfPercentage} amount={payroll.irpf} /><AmountRow label="Total deducciones" amount={payroll.total_deductions} bold /></>}</tbody></table><div style={styles.netReceiptBox}><span>Líquido a percibir</span><strong>{formatCurrency(receiptNet)}</strong></div></section>
+            <section style={styles.tableBox}>
+              <h4 style={styles.tableTitle}>Devengos</h4>
+              <table style={styles.table}><tbody>
+                {manualData.hasManualItems ? <>
+                  <ConceptAmountRows items={manualData.devengos} />
+                  <ConceptAmountRows items={manualData.automaticProration} />
+                  {manualData.devengos.length === 0 && manualData.automaticProration.length === 0 && <AmountRow label="Sin devengos manuales" amount={0} />}
+                  <AmountRow label="Total devengado según desglose" amount={receiptGross} bold />
+                </> : <>
+                  <AmountRow label="Salario base" detail={`${formatDays(workedDays || contributionDays, 30)} días`} amount={payroll.base_salary} />
+                  {automaticProrationRows}
+                  <AmountRow label="Complementos salariales" amount={payroll.salary_supplements} />
+                  <AmountRow label="Variables / incentivos" amount={payroll.variable_incentives} />
+                  <AmountRow label="Total devengado" amount={payroll.gross_salary} bold />
+                </>}
+              </tbody></table>
+            </section>
+
+            <section style={styles.tableBox}>
+              <h4 style={styles.tableTitle}>Deducciones</h4>
+              <table style={styles.table}><tbody>
+                {manualData.hasManualItems ? <>
+                  <ConceptAmountRows items={manualData.deducciones} />
+                  {manualData.deducciones.length === 0 && <AmountRow label="Sin deducciones manuales" amount={0} />}
+                  <AmountRow label="IRPF sobre desglose" detail={formatPercentage(manualData.irpfPercentage)} amount={manualData.irpfManual} />
+                  <AmountRow label="Total deducciones + IRPF" amount={receiptDeductions} bold />
+                </> : <>
+                  <AmountRow label="Contingencias comunes" detail="4,70 %" amount={payroll.employee_common_contingencies} />
+                  <AmountRow label="Desempleo" detail="1,55 %" amount={payroll.employee_unemployment} />
+                  <AmountRow label="Formación profesional" detail="0,10 %" amount={payroll.employee_training} />
+                  <AmountRow label="MEI trabajador" detail="0,13 %" amount={payroll.employee_mei} />
+                  <AmountRow label="IRPF" detail={irpfPercentage} amount={payroll.irpf} />
+                  <AmountRow label="Total deducciones" amount={payroll.total_deductions} bold />
+                </>}
+              </tbody></table>
+              <div style={styles.netReceiptBox}><span>Líquido a percibir</span><strong>{formatCurrency(receiptNet)}</strong></div>
+            </section>
           </div>
 
           <div style={styles.tablesGrid}>
-            <section style={styles.tableBox}><h4 style={styles.tableTitle}>Bases y días</h4><table style={styles.table}><tbody><AmountRow label="Días periodo" amount={30} /><AmountRow label="Días cotizados" amount={contributionDays} /><AmountRow label="Días trabajados" amount={workedDays} /><AmountRow label="Días incidencia" amount={incidentDays} /><AmountRow label="Días no cotizados" amount={nonContributionDays} />{manualData.hasManualItems ? <><AmountRow label="Base IRPF manual" detail="Conceptos tributables" amount={manualData.baseIrpfManual} />{manualData.bases.length > 0 && <ConceptAmountRows items={manualData.bases} />}</> : <><AmountRow label="Base CC" amount={payroll.common_contingencies_base} /><AmountRow label="Base CP" amount={payroll.professional_contingencies_base} /><AmountRow label="Base IRPF" amount={payroll.irpf_base} /></>}</tbody></table></section>
-            <section style={styles.tableBox}><h4 style={styles.tableTitle}>Coste empresa</h4><table style={styles.table}><tbody><AmountRow label="Contingencias comunes empresa" detail="23,60 %" amount={payroll.company_common_contingencies} /><AmountRow label="Desempleo empresa" detail="5,50 %" amount={payroll.company_unemployment} /><AmountRow label="FOGASA" detail="0,20 %" amount={payroll.company_fogasa} /><AmountRow label="Formación empresa" detail="0,60 %" amount={payroll.company_training} /><AmountRow label="AT/EP" detail="1,50 %" amount={payroll.company_at_ep} /><AmountRow label="MEI empresa" detail="0,67 %" amount={payroll.company_mei} /><AmountRow label="Total Seguridad Social empresa" amount={payroll.company_total_social_security} bold /><AmountRow label="Coste empresa total" amount={payroll.company_total_cost} bold /></tbody></table></section>
+            <section style={styles.tableBox}>
+              <h4 style={styles.tableTitle}>Bases y días</h4>
+              <table style={styles.table}><tbody>
+                <AmountRow label="Días periodo" amount={30} />
+                <AmountRow label="Días cotizados" amount={contributionDays} />
+                <AmountRow label="Días trabajados" amount={workedDays} />
+                <AmountRow label="Días incidencia" amount={incidentDays} />
+                <AmountRow label="Días no cotizados" amount={nonContributionDays} />
+                {manualData.hasManualItems ? <>
+                  <AmountRow label="Base IRPF manual" detail="Conceptos tributables" amount={manualData.baseIrpfManual} />
+                  {manualData.bases.length > 0 && <ConceptAmountRows items={manualData.bases} />}
+                </> : <>
+                  <AmountRow label="Base CC" amount={payroll.common_contingencies_base} />
+                  <AmountRow label="Base CP" amount={payroll.professional_contingencies_base} />
+                  <AmountRow label="Base IRPF" amount={payroll.irpf_base} />
+                </>}
+              </tbody></table>
+            </section>
+
+            <section style={styles.tableBox}>
+              <h4 style={styles.tableTitle}>Coste empresa</h4>
+              <table style={styles.table}><tbody>
+                <AmountRow label="Contingencias comunes empresa" detail="23,60 %" amount={payroll.company_common_contingencies} />
+                <AmountRow label="Desempleo empresa" detail="5,50 %" amount={payroll.company_unemployment} />
+                <AmountRow label="FOGASA" detail="0,20 %" amount={payroll.company_fogasa} />
+                <AmountRow label="Formación empresa" detail="0,60 %" amount={payroll.company_training} />
+                <AmountRow label="AT/EP" detail="1,50 %" amount={payroll.company_at_ep} />
+                <AmountRow label="MEI empresa" detail="0,67 %" amount={payroll.company_mei} />
+                <AmountRow label="Total Seguridad Social empresa" amount={payroll.company_total_social_security} bold />
+                <AmountRow label="Coste empresa total" amount={payroll.company_total_cost} bold />
+              </tbody></table>
+            </section>
           </div>
 
-          {breakdownLoading && <p style={styles.receiptFooter}>Cargando desglose manual...</p>}
+          {breakdownLoading && <p style={styles.receiptFooter}>Cargando desglose...</p>}
           <p style={styles.receiptFooter}>Recibo generado para fines formativos. No sustituye a una nómina oficial ni a documentación laboral real.</p>
         </section>
 
         <form onSubmit={onEditSubmit} style={styles.form}>
-          <div style={styles.editHeader}><div><h4 style={styles.editTitle}>Edición básica</h4><p style={styles.editSubtitle}>El salario base, bases, deducciones, coste empresa y prorrata extra se recalculan automáticamente desde el contrato.</p></div>{!isEditing && !isCancelled && <button type="button" onClick={onEnableEditing} style={styles.secondaryButton}>Editar</button>}</div>
-          <div style={styles.formRow}><div style={styles.formGroupSmall}><label>Periodo</label><select name="period_month" value={editForm.period_month} onChange={onEditChange} disabled={!isEditing} style={{ ...styles.input, ...(!isEditing ? styles.readOnlyInput : {}) }}>{MONTH_OPTIONS.map((month) => <option key={month.value} value={month.value}>{month.label}</option>)}</select></div><div style={styles.formGroupSmall}><label>Año</label><input type="number" name="period_year" min="2000" max="2100" value={editForm.period_year} onChange={onEditChange} disabled={!isEditing} style={{ ...styles.input, ...(!isEditing ? styles.readOnlyInput : {}) }} /></div><div style={styles.formGroupSmall}><label>Estado</label><select name="status" value={editForm.status} onChange={onEditChange} disabled={!isEditing} style={{ ...styles.input, ...(!isEditing ? styles.readOnlyInput : {}) }}>{PAYROLL_STATUS_OPTIONS.map((status) => <option key={status.value} value={status.value}>{status.label}</option>)}</select></div></div>
-          <div style={styles.supplementsGrid}><div style={styles.formGroup}><label>Complemento salarial 1</label><input type="number" step="0.01" name="salary_supplement_1" value={editForm.salary_supplement_1} onChange={onEditChange} disabled={!isEditing} style={{ ...styles.input, ...(!isEditing ? styles.readOnlyInput : {}) }} /></div><div style={styles.formGroup}><label>Complemento salarial 2</label><input type="number" step="0.01" name="salary_supplement_2" value={editForm.salary_supplement_2} onChange={onEditChange} disabled={!isEditing} style={{ ...styles.input, ...(!isEditing ? styles.readOnlyInput : {}) }} /></div><div style={styles.formGroup}><label>Complemento salarial 3</label><input type="number" step="0.01" name="salary_supplement_3" value={editForm.salary_supplement_3} onChange={onEditChange} disabled={!isEditing} style={{ ...styles.input, ...(!isEditing ? styles.readOnlyInput : {}) }} /></div></div>
-          <div style={styles.formRow}><div style={styles.formGroupSmall}><label>Variables / incentivos</label><input type="number" step="0.01" name="variable_incentives" value={editForm.variable_incentives ?? "0"} onChange={onEditChange} disabled={!isEditing} style={{ ...styles.input, ...(!isEditing ? styles.readOnlyInput : {}) }} /></div><div style={styles.formGroupSmall}><label>IRPF %</label><input type="number" step="0.01" name="irpf_percentage" value={editForm.irpf_percentage} onChange={onEditChange} disabled={!isEditing} style={{ ...styles.input, ...(!isEditing ? styles.readOnlyInput : {}) }} /></div><div style={styles.totalSupplementsBox}><span>Total complementos</span><strong>{formatCurrency(editSupplementsTotal)}</strong></div></div>
+          <div style={styles.editHeader}>
+            <div><h4 style={styles.editTitle}>Edición básica</h4><p style={styles.editSubtitle}>El salario base, bases, deducciones, coste empresa y prorrata extra se recalculan automáticamente desde el contrato.</p></div>
+            {!isEditing && !isCancelled && <button type="button" onClick={onEnableEditing} style={styles.secondaryButton}>Editar</button>}
+          </div>
+          <div style={styles.formRow}>
+            <div style={styles.formGroupSmall}><label>Periodo</label><select name="period_month" value={editForm.period_month} onChange={onEditChange} disabled={!isEditing} style={{ ...styles.input, ...(!isEditing ? styles.readOnlyInput : {}) }}>{MONTH_OPTIONS.map((month) => <option key={month.value} value={month.value}>{month.label}</option>)}</select></div>
+            <div style={styles.formGroupSmall}><label>Año</label><input type="number" name="period_year" min="2000" max="2100" value={editForm.period_year} onChange={onEditChange} disabled={!isEditing} style={{ ...styles.input, ...(!isEditing ? styles.readOnlyInput : {}) }} /></div>
+            <div style={styles.formGroupSmall}><label>Estado</label><select name="status" value={editForm.status} onChange={onEditChange} disabled={!isEditing} style={{ ...styles.input, ...(!isEditing ? styles.readOnlyInput : {}) }}>{PAYROLL_STATUS_OPTIONS.map((status) => <option key={status.value} value={status.value}>{status.label}</option>)}</select></div>
+          </div>
+          <div style={styles.supplementsGrid}>
+            <div style={styles.formGroup}><label>Complemento salarial 1</label><input type="number" step="0.01" name="salary_supplement_1" value={editForm.salary_supplement_1} onChange={onEditChange} disabled={!isEditing} style={{ ...styles.input, ...(!isEditing ? styles.readOnlyInput : {}) }} /></div>
+            <div style={styles.formGroup}><label>Complemento salarial 2</label><input type="number" step="0.01" name="salary_supplement_2" value={editForm.salary_supplement_2} onChange={onEditChange} disabled={!isEditing} style={{ ...styles.input, ...(!isEditing ? styles.readOnlyInput : {}) }} /></div>
+            <div style={styles.formGroup}><label>Complemento salarial 3</label><input type="number" step="0.01" name="salary_supplement_3" value={editForm.salary_supplement_3} onChange={onEditChange} disabled={!isEditing} style={{ ...styles.input, ...(!isEditing ? styles.readOnlyInput : {}) }} /></div>
+          </div>
+          <div style={styles.formRow}>
+            <div style={styles.formGroupSmall}><label>Variables / incentivos</label><input type="number" step="0.01" name="variable_incentives" value={editForm.variable_incentives ?? "0"} onChange={onEditChange} disabled={!isEditing} style={{ ...styles.input, ...(!isEditing ? styles.readOnlyInput : {}) }} /></div>
+            <div style={styles.formGroupSmall}><label>IRPF %</label><input type="number" step="0.01" name="irpf_percentage" value={editForm.irpf_percentage} onChange={onEditChange} disabled={!isEditing} style={{ ...styles.input, ...(!isEditing ? styles.readOnlyInput : {}) }} /></div>
+            <div style={styles.totalSupplementsBox}><span>Total complementos</span><strong>{formatCurrency(editSupplementsTotal)}</strong></div>
+          </div>
           {editError && <div style={styles.error}>{editError}</div>}
-          <div style={styles.modalActionsSplit}>{!isCancelled ? <button type="button" onClick={onRequestDelete} style={styles.deleteButton}>Anular nómina</button> : <span style={styles.cancelledNotice}>Nómina anulada. Se conserva en el histórico.</span>}<div style={styles.modalActionsRight}>{isEditing && <button type="button" onClick={onCancelEditing} style={styles.cancelButton}>Cancelar</button>}{isEditing && <button type="submit" disabled={submitting} style={styles.saveButton}>{submitting ? "Guardando..." : "Guardar cambios"}</button>}</div></div>
+          <div style={styles.modalActionsSplit}>
+            {!isCancelled ? <button type="button" onClick={onRequestDelete} style={styles.deleteButton}>Anular nómina</button> : <span style={styles.cancelledNotice}>Nómina anulada. Se conserva en el histórico.</span>}
+            <div style={styles.modalActionsRight}>
+              {isEditing && <button type="button" onClick={onCancelEditing} style={styles.cancelButton}>Cancelar</button>}
+              {isEditing && <button type="submit" disabled={submitting} style={styles.saveButton}>{submitting ? "Guardando..." : "Guardar cambios"}</button>}
+            </div>
+          </div>
         </form>
 
-        {showDeleteConfirm && <div style={styles.confirmBox}><div><h4 style={styles.confirmTitle}>Confirmar anulación</h4><p style={styles.confirmText}>La nómina {payrollCode || payroll.id} del periodo {periodLabel} quedará marcada como anulada y se conservará en el histórico.</p>{deleteError && <div style={styles.error}>{deleteError}</div>}</div><div style={styles.modalActionsRight}><button type="button" onClick={onCancelDelete} style={styles.cancelButton}>Cancelar</button><button type="button" onClick={onConfirmDelete} disabled={submitting} style={styles.dangerButton}>{submitting ? "Anulando..." : "Confirmar anulación"}</button></div></div>}
+        {showDeleteConfirm && <div style={styles.confirmBox}>
+          <div><h4 style={styles.confirmTitle}>Confirmar anulación</h4><p style={styles.confirmText}>La nómina {payrollCode || payroll.id} del periodo {periodLabel} quedará marcada como anulada y se conservará en el histórico.</p>{deleteError && <div style={styles.error}>{deleteError}</div>}</div>
+          <div style={styles.modalActionsRight}><button type="button" onClick={onCancelDelete} style={styles.cancelButton}>Cancelar</button><button type="button" onClick={onConfirmDelete} disabled={submitting} style={styles.dangerButton}>{submitting ? "Anulando..." : "Confirmar anulación"}</button></div>
+        </div>}
       </div>
     </div>
   );
