@@ -7,6 +7,9 @@ from app.services.monthly_extra_pay_proration import PRORATION_CONCEPT_PREFIX
 from app.services.payroll_amounts import money
 
 
+AUTOMATIC_EXTRA_PREFIXES = (PRORATION_CONCEPT_PREFIX, "EXTRA_")
+
+
 def build_payroll_breakdown(db: Session, payroll_id: int):
     payroll = ensure_payroll_exists(db, payroll_id)
     items = get_payroll_items(db, payroll_id)
@@ -37,12 +40,10 @@ def build_payroll_breakdown(db: Session, payroll_id: int):
         is_taxable = bool(concept.is_taxable) if concept else True
         item_amount = money(item.amount)
 
-        if concept_code.startswith(PRORATION_CONCEPT_PREFIX):
+        if concept_code.startswith(AUTOMATIC_EXTRA_PREFIXES):
             breakdown["prorratas_automaticas"].append(item)
             breakdown["total_prorrata_automatica"] += item_amount
             breakdown["total_devengos"] += item_amount
-            if is_taxable:
-                breakdown["base_irpf_manual"] += item_amount
             continue
 
         if concept_type == "DEDUCCION":
