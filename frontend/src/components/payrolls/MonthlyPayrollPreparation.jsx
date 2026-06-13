@@ -49,6 +49,14 @@ export default function MonthlyPayrollPreparation({ companies, workCenters, onPr
     [result]
   );
 
+  const totalSeniority = useMemo(
+    () => (result?.payrolls || []).reduce(
+      (total, item) => total + Number(item.seniority_amount || 0),
+      0
+    ),
+    [result]
+  );
+
   const handleCompanyToggle = (companyId) => {
     setForm((prev) => {
       const alreadySelected = prev.company_ids.includes(companyId);
@@ -184,6 +192,7 @@ export default function MonthlyPayrollPreparation({ companies, workCenters, onPr
             <div style={styles.summaryItem}><span>Creadas</span><strong>{result.created_count}</strong></div>
             <div style={styles.summaryItem}><span>Ya existían</span><strong>{result.existing_count}</strong></div>
             <div style={styles.summaryItem}><span>Omitidas</span><strong>{result.skipped_count}</strong></div>
+            <div style={styles.summaryItem}><span>Antigüedad total</span><strong>{formatMoney(totalSeniority)} €</strong></div>
             <div style={styles.summaryItem}><span>Prorrata total</span><strong>{formatMoney(totalProration)} €</strong></div>
           </div>
 
@@ -197,6 +206,7 @@ export default function MonthlyPayrollPreparation({ companies, workCenters, onPr
                   <th style={styles.th}>Centro</th>
                   <th style={styles.th}>Incidencias</th>
                   <th style={styles.th}>Estado</th>
+                  <th style={styles.thRight}>Antigüedad</th>
                   <th style={styles.thRight}>Prorrata extra</th>
                   <th style={styles.thRight}>Bruto</th>
                 </tr>
@@ -210,13 +220,14 @@ export default function MonthlyPayrollPreparation({ companies, workCenters, onPr
                     <td style={styles.td}>{item.center_name || "-"}</td>
                     <td style={styles.td}>{item.incident_summary?.length ? item.incident_summary.join("; ") : "Sin incidencias"}</td>
                     <td style={styles.td}>{STATUS_LABELS[item.status] || item.status}</td>
+                    <td style={styles.tdRight}>{formatMoney(item.seniority_amount)} €</td>
                     <td style={styles.tdRight}>{formatMoney(item.extra_pay_proration)} €</td>
                     <td style={styles.tdRight}>{formatMoney(item.gross_salary)} €</td>
                   </tr>
                 ))}
 
                 {result.payrolls.length === 0 && (
-                  <tr><td colSpan="8" style={styles.emptyCell}>No hay contratos activos para el periodo seleccionado.</td></tr>
+                  <tr><td colSpan="9" style={styles.emptyCell}>No hay contratos activos para el periodo seleccionado.</td></tr>
                 )}
               </tbody>
             </table>
@@ -269,11 +280,11 @@ const styles = {
   summaryGrid: { display: "flex", gap: "12px", flexWrap: "wrap" },
   summaryItem: { border: "1px solid #e5e7eb", borderRadius: "8px", padding: "10px 14px", minWidth: "120px", display: "flex", flexDirection: "column", gap: "4px" },
   tableWrapper: { overflowX: "auto" },
-  table: { width: "100%", borderCollapse: "collapse" },
+  table: { width: "100%", minWidth: "980px", borderCollapse: "collapse" },
   th: { textAlign: "left", padding: "11px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb", whiteSpace: "nowrap" },
   thRight: { textAlign: "right", padding: "11px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb", whiteSpace: "nowrap" },
   td: { padding: "11px", borderBottom: "1px solid #eee", verticalAlign: "top" },
   tdStrong: { padding: "11px", borderBottom: "1px solid #eee", verticalAlign: "top", fontWeight: 800 },
-  tdRight: { padding: "11px", borderBottom: "1px solid #eee", textAlign: "right", whiteSpace: "nowrap", verticalAlign: "top", fontWeight: 800 },
+  tdRight: { padding: "11px", borderBottom: "1px solid #eee", textAlign: "right", whiteSpace: "nowrap" },
   emptyCell: { padding: "18px", color: "#6b7280", textAlign: "center" },
 };
