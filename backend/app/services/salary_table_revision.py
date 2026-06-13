@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.models.agreement_extra_pay import AgreementExtraPay, AgreementExtraPayConcept
 from app.models.agreement_parameterization import AgreementSalaryConcept
+from app.models.agreement_seniority import AgreementSeniorityRule
 from app.models.collective_agreement import SalaryTable, SalaryTableRow
 from app.schemas.salary_table_revision import SalaryTableRevisionRequest
 
@@ -65,6 +66,7 @@ def duplicate_salary_table_revision(
     copied_concepts = 0
     copied_extra_pays = 0
     copied_extra_pay_lines = 0
+    copied_seniority_rules = 0
     increased_rows = 0
     increased_concepts = 0
     warnings: list[str] = []
@@ -203,6 +205,46 @@ def duplicate_salary_table_revision(
         elif source_extra_pays:
             warnings.append("La tabla se ha creado sin copiar la configuración de pagas extraordinarias.")
 
+        source_seniority_rules = (
+            db.query(AgreementSeniorityRule)
+            .filter(AgreementSeniorityRule.salary_table_id == source.id)
+            .order_by(AgreementSeniorityRule.id)
+            .all()
+        )
+        if payload.copy_seniority_rules:
+            for rule in source_seniority_rules:
+                fixed_amount = rule.fixed_amount
+                if rule.calculation_mode == "fixed_amount" and fixed_amount is not None:
+                    fixed_amount = _money(fixed_amount, factor)
+                db.add(
+                    AgreementSeniorityRule(
+                        collective_agreement_id=source.collective_agreement_id,
+                        salary_table_id=target.id,
+                        professional_category_id=rule.professional_category_id,
+                        code=rule.code,
+                        name=rule.name,
+                        module_years=rule.module_years,
+                        calculation_mode=rule.calculation_mode,
+                        fixed_amount=fixed_amount,
+                        percentage=rule.percentage,
+                        percentage_base=rule.percentage_base,
+                        max_modules=rule.max_modules,
+                        applies_partiality=rule.applies_partiality,
+                        daily_proration_on_maturity=rule.daily_proration_on_maturity,
+                        contributes=rule.contributes,
+                        taxable=rule.taxable,
+                        affects_extra_payments=rule.affects_extra_payments,
+                        effective_from=payload.effective_from or rule.effective_from,
+                        effective_to=payload.effective_to or rule.effective_to,
+                        is_active=rule.is_active,
+                        display_order=rule.display_order,
+                        notes=rule.notes,
+                    )
+                )
+                copied_seniority_rules += 1
+        elif source_seniority_rules:
+            warnings.append("La tabla se ha creado sin copiar sus reglas de antigüedad versionadas.")
+
         if payload.mark_source_historical:
             source.status = "historical"
 
@@ -226,6 +268,7 @@ def duplicate_salary_table_revision(
         "copied_concepts": copied_concepts,
         "copied_extra_pays": copied_extra_pays,
         "copied_extra_pay_lines": copied_extra_pay_lines,
+        "copied_seniority_rules": copied_seniority_rules,
         "increased_rows": increased_rows,
         "increased_concepts": increased_concepts,
         "increment_percentage": payload.increment_percentage,
