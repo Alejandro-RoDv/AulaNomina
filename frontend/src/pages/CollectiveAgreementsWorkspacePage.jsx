@@ -12,7 +12,6 @@ import { fetchCollectiveAgreement } from "../services/collectiveAgreementApi";
 import CollectiveAgreementsManagementPage from "./CollectiveAgreementsPage.jsx";
 
 const MANAGEMENT_TAB_LABELS = {
-  seniority: "Antigüedad",
   rules: "Jornada y permisos",
 };
 
@@ -79,6 +78,16 @@ export default function CollectiveAgreementsWorkspacePage(props) {
   }, [view, selected?.id]);
 
   function openManagementTab(targetTab) {
+    if (targetTab === "seniority") {
+      window.setTimeout(() => {
+        const heading = Array.from(document.querySelectorAll("h3")).find(
+          (item) => item.textContent?.trim() === "Antigüedad y vencimientos"
+        );
+        heading?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 0);
+      return;
+    }
+
     setView("management");
     const targetLabel = MANAGEMENT_TAB_LABELS[targetTab];
     if (!targetLabel) return;
