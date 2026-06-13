@@ -21,7 +21,8 @@ from app.services.extra_pay_accrual_days import (
 MONTHLY_PERIODS = set(range(1, 13))
 MONEY = Decimal("0.01")
 RATIO = Decimal("0.0001")
-PRORATION_CONCEPT_PREFIX = "PRORRATA_EXTRA_"
+PRORRATION_CONCEPT_PREFIX = "PRORRATA_EXTRA_"
+PRORATION_CONCEPT_PREFIX = PRORRATION_CONCEPT_PREFIX
 
 
 def as_money(value) -> Decimal:
@@ -45,8 +46,11 @@ def contract_salary_table_id(contract: Contract) -> int | None:
 
 
 def legacy_proration(contract: Contract) -> dict:
-    annual_salary = as_money(contract.salary_base)
-    amount = as_money(((annual_salary / Decimal("14")) * Decimal("2")) / Decimal("12"))
+    monthly_salary = as_money(contract.salary_base)
+    partiality_ratio = as_ratio(get_partiality(contract) / Decimal("100"))
+    full_monthly_salary = as_money(monthly_salary * partiality_ratio)
+    full_extra_amount = as_money(full_monthly_salary * Decimal("2"))
+    amount = as_money(full_extra_amount / Decimal("12"))
     return {
         "total_amount": amount,
         "source": "legacy",
@@ -58,7 +62,7 @@ def legacy_proration(contract: Contract) -> dict:
                 "concept_key": "LEGACY",
                 "concept_name": "Prorrata pagas extraordinarias",
                 "base_source": "legacy_contract_salary",
-                "full_pay_amount": as_money((annual_salary / Decimal("14")) * Decimal("2")),
+                "full_pay_amount": full_extra_amount,
                 "monthly_base_amount": amount,
                 "day_ratio": Decimal("1.0000"),
                 "eligible_days": 30,
