@@ -11,10 +11,7 @@ from app.services.contract_extra_pay_generation import create_contract_extra_pay
 from app.services.contract_extra_pay_preview import preview_contract_extra_pay
 
 
-router = APIRouter(
-    prefix="/collective-agreements/extra-pays",
-    tags=["contract-extra-pays"],
-)
+router = APIRouter(prefix="/extra-pays", tags=["contract-extra-pays"])
 
 
 def get_db():
