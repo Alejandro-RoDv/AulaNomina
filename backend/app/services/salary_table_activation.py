@@ -6,6 +6,10 @@ from sqlalchemy.orm import Session, joinedload, selectinload
 from app.models.collective_agreement import SalaryTable, SalaryTableRow
 from app.models.contract import Contract
 from app.schemas.salary_table_activation import SalaryTableContractMigrationRequest
+from app.services.salary_table_concept_migration import (
+    apply_contract_concept_actions,
+    build_contract_concept_comparison,
+)
 
 
 def _employee_name(contract: Contract):
@@ -107,6 +111,30 @@ def build_salary_table_activation_preview(db: Session, table_id: int, active_onl
             reason = None
             eligible_count += 1
 
+        concept_comparison = {
+            "new_concepts": 0,
+            "changed_concepts": 0,
+            "reactivated_concepts": 0,
+            "unchanged_concepts": 0,
+            "obsolete_concepts": 0,
+            "preserved_concepts": 0,
+            "concept_changes": [],
+        }
+        if target_row and eligibility in {"eligible", "already_on_target"}:
+            resolved = build_contract_concept_comparison(db, contract, target_row)
+            concept_comparison = {
+                key: resolved[key]
+                for key in (
+                    "new_concepts",
+                    "changed_concepts",
+                    "reactivated_concepts",
+                    "unchanged_concepts",
+                    "obsolete_concepts",
+                    "preserved_concepts",
+                    "concept_changes",
+                )
+            }
+
         category = contract.agreement_professional_category
         items.append(
             {
@@ -124,6 +152,7 @@ def build_salary_table_activation_preview(db: Session, table_id: int, active_onl
                 "target_base_salary": target_row.base_salary if target_row else None,
                 "eligibility": eligibility,
                 "reason": reason,
+                **concept_comparison,
             }
         )
 
@@ -196,16 +225,25 @@ def migrate_contracts_to_salary_table(
 
     contracts = (
         db.query(Contract)
+        .options(joinedload(Contract.collective_agreement))
         .filter(Contract.id.in_(selected_ids))
         .all()
         if selected_ids
         else []
     )
     contract_by_id = {contract.id: contract for contract in contracts}
+    actions_by_contract = defaultdict(list)
+    for action in payload.concept_actions:
+        actions_by_contract[action.contract_id].append(action)
 
     migrated_ids = []
     skipped = []
+    concept_actions_skipped = []
     salary_base_updated = 0
+    concepts_created = 0
+    concepts_updated = 0
+    concepts_reactivated = 0
+    concepts_deactivated = 0
 
     try:
         for contract_id in sorted(selected_ids):
@@ -213,20 +251,50 @@ def migrate_contracts_to_salary_table(
             contract = contract_by_id.get(contract_id)
             if not item or not contract:
                 skipped.append({"contract_id": contract_id, "reason": "Contrato fuera del ámbito de la vista previa."})
+                for action in actions_by_contract.get(contract_id, []):
+                    concept_actions_skipped.append({
+                        "contract_id": contract_id,
+                        "concept_key": action.concept_key,
+                        "reason": "El contrato no pertenece al ámbito de la migración.",
+                    })
                 continue
             if item["eligibility"] != "eligible":
                 skipped.append({"contract_id": contract_id, "reason": item["reason"] or "Contrato no migrable."})
+                for action in actions_by_contract.get(contract_id, []):
+                    concept_actions_skipped.append({
+                        "contract_id": contract_id,
+                        "concept_key": action.concept_key,
+                        "reason": "El contrato no es migrable.",
+                    })
                 continue
 
             target_row = row_by_category.get(contract.professional_category_id)
             if not target_row:
                 skipped.append({"contract_id": contract_id, "reason": "No existe fila equivalente en la tabla destino."})
+                for action in actions_by_contract.get(contract_id, []):
+                    concept_actions_skipped.append({
+                        "contract_id": contract_id,
+                        "concept_key": action.concept_key,
+                        "reason": "No existe una fila salarial de destino.",
+                    })
                 continue
 
             contract.salary_table_row_id = target_row.id
             if payload.update_salary_base and target_row.base_salary is not None:
                 contract.salary_base = target_row.base_salary
                 salary_base_updated += 1
+
+            action_result = apply_contract_concept_actions(
+                db,
+                contract,
+                target_row,
+                actions_by_contract.get(contract_id, []),
+            )
+            concepts_created += action_result["created"]
+            concepts_updated += action_result["updated"]
+            concepts_reactivated += action_result["reactivated"]
+            concepts_deactivated += action_result["deactivated"]
+            concept_actions_skipped.extend(action_result["skipped"])
             migrated_ids.append(contract.id)
 
         db.commit()
@@ -234,10 +302,11 @@ def migrate_contracts_to_salary_table(
         db.rollback()
         raise
 
-    warnings = [
-        "La migración cambia la fila salarial vinculada al contrato.",
-        "Los conceptos permanentes ya cargados no se recalculan automáticamente; deben revisarse o cargarse de nuevo desde el convenio.",
-    ]
+    warnings = ["La migración cambia la fila salarial vinculada al contrato."]
+    if payload.concept_actions:
+        warnings.append("Solo se han aplicado las modificaciones de conceptos expresamente seleccionadas.")
+    else:
+        warnings.append("Los conceptos permanentes no se han modificado.")
     if not payload.update_salary_base:
         warnings.append("El salario base existente se ha conservado.")
 
@@ -247,6 +316,11 @@ def migrate_contracts_to_salary_table(
         "selected_contracts": len(selected_ids),
         "migrated_contracts": len(migrated_ids),
         "salary_base_updated": salary_base_updated,
+        "concepts_created": concepts_created,
+        "concepts_updated": concepts_updated,
+        "concepts_reactivated": concepts_reactivated,
+        "concepts_deactivated": concepts_deactivated,
+        "concept_actions_skipped": concept_actions_skipped,
         "skipped_contracts": skipped,
         "migrated_contract_ids": migrated_ids,
         "warnings": warnings,
