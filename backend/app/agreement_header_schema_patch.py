@@ -1,5 +1,6 @@
 from sqlalchemy import inspect, text
 
+from app.agreement_extra_pay_schema_patch import add_missing_agreement_extra_pay_accrual_columns
 from app.db import engine
 
 
@@ -76,3 +77,5 @@ def add_missing_collective_agreement_header_columns() -> None:
                 """
             )
         )
+
+    add_missing_agreement_extra_pay_accrual_columns()
