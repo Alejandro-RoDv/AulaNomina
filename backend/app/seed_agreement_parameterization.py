@@ -3,6 +3,7 @@ from decimal import Decimal
 from sqlalchemy.orm import Session
 
 from app.models.agreement_parameterization import AgreementConceptCatalog, AgreementRuleDetail, AgreementRuleHeader
+from app.models.agreement_seniority import AgreementSeniorityRule
 from app.services.payroll_rates import DEFAULT_PAYROLL_RATES
 
 
@@ -56,7 +57,34 @@ def seed_agreement_parameterization(db: Session, agreement_id: int) -> dict:
     ])
     created_rules += _create_rule(db, agreement_id, "vacation_automation", "VAC_AUTO", "Vacaciones", {"numero_dias": 30, "tipo_dias": "naturales", "devenga_it": True, "cotizacion": True, "computo_diario": True})
     created_rules += _create_rule(db, agreement_id, "extra_pay_automation", "PEXTRA", "Pagas extraordinarias", {"prorrateo": False, "codigo_cra": "0042", "pagas": ["julio", "diciembre"], "cotizacion": True})
-    created_rules += _create_rule(db, agreement_id, "seniority", "ANT", "Antigüedad", {"forma_pago": "mensual", "criterio_devengo": "fecha_antiguedad", "computo_diario": False})
+    created_rules += _create_rule(db, agreement_id, "seniority", "ANT", "Antigüedad", {"forma_pago": "mensual", "criterio_devengo": "fecha_antiguedad", "computo_diario": True})
     created_rules += _create_rule(db, agreement_id, "it_complement", "IT", "Complementos IT", {"tramos": 4, "conceptos": [], "diagnosticos": [], "limites": {}})
+
+    created_seniority_rules = 0
+    if not db.query(AgreementSeniorityRule).filter(AgreementSeniorityRule.collective_agreement_id == agreement_id).first():
+        db.add(
+            AgreementSeniorityRule(
+                collective_agreement_id=agreement_id,
+                code="TRI",
+                name="Trienios",
+                module_years=3,
+                calculation_mode="table_amount",
+                applies_partiality=True,
+                daily_proration_on_maturity=True,
+                contributes=True,
+                taxable=True,
+                affects_extra_payments=True,
+                is_active=True,
+                display_order=10,
+                notes="Regla didáctica base. Utiliza el importe de antigüedad de cada fila salarial.",
+            )
+        )
+        created_seniority_rules = 1
+
     db.commit()
-    return {"created_rules": created_rules, "created_catalog_items": created_catalog_items, "message": "Parametrización base cargada"}
+    return {
+        "created_rules": created_rules,
+        "created_catalog_items": created_catalog_items,
+        "created_seniority_rules": created_seniority_rules,
+        "message": "Parametrización base cargada",
+    }
