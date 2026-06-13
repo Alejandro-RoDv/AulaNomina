@@ -20,6 +20,7 @@ from app.services.payroll_engine import (
     get_effective_period_dates,
     get_period_dates,
 )
+from app.services.seniority_payroll_items import sync_seniority_items
 
 DEFAULT_IRPF_PERCENTAGE = Decimal("10.00")
 
@@ -35,6 +36,7 @@ PERSISTED_PAYROLL_AMOUNT_KEYS = {
     "worked_base_salary",
     "temporary_disability_benefit",
     "company_disability_complement",
+    "seniority_amount",
     "contribution_days",
     "worked_days",
     "incident_days",
@@ -351,6 +353,7 @@ def create_payroll(db: Session, payroll: PayrollCreate):
         period_year=payroll.period_year,
         base_salary=calculated["base_salary"],
         salary_supplements=calculated["salary_supplements"],
+        seniority_amount=calculated["seniority_amount"],
         variable_incentives=calculated["variable_incentives"],
         extra_pay_proration=calculated["extra_pay_proration"],
         irpf_mode=irpf_mode,
@@ -363,6 +366,7 @@ def create_payroll(db: Session, payroll: PayrollCreate):
     try:
         db.add(db_payroll)
         db.flush()
+        sync_seniority_items(db, db_payroll.id, calculated.get("seniority_lines") or [])
         sync_monthly_proration_items(
             db,
             db_payroll.id,
@@ -432,6 +436,7 @@ def build_prepare_item_from_payroll(
         "incident_summary": incident_summary,
         "status": payroll.status,
         "gross_salary": money(payroll.gross_salary or Decimal("0.00")),
+        "seniority_amount": money(payroll.seniority_amount or Decimal("0.00")),
         "extra_pay_proration": money(payroll.extra_pay_proration or Decimal("0.00")),
         "contribution_days": payroll.contribution_days or 30,
         "incident_days": payroll.incident_days or 0,
@@ -596,6 +601,7 @@ def update_payroll(db: Session, payroll_id: int, payroll_data: PayrollUpdate):
 
     db_payroll.base_salary = calculated["base_salary"]
     db_payroll.salary_supplements = calculated["salary_supplements"]
+    db_payroll.seniority_amount = calculated["seniority_amount"]
     db_payroll.variable_incentives = calculated["variable_incentives"]
     db_payroll.extra_pay_proration = calculated["extra_pay_proration"]
     db_payroll.irpf_mode = irpf_mode
@@ -605,6 +611,7 @@ def update_payroll(db: Session, payroll_id: int, payroll_data: PayrollUpdate):
         setattr(db_payroll, key, value)
 
     try:
+        sync_seniority_items(db, db_payroll.id, calculated.get("seniority_lines") or [])
         sync_monthly_proration_items(
             db,
             db_payroll.id,
@@ -666,6 +673,9 @@ def simulate_future_payrolls(db: Session, request: PayrollFutureSimulationReques
                 "period_year": request.period_year,
                 "base_salary": calculated["base_salary"],
                 "salary_supplements": calculated["salary_supplements"],
+                "seniority_amount": calculated["seniority_amount"],
+                "seniority_lines": calculated.get("seniority_lines") or [],
+                "seniority_warnings": calculated.get("seniority_warnings") or [],
                 "variable_incentives": calculated["variable_incentives"],
                 "extra_pay_proration": calculated["extra_pay_proration"],
                 "extra_pay_proration_source": calculated.get("extra_pay_proration_source"),
