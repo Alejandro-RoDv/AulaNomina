@@ -52,6 +52,7 @@ def legacy_proration(contract: Contract) -> dict:
         "source": "legacy",
         "lines": [
             {
+                "agreement_id": None,
                 "extra_pay_id": None,
                 "extra_pay_name": "Prorrata histórica",
                 "concept_key": "LEGACY",
@@ -234,6 +235,7 @@ def resolve_monthly_extra_pay_proration(
 
             result_lines.append(
                 {
+                    "agreement_id": extra_pay.collective_agreement_id,
                     "extra_pay_id": extra_pay.id,
                     "extra_pay_name": extra_pay.name,
                     "concept_key": line["concept_key"],
@@ -286,7 +288,7 @@ def sync_monthly_proration_items(db: Session, payroll_id: int, lines: list[dict]
             "concept_type": "DEVENGO",
             "salary_nature": "SALARIAL",
             "source_type": "AGREEMENT" if line.get("extra_pay_id") else "SYSTEM",
-            "agreement_id": None,
+            "agreement_id": line.get("agreement_id"),
             "calculation_type": "FIXED_AMOUNT",
             "default_amount": Decimal("0.00"),
             "default_unit_price": Decimal("0.00"),
