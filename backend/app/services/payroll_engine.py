@@ -168,6 +168,49 @@ def build_empty_earning_lines(gross_salary: Decimal) -> dict:
     }
 
 
+def add_preadjusted_proration_to_bases(
+    base_result: dict,
+    extra_pay_proration: Decimal,
+    contribution_days: int,
+) -> dict:
+    """Add an already accrued-day-adjusted proration without applying day ratio twice."""
+    proration = money(extra_pay_proration)
+    base_result["common_contingencies_base"] = money(
+        base_result["common_contingencies_base"] + proration
+    )
+    base_result["professional_contingencies_base"] = money(
+        base_result["professional_contingencies_base"] + proration
+    )
+    base_result["unemployment_training_fogasa_base"] = base_result["professional_contingencies_base"]
+    base_result["included_common_concepts_total"] = money(
+        base_result["included_common_concepts_total"] + proration
+    )
+    base_result["included_professional_concepts_total"] = money(
+        base_result["included_professional_concepts_total"] + proration
+    )
+    base_result["taxable_irpf_concepts_total"] = money(
+        base_result["taxable_irpf_concepts_total"] + proration
+    )
+
+    for concept in base_result.get("salary_concepts", []):
+        if concept.get("name") == "Prorrata pagas extra":
+            concept["amount"] = proration
+            break
+
+    days = Decimal(str(contribution_days or 0))
+    if days > 0:
+        base_result["daily_common_base"] = money(
+            base_result["common_contingencies_base"] / days
+        )
+        base_result["daily_professional_base"] = money(
+            base_result["professional_contingencies_base"] / days
+        )
+    else:
+        base_result["daily_common_base"] = Decimal("0.00")
+        base_result["daily_professional_base"] = Decimal("0.00")
+    return base_result
+
+
 def calculate_special_period_result(
     contract: Contract,
     period_month: int,
@@ -240,11 +283,16 @@ def calculate_monthly_period_result(
         base_salary=base_salary,
         salary_supplements=salary_supplements,
         variable_incentives=variable_incentives,
-        extra_pay_proration=extra_pay_proration,
+        extra_pay_proration=Decimal("0.00"),
         non_salary_compensation=non_salary_compensation,
         overtime_amount=overtime_amount,
         contribution_days=day_result["contribution_days"],
         non_contribution_days=day_result["non_contribution_days"],
+    )
+    base_result = add_preadjusted_proration_to_bases(
+        base_result,
+        extra_pay_proration,
+        day_result["contribution_days"],
     )
 
     earning_lines = calculate_simulated_earning_lines(
