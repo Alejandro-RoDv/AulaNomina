@@ -3,6 +3,7 @@ from decimal import Decimal, ROUND_HALF_UP
 from fastapi import HTTPException
 from sqlalchemy.orm import Session, selectinload
 
+from app.models.agreement_extra_pay import AgreementExtraPay, AgreementExtraPayConcept
 from app.models.agreement_parameterization import AgreementSalaryConcept
 from app.models.collective_agreement import SalaryTable, SalaryTableRow
 from app.schemas.salary_table_revision import SalaryTableRevisionRequest
@@ -62,6 +63,8 @@ def duplicate_salary_table_revision(
     factor = Decimal("1.00") + (payload.increment_percentage / Decimal("100.00"))
     copied_rows = 0
     copied_concepts = 0
+    copied_extra_pays = 0
+    copied_extra_pay_lines = 0
     increased_rows = 0
     increased_concepts = 0
     warnings: list[str] = []
@@ -147,6 +150,54 @@ def duplicate_salary_table_revision(
         elif source_concepts:
             warnings.append("La tabla se ha creado sin copiar conceptos salariales versionados.")
 
+        source_extra_pays = (
+            db.query(AgreementExtraPay)
+            .options(selectinload(AgreementExtraPay.concept_lines))
+            .filter(AgreementExtraPay.salary_table_id == source.id)
+            .order_by(AgreementExtraPay.id)
+            .all()
+        )
+        if payload.copy_extra_pays:
+            if not source_extra_pays:
+                warnings.append("La tabla de origen no contiene pagas extraordinarias versionadas.")
+            for extra_pay in source_extra_pays:
+                target_extra_pay = AgreementExtraPay(
+                    collective_agreement_id=source.collective_agreement_id,
+                    salary_table_id=target.id,
+                    code=extra_pay.code,
+                    name=extra_pay.name,
+                    payment_month=extra_pay.payment_month,
+                    accrual_start_month=extra_pay.accrual_start_month,
+                    accrual_end_month=extra_pay.accrual_end_month,
+                    accrual_months=extra_pay.accrual_months,
+                    proration_allowed=extra_pay.proration_allowed,
+                    proration_default=extra_pay.proration_default,
+                    is_active=extra_pay.is_active,
+                    notes=extra_pay.notes,
+                )
+                db.add(target_extra_pay)
+                db.flush()
+                copied_extra_pays += 1
+
+                for line in extra_pay.concept_lines or []:
+                    db.add(
+                        AgreementExtraPayConcept(
+                            extra_pay_id=target_extra_pay.id,
+                            professional_category_id=line.professional_category_id,
+                            concept_key=line.concept_key,
+                            concept_name=line.concept_name,
+                            calculation_mode=line.calculation_mode,
+                            percentage=line.percentage,
+                            fixed_amount=line.fixed_amount,
+                            is_active=line.is_active,
+                            display_order=line.display_order,
+                            notes=line.notes,
+                        )
+                    )
+                    copied_extra_pay_lines += 1
+        elif source_extra_pays:
+            warnings.append("La tabla se ha creado sin copiar la configuración de pagas extraordinarias.")
+
         if payload.mark_source_historical:
             source.status = "historical"
 
@@ -168,6 +219,8 @@ def duplicate_salary_table_revision(
         "salary_table": target,
         "copied_rows": copied_rows,
         "copied_concepts": copied_concepts,
+        "copied_extra_pays": copied_extra_pays,
+        "copied_extra_pay_lines": copied_extra_pay_lines,
         "increased_rows": increased_rows,
         "increased_concepts": increased_concepts,
         "increment_percentage": payload.increment_percentage,
