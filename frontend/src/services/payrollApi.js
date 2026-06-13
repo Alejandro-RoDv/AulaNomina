@@ -127,6 +127,21 @@ export async function createContractPayrollConcept(contractId, payload) {
   );
 }
 
+export async function loadAgreementConceptsIntoContract(contractId, payload = {}) {
+  return apiRequest(
+    `/contracts/${contractId}/load-agreement-concepts`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        overwrite_salary_base: Boolean(payload.overwrite_salary_base),
+        reactivate_inactive: payload.reactivate_inactive !== false,
+      }),
+    },
+    "Error al cargar conceptos desde el convenio"
+  );
+}
+
 export async function updateContractPayrollConcept(lineId, payload) {
   return apiRequest(
     `/contract-payroll-concepts/${lineId}`,
