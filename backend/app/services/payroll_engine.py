@@ -105,10 +105,10 @@ def calculate_it_days(day_result: dict) -> tuple[int, int]:
 def calculate_simulated_earning_lines(
     base_salary: Decimal,
     salary_supplements: Decimal,
-    seniority_amount: Decimal,
     variable_incentives: Decimal,
     extra_pay_proration: Decimal,
     day_result: dict,
+    seniority_amount: Decimal = Decimal("0.00"),
 ) -> dict:
     daily_base_salary = money(base_salary / STANDARD_MONTH_DAYS) if STANDARD_MONTH_DAYS else Decimal("0.00")
     it_days, work_accident_days = calculate_it_days(day_result)
@@ -316,10 +316,10 @@ def calculate_monthly_period_result(
     earning_lines = calculate_simulated_earning_lines(
         base_salary=base_salary,
         salary_supplements=salary_supplements,
-        seniority_amount=seniority_amount,
         variable_incentives=variable_incentives,
         extra_pay_proration=extra_pay_proration,
         day_result=day_result,
+        seniority_amount=seniority_amount,
     )
 
     irpf_base = earning_lines["gross_salary"]
