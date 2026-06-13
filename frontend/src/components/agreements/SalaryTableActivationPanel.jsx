@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 
+import SalaryTableConceptComparison, {
+  buildDefaultConceptActions,
+} from "./SalaryTableConceptComparison";
 import {
   activateSalaryTable,
   fetchSalaryTableActivationPreview,
@@ -27,6 +30,24 @@ function eligibilityLabel(value) {
   return "Bloqueada";
 }
 
+function mergeActions(current, additions) {
+  const result = new Map();
+  [...current, ...additions].forEach((item) => {
+    result.set(`${item.contract_id}::${item.concept_key}::${item.action}`, item);
+  });
+  return Array.from(result.values());
+}
+
+function conceptSummary(item) {
+  const parts = [];
+  if (item.new_concepts) parts.push(`${item.new_concepts} nuevos`);
+  if (item.changed_concepts) parts.push(`${item.changed_concepts} cambios`);
+  if (item.reactivated_concepts) parts.push(`${item.reactivated_concepts} reactivaciones`);
+  if (item.obsolete_concepts) parts.push(`${item.obsolete_concepts} posibles bajas`);
+  if (!parts.length) return "Sin cambios";
+  return parts.join(" · ");
+}
+
 export default function SalaryTableActivationPanel({ agreement, onChanged }) {
   const tables = agreement?.salary_tables || [];
   const defaultTarget = tables.find((table) => table.status === "pending_review")
@@ -41,6 +62,7 @@ export default function SalaryTableActivationPanel({ agreement, onChanged }) {
   const [updateSalaryBase, setUpdateSalaryBase] = useState(false);
   const [preview, setPreview] = useState(null);
   const [selectedIds, setSelectedIds] = useState([]);
+  const [conceptActions, setConceptActions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
@@ -62,6 +84,7 @@ export default function SalaryTableActivationPanel({ agreement, onChanged }) {
     setTargetTableId(defaultTarget?.id ? String(defaultTarget.id) : "");
     setPreview(null);
     setSelectedIds([]);
+    setConceptActions([]);
     setMessage("");
     setError("");
     setMigrationResult(null);
@@ -77,12 +100,12 @@ export default function SalaryTableActivationPanel({ agreement, onChanged }) {
     }
     try {
       const data = await fetchSalaryTableActivationPreview(tableId, activeOnly);
+      const defaultIds = data.contracts
+        .filter((item) => item.eligibility === "eligible")
+        .map((item) => item.contract_id);
       setPreview(data);
-      setSelectedIds(
-        data.contracts
-          .filter((item) => item.eligibility === "eligible")
-          .map((item) => item.contract_id)
-      );
+      setSelectedIds(defaultIds);
+      setConceptActions(buildDefaultConceptActions(data.contracts, defaultIds));
     } catch (err) {
       setError(err.message || "No se pudo revisar la activación.");
     } finally {
@@ -90,23 +113,42 @@ export default function SalaryTableActivationPanel({ agreement, onChanged }) {
     }
   }
 
-  function changeTarget(value) {
-    setTargetTableId(value);
+  function resetSelection() {
     setPreview(null);
     setSelectedIds([]);
+    setConceptActions([]);
     setMessage("");
     setError("");
     setMigrationResult(null);
   }
 
+  function changeTarget(value) {
+    setTargetTableId(value);
+    resetSelection();
+  }
+
   function toggleContract(contractId) {
-    setSelectedIds((current) => current.includes(contractId)
-      ? current.filter((id) => id !== contractId)
-      : [...current, contractId]);
+    const isSelected = selectedIds.includes(contractId);
+    if (isSelected) {
+      setSelectedIds((current) => current.filter((id) => id !== contractId));
+      setConceptActions((current) => current.filter((item) => item.contract_id !== contractId));
+      return;
+    }
+
+    const nextIds = [...selectedIds, contractId];
+    const defaults = buildDefaultConceptActions(preview?.contracts || [], [contractId]);
+    setSelectedIds(nextIds);
+    setConceptActions((current) => mergeActions(current, defaults));
   }
 
   function toggleAllEligible() {
-    setSelectedIds((current) => current.length === eligibleIds.length ? [] : eligibleIds);
+    if (selectedIds.length === eligibleIds.length) {
+      setSelectedIds([]);
+      setConceptActions([]);
+      return;
+    }
+    setSelectedIds(eligibleIds);
+    setConceptActions(buildDefaultConceptActions(preview?.contracts || [], eligibleIds));
   }
 
   async function handleActivate() {
@@ -142,10 +184,16 @@ export default function SalaryTableActivationPanel({ agreement, onChanged }) {
       setError("Activa primero la tabla salarial.");
       return;
     }
+
+    const selectedSet = new Set(selectedIds);
+    const selectedConceptActions = conceptActions.filter((item) => selectedSet.has(item.contract_id));
     const salaryText = updateSalaryBase
       ? " También se sustituirá el salario base por el de la nueva fila."
       : " El salario base actual se conservará.";
-    if (!window.confirm(`¿Migrar ${selectedIds.length} contratos a ${targetTable.name}?${salaryText}`)) return;
+    const conceptsText = selectedConceptActions.length
+      ? ` Se aplicarán ${selectedConceptActions.length} acciones sobre conceptos permanentes.`
+      : " Los conceptos permanentes se conservarán sin cambios.";
+    if (!window.confirm(`¿Migrar ${selectedIds.length} contratos a ${targetTable.name}?${salaryText}${conceptsText}`)) return;
 
     setLoading(true);
     setError("");
@@ -157,6 +205,7 @@ export default function SalaryTableActivationPanel({ agreement, onChanged }) {
         migrate_all_eligible: false,
         active_contracts_only: activeOnly,
         update_salary_base: updateSalaryBase,
+        concept_actions: selectedConceptActions,
       });
       setMigrationResult(result);
       setMessage(`${result.migrated_contracts} contratos migrados a ${result.target_table_name}.`);
@@ -176,7 +225,7 @@ export default function SalaryTableActivationPanel({ agreement, onChanged }) {
       <header style={styles.header}>
         <div>
           <h3 style={styles.title}>Activación y migración</h3>
-          <p style={styles.subtitle}>Activa una única tabla y decide qué contratos deben utilizarla.</p>
+          <p style={styles.subtitle}>Activa una única tabla y decide qué contratos y conceptos permanentes deben actualizarse.</p>
         </div>
         <button type="button" onClick={() => setOpen((current) => !current)} style={styles.toggleButton}>
           {open ? "Cerrar" : "Gestionar activación"}
@@ -196,7 +245,7 @@ export default function SalaryTableActivationPanel({ agreement, onChanged }) {
               </select>
             </label>
             <label style={styles.check}>
-              <input type="checkbox" checked={activeOnly} onChange={(event) => { setActiveOnly(event.target.checked); setPreview(null); }} />
+              <input type="checkbox" checked={activeOnly} onChange={(event) => { setActiveOnly(event.target.checked); resetSelection(); }} />
               Solo contratos activos
             </label>
             <button type="button" onClick={() => loadPreview()} disabled={loading} style={styles.secondaryButton}>
@@ -206,8 +255,23 @@ export default function SalaryTableActivationPanel({ agreement, onChanged }) {
 
           {error && <div style={styles.error}>{error}</div>}
           {message && <div style={styles.success}>{message}</div>}
+          {migrationResult && (
+            <div style={styles.resultGrid}>
+              <Summary label="Contratos migrados" value={migrationResult.migrated_contracts} />
+              <Summary label="Conceptos creados" value={migrationResult.concepts_created} />
+              <Summary label="Conceptos actualizados" value={migrationResult.concepts_updated} />
+              <Summary label="Conceptos reactivados" value={migrationResult.concepts_reactivated} />
+              <Summary label="Conceptos desactivados" value={migrationResult.concepts_deactivated} />
+            </div>
+          )}
           {migrationResult?.warnings?.length > 0 && (
             <div style={styles.warning}>{migrationResult.warnings.map((warning) => <span key={warning}>{warning}</span>)}</div>
+          )}
+          {migrationResult?.concept_actions_skipped?.length > 0 && (
+            <div style={styles.warning}>
+              <strong>Acciones de conceptos omitidas</strong>
+              {migrationResult.concept_actions_skipped.map((item) => <span key={`${item.contract_id}-${item.concept_key}`}>Contrato {item.contract_id}: {item.reason}</span>)}
+            </div>
           )}
 
           {preview && (
@@ -244,6 +308,7 @@ export default function SalaryTableActivationPanel({ agreement, onChanged }) {
                       <th style={styles.th}>Categoría</th>
                       <th style={styles.th}>Tabla actual</th>
                       <th style={styles.th}>Base destino</th>
+                      <th style={styles.th}>Conceptos</th>
                       <th style={styles.th}>Estado</th>
                     </tr>
                   </thead>
@@ -258,14 +323,22 @@ export default function SalaryTableActivationPanel({ agreement, onChanged }) {
                           <td style={styles.td}>{item.professional_category_name || "Sin categoría"}</td>
                           <td style={styles.td}>{item.current_salary_table_name || "Sin tabla"}</td>
                           <td style={styles.tdAmount}>{money(item.target_base_salary)}</td>
+                          <td style={styles.td}><span>{conceptSummary(item)}</span>{item.preserved_concepts > 0 && <span style={styles.muted}>{item.preserved_concepts} personalizados/sistema conservados</span>}</td>
                           <td style={styles.td}><strong>{eligibilityLabel(item.eligibility)}</strong>{item.reason && <span style={styles.reason}>{item.reason}</span>}</td>
                         </tr>
                       );
                     })}
-                    {!preview.contracts.length && <tr><td colSpan="7" style={styles.emptyCell}>No hay contratos dentro del ámbito seleccionado.</td></tr>}
+                    {!preview.contracts.length && <tr><td colSpan="8" style={styles.emptyCell}>No hay contratos dentro del ámbito seleccionado.</td></tr>}
                   </tbody>
                 </table>
               </div>
+
+              <SalaryTableConceptComparison
+                contracts={preview.contracts}
+                selectedContractIds={selectedIds}
+                selectedActions={conceptActions}
+                onChange={setConceptActions}
+              />
 
               <div style={styles.footer}>
                 <label style={styles.check}>
@@ -301,10 +374,11 @@ const styles = {
   input: { width: "100%", height: "34px", border: "1px solid #d1d5db", background: "#fff", padding: "6px 8px", fontSize: "12px" },
   check: { minHeight: "34px", display: "flex", alignItems: "center", gap: "8px", color: "#374151", fontSize: "12px", fontWeight: 750 },
   summaryGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: "8px" },
+  resultGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "8px", padding: "10px", border: "1px solid #bbf7d0", background: "#f0fdf4" },
   summary: { border: "1px solid #e5e7eb", padding: "9px", display: "flex", flexDirection: "column", gap: "3px", color: "#374151", fontSize: "11px" },
   tableHeader: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: "10px" },
   tableWrap: { overflowX: "auto", maxHeight: "420px", border: "1px solid #e5e7eb" },
-  table: { width: "100%", minWidth: "940px", borderCollapse: "collapse" },
+  table: { width: "100%", minWidth: "1080px", borderCollapse: "collapse" },
   th: { position: "sticky", top: 0, textAlign: "left", padding: "8px", background: "#f9fafb", borderBottom: "1px solid #d1d5db", color: "#374151", fontSize: "11px", fontWeight: 850 },
   td: { padding: "8px", borderBottom: "1px solid #e5e7eb", color: "#374151", fontSize: "12px", verticalAlign: "top" },
   tdAmount: { padding: "8px", borderBottom: "1px solid #e5e7eb", color: "#111827", fontSize: "12px", fontWeight: 850, textAlign: "right" },
