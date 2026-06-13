@@ -11,12 +11,14 @@ import {
 import { formatCurrency } from "./PayrollForm";
 
 const EMPTY_FORM = { concept_id: "", description: "", quantity: "1", unit_price: "0", amount: "" };
+const SENIORITY_PREFIX = "SENIORITY_AUTO_";
+const RETROACTIVE_PREFIX = "RETRO_TABLE_";
 
 function getCalculationLabel(item) {
   const quantity = Number(item.quantity || 0);
   const unitPrice = Number(item.unit_price || 0);
 
-  if (item.concept_type === "BASE_INFORMATIVA") return "Base informativa";
+  if (item.concept_type === "BASE_INFORMATIVA") return item.description || "Traza automática";
   if (unitPrice > 0 && quantity > 0) {
     return `${quantity.toLocaleString("es-ES")} × ${formatCurrency(unitPrice)}`;
   }
@@ -38,7 +40,18 @@ function Field({ label, children, style }) {
   );
 }
 
-function ConceptTable({ title, items, editingItemId, editLineForm, onStartEdit, onCancelEdit, onEditChange, onSaveEdit, onDelete }) {
+function ConceptTable({
+  title,
+  items,
+  readOnly = false,
+  editingItemId,
+  editLineForm,
+  onStartEdit,
+  onCancelEdit,
+  onEditChange,
+  onSaveEdit,
+  onDelete,
+}) {
   return (
     <div style={styles.box}>
       <h5 style={styles.boxTitle}>{title}</h5>
@@ -49,12 +62,12 @@ function ConceptTable({ title, items, editingItemId, editLineForm, onStartEdit, 
               <th style={styles.left}>Concepto</th>
               <th style={styles.calcHeader}>Cálculo</th>
               <th style={styles.amountHeader}>Total línea</th>
-              <th style={styles.actionsHeader}>Acciones</th>
+              <th style={styles.actionsHeader}>{readOnly ? "Origen" : "Acciones"}</th>
             </tr>
           </thead>
           <tbody>
             {items.map((item) => {
-              const isEditing = editingItemId === item.id;
+              const isEditing = !readOnly && editingItemId === item.id;
               return (
                 <tr key={item.id}>
                   <td style={styles.cell}>
@@ -79,7 +92,9 @@ function ConceptTable({ title, items, editingItemId, editLineForm, onStartEdit, 
                     ) : formatCurrency(item.amount)}
                   </td>
                   <td style={styles.actionsCell}>
-                    {isEditing ? (
+                    {readOnly ? (
+                      <span style={styles.automaticBadge}>Automática</span>
+                    ) : isEditing ? (
                       <>
                         <button type="button" onClick={() => onSaveEdit(item)} style={styles.smallPrimaryButton}>Guardar</button>
                         <button type="button" onClick={onCancelEdit} style={styles.smallButton}>Cancelar</button>
@@ -122,6 +137,13 @@ export default function PayrollConceptBreakdown({ payrollId }) {
     });
     return groups;
   }, [concepts]);
+
+  const pureProrationLines = useMemo(() => (
+    (breakdown?.prorratas_automaticas || []).filter((item) => {
+      const code = String(item.concept_code || "");
+      return !code.startsWith(SENIORITY_PREFIX) && !code.startsWith(RETROACTIVE_PREFIX);
+    })
+  ), [breakdown]);
 
   async function loadData() {
     if (!payrollId) return;
@@ -263,7 +285,7 @@ export default function PayrollConceptBreakdown({ payrollId }) {
       <div style={styles.header}>
         <div>
           <h4 style={styles.title}>Desglose de conceptos</h4>
-          <p style={styles.subtitle}>Vista manual para explicar de dónde sale cada concepto. No recalcula todavía la nómina principal.</p>
+          <p style={styles.subtitle}>Las líneas automáticas explican los cálculos del motor. Las líneas manuales pueden editarse de forma independiente.</p>
         </div>
         <div style={styles.headerActions}>
           <button type="button" onClick={handleLoadContractConcepts} style={styles.contractButton} disabled={loadingContractConcepts || saving}>
@@ -279,15 +301,25 @@ export default function PayrollConceptBreakdown({ payrollId }) {
       {breakdown && (
         <>
           <div style={styles.summary}>
-            <div style={styles.summaryCard}><span>Devengos introducidos</span><strong>{formatCurrency(breakdown.total_devengos)}</strong></div>
-            <div style={styles.summaryCard}><span>Deducciones introducidas</span><strong>{formatCurrency(breakdown.total_deducciones)}</strong></div>
+            <div style={styles.summaryCard}><span>Devengos del desglose</span><strong>{formatCurrency(breakdown.total_devengos)}</strong></div>
+            <div style={styles.summaryCard}><span>Antigüedad automática</span><strong>{formatCurrency(breakdown.total_antiguedad_automatica)}</strong></div>
+            <div style={styles.summaryCard}><span>Prorratas automáticas</span><strong>{formatCurrency(breakdown.total_prorrata_automatica)}</strong></div>
+            <div style={styles.summaryCard}><span>Regularizaciones</span><strong>{formatCurrency(breakdown.total_regularizacion_automatica)}</strong></div>
+            <div style={styles.summaryCard}><span>Deducciones manuales</span><strong>{formatCurrency(breakdown.total_deducciones)}</strong></div>
             <div style={styles.netCard}><span>Neto según desglose</span><strong>{formatCurrency(breakdown.neto_manual)}</strong></div>
           </div>
+
+          <div style={styles.automaticGrid}>
+            <ConceptTable title="Antigüedad automática" items={breakdown.antiguedad_automatica} readOnly />
+            <ConceptTable title="Prorratas y pagas automáticas" items={pureProrationLines} readOnly />
+            <ConceptTable title="Regularizaciones retroactivas" items={breakdown.regularizaciones_automaticas} readOnly />
+          </div>
+
           <div style={styles.grid}>
-            <ConceptTable title="Devengos salariales" items={breakdown.devengos_salariales} {...tableProps} />
-            <ConceptTable title="Devengos extrasalariales" items={breakdown.devengos_extrasalariales} {...tableProps} />
-            <ConceptTable title="Deducciones" items={breakdown.deducciones} {...tableProps} />
-            <ConceptTable title="Bases informativas" items={breakdown.bases_informativas} {...tableProps} />
+            <ConceptTable title="Devengos salariales manuales" items={breakdown.devengos_salariales} {...tableProps} />
+            <ConceptTable title="Devengos extrasalariales manuales" items={breakdown.devengos_extrasalariales} {...tableProps} />
+            <ConceptTable title="Deducciones manuales" items={breakdown.deducciones} {...tableProps} />
+            <ConceptTable title="Bases informativas manuales" items={breakdown.bases_informativas} {...tableProps} />
           </div>
         </>
       )}
@@ -337,22 +369,24 @@ const styles = {
   subtitle: { margin: "4px 0 0", fontSize: "12px", fontWeight: 700, color: "#6b7280" },
   secondaryButton: { backgroundColor: "#ffffff", border: "2px solid #111827", borderRadius: "8px", padding: "8px 12px", fontWeight: 900, cursor: "pointer", whiteSpace: "nowrap" },
   contractButton: { backgroundColor: "#e6d85c", border: "2px solid #111827", color: "#111827", borderRadius: "8px", padding: "8px 12px", fontWeight: 900, cursor: "pointer", whiteSpace: "nowrap" },
-  summary: { display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: "10px", marginBottom: "12px" },
+  summary: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "10px", marginBottom: "12px" },
   summaryCard: { border: "1px solid #d1d5db", borderRadius: "10px", padding: "10px", backgroundColor: "#f9fafb", display: "flex", justifyContent: "space-between", gap: "8px" },
   netCard: { border: "2px solid #111827", borderRadius: "10px", padding: "10px", backgroundColor: "#fffdf0", display: "flex", justifyContent: "space-between", gap: "8px" },
+  automaticGrid: { display: "grid", gridTemplateColumns: "1fr", gap: "12px", marginBottom: "12px" },
   grid: { display: "grid", gridTemplateColumns: "1fr", gap: "12px" },
   box: { border: "1px solid #d1d5db", borderRadius: "12px", overflow: "hidden", backgroundColor: "#ffffff" },
   boxTitle: { margin: 0, padding: "8px 10px", backgroundColor: "#f3f4f6", borderBottom: "1px solid #d1d5db", fontWeight: 900, fontSize: "14px" },
   table: { width: "100%", borderCollapse: "collapse", tableLayout: "auto" },
   left: { textAlign: "left", padding: "7px 8px", fontSize: "11px", color: "#4b5563" },
-  calcHeader: { width: "190px", textAlign: "right", padding: "7px 8px", fontSize: "11px", color: "#4b5563", whiteSpace: "nowrap" },
+  calcHeader: { width: "260px", textAlign: "right", padding: "7px 8px", fontSize: "11px", color: "#4b5563", whiteSpace: "nowrap" },
   amountHeader: { width: "130px", textAlign: "right", padding: "7px 8px", fontSize: "11px", color: "#4b5563", whiteSpace: "nowrap" },
   actionsHeader: { width: "150px", textAlign: "right", padding: "7px 8px", fontSize: "11px", color: "#4b5563", whiteSpace: "nowrap" },
   cell: { padding: "8px", borderTop: "1px solid #f3f4f6", minWidth: "260px" },
   conceptName: { display: "block", fontSize: "13px", lineHeight: 1.25 },
-  calcCell: { width: "190px", padding: "8px", borderTop: "1px solid #f3f4f6", textAlign: "right", whiteSpace: "nowrap", color: "#4b5563", fontWeight: 700 },
+  calcCell: { width: "260px", padding: "8px", borderTop: "1px solid #f3f4f6", textAlign: "right", color: "#4b5563", fontWeight: 700 },
   amount: { width: "130px", padding: "8px", borderTop: "1px solid #f3f4f6", textAlign: "right", fontWeight: 900, whiteSpace: "nowrap" },
   actionsCell: { width: "150px", padding: "8px", borderTop: "1px solid #f3f4f6", textAlign: "right", display: "flex", justifyContent: "flex-end", gap: "6px", flexWrap: "wrap" },
+  automaticBadge: { display: "inline-flex", padding: "4px 7px", borderRadius: "999px", background: "#e0f2fe", color: "#075985", fontSize: "11px", fontWeight: 900 },
   note: { display: "block", color: "#6b7280", marginTop: "3px", lineHeight: 1.35 },
   empty: { margin: 0, padding: "10px", color: "#6b7280", fontSize: "12px", fontWeight: 700 },
   inlineEditGrid: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px" },
