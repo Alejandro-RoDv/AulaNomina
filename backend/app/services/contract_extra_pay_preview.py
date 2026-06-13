@@ -105,6 +105,14 @@ def preview_contract_extra_pay(
     if not contract.professional_category_id:
         raise HTTPException(status_code=400, detail="El contrato no tiene categoría profesional vinculada")
 
+    contract_table_id = contract.salary_table_row.salary_table_id if contract.salary_table_row else None
+    resolved_table_id = extra_pay.salary_table_id or contract_table_id
+    if not resolved_table_id:
+        raise HTTPException(
+            status_code=400,
+            detail="La paga y el contrato no tienen una tabla salarial para resolver los conceptos",
+        )
+
     accrual_start, accrual_end = resolve_accrual_dates(extra_pay, period_year)
     period_days = date_set(accrual_start, accrual_end)
     active_days = contract_active_days(contract, accrual_start, accrual_end)
@@ -126,7 +134,7 @@ def preview_contract_extra_pay(
         db,
         extra_pay.id,
         contract.professional_category_id,
-        salary_table_id=extra_pay.salary_table_id,
+        salary_table_id=resolved_table_id,
     )
     keys = {line["concept_key"] for line in base["lines"]}
     contract_amounts = contract_concept_amounts(
@@ -140,9 +148,10 @@ def preview_contract_extra_pay(
     final = Decimal("0.00")
     warnings = list(base.get("warnings") or [])
 
-    contract_table_id = contract.salary_table_row.salary_table_id if contract.salary_table_row else None
     if extra_pay.salary_table_id and contract_table_id != extra_pay.salary_table_id:
         warnings.append("El contrato utiliza una tabla salarial distinta de la paga.")
+    elif extra_pay.salary_table_id is None:
+        warnings.append("La paga general se ha resuelto con la tabla salarial del contrato.")
 
     for line in base["lines"]:
         table_base = as_money(line["base_amount"])
@@ -225,7 +234,7 @@ def preview_contract_extra_pay(
         "employee_id": contract.employee_id,
         "employee_name": contract.employee_name,
         "company_id": contract.company_id,
-        "salary_table_id": extra_pay.salary_table_id,
+        "salary_table_id": resolved_table_id,
         "professional_category_id": contract.professional_category_id,
         "accrual_start_date": accrual_start,
         "accrual_end_date": accrual_end,
