@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 import AgreementCriteriaPanel from "../components/agreements/AgreementCriteriaPanel";
-import AgreementExtraPayPanel from "../components/agreements/AgreementExtraPayPanel";
+import AgreementExtraPayPanelV2 from "../components/agreements/AgreementExtraPayPanelV2";
 import AgreementSalaryStructurePanel from "../components/agreements/AgreementSalaryStructurePanel";
 import SalaryTableActivationPanel from "../components/agreements/SalaryTableActivationPanel";
 import SalaryTableRevisionPanel from "../components/agreements/SalaryTableRevisionPanel";
@@ -128,7 +128,7 @@ export default function CollectiveAgreementsWorkspacePage(props) {
                 <>
                   <SalaryTableRevisionPanel agreement={agreement} onCompleted={() => loadSelectedAgreement(false)} />
                   <SalaryTableActivationPanel agreement={agreement} onChanged={() => loadSelectedAgreement(false)} />
-                  <AgreementExtraPayPanel agreement={agreement} onChanged={() => loadSelectedAgreement(false)} />
+                  <AgreementExtraPayPanelV2 agreement={agreement} onChanged={() => loadSelectedAgreement(false)} />
                   <AgreementSalaryStructurePanel agreement={agreement} />
                 </>
               )}
