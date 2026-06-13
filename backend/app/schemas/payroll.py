@@ -165,6 +165,7 @@ class PayrollPrepareResponseItem(BaseModel):
     incident_summary: list[str] = []
     status: str
     gross_salary: Decimal
+    extra_pay_proration: Decimal = Decimal("0.00")
     contribution_days: int = 30
     incident_days: int = 0
     has_payroll_affecting_incidents: bool = False
@@ -219,6 +220,10 @@ class PayrollFutureSimulationItem(BaseModel):
     company_disability_complement: Decimal = Decimal("0.00")
     salary_supplements: Decimal
     variable_incentives: Decimal
+    extra_pay_proration: Decimal = Decimal("0.00")
+    extra_pay_proration_source: Optional[str] = None
+    extra_pay_proration_lines: list[dict] = []
+    extra_pay_proration_warnings: list[str] = []
     gross_salary: Decimal
     contribution_days: int = 30
     worked_days: int = 30
