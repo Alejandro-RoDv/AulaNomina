@@ -35,6 +35,16 @@ Implementado:
   - desactivar.
 - Conservación automática de conceptos personalizados y de sistema.
 - Ejecución transaccional conjunta de fila salarial, salario base y conceptos.
+- Pagas extraordinarias configurables:
+  - versión por tabla salarial,
+  - período de devengo,
+  - mes de abono,
+  - prorrateo permitido y por defecto,
+  - conceptos participantes,
+  - porcentaje o importe fijo,
+  - reglas generales y específicas por categoría,
+  - vista previa por tabla y categoría.
+- Copia de pagas y líneas al duplicar una tabla salarial.
 
 ### Endpoints principales
 
@@ -46,6 +56,10 @@ Implementado:
 - `GET /collective-agreements/salary-tables/{table_id}/activation-preview`
 - `POST /collective-agreements/salary-tables/{table_id}/activate`
 - `POST /collective-agreements/salary-tables/{table_id}/migrate-contracts`
+- `GET /collective-agreements/{agreement_id}/extra-pays`
+- `POST /collective-agreements/{agreement_id}/extra-pays`
+- `GET /collective-agreements/{agreement_id}/extra-pay-candidates`
+- `GET /collective-agreements/extra-pays/{extra_pay_id}/preview`
 
 ## Base de datos
 
@@ -54,7 +68,10 @@ Implementado:
 - Parche conservador para la cabecera ampliada del convenio.
 - Campos `minimum_value` y `maximum_value` en detalles de reglas.
 - Campo `salary_table_id` en conceptos salariales.
-- Compatibilidad con bases existentes.
+- Tablas nuevas:
+  - `agreement_extra_pays`,
+  - `agreement_extra_pay_concepts`.
+- Compatibilidad con bases existentes mediante `Base.metadata.create_all`.
 - Backfill del convenio demo.
 
 La actualización selectiva de conceptos reutiliza las tablas actuales de conceptos permanentes y no requiere nuevas columnas.
@@ -94,11 +111,11 @@ El módulo dispone de tres vistas:
    - aplicar incrementos,
    - activar una revisión,
    - revisar y migrar contratos,
-   - comparar y seleccionar cambios en conceptos permanentes.
+   - comparar y seleccionar cambios en conceptos permanentes,
+   - configurar y simular pagas extraordinarias.
 
 3. `Criterios laborales`
    - SMI e IPREM,
-   - pagas extraordinarias,
    - atrasos,
    - contratación,
    - período de prueba,
@@ -128,6 +145,23 @@ La selección recomendada incluye altas, cambios y reactivaciones. Las bajas req
 
 La activación no modifica contratos. La migración se realiza después y aplica únicamente las acciones marcadas.
 
+### Pagas extraordinarias
+
+La pantalla permite:
+
+- crear varias pagas por tabla salarial,
+- definir código, denominación y abono,
+- definir inicio, fin y meses de devengo,
+- permitir o impedir prorrateo,
+- marcar prorrateo por defecto,
+- añadir conceptos al porcentaje indicado,
+- añadir importes fijos,
+- aplicar reglas a todas las categorías,
+- sobrescribir una regla para una categoría concreta,
+- excluir deducciones,
+- calcular importe íntegro y prorrata teórica,
+- copiar la configuración al ejercicio siguiente.
+
 ### Conceptos permanentes
 
 Implementado:
@@ -142,18 +176,24 @@ Implementado:
 
 ## Pruebas
 
-Añadido:
+Añadidos:
 
-`backend/tests/test_salary_table_concept_migration.py`
+- `backend/tests/test_salary_table_concept_migration.py`
+- `backend/tests/test_agreement_extra_pay.py`
 
-Utiliza `unittest` y SQLite en memoria, sin nuevas dependencias.
+Utilizan `unittest` y SQLite en memoria, sin nuevas dependencias.
 
-Cubre:
+Cubren:
 
 - clasificación de conceptos,
 - conservación de personalizados,
 - aplicación de acciones seleccionadas,
-- migración conjunta de fila, salario base y conceptos.
+- migración conjunta de fila, salario base y conceptos,
+- exclusión de deducciones en pagas extra,
+- cálculo porcentual y fijo,
+- prevalencia de categoría,
+- prorrata mensual,
+- copia de pagas al duplicar una tabla.
 
 Ejecución:
 
@@ -169,15 +209,17 @@ python -m unittest discover -s tests -p "test_*.py"
 3. Crear una tabla salarial y sus filas.
 4. Convertir las filas en conceptos editables.
 5. Configurar criterios laborales.
-6. Crear una revisión del ejercicio siguiente.
-7. Aplicar un incremento general.
-8. Revisar contratos afectados.
-9. Comparar conceptos actuales y nuevos.
-10. Seleccionar únicamente los cambios deseados.
-11. Activar la tabla nueva.
-12. Migrar únicamente contratos válidos.
-13. Revisar el resumen de altas, cambios, reactivaciones y bajas.
-14. Preparar la nómina simulada.
+6. Crear pagas extraordinarias y seleccionar conceptos.
+7. Mostrar una vista previa por categoría.
+8. Crear una revisión del ejercicio siguiente.
+9. Aplicar un incremento general y copiar las pagas.
+10. Revisar contratos afectados.
+11. Comparar conceptos actuales y nuevos.
+12. Seleccionar únicamente los cambios deseados.
+13. Activar la tabla nueva.
+14. Migrar únicamente contratos válidos.
+15. Revisar el resumen de altas, cambios, reactivaciones y bajas.
+16. Preparar la nómina simulada.
 
 ## Pendiente
 
@@ -186,7 +228,6 @@ python -m unittest discover -s tests -p "test_*.py"
 - Bases de cotización por régimen y grupo.
 - Coeficientes reductores.
 - AT/EP por CNAE u ocupación.
-- Conceptos participantes en pagas extra.
 - Valoración y medias de vacaciones.
 - Vencimientos reales de antigüedad.
 - Diagnósticos y exclusiones avanzadas de IT.
@@ -201,7 +242,9 @@ python -m unittest discover -s tests -p "test_*.py"
 
 Pendiente consumir directamente las reglas avanzadas para:
 
-- prorrateo de pagas extra,
+- cálculo de paga extra por contrato,
+- ajuste por alta, baja, IT y períodos no devengados,
+- prorrateo mensual de pagas extra,
 - vacaciones,
 - antigüedad por vencimientos,
 - complementos IT,
