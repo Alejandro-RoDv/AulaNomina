@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 
 from app.agreement_header_routes import router as agreement_header_router
 from app.agreement_parameterization_routes import router as agreement_parameterization_router
+from app.salary_table_revision_routes import router as salary_table_revision_router
 from app.crud.payroll_salary_structure import (
     build_payroll_breakdown,
     create_contract_payroll_concept,
@@ -61,6 +62,7 @@ from app.services.contract_salary_summary import (
 router = APIRouter(tags=["payroll-salary-structure"])
 router.include_router(agreement_header_router)
 router.include_router(agreement_parameterization_router)
+router.include_router(salary_table_revision_router)
 
 
 def get_db():
