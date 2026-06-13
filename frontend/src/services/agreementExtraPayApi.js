@@ -97,3 +97,20 @@ export async function fetchAgreementExtraPayPreview(
     "Error al calcular la paga extraordinaria"
   );
 }
+
+export async function fetchContractExtraPayPreview(extraPayId, contractId, periodYear) {
+  return apiRequest(
+    `/collective-agreements/extra-pays/${extraPayId}/contracts/${contractId}/preview?period_year=${periodYear}`,
+    {},
+    "Error al calcular la paga extraordinaria del contrato"
+  );
+}
+
+export async function createContractExtraPayroll(extraPayId, contractId, payload) {
+  return jsonRequest(
+    `/collective-agreements/extra-pays/${extraPayId}/contracts/${contractId}/payroll`,
+    "POST",
+    payload,
+    "Error al generar la nómina de paga extraordinaria"
+  );
+}
