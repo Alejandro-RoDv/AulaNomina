@@ -14,6 +14,7 @@ from app.schemas.agreement_extra_pay import (
     AgreementExtraPayUpdate,
 )
 from app.services.agreement_extra_pay import (
+    _get_extra_pay,
     create_extra_pay,
     create_extra_pay_concept,
     delete_extra_pay,
@@ -135,9 +136,20 @@ def preview_extra_pay_endpoint(
     salary_table_id: int | None = Query(default=None),
     db: Session = Depends(get_db),
 ):
-    return preview_extra_pay(
+    extra_pay = _get_extra_pay(db, extra_pay_id)
+    result = preview_extra_pay(
         db,
         extra_pay_id,
         professional_category_id,
         salary_table_id=salary_table_id,
     )
+    result.update(
+        {
+            "payroll_period": extra_pay.payroll_period,
+            "apply_partiality": extra_pay.apply_partiality,
+            "deduct_it_days": extra_pay.deduct_it_days,
+            "deduct_unpaid_absence_days": extra_pay.deduct_unpaid_absence_days,
+            "deduct_inactivity_days": extra_pay.deduct_inactivity_days,
+        }
+    )
+    return result
