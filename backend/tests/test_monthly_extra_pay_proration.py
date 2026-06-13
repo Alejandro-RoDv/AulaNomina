@@ -187,9 +187,10 @@ class MonthlyExtraPayProrationTest(unittest.TestCase):
             2026,
             irpf_percentage=Decimal("10.00"),
         )
+        self.assertEqual(result["base_salary"], Decimal("600.00"))
         self.assertEqual(result["extra_pay_proration"], Decimal("67.74"))
-        self.assertEqual(result["gross_salary"], Decimal("124.85"))
-        self.assertEqual(result["common_contingencies_base"], Decimal("124.88"))
+        self.assertEqual(result["gross_salary"], Decimal("467.74"))
+        self.assertEqual(result["common_contingencies_base"], Decimal("467.76"))
 
     def test_create_and_update_keep_one_automatic_line(self):
         payroll = create_payroll(self.db, PayrollCreate(
@@ -220,14 +221,14 @@ class MonthlyExtraPayProrationTest(unittest.TestCase):
             contract_type="100",
             start_date=date(2026, 1, 1),
             status="active",
-            salary_base=Decimal("16800.00"),
+            salary_base=Decimal("1680.00"),
             pay_schedule="prorated_12",
         )
         self.db.add(legacy)
         self.db.commit()
         result = resolve_monthly_extra_pay_proration(self.db, legacy, 5, 2026)
         self.assertEqual(result["source"], "legacy")
-        self.assertEqual(result["total_amount"], Decimal("200.00"))
+        self.assertEqual(result["total_amount"], Decimal("280.00"))
 
 
 if __name__ == "__main__":
