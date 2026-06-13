@@ -125,6 +125,8 @@ La acción `Crear nueva revisión` permite generar un ejercicio nuevo a partir d
 - porcentaje de incremento,
 - observaciones.
 
+Las revisiones se crean como borrador, pendientes de revisión o históricas. No pueden activarse directamente desde este formulario.
+
 ### Opciones
 
 - copiar filas salariales,
@@ -151,13 +153,74 @@ Endpoint:
 
 `POST /collective-agreements/salary-tables/{source_table_id}/duplicate`
 
+## Activación controlada
+
+El bloque `Activación y migración` separa el cambio de estado de la modificación de contratos.
+
+### Vista previa
+
+Antes de activar una tabla se obtiene una vista previa con:
+
+- tablas activas actuales,
+- contratos activos o todos los contratos,
+- contratos migrables,
+- contratos que ya utilizan la tabla,
+- contratos bloqueados,
+- motivo del bloqueo,
+- salario base de la fila destino,
+- categorías con filas duplicadas.
+
+Un contrato queda bloqueado cuando:
+
+- no tiene categoría profesional vinculada,
+- la tabla destino no contiene una fila para su categoría.
+
+Endpoint:
+
+`GET /collective-agreements/salary-tables/{table_id}/activation-preview`
+
+### Activación
+
+La acción `Activar tabla`:
+
+- marca la tabla elegida como activa,
+- convierte en históricas las demás tablas activas del convenio,
+- no modifica contratos,
+- no modifica salarios,
+- no modifica conceptos permanentes.
+
+Endpoint:
+
+`POST /collective-agreements/salary-tables/{table_id}/activate`
+
+### Migración explícita de contratos
+
+Después de activar la tabla se pueden seleccionar los contratos migrables.
+
+La migración:
+
+- vincula cada contrato a la fila equivalente de la tabla nueva,
+- ignora contratos sin categoría o sin fila equivalente,
+- permite conservar el salario base actual,
+- permite sustituir expresamente el salario base por el de la nueva fila,
+- no recalcula automáticamente conceptos permanentes ya cargados.
+
+Los conceptos permanentes deben revisarse o volver a cargarse desde el convenio después de la migración.
+
+Endpoint:
+
+`POST /collective-agreements/salary-tables/{table_id}/migrate-contracts`
+
 ## Validaciones backend
 
 El API comprueba que:
 
 - la tabla salarial pertenece al convenio,
 - la categoría profesional pertenece al convenio,
-- el concepto de catálogo pertenece al convenio.
+- el concepto de catálogo pertenece al convenio,
+- la tabla está activa antes de migrar contratos,
+- los contratos pertenecen al convenio de la tabla,
+- existe una fila equivalente para la categoría.
 
 No se permite vincular accidentalmente datos de convenios diferentes.
 
@@ -174,32 +237,31 @@ Al cargar conceptos de convenio en un contrato:
 
 ## Validación manual
 
-1. Reiniciar backend para aplicar la columna `salary_table_id`.
+1. Reiniciar backend.
 2. Entrar en Convenios.
 3. Crear al menos una tabla salarial y una categoría.
 4. Crear una fila salarial para esa categoría.
 5. Abrir `Estructura salarial`.
 6. Seleccionar tabla y categoría.
 7. Pulsar `Crear desde fila salarial`.
-8. Comprobar la aparición de los conceptos con sus importes.
-9. Crear un concepto manual con cotización, IRPF y CRA.
-10. Editarlo y eliminarlo.
-11. Abrir `Crear nueva revisión`.
-12. Seleccionar la tabla de origen.
-13. Indicar el nuevo ejercicio y un porcentaje de incremento.
-14. Crear la revisión.
-15. Verificar que aparecen la tabla nueva, sus filas y sus conceptos.
-16. Comparar los importes con la tabla de origen.
-17. Comprobar que las deducciones no han sido incrementadas.
-18. Comprobar que los conceptos generales no se han duplicado.
-19. Vincular un contrato a la categoría y fila salarial nueva.
-20. Usar `Cargar desde convenio` en Conceptos permanentes.
-21. Verificar que se importan los conceptos del ejercicio correspondiente.
+8. Crear una revisión del ejercicio siguiente.
+9. Abrir `Gestionar activación`.
+10. Seleccionar la tabla nueva.
+11. Pulsar `Revisar contratos afectados`.
+12. Comprobar migrables, bloqueados y ya actualizados.
+13. Activar la tabla.
+14. Verificar que la anterior pasa a histórica.
+15. Seleccionar uno o varios contratos migrables.
+16. Decidir si se actualiza también el salario base.
+17. Migrar los contratos seleccionados.
+18. Volver a ejecutar la vista previa.
+19. Comprobar que aparecen como `Ya actualizada`.
+20. Revisar o recargar los conceptos permanentes del contrato.
 
 ## Pendiente posterior
 
-- Activación controlada de una tabla y cierre automático de la anterior.
 - Revisión salarial selectiva por concepto o categoría.
+- Actualización controlada de conceptos permanentes durante la migración.
 - Conceptos participantes en pagas extraordinarias.
 - Fórmulas de porcentaje y cálculo por unidad.
 - Histórico de cambios y fecha de publicación de cada revisión.
