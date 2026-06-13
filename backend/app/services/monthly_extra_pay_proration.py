@@ -21,8 +21,7 @@ from app.services.extra_pay_accrual_days import (
 MONTHLY_PERIODS = set(range(1, 13))
 MONEY = Decimal("0.01")
 RATIO = Decimal("0.0001")
-PRORRATION_CONCEPT_PREFIX = "PRORRATA_EXTRA_"
-PRORATION_CONCEPT_PREFIX = PRORRATION_CONCEPT_PREFIX
+PRORATION_CONCEPT_PREFIX = "PRORRATA_EXTRA_"
 
 
 def as_money(value) -> Decimal:
@@ -289,7 +288,7 @@ def sync_monthly_proration_items(db: Session, payroll_id: int, lines: list[dict]
         values = {
             "name": f"Prorrata {line.get('extra_pay_name') or 'pagas extra'} - {line.get('concept_name') or 'Concepto'}",
             "category": "PAGA_EXTRA",
-            "concept_type": "DEVENGO",
+            "concept_type": "BASE_INFORMATIVA",
             "salary_nature": "SALARIAL",
             "source_type": "AGREEMENT" if line.get("extra_pay_id") else "SYSTEM",
             "agreement_id": line.get("agreement_id"),
@@ -298,11 +297,11 @@ def sync_monthly_proration_items(db: Session, payroll_id: int, lines: list[dict]
             "default_unit_price": Decimal("0.00"),
             "applies_workday_percentage": False,
             "is_system": True,
-            "is_taxable": True,
-            "is_contribution_base": True,
+            "is_taxable": False,
+            "is_contribution_base": False,
             "is_active": True,
             "display_order": order,
-            "notes": "Línea automática de prorrata mensual de paga extraordinaria.",
+            "notes": "Línea informativa automática de prorrata mensual de paga extraordinaria.",
         }
         if concept is None:
             concept = PayrollConcept(code=code, **values)
