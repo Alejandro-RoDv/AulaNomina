@@ -16,6 +16,7 @@ class SalaryTableRevisionRequest(BaseModel):
     increment_percentage: Decimal = Field(default=Decimal("0.00"), ge=Decimal("0.00"), le=Decimal("1000.00"))
     copy_rows: bool = True
     copy_concepts: bool = True
+    copy_extra_pays: bool = True
     increase_non_salary: bool = False
     mark_source_historical: bool = False
     notes: Optional[str] = None
@@ -49,6 +50,8 @@ class SalaryTableRevisionResponse(BaseModel):
     salary_table: SalaryTableDetailResponse
     copied_rows: int = 0
     copied_concepts: int = 0
+    copied_extra_pays: int = 0
+    copied_extra_pay_lines: int = 0
     increased_rows: int = 0
     increased_concepts: int = 0
     increment_percentage: Decimal = Decimal("0.00")
