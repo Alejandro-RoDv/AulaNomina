@@ -28,6 +28,10 @@ function toPositiveNumber(value) {
   return number;
 }
 
+function payScheduleLabel(value) {
+  return value === "prorated_12" ? "12 pagas · extras prorrateadas" : "14 pagas · extras separadas";
+}
+
 function SummaryMetric({ label, value, strong = false }) {
   return (
     <div style={styles.metricCard}>
@@ -81,13 +85,13 @@ function SimulationResult({ simulation }) {
         <div style={styles.compareCard}>
           <span style={styles.compareLabel}>Antes</span>
           <strong>{formatNumber(simulation.before.partiality_coefficient, "%")}</strong>
-          <span>{formatMoney(simulation.before.monthly_remuneration)} / mes</span>
+          <span>{formatMoney(simulation.before.monthly_remuneration)} cobrados / mes</span>
           <span>{formatMoney(simulation.before.annual_remuneration)} / año</span>
         </div>
         <div style={styles.compareCardHighlight}>
           <span style={styles.compareLabel}>Después</span>
           <strong>{formatNumber(simulation.after.partiality_coefficient, "%")}</strong>
-          <span>{formatMoney(simulation.after.monthly_remuneration)} / mes</span>
+          <span>{formatMoney(simulation.after.monthly_remuneration)} cobrados / mes</span>
           <span>{formatMoney(simulation.after.annual_remuneration)} / año</span>
         </div>
         <div style={styles.compareCard}>
@@ -178,17 +182,23 @@ export default function ContractSalarySummaryPanel({ contractId }) {
       <div style={styles.headerRow}>
         <div>
           <h4 style={styles.sectionTitle}>Resumen retributivo</h4>
-          <p style={styles.sectionSubtitle}>Aplicación de jornada, complementos permanentes y coste empresa estimado.</p>
+          <p style={styles.sectionSubtitle}>Importes mensuales, prorrata, jornada y coste anual estimado.</p>
         </div>
-        <span style={styles.badge}>{formatNumber(summary.partiality_coefficient, "%")} jornada</span>
+        <div style={styles.badgeGroup}>
+          <span style={styles.badge}>{formatNumber(summary.partiality_coefficient, "%")} jornada</span>
+          <span style={styles.neutralBadge}>{payScheduleLabel(summary.pay_schedule)}</span>
+        </div>
       </div>
 
       <div style={styles.metricsGrid}>
-        <SummaryMetric label="Salario teórico" value={formatMoney(summary.salary_base_theoretical)} />
-        <SummaryMetric label="Salario aplicado" value={formatMoney(summary.salary_base_applied)} strong />
+        <SummaryMetric label="Salario teórico mensual" value={formatMoney(summary.salary_base_theoretical)} />
+        <SummaryMetric label="Salario aplicado mensual" value={formatMoney(summary.salary_base_applied)} strong />
         <SummaryMetric label="Complementos aplicados" value={formatMoney(summary.permanent_concepts_applied)} />
-        <SummaryMetric label="Retribución mensual" value={formatMoney(summary.monthly_remuneration)} strong />
+        <SummaryMetric label="Mensual ordinaria" value={formatMoney(summary.ordinary_monthly_remuneration)} />
+        <SummaryMetric label="Prorrata mensual estimada" value={formatMoney(summary.monthly_extra_pay_proration)} />
+        <SummaryMetric label="Mensual cobrada" value={formatMoney(summary.monthly_remuneration)} strong />
         <SummaryMetric label="Retribución anual" value={formatMoney(summary.annual_remuneration)} strong />
+        <SummaryMetric label="Seguridad Social empresa" value={formatMoney(summary.estimated_company_social_security)} />
         <SummaryMetric label="Coste empresa estimado" value={formatMoney(summary.estimated_company_cost)} strong />
       </div>
 
@@ -226,12 +236,14 @@ export default function ContractSalarySummaryPanel({ contractId }) {
 const styles = {
   sectionBox: { border: "1px solid #e5e7eb", borderRadius: "10px", padding: "14px", backgroundColor: "#ffffff" },
   headerRow: { display: "flex", justifyContent: "space-between", gap: "12px", alignItems: "start", marginBottom: "12px" },
+  badgeGroup: { display: "flex", flexWrap: "wrap", justifyContent: "flex-end", gap: "6px" },
   sectionTitle: { margin: 0, fontSize: "14px", fontWeight: 900, color: "#111827" },
   sectionSubtitle: { margin: "4px 0 0", color: "#6b7280", fontSize: "12px", fontWeight: 700 },
   subTitle: { margin: "14px 0 10px", fontSize: "13px", fontWeight: 900, color: "#111827" },
   badge: { display: "inline-flex", alignItems: "center", backgroundColor: "#fef3c7", color: "#92400e", border: "1px solid #f59e0b", borderRadius: "999px", padding: "5px 10px", fontSize: "12px", fontWeight: 900, whiteSpace: "nowrap" },
-  metricsGrid: { display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: "10px", marginBottom: "10px" },
-  hoursGrid: { display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: "10px" },
+  neutralBadge: { display: "inline-flex", alignItems: "center", backgroundColor: "#f3f4f6", color: "#374151", border: "1px solid #d1d5db", borderRadius: "999px", padding: "5px 10px", fontSize: "12px", fontWeight: 850, whiteSpace: "nowrap" },
+  metricsGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "10px", marginBottom: "10px" },
+  hoursGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: "10px" },
   metricCard: { border: "1px solid #e5e7eb", borderRadius: "10px", padding: "10px", backgroundColor: "#f9fafb", display: "flex", flexDirection: "column", gap: "4px" },
   metricLabel: { color: "#6b7280", fontSize: "11px", fontWeight: 900, textTransform: "uppercase" },
   metricValue: { color: "#111827", fontSize: "15px", fontWeight: 900 },
@@ -252,7 +264,7 @@ const styles = {
   button: { backgroundColor: "#111827", color: "#ffffff", border: "1px solid #111827", borderRadius: "8px", padding: "10px 14px", cursor: "pointer", fontWeight: 900 },
   simulationResult: { marginTop: "12px", backgroundColor: "#fffbeb", border: "1px solid #f59e0b", borderRadius: "10px", padding: "12px" },
   simulationHeader: { display: "flex", justifyContent: "space-between", gap: "12px", alignItems: "center" },
-  compareGrid: { display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: "10px", marginTop: "8px" },
+  compareGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "10px", marginTop: "8px" },
   compareCard: { backgroundColor: "#ffffff", border: "1px solid #e5e7eb", borderRadius: "10px", padding: "10px", display: "flex", flexDirection: "column", gap: "4px", fontWeight: 800 },
   compareCardHighlight: { backgroundColor: "#ffffff", border: "2px solid #111827", borderRadius: "10px", padding: "10px", display: "flex", flexDirection: "column", gap: "4px", fontWeight: 900 },
   compareLabel: { color: "#6b7280", fontSize: "11px", fontWeight: 900, textTransform: "uppercase" },
