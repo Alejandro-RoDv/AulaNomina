@@ -12,6 +12,14 @@ from app.models.payroll_salary_structure import ContractPayrollConcept, PayrollC
 from app.services.payroll_amounts import money
 
 
+STABLE_SEMANTIC_CODES = {
+    "salary_base",
+    "seniority",
+    "agreement_plus",
+    "specific_complement",
+}
+
+
 def _decimal(value) -> Decimal:
     if value is None or value == "":
         return Decimal("0.00")
@@ -67,8 +75,11 @@ def _salary_nature(character: str | None) -> str:
 
 
 def _concept_code(agreement_id: int, semantic_key: str, agreement_concept: AgreementSalaryConcept | None = None) -> str:
-    catalog_code = agreement_concept.catalog_concept.code if agreement_concept and agreement_concept.catalog_concept else None
-    suffix = _normalized(catalog_code) or semantic_key or f"concept_{agreement_concept.id if agreement_concept else 'table'}"
+    if semantic_key in STABLE_SEMANTIC_CODES:
+        suffix = semantic_key
+    else:
+        catalog_code = agreement_concept.catalog_concept.code if agreement_concept and agreement_concept.catalog_concept else None
+        suffix = _normalized(catalog_code) or semantic_key or f"concept_{agreement_concept.id if agreement_concept else 'table'}"
     return f"AGR_{agreement_id}_{suffix}".upper()[:120]
 
 
@@ -76,7 +87,7 @@ def _candidate_priority(candidate: dict, contract: Contract) -> tuple:
     category_specific = candidate.get("professional_category_id") is not None and candidate.get("professional_category_id") == contract.professional_category_id
     has_amount = _decimal(candidate.get("amount")) != Decimal("0.00")
     is_parameterized = candidate.get("source") == "agreement_salary_concept"
-    return (1 if category_specific else 0, 1 if has_amount else 0, 1 if is_parameterized else 0)
+    return (1 if has_amount else 0, 1 if category_specific else 0, 1 if is_parameterized else 0)
 
 
 def _build_candidates(contract: Contract, agreement_concepts: list[AgreementSalaryConcept]) -> dict[str, dict]:
