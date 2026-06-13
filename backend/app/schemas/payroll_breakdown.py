@@ -10,10 +10,12 @@ class PayrollBreakdownResponse(BaseModel):
     devengos_salariales: list[PayrollItemResponse] = []
     devengos_extrasalariales: list[PayrollItemResponse] = []
     prorratas_automaticas: list[PayrollItemResponse] = []
+    regularizaciones_automaticas: list[PayrollItemResponse] = []
     deducciones: list[PayrollItemResponse] = []
     bases_informativas: list[PayrollItemResponse] = []
     total_devengos: Decimal = Decimal("0.00")
     total_prorrata_automatica: Decimal = Decimal("0.00")
+    total_regularizacion_automatica: Decimal = Decimal("0.00")
     total_deducciones: Decimal = Decimal("0.00")
     base_irpf_manual: Decimal = Decimal("0.00")
     irpf_percentage: Decimal = Decimal("0.00")
