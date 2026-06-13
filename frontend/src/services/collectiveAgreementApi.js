@@ -77,6 +77,24 @@ export async function duplicateSalaryTableRevision(sourceTableId, payload) {
   );
 }
 
+export async function previewSalaryRegularization(targetTableId, payload) {
+  return jsonRequest(
+    `/collective-agreements/salary-tables/${targetTableId}/regularization-preview`,
+    "POST",
+    payload,
+    "Error al calcular los atrasos de la revisión salarial"
+  );
+}
+
+export async function generateSalaryRegularizations(targetTableId, payload) {
+  return jsonRequest(
+    `/collective-agreements/salary-tables/${targetTableId}/regularizations`,
+    "POST",
+    payload,
+    "Error al generar las nóminas complementarias"
+  );
+}
+
 export async function updateSalaryTable(salaryTableId, payload) {
   return jsonRequest(`/collective-agreements/salary-tables/${salaryTableId}`, "PUT", payload, "Error al actualizar tabla salarial");
 }
