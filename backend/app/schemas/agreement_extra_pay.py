@@ -59,10 +59,15 @@ class AgreementExtraPayBase(BaseModel):
     salary_table_id: Optional[int] = None
     code: Optional[str] = None
     name: str
+    payroll_period: Literal[13, 14, 15] = 13
     payment_month: int = Field(ge=1, le=12)
     accrual_start_month: int = Field(ge=1, le=12)
     accrual_end_month: int = Field(ge=1, le=12)
     accrual_months: int = Field(default=6, ge=1, le=12)
+    apply_partiality: bool = True
+    deduct_it_days: bool = False
+    deduct_unpaid_absence_days: bool = True
+    deduct_inactivity_days: bool = True
     proration_allowed: bool = True
     proration_default: bool = False
     is_active: bool = True
@@ -96,10 +101,15 @@ class AgreementExtraPayUpdate(BaseModel):
     salary_table_id: Optional[int] = None
     code: Optional[str] = None
     name: Optional[str] = None
+    payroll_period: Optional[Literal[13, 14, 15]] = None
     payment_month: Optional[int] = Field(default=None, ge=1, le=12)
     accrual_start_month: Optional[int] = Field(default=None, ge=1, le=12)
     accrual_end_month: Optional[int] = Field(default=None, ge=1, le=12)
     accrual_months: Optional[int] = Field(default=None, ge=1, le=12)
+    apply_partiality: Optional[bool] = None
+    deduct_it_days: Optional[bool] = None
+    deduct_unpaid_absence_days: Optional[bool] = None
+    deduct_inactivity_days: Optional[bool] = None
     proration_allowed: Optional[bool] = None
     proration_default: Optional[bool] = None
     is_active: Optional[bool] = None
@@ -143,10 +153,15 @@ class AgreementExtraPayPreviewResponse(BaseModel):
     extra_pay_name: str
     salary_table_id: Optional[int] = None
     professional_category_id: Optional[int] = None
+    payroll_period: int
     payment_month: int
     accrual_start_month: int
     accrual_end_month: int
     accrual_months: int
+    apply_partiality: bool
+    deduct_it_days: bool
+    deduct_unpaid_absence_days: bool
+    deduct_inactivity_days: bool
     proration_allowed: bool
     proration_default: bool
     total_amount: Decimal = Decimal("0.00")
