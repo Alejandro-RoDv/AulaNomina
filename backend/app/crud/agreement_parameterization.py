@@ -1,3 +1,4 @@
+from fastapi import HTTPException
 from sqlalchemy.orm import Session, selectinload
 
 from app.models.agreement_parameterization import (
@@ -6,6 +7,7 @@ from app.models.agreement_parameterization import (
     AgreementRuleHeader,
     AgreementSalaryConcept,
 )
+from app.models.collective_agreement import ProfessionalCategory, SalaryTable
 from app.schemas.agreement_parameterization import (
     AgreementConceptCatalogCreate,
     AgreementConceptCatalogUpdate,
@@ -29,7 +31,12 @@ def get_parameterization(db: Session, agreement_id: int):
     salary_concepts = (
         db.query(AgreementSalaryConcept)
         .filter(AgreementSalaryConcept.collective_agreement_id == agreement_id)
-        .order_by(AgreementSalaryConcept.character, AgreementSalaryConcept.name)
+        .order_by(
+            AgreementSalaryConcept.salary_table_id,
+            AgreementSalaryConcept.professional_category_id,
+            AgreementSalaryConcept.character,
+            AgreementSalaryConcept.name,
+        )
         .all()
     )
     concept_catalog = (
@@ -157,8 +164,36 @@ def deactivate_catalog_item(db: Session, item_id: int):
     return db_item
 
 
+def _validate_salary_concept_links(db: Session, agreement_id: int, data: dict) -> None:
+    salary_table_id = data.get("salary_table_id")
+    if salary_table_id is not None:
+        table = db.query(SalaryTable).filter(SalaryTable.id == salary_table_id).first()
+        if not table:
+            raise HTTPException(status_code=404, detail="Tabla salarial no encontrada")
+        if table.collective_agreement_id != agreement_id:
+            raise HTTPException(status_code=400, detail="La tabla salarial no pertenece al convenio")
+
+    category_id = data.get("professional_category_id")
+    if category_id is not None:
+        category = db.query(ProfessionalCategory).filter(ProfessionalCategory.id == category_id).first()
+        if not category:
+            raise HTTPException(status_code=404, detail="Categoría profesional no encontrada")
+        if category.collective_agreement_id != agreement_id:
+            raise HTTPException(status_code=400, detail="La categoría profesional no pertenece al convenio")
+
+    catalog_id = data.get("concept_catalog_id")
+    if catalog_id is not None:
+        catalog_item = get_catalog_item(db, catalog_id)
+        if not catalog_item:
+            raise HTTPException(status_code=404, detail="Concepto de catálogo no encontrado")
+        if catalog_item.collective_agreement_id != agreement_id:
+            raise HTTPException(status_code=400, detail="El concepto de catálogo no pertenece al convenio")
+
+
 def create_salary_concept(db: Session, agreement_id: int, payload: AgreementSalaryConceptCreate):
-    db_concept = AgreementSalaryConcept(collective_agreement_id=agreement_id, **payload.model_dump())
+    data = payload.model_dump()
+    _validate_salary_concept_links(db, agreement_id, data)
+    db_concept = AgreementSalaryConcept(collective_agreement_id=agreement_id, **data)
     db.add(db_concept)
     db.commit()
     db.refresh(db_concept)
@@ -173,7 +208,9 @@ def update_salary_concept(db: Session, concept_id: int, payload: AgreementSalary
     db_concept = get_salary_concept(db, concept_id)
     if not db_concept:
         return None
-    for key, value in payload.model_dump(exclude_unset=True).items():
+    data = payload.model_dump(exclude_unset=True)
+    _validate_salary_concept_links(db, db_concept.collective_agreement_id, data)
+    for key, value in data.items():
         setattr(db_concept, key, value)
     db.commit()
     db.refresh(db_concept)
