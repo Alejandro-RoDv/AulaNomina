@@ -115,10 +115,11 @@ def deactivate_seniority_rule_endpoint(rule_id: int, db: Session = Depends(get_d
 )
 def contract_seniority_preview_endpoint(
     contract_id: int,
-    as_of: date = Query(default_factory=date.today),
+    as_of: date | None = Query(default=None),
     db: Session = Depends(get_db),
 ):
-    return build_contract_seniority_preview(db, get_contract_or_404(db, contract_id), as_of)
+    effective_date = as_of or date.today()
+    return build_contract_seniority_preview(db, get_contract_or_404(db, contract_id), effective_date)
 
 
 @router.get(
@@ -127,10 +128,11 @@ def contract_seniority_preview_endpoint(
 )
 def agreement_seniority_preview_endpoint(
     agreement_id: int,
-    as_of: date = Query(default_factory=date.today),
+    as_of: date | None = Query(default=None),
     active_contracts_only: bool = Query(default=True),
     db: Session = Depends(get_db),
 ):
+    effective_date = as_of or date.today()
     ensure_agreement(db, agreement_id)
     query = (
         db.query(Contract)
@@ -144,11 +146,11 @@ def agreement_seniority_preview_endpoint(
     if active_contracts_only:
         query = query.filter(Contract.status == "active")
     contracts = query.order_by(Contract.employee_id, Contract.id).all()
-    items = [build_contract_seniority_preview(db, contract, as_of) for contract in contracts]
+    items = [build_contract_seniority_preview(db, contract, effective_date) for contract in contracts]
     eligible = [item for item in items if item["eligibility"] == "eligible"]
     return {
         "collective_agreement_id": agreement_id,
-        "as_of_date": as_of,
+        "as_of_date": effective_date,
         "total_contracts": len(items),
         "eligible_contracts": len(eligible),
         "blocked_contracts": len(items) - len(eligible),
