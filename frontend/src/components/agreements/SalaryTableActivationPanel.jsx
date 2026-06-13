@@ -67,11 +67,14 @@ export default function SalaryTableActivationPanel({ agreement, onChanged }) {
     setMigrationResult(null);
   }, [agreement?.id, tables.length]);
 
-  async function loadPreview(tableId = targetTable?.id) {
+  async function loadPreview(tableId = targetTable?.id, preserveFeedback = false) {
     if (!tableId) return;
     setLoading(true);
     setError("");
-    setMessage("");
+    if (!preserveFeedback) {
+      setMessage("");
+      setMigrationResult(null);
+    }
     try {
       const data = await fetchSalaryTableActivationPreview(tableId, activeOnly);
       setPreview(data);
@@ -122,7 +125,7 @@ export default function SalaryTableActivationPanel({ agreement, onChanged }) {
       const result = await activateSalaryTable(targetTable.id);
       setMessage(result.message);
       await onChanged?.();
-      await loadPreview(targetTable.id);
+      await loadPreview(targetTable.id, true);
     } catch (err) {
       setError(err.message || "No se pudo activar la tabla salarial.");
     } finally {
@@ -158,7 +161,7 @@ export default function SalaryTableActivationPanel({ agreement, onChanged }) {
       setMigrationResult(result);
       setMessage(`${result.migrated_contracts} contratos migrados a ${result.target_table_name}.`);
       await onChanged?.();
-      await loadPreview(targetTable.id);
+      await loadPreview(targetTable.id, true);
     } catch (err) {
       setError(err.message || "No se pudieron migrar los contratos.");
     } finally {
