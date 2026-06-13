@@ -1,21 +1,5 @@
 import { API_BASE_URL } from "./services/httpClient";
 
-let lastRenderedKey = "";
-let loading = false;
-
-function isConveniosPage() {
-  return Array.from(document.querySelectorAll("h2")).some((node) => node.textContent?.trim() === "Convenios colectivos");
-}
-
-function selectedAgreementId() {
-  const select = Array.from(document.querySelectorAll("select")).find((node) => node.selectedOptions?.[0]?.textContent?.includes("·"));
-  return select?.value || null;
-}
-
-function modalBody() {
-  return document.querySelector("[data-agreement-parameterization-modal='true'] section > div");
-}
-
 function escapeHtml(value) {
   return String(value ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
 }
@@ -42,8 +26,8 @@ function findRule(data, code) {
   return (data.rule_headers || []).find((rule) => rule.code === code) || null;
 }
 
-function input(name, label, value = "", type = "text") {
-  return `<label style="display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:800;color:#374151;">${label}<input name="${name}" type="${type}" value="${escapeHtml(value ?? "")}" style="height:30px;border:1px solid #d1d5db;padding:0 8px;font-size:12px;background:#fff;"></label>`;
+function input(name, label, value = "") {
+  return `<label style="display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:800;color:#374151;">${label}<input name="${name}" type="text" value="${escapeHtml(value ?? "")}" style="height:30px;border:1px solid #d1d5db;padding:0 8px;font-size:12px;background:#fff;"></label>`;
 }
 
 function checkbox(name, label, checked = false) {
@@ -71,8 +55,9 @@ function renderForms(data) {
 
   return `
     <div data-parameterization-forms="true" style="margin:0 0 14px;border:1px solid #d1d5db;background:#f9fafb;padding:12px;">
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px;">
-        <div><strong style="font-size:14px;color:#111827;">Bloques rápidos de parametrización</strong><p style="margin:2px 0 0;color:#6b7280;font-size:12px;font-weight:650;">Edita opciones principales guardadas como reglas del convenio. No calcula todavía la nómina.</p></div>
+      <div style="margin-bottom:10px;">
+        <strong style="font-size:14px;color:#111827;">Bloques rápidos de parametrización</strong>
+        <p style="margin:2px 0 0;color:#6b7280;font-size:12px;font-weight:650;">Edita opciones principales guardadas como reglas del convenio. Aún no generan cálculo automático de nómina.</p>
       </div>
       <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;">
         ${card("Opciones globales", global, `${checkbox("prorratear_pagas_extra", "Prorratear pagas extra", global?.options?.prorratear_pagas_extra)}${checkbox("boe_alerts_prepared", "Preparado para alertas BOE", global?.options?.boe_alerts_prepared)}`)}
@@ -104,57 +89,49 @@ function optionsFromForm(ruleCode, form) {
     return { forma_pago: data.get("forma_pago"), criterio_devengo: data.get("criterio_devengo"), computo_diario: bool(data.get("computo_diario")), salto_mes_baja: bool(data.get("salto_mes_baja")) };
   }
   if (ruleCode === "IT") {
-    return { tramos: nullableNumber(data.get("tramos")), conceptos: [], diagnosticos: String(data.get("diagnosticos") || "").split(",").map((item) => item.trim()).filter(Boolean), limites: { general: data.get("limite_general") || null } };
+    return { tramos: nullableNumber(data.get("tramos")), diagnosticos: String(data.get("diagnosticos") || "").split(",").map((item) => item.trim()).filter(Boolean), limites: { general: data.get("limite_general") || null } };
   }
   return {};
 }
 
+function reloadModal() {
+  document.querySelector("[data-agreement-parameterization-modal='true']")?.remove();
+  document.querySelector("[data-agreement-parameterization-button='true']")?.click();
+}
+
 function bindForms(container) {
   container.querySelectorAll("form[data-rule-code]").forEach((form) => {
-    if (form.dataset.bound === "true") return;
-    form.dataset.bound = "true";
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
-      const ruleId = form.dataset.ruleId;
-      const ruleCode = form.dataset.ruleCode;
+      const button = form.querySelector("button[type='submit']");
+      if (button) {
+        button.disabled = true;
+        button.textContent = "Guardando...";
+      }
       try {
-        await requestJson(`/collective-agreements/rule-headers/${ruleId}`, {
+        await requestJson(`/collective-agreements/rule-headers/${form.dataset.ruleId}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ options: optionsFromForm(ruleCode, form) }),
+          body: JSON.stringify({ options: optionsFromForm(form.dataset.ruleCode, form) }),
         });
-        lastRenderedKey = "";
-        document.querySelector("[data-parameterization-forms='true']")?.remove();
-        await ensureForms();
+        reloadModal();
       } catch (error) {
+        if (button) {
+          button.disabled = false;
+          button.textContent = "Guardar";
+        }
         window.alert(error.message || "Error al guardar parametrización");
       }
     });
   });
 }
 
-async function ensureForms() {
-  if (!isConveniosPage()) return;
-  const body = modalBody();
-  const agreementId = selectedAgreementId();
-  if (!body || !agreementId || loading) return;
-  const key = `${agreementId}:${body.textContent?.length || 0}`;
-  if (key === lastRenderedKey && body.querySelector("[data-parameterization-forms='true']")) return;
-
-  loading = true;
-  try {
-    const data = await requestJson(`/collective-agreements/${agreementId}/parameterization`);
-    body.querySelector("[data-parameterization-forms='true']")?.remove();
-    body.insertAdjacentHTML("afterbegin", renderForms(data));
-    bindForms(body);
-    lastRenderedKey = key;
-  } catch (error) {
-    console.warn("No se pudieron cargar formularios de parametrización", error);
-  } finally {
-    loading = false;
-  }
+function mountParameterizationForms(event) {
+  const { modal, data } = event.detail || {};
+  const host = modal?.querySelector("[data-parameterization-forms-host='true']");
+  if (!host || !data) return;
+  host.innerHTML = renderForms(data);
+  bindForms(host);
 }
 
-const observer = new MutationObserver(() => window.requestAnimationFrame(ensureForms));
-observer.observe(document.documentElement, { childList: true, subtree: true });
-window.addEventListener("load", ensureForms);
+window.addEventListener("agreement-parameterization:rendered", mountParameterizationForms);
