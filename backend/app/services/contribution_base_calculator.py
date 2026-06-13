@@ -8,11 +8,7 @@ STANDARD_MONTH_DAYS = Decimal("30")
 
 @dataclass(frozen=True)
 class SalaryConcept:
-    """Simple payroll concept used by the contribution base calculator.
-
-    This is intentionally not persisted yet. It gives the payroll engine a clear
-    intermediate representation before creating full payroll line tables.
-    """
+    """Simple payroll concept used by the contribution base calculator."""
 
     name: str
     amount: Decimal
@@ -27,6 +23,7 @@ class ContributionBaseInput:
 
     base_salary: Decimal = Decimal("0.00")
     salary_supplements: Decimal = Decimal("0.00")
+    seniority_amount: Decimal = Decimal("0.00")
     variable_incentives: Decimal = Decimal("0.00")
     extra_pay_proration: Decimal = Decimal("0.00")
     non_salary_compensation: Decimal = Decimal("0.00")
@@ -64,15 +61,7 @@ def calculate_daily_base(monthly_base: Decimal, contribution_days: int) -> Decim
 
 
 def build_default_salary_concepts(payload: ContributionBaseInput) -> list[SalaryConcept]:
-    """Build the MVP concept classification used for base calculation.
-
-    MVP rules:
-    - Base salary, supplements, variables and extra-pay proration contribute and
-      are taxable.
-    - Non-salary compensation is excluded by default.
-    - Overtime contributes to professional contingencies, not common
-      contingencies. It remains taxable for IRPF simulation.
-    """
+    """Build the MVP concept classification used for base calculation."""
 
     return [
         SalaryConcept(
@@ -85,6 +74,13 @@ def build_default_salary_concepts(payload: ContributionBaseInput) -> list[Salary
         SalaryConcept(
             name="Complementos salariales",
             amount=money(payload.salary_supplements),
+            contributes_common=True,
+            contributes_professional=True,
+            taxable_irpf=True,
+        ),
+        SalaryConcept(
+            name="Antigüedad",
+            amount=money(payload.seniority_amount),
             contributes_common=True,
             contributes_professional=True,
             taxable_irpf=True,
@@ -152,6 +148,7 @@ def serialize_concepts(concepts: list[SalaryConcept]) -> list[dict]:
 def calculate_contribution_bases(
     base_salary: Decimal = Decimal("0.00"),
     salary_supplements: Decimal = Decimal("0.00"),
+    seniority_amount: Decimal = Decimal("0.00"),
     variable_incentives: Decimal = Decimal("0.00"),
     extra_pay_proration: Decimal = Decimal("0.00"),
     non_salary_compensation: Decimal = Decimal("0.00"),
@@ -160,19 +157,7 @@ def calculate_contribution_bases(
     non_contribution_days: int = 0,
     salary_concepts: list[SalaryConcept] | None = None,
 ) -> dict:
-    """Calculate simulated contribution bases for the AulaNomina MVP.
-
-    Scope of this service:
-    - Calculate contribution bases.
-    - Calculate IRPF base from taxable concepts.
-    - Calculate daily common/professional bases.
-
-    Out of scope:
-    - Social Security contribution percentages.
-    - Employee/company deductions.
-    - Net salary.
-    - Full legal minimum/maximum base tables.
-    """
+    """Calculate simulated contribution bases for the AulaNomina MVP."""
 
     normalized_contribution_days = safe_days(contribution_days)
     normalized_non_contribution_days = safe_days(non_contribution_days)
@@ -181,6 +166,7 @@ def calculate_contribution_bases(
     payload = ContributionBaseInput(
         base_salary=money(base_salary),
         salary_supplements=money(salary_supplements),
+        seniority_amount=money(seniority_amount),
         variable_incentives=money(variable_incentives),
         extra_pay_proration=money(extra_pay_proration),
         non_salary_compensation=money(non_salary_compensation),
