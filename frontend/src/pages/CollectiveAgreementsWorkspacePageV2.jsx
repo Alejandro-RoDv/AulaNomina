@@ -1,100 +1,40 @@
-import { useEffect, useMemo, useState } from "react";
+import { useState } from "react";
 
-import AgreementCriteriaPanel from "../components/agreements/AgreementCriteriaPanel";
-import AgreementExtraPayPanelV2 from "../components/agreements/AgreementExtraPayPanelV2";
-import AgreementSalaryStructurePanel from "../components/agreements/AgreementSalaryStructurePanel";
-import AgreementSeniorityPanel from "../components/agreements/AgreementSeniorityPanel";
-import ContractExtraPaySimulationPanel from "../components/agreements/ContractExtraPaySimulationPanel";
-import SalaryRegularizationPanel from "../components/agreements/SalaryRegularizationPanel";
-import SalaryTableActivationPanel from "../components/agreements/SalaryTableActivationPanel";
-import SalaryTableRevisionPanel from "../components/agreements/SalaryTableRevisionPanel";
-import { fetchCollectiveAgreement } from "../services/collectiveAgreementApi";
-import CollectiveAgreementsManagementPage from "./CollectiveAgreementsPage.jsx";
-
-const MANAGEMENT_TAB_LABELS = {
-  rules: "Jornada y permisos",
-};
+import AgreementCriteriaWorkspace from "../components/agreements/AgreementCriteriaWorkspace";
+import AgreementSalaryWorkspace from "../components/agreements/AgreementSalaryWorkspace";
+import { useAgreementWorkspace } from "../hooks/useAgreementWorkspace";
+import CollectiveAgreementsManagementPage from "./CollectiveAgreementsManagementPageV3.jsx";
 
 const VIEW_COPY = {
   criteria: {
     title: "Criterios laborales del convenio",
-    subtitle: "Parámetros organizados por materia laboral, sin códigos ni estructuras técnicas.",
+    subtitle: "Criterios generales y antigüedad cargados únicamente al abrir cada apartado.",
   },
   salary: {
     title: "Estructura salarial del convenio",
-    subtitle: "Conceptos retributivos versionados por tabla anual y categoría profesional.",
+    subtitle: "Conceptos, revisiones, activaciones, atrasos y pagas cargados bajo demanda.",
   },
 };
 
-export default function CollectiveAgreementsWorkspacePage(props) {
+export default function CollectiveAgreementsWorkspacePageV2(props) {
   const agreements = props.collectiveAgreements || [];
   const [view, setView] = useState("management");
-  const [selectedId, setSelectedId] = useState("");
-  const [agreement, setAgreement] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-
-  const selected = useMemo(() => {
-    if (!agreements.length) return null;
-    return agreements.find((item) => String(item.id) === String(selectedId)) || agreements[0];
-  }, [agreements, selectedId]);
-
-  async function loadSelectedAgreement(showLoading = true) {
-    if (!selected?.id) {
-      setAgreement(null);
-      return null;
-    }
-    if (showLoading) setLoading(true);
-    setError("");
-    try {
-      const data = await fetchCollectiveAgreement(selected.id);
-      setAgreement(data);
-      return data;
-    } catch (err) {
-      setError(err.message || "No se pudo cargar el convenio.");
-      return null;
-    } finally {
-      if (showLoading) setLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    if (view === "management") return;
-    let active = true;
-    setAgreement(null);
-    setLoading(true);
-    setError("");
-
-    if (!selected?.id) {
-      setLoading(false);
-      return () => { active = false; };
-    }
-
-    fetchCollectiveAgreement(selected.id)
-      .then((data) => active && setAgreement(data))
-      .catch((err) => active && setError(err.message || "No se pudo cargar el convenio."))
-      .finally(() => active && setLoading(false));
-    return () => { active = false; };
-  }, [view, selected?.id]);
+  const [managementTab, setManagementTab] = useState("overview");
+  const {
+    selected,
+    setSelectedId,
+    agreement,
+    loading,
+    error,
+    refreshAgreement,
+  } = useAgreementWorkspace({
+    collectiveAgreements: agreements,
+    onDataChanged: props.onDataChanged,
+  });
 
   function openManagementTab(targetTab) {
-    if (targetTab === "seniority") {
-      window.setTimeout(() => {
-        const heading = Array.from(document.querySelectorAll("h3")).find(
-          (item) => item.textContent?.trim() === "Antigüedad y vencimientos"
-        );
-        heading?.scrollIntoView({ behavior: "smooth", block: "start" });
-      }, 0);
-      return;
-    }
-
+    setManagementTab(targetTab || "overview");
     setView("management");
-    const targetLabel = MANAGEMENT_TAB_LABELS[targetTab];
-    if (!targetLabel) return;
-    window.setTimeout(() => {
-      const button = Array.from(document.querySelectorAll("button")).find((item) => item.textContent?.trim() === targetLabel);
-      button?.click();
-    }, 0);
   }
 
   const copy = VIEW_COPY[view];
@@ -107,7 +47,18 @@ export default function CollectiveAgreementsWorkspacePage(props) {
         <button type="button" onClick={() => setView("criteria")} style={view === "criteria" ? styles.tabActive : styles.tab}>Criterios laborales</button>
       </nav>
 
-      {view === "management" && <CollectiveAgreementsManagementPage {...props} />}
+      {view === "management" && (
+        <CollectiveAgreementsManagementPage
+          loading={props.loading || loading}
+          collectiveAgreements={agreements}
+          selectedAgreement={agreement}
+          selectedAgreementId={selected?.id || ""}
+          onSelectedAgreementIdChange={setSelectedId}
+          activeTab={managementTab}
+          onActiveTabChange={setManagementTab}
+          onAgreementChanged={refreshAgreement}
+        />
+      )}
 
       {view !== "management" && (
         <div style={styles.workspaceArea}>
@@ -136,20 +87,19 @@ export default function CollectiveAgreementsWorkspacePage(props) {
                 <Summary label="Ámbito" value={agreement.territorial_scope || "—"} />
               </section>
               {view === "criteria" && (
-                <>
-                  <AgreementCriteriaPanel agreement={agreement} categories={agreement.professional_categories || []} onOpenTab={openManagementTab} />
-                  <AgreementSeniorityPanel agreement={agreement} onChanged={() => loadSelectedAgreement(false)} />
-                </>
+                <AgreementCriteriaWorkspace
+                  key={agreement.id}
+                  agreement={agreement}
+                  onAgreementChanged={refreshAgreement}
+                  onOpenManagementTab={openManagementTab}
+                />
               )}
               {view === "salary" && (
-                <>
-                  <SalaryTableRevisionPanel agreement={agreement} onCompleted={() => loadSelectedAgreement(false)} />
-                  <SalaryTableActivationPanel agreement={agreement} onChanged={() => loadSelectedAgreement(false)} />
-                  <SalaryRegularizationPanel agreement={agreement} onGenerated={() => loadSelectedAgreement(false)} />
-                  <AgreementExtraPayPanelV2 agreement={agreement} onChanged={() => loadSelectedAgreement(false)} />
-                  <ContractExtraPaySimulationPanel agreement={agreement} />
-                  <AgreementSalaryStructurePanel agreement={agreement} />
-                </>
+                <AgreementSalaryWorkspace
+                  key={agreement.id}
+                  agreement={agreement}
+                  onAgreementChanged={refreshAgreement}
+                />
               )}
             </>
           )}
