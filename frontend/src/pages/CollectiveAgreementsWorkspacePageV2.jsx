@@ -1,15 +1,14 @@
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 
-import AgreementCriteriaPanel from "../components/agreements/AgreementCriteriaPanel";
+import AgreementCriteriaWorkspace from "../components/agreements/AgreementCriteriaWorkspace";
 import AgreementSalaryWorkspace from "../components/agreements/AgreementSalaryWorkspace";
-import AgreementSeniorityPanel from "../components/agreements/AgreementSeniorityPanel";
 import { useAgreementWorkspace } from "../hooks/useAgreementWorkspace";
 import CollectiveAgreementsManagementPage from "./CollectiveAgreementsManagementPageV2.jsx";
 
 const VIEW_COPY = {
   criteria: {
     title: "Criterios laborales del convenio",
-    subtitle: "Parámetros organizados por materia laboral, sin códigos ni estructuras técnicas.",
+    subtitle: "Criterios generales y antigüedad cargados únicamente al abrir cada apartado.",
   },
   salary: {
     title: "Estructura salarial del convenio",
@@ -21,8 +20,6 @@ export default function CollectiveAgreementsWorkspacePageV2(props) {
   const agreements = props.collectiveAgreements || [];
   const [view, setView] = useState("management");
   const [managementTab, setManagementTab] = useState("overview");
-  const [pendingFocus, setPendingFocus] = useState("");
-  const seniorityRef = useRef(null);
   const {
     selected,
     setSelectedId,
@@ -35,21 +32,7 @@ export default function CollectiveAgreementsWorkspacePageV2(props) {
     onDataChanged: props.onDataChanged,
   });
 
-  useEffect(() => {
-    if (view !== "criteria" || pendingFocus !== "seniority" || loading || !agreement) return;
-    const timer = window.setTimeout(() => {
-      seniorityRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-      setPendingFocus("");
-    }, 0);
-    return () => window.clearTimeout(timer);
-  }, [agreement, loading, pendingFocus, view]);
-
-  function openLinkedSection(targetTab) {
-    if (targetTab === "seniority") {
-      setView("criteria");
-      setPendingFocus("seniority");
-      return;
-    }
+  function openManagementTab(targetTab) {
     setManagementTab(targetTab || "overview");
     setView("management");
   }
@@ -104,15 +87,16 @@ export default function CollectiveAgreementsWorkspacePageV2(props) {
                 <Summary label="Ámbito" value={agreement.territorial_scope || "—"} />
               </section>
               {view === "criteria" && (
-                <>
-                  <AgreementCriteriaPanel agreement={agreement} categories={agreement.professional_categories || []} onOpenTab={openLinkedSection} />
-                  <div ref={seniorityRef}>
-                    <AgreementSeniorityPanel agreement={agreement} onChanged={() => refreshAgreement({ agreementId: agreement.id })} />
-                  </div>
-                </>
+                <AgreementCriteriaWorkspace
+                  key={agreement.id}
+                  agreement={agreement}
+                  onAgreementChanged={refreshAgreement}
+                  onOpenManagementTab={openManagementTab}
+                />
               )}
               {view === "salary" && (
                 <AgreementSalaryWorkspace
+                  key={agreement.id}
                   agreement={agreement}
                   onAgreementChanged={refreshAgreement}
                 />
