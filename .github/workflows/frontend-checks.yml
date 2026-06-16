@@ -27,7 +27,7 @@ jobs:
       - name: Lint changed Convenios files
         id: lint
         continue-on-error: true
-        run: npx eslint src/hooks/useAgreementWorkspace.js src/pages/CollectiveAgreementsWorkspacePageV2.jsx src/pages/CollectiveAgreementsManagementPageV2.jsx src/components/agreements/AgreementSalaryWorkspace.jsx src/components/agreements/AgreementCriteriaWorkspace.jsx --format json --output-file lint-report.json
+        run: npx eslint src/hooks/useAgreementWorkspace.js src/pages/CollectiveAgreementsWorkspacePageV2.jsx src/pages/CollectiveAgreementsManagementPageV2.jsx src/pages/CollectiveAgreementsManagementPageV3.jsx src/components/agreements/AgreementSalaryWorkspace.jsx src/components/agreements/AgreementCriteriaWorkspace.jsx src/components/agreements/management --format json --output-file lint-report.json
       - name: Build
         id: build
         continue-on-error: true
