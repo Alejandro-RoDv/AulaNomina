@@ -13,6 +13,17 @@ export function useAgreementWorkspace({ collectiveAgreements = [], onDataChanged
     return collectiveAgreements.find((item) => String(item.id) === String(selectedId)) || collectiveAgreements[0];
   }, [collectiveAgreements, selectedId]);
 
+  const selectedAgreement = agreement && selected?.id && String(agreement.id) === String(selected.id)
+    ? agreement
+    : null;
+
+  function selectAgreement(agreementId) {
+    setAgreement(null);
+    setError("");
+    setLoading(Boolean(agreementId));
+    setSelectedId(agreementId ? String(agreementId) : "");
+  }
+
   async function loadAgreement(agreementId, showLoading = true) {
     if (!agreementId) {
       setAgreement(null);
@@ -34,23 +45,26 @@ export function useAgreementWorkspace({ collectiveAgreements = [], onDataChanged
   }
 
   useEffect(() => {
+    if (!selected?.id) return undefined;
+
     let active = true;
-    if (!selected?.id) {
-      setAgreement(null);
-      setLoading(false);
-      return () => { active = false; };
-    }
-    setAgreement(null);
-    setLoading(true);
-    setError("");
-    fetchCollectiveAgreement(selected.id)
-      .then((data) => active && setAgreement(data))
+    const agreementId = selected.id;
+
+    fetchCollectiveAgreement(agreementId)
+      .then((data) => {
+        if (!active) return;
+        setAgreement(data);
+        setError("");
+      })
       .catch((err) => {
         if (!active) return;
         setAgreement(null);
         setError(err.message || "No se pudo cargar el convenio.");
       })
-      .finally(() => active && setLoading(false));
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+
     return () => { active = false; };
   }, [selected?.id]);
 
@@ -59,12 +73,22 @@ export function useAgreementWorkspace({ collectiveAgreements = [], onDataChanged
     if (refreshList) {
       await onDataChanged?.();
       if (targetAgreementId && String(targetAgreementId) !== String(selected?.id)) {
-        setSelectedId(String(targetAgreementId));
+        selectAgreement(targetAgreementId);
         return null;
       }
     }
     return loadAgreement(targetAgreementId, false);
   }
 
-  return { selected, selectedId, setSelectedId, agreement, loading, error, refreshAgreement };
+  const isLoading = loading || Boolean(selected?.id && !selectedAgreement && !error);
+
+  return {
+    selected,
+    selectedId,
+    setSelectedId: selectAgreement,
+    agreement: selectedAgreement,
+    loading: isLoading,
+    error,
+    refreshAgreement,
+  };
 }
