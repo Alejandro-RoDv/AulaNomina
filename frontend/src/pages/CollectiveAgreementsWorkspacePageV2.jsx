@@ -3,7 +3,7 @@ import { useState } from "react";
 import AgreementCriteriaWorkspace from "../components/agreements/AgreementCriteriaWorkspace";
 import AgreementSalaryWorkspace from "../components/agreements/AgreementSalaryWorkspace";
 import { useAgreementWorkspace } from "../hooks/useAgreementWorkspace";
-import CollectiveAgreementsManagementPage from "./CollectiveAgreementsManagementPageV2.jsx";
+import CollectiveAgreementsManagementPage from "./CollectiveAgreementsManagementPageV3.jsx";
 
 const VIEW_COPY = {
   criteria: {
