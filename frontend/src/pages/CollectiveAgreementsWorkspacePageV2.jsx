@@ -1,13 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 
 import AgreementCriteriaPanel from "../components/agreements/AgreementCriteriaPanel";
-import AgreementExtraPayPanelV2 from "../components/agreements/AgreementExtraPayPanelV2";
-import AgreementSalaryStructurePanel from "../components/agreements/AgreementSalaryStructurePanel";
+import AgreementSalaryWorkspace from "../components/agreements/AgreementSalaryWorkspace";
 import AgreementSeniorityPanel from "../components/agreements/AgreementSeniorityPanel";
-import ContractExtraPaySimulationPanel from "../components/agreements/ContractExtraPaySimulationPanel";
-import SalaryRegularizationPanel from "../components/agreements/SalaryRegularizationPanel";
-import SalaryTableActivationPanel from "../components/agreements/SalaryTableActivationPanel";
-import SalaryTableRevisionPanel from "../components/agreements/SalaryTableRevisionPanel";
 import { useAgreementWorkspace } from "../hooks/useAgreementWorkspace";
 import CollectiveAgreementsManagementPage from "./CollectiveAgreementsManagementPageV2.jsx";
 
@@ -18,7 +13,7 @@ const VIEW_COPY = {
   },
   salary: {
     title: "Estructura salarial del convenio",
-    subtitle: "Conceptos retributivos versionados por tabla anual y categoría profesional.",
+    subtitle: "Conceptos, revisiones, activaciones, atrasos y pagas cargados bajo demanda.",
   },
 };
 
@@ -117,14 +112,10 @@ export default function CollectiveAgreementsWorkspacePageV2(props) {
                 </>
               )}
               {view === "salary" && (
-                <>
-                  <SalaryTableRevisionPanel agreement={agreement} onCompleted={() => refreshAgreement({ agreementId: agreement.id })} />
-                  <SalaryTableActivationPanel agreement={agreement} onChanged={() => refreshAgreement({ agreementId: agreement.id })} />
-                  <SalaryRegularizationPanel agreement={agreement} onGenerated={() => refreshAgreement({ agreementId: agreement.id })} />
-                  <AgreementExtraPayPanelV2 agreement={agreement} onChanged={() => refreshAgreement({ agreementId: agreement.id })} />
-                  <ContractExtraPaySimulationPanel agreement={agreement} />
-                  <AgreementSalaryStructurePanel agreement={agreement} />
-                </>
+                <AgreementSalaryWorkspace
+                  agreement={agreement}
+                  onAgreementChanged={refreshAgreement}
+                />
               )}
             </>
           )}
