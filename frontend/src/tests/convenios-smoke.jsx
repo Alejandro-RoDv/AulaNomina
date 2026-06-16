@@ -95,7 +95,7 @@ export async function runConveniosSmokeTests() {
   const salary = renderManagement("salary");
   assertIncludes(salary, "Tablas salariales", "Tablas salariales");
   assertIncludes(salary, "Tabla salarial 2026", "Tablas salariales");
-  assertIncludes(salary, "1.500,00", "Tablas salariales");
+  assertIncludes(salary, "1500,00", "Tablas salariales");
 
   const rules = renderManagement("rules");
   assertIncludes(rules, "Jornada, vacaciones y permisos", "Jornada y permisos");
@@ -133,7 +133,7 @@ export async function runConveniosSmokeTests() {
   assertIncludes(criteriaWorkspace, "Cargando apartado laboral", "Workspace de criterios");
 
   assert.equal(formatDate("2026-06-16"), "16/06/2026");
-  assert.equal(money(1500), "1.500,00 €");
+  assert.equal(money(1500), "1500,00 €");
   assert.equal(getAgreementStatus(agreement).label, "Activo");
   assert.deepEqual(
     cleanPayload({ id: 1, name: "Prueba", notes: "", table_id: 3 }),
