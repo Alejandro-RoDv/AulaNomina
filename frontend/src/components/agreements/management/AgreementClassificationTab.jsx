@@ -2,7 +2,6 @@ import { ActionBar, Field, InlineForm, RowActions, Section, SimpleTable, styles 
 
 export default function AgreementClassificationTab({
   groups,
-  categories,
   selectedGroup,
   selectedGroupId,
   setSelectedGroupId,
