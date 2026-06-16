@@ -1,3 +1,5 @@
+/* eslint-disable react-refresh/only-export-components */
+
 export function Section({ title, subtitle, children }) {
   return <section style={styles.section}><header style={styles.sectionHeader}><h3 style={styles.sectionTitle}>{title}</h3>{subtitle && <p style={styles.sectionSubtitle}>{subtitle}</p>}</header>{children}</section>;
 }
