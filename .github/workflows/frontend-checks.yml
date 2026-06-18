@@ -27,7 +27,7 @@ jobs:
       - name: Lint Convenios files
         id: lint
         continue-on-error: true
-        run: npx eslint src/hooks/useAppData.js src/hooks/useAgreementWorkspace.js src/pages/CollectiveAgreementsPage.js src/pages/CollectiveAgreementsPage.jsx src/pages/CollectiveAgreementsWorkspacePage.jsx src/pages/CollectiveAgreementsManagementPage.jsx src/components/agreements/AgreementSalaryWorkspace.jsx src/components/agreements/AgreementCriteriaWorkspace.jsx src/components/agreements/AgreementSeniorityPanel.jsx src/components/agreements/management src/tests/convenios-smoke.jsx --format json --output-file lint-report.json
+        run: npx eslint src/hooks/useAppData.js src/hooks/useAgreementWorkspace.js src/pages/CollectiveAgreementsPage.js src/pages/CollectiveAgreementsPage.jsx src/pages/collectiveAgreementsLoader.js src/pages/CollectiveAgreementsWorkspacePage.jsx src/pages/CollectiveAgreementsManagementPage.jsx src/components/agreements/AgreementSalaryWorkspace.jsx src/components/agreements/AgreementCriteriaWorkspace.jsx src/components/agreements/AgreementSeniorityPanel.jsx src/components/agreements/management src/tests/convenios-smoke.jsx --format json --output-file lint-report.json
       - name: Convenios regression tests
         id: tests
         continue-on-error: true
