@@ -9,7 +9,7 @@ import {
   getAgreementStatus,
   money,
 } from "../components/agreements/management/managementConfig";
-import CollectiveAgreementsManagementPageV3 from "../pages/CollectiveAgreementsManagementPageV3.jsx";
+import CollectiveAgreementsManagementPage from "../pages/CollectiveAgreementsManagementPage.jsx";
 
 const agreement = {
   id: 1,
@@ -64,7 +64,7 @@ const agreement = {
 
 function renderManagement(activeTab) {
   return renderToString(
-    <CollectiveAgreementsManagementPageV3
+    <CollectiveAgreementsManagementPage
       loading={false}
       collectiveAgreements={[agreement]}
       selectedAgreement={agreement}
