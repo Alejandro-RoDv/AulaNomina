@@ -57,7 +57,11 @@ export function useAppData({ onLoadError, onNextEmployeeCode } = {}) {
     }
   }, []);
 
-  const loadData = useCallback(async () => {
+  const loadData = useCallback(async (scope) => {
+    if (scope === "collective-agreements") {
+      return refreshCollectiveAgreements();
+    }
+
     setLoading(true);
     let failed = false;
     const markFailure = () => { failed = true; };
@@ -99,10 +103,11 @@ export function useAppData({ onLoadError, onNextEmployeeCode } = {}) {
       }
 
       if (failed) onLoadErrorRef.current?.();
+      return null;
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [refreshCollectiveAgreements]);
 
   useEffect(() => {
     loadData();
