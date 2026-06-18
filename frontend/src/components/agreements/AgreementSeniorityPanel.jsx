@@ -111,11 +111,10 @@ export default function AgreementSeniorityPanel({ agreement, onChanged }) {
   }
 
   useEffect(() => {
-    setForm(EMPTY_FORM);
-    setFormOpen(false);
-    setMessage("");
-    setPreview(null);
-    loadRules();
+    const timer = setTimeout(() => {
+      loadRules();
+    }, 0);
+    return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [agreement?.id]);
 
