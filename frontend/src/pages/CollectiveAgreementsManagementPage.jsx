@@ -46,7 +46,7 @@ import {
   updateWorkTimeRule,
 } from "../services/collectiveAgreementApi";
 
-export default function CollectiveAgreementsManagementPageV3({
+export default function CollectiveAgreementsManagementPage({
   loading,
   collectiveAgreements = [],
   selectedAgreement,
@@ -68,6 +68,7 @@ export default function CollectiveAgreementsManagementPageV3({
   const [openPanel, setOpenPanel] = useState("");
   const [agreementModalOpen, setAgreementModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [operation, setOperation] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
@@ -83,6 +84,7 @@ export default function CollectiveAgreementsManagementPageV3({
   const selectedStatus = getAgreementStatus(activeAgreement);
   const selectedGroup = groups.find((group) => String(group.id) === String(selectedGroupId)) || groups[0] || null;
   const filteredCategories = selectedGroup ? categories.filter((category) => Number(category.professional_group_id) === Number(selectedGroup.id)) : categories;
+  const waitingForAgreement = !selectedAgreement && (loading || submitting);
 
   const alerts = useMemo(() => {
     if (!selectedAgreement) return [];
@@ -104,21 +106,23 @@ export default function CollectiveAgreementsManagementPageV3({
     setMessage("");
     try {
       setSubmitting(true);
+      setOperation(options.operation || "save");
       const result = await action();
       const targetAgreementId = options.agreementId || result?.agreement_id || result?.collective_agreement_id || result?.id || activeAgreement?.id;
       await onAgreementChanged?.({ agreementId: targetAgreementId, refreshList: Boolean(options.refreshList) });
       options.reset?.();
-      setMessage(successMessage);
+      if (successMessage) setMessage(successMessage);
       return result;
     } catch (err) {
       setError(err.message || "Error en la operación");
       return null;
     } finally {
       setSubmitting(false);
+      setOperation("");
     }
   }
 
-  const handleSeedDemo = () => submitAction(seedDemoCollectiveAgreement, "Convenio demo cargado correctamente", { refreshList: true });
+  const handleSeedDemo = () => submitAction(seedDemoCollectiveAgreement, "", { refreshList: true, operation: "seed-demo" });
 
   function handleCreateAgreement(event) {
     event.preventDefault();
@@ -211,6 +215,7 @@ export default function CollectiveAgreementsManagementPageV3({
         onSelectedAgreementIdChange={onSelectedAgreementIdChange}
         status={selectedStatus}
         submitting={submitting}
+        seedDemoLoading={operation === "seed-demo"}
         onSeedDemo={handleSeedDemo}
         onOpenCreate={() => setAgreementModalOpen(true)}
         onDuplicate={() => setMessage("Acción preparada para MVP posterior: duplicar convenio.")}
@@ -218,10 +223,20 @@ export default function CollectiveAgreementsManagementPageV3({
         onArchive={() => handleUpdateStatus("archived")}
       />
 
-      {(message || error || loading) && <div style={error ? styles.feedbackError : styles.feedbackOk}>{message && <span>{message}</span>}{error && <span>{error}</span>}{loading && <span>Cargando datos...</span>}</div>}
+      {error && <div style={styles.feedbackError} role="alert">{error}</div>}
+      {message && <div style={localStyles.statusLine} role="status"><span style={localStyles.statusDot} />{message}</div>}
       <ManagementTabs activeTab={activeTab} onActiveTabChange={onActiveTabChange} />
 
-      {!selectedAgreement && <Section title="Sin convenio seleccionado"><button type="button" onClick={handleSeedDemo} disabled={submitting} style={styles.primaryButton}>Cargar convenio demo</button></Section>}
+      {waitingForAgreement && <ManagementLoadingState />}
+
+      {!selectedAgreement && !waitingForAgreement && (
+        <Section title="Sin convenios disponibles" subtitle="Crea un convenio o carga los datos de demostración para empezar.">
+          <div style={localStyles.emptyActions}>
+            <button type="button" onClick={handleSeedDemo} disabled={submitting} style={styles.secondaryButton}>Cargar demo</button>
+            <button type="button" onClick={() => setAgreementModalOpen(true)} disabled={submitting} style={styles.primaryButton}>Nuevo convenio</button>
+          </div>
+        </Section>
+      )}
 
       {selectedAgreement && activeTab === "overview" && (
         <AgreementOverviewTab agreement={selectedAgreement} status={selectedStatus} groups={groups} categories={categories} salaryTables={salaryTables} salaryRows={salaryRows} workTimeRules={workTimeRules} vacationRules={vacationRules} leaveRules={leaveRules} complements={complements} alerts={alerts} />
@@ -312,3 +327,76 @@ export default function CollectiveAgreementsManagementPageV3({
     </div>
   );
 }
+
+function ManagementLoadingState() {
+  return (
+    <section style={localStyles.loadingPanel} aria-label="Preparando convenio">
+      <div style={localStyles.loadingHeader}>
+        <div style={{ ...localStyles.loadingLine, width: "210px", height: "16px" }} />
+        <div style={{ ...localStyles.loadingLine, width: "120px", height: "30px" }} />
+      </div>
+      <div style={localStyles.loadingGrid}>
+        {["72%", "58%", "66%", "52%", "76%", "61%", "69%", "55%"].map((width, index) => (
+          <div key={index} style={localStyles.loadingCell}>
+            <div style={{ ...localStyles.loadingLine, width: "64px", height: "9px" }} />
+            <div style={{ ...localStyles.loadingLine, width, height: "13px" }} />
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+const localStyles = {
+  statusLine: {
+    display: "flex",
+    alignItems: "center",
+    gap: "7px",
+    minHeight: "22px",
+    color: "#166534",
+    fontSize: "12px",
+    fontWeight: 750,
+  },
+  statusDot: {
+    width: "7px",
+    height: "7px",
+    borderRadius: "999px",
+    backgroundColor: "#22c55e",
+  },
+  emptyActions: {
+    display: "flex",
+    gap: "8px",
+    padding: "12px",
+  },
+  loadingPanel: {
+    border: "1px solid #e5e7eb",
+    backgroundColor: "#fff",
+  },
+  loadingHeader: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: "16px",
+    borderBottom: "1px solid #e5e7eb",
+    backgroundColor: "#f9fafb",
+    padding: "12px",
+  },
+  loadingGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+    gap: "0 20px",
+    padding: "8px 12px 14px",
+  },
+  loadingCell: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "7px",
+    minHeight: "48px",
+    justifyContent: "center",
+    borderBottom: "1px solid #f3f4f6",
+  },
+  loadingLine: {
+    borderRadius: "4px",
+    backgroundColor: "#e7eaee",
+  },
+};
