@@ -109,7 +109,10 @@ export function useAppData({ onLoadError, onNextEmployeeCode } = {}) {
   }, [refreshCollectiveAgreements]);
 
   useEffect(() => {
-    loadData();
+    const timer = setTimeout(() => {
+      loadData();
+    }, 0);
+    return () => clearTimeout(timer);
   }, [loadData]);
 
   const handleResetDemo = async () => {
