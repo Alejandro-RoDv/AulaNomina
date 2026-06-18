@@ -9,11 +9,12 @@ import { fetchIncidents } from "../services/incidentApi";
 import { fetchPayrolls } from "../services/payrollApi";
 import { fetchWorkCenters } from "../services/workCenterApi";
 
-async function safeRequest(requestFn, fallback, label) {
+async function safeRequest(requestFn, fallback, label, onError) {
   try {
     return await requestFn();
   } catch (error) {
     console.error(`[AulaNomina] Error cargando ${label}:`, error);
+    onError?.(error, label);
     return fallback;
   }
 }
@@ -44,45 +45,63 @@ export function useAppData({ onLoadError, onNextEmployeeCode } = {}) {
     onNextEmployeeCodeRef.current = onNextEmployeeCode;
   }, [onNextEmployeeCode]);
 
+  const refreshCollectiveAgreements = useCallback(async () => {
+    try {
+      const data = await fetchCollectiveAgreements();
+      setCollectiveAgreements(data);
+      return data;
+    } catch (error) {
+      console.error("[AulaNomina] Error cargando convenios:", error);
+      onLoadErrorRef.current?.(error, "convenios");
+      throw error;
+    }
+  }, []);
+
   const loadData = useCallback(async () => {
     setLoading(true);
+    let failed = false;
+    const markFailure = () => { failed = true; };
 
-    const [
-      contractsData,
-      employeesData,
-      companiesData,
-      workCentersData,
-      incidentsData,
-      payrollsData,
-      documentsData,
-      collectiveAgreementsData,
-      nextEmployeeCodeData,
-    ] = await Promise.all([
-      safeRequest(fetchContracts, [], "contratos"),
-      safeRequest(fetchAllEmployees, [], "trabajadores"),
-      safeRequest(fetchCompanies, [], "empresas"),
-      safeRequest(fetchWorkCenters, [], "centros"),
-      safeRequest(fetchIncidents, [], "incidencias"),
-      safeRequest(fetchPayrolls, [], "nóminas"),
-      safeRequest(fetchDocuments, [], "documentos"),
-      safeRequest(fetchCollectiveAgreements, [], "convenios"),
-      safeRequest(fetchNextEmployeeCode, null, "siguiente código de trabajador"),
-    ]);
+    try {
+      const [
+        contractsData,
+        employeesData,
+        companiesData,
+        workCentersData,
+        incidentsData,
+        payrollsData,
+        documentsData,
+        collectiveAgreementsData,
+        nextEmployeeCodeData,
+      ] = await Promise.all([
+        safeRequest(fetchContracts, [], "contratos", markFailure),
+        safeRequest(fetchAllEmployees, [], "trabajadores", markFailure),
+        safeRequest(fetchCompanies, [], "empresas", markFailure),
+        safeRequest(fetchWorkCenters, [], "centros", markFailure),
+        safeRequest(fetchIncidents, [], "incidencias", markFailure),
+        safeRequest(fetchPayrolls, [], "nóminas", markFailure),
+        safeRequest(fetchDocuments, [], "documentos", markFailure),
+        safeRequest(fetchCollectiveAgreements, [], "convenios", markFailure),
+        safeRequest(fetchNextEmployeeCode, null, "siguiente código de trabajador", markFailure),
+      ]);
 
-    setContracts(contractsData);
-    setEmployees(employeesData);
-    setCompanies(companiesData);
-    setWorkCenters(workCentersData);
-    setIncidents(incidentsData);
-    setPayrolls(payrollsData);
-    setDocuments(documentsData);
-    setCollectiveAgreements(collectiveAgreementsData);
+      setContracts(contractsData);
+      setEmployees(employeesData);
+      setCompanies(companiesData);
+      setWorkCenters(workCentersData);
+      setIncidents(incidentsData);
+      setPayrolls(payrollsData);
+      setDocuments(documentsData);
+      setCollectiveAgreements(collectiveAgreementsData);
 
-    if (nextEmployeeCodeData?.employee_code || nextEmployeeCodeData?.next_code) {
-      onNextEmployeeCodeRef.current?.(nextEmployeeCodeData.employee_code || nextEmployeeCodeData.next_code);
+      if (nextEmployeeCodeData?.employee_code || nextEmployeeCodeData?.next_code) {
+        onNextEmployeeCodeRef.current?.(nextEmployeeCodeData.employee_code || nextEmployeeCodeData.next_code);
+      }
+
+      if (failed) onLoadErrorRef.current?.();
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   }, []);
 
   useEffect(() => {
@@ -126,6 +145,7 @@ export function useAppData({ onLoadError, onNextEmployeeCode } = {}) {
     collectiveAgreements,
     loading,
     loadData,
+    refreshCollectiveAgreements,
     resetDemoLoading,
     resetDemoMessage,
     resetDemoError,
