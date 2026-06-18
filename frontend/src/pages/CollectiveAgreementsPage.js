@@ -1,6 +1,5 @@
-import CollectiveAgreementsPage, {
-  preloadCollectiveAgreementsWorkspace,
-} from "./CollectiveAgreementsPage.jsx";
+import CollectiveAgreementsPage from "./CollectiveAgreementsPage.jsx";
+import { preloadCollectiveAgreementsWorkspace } from "./collectiveAgreementsLoader";
 
 // El workspace se descarga en segundo plano después del primer render general.
 // La importación dinámica sigue separada del bundle inicial, pero normalmente
