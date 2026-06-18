@@ -3,7 +3,7 @@ import { useState } from "react";
 import AgreementCriteriaWorkspace from "../components/agreements/AgreementCriteriaWorkspace";
 import AgreementSalaryWorkspace from "../components/agreements/AgreementSalaryWorkspace";
 import { useAgreementWorkspace } from "../hooks/useAgreementWorkspace";
-import CollectiveAgreementsManagementPage from "./CollectiveAgreementsManagementPageV3.jsx";
+import CollectiveAgreementsManagementPage from "./CollectiveAgreementsManagementPage.jsx";
 
 const VIEW_COPY = {
   criteria: {
@@ -16,7 +16,7 @@ const VIEW_COPY = {
   },
 };
 
-export default function CollectiveAgreementsWorkspacePageV2(props) {
+export default function CollectiveAgreementsWorkspacePage(props) {
   const agreements = props.collectiveAgreements || [];
   const [view, setView] = useState("management");
   const [managementTab, setManagementTab] = useState("overview");

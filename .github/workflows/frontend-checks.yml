@@ -24,10 +24,10 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - name: Install dependencies
         run: npm ci
-      - name: Lint changed Convenios files
+      - name: Lint Convenios files
         id: lint
         continue-on-error: true
-        run: npx eslint src/hooks/useAgreementWorkspace.js src/pages/CollectiveAgreementsWorkspacePageV2.jsx src/pages/CollectiveAgreementsManagementPageV3.jsx src/components/agreements/AgreementSalaryWorkspace.jsx src/components/agreements/AgreementCriteriaWorkspace.jsx src/components/agreements/management src/tests/convenios-smoke.jsx --format json --output-file lint-report.json
+        run: npx eslint src/hooks/useAgreementWorkspace.js src/pages/CollectiveAgreementsPage.jsx src/pages/CollectiveAgreementsWorkspacePage.jsx src/pages/CollectiveAgreementsManagementPage.jsx src/components/agreements/AgreementSalaryWorkspace.jsx src/components/agreements/AgreementCriteriaWorkspace.jsx src/components/agreements/management src/tests/convenios-smoke.jsx --format json --output-file lint-report.json
       - name: Convenios regression tests
         id: tests
         continue-on-error: true
