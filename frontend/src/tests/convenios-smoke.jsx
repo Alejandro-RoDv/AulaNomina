@@ -82,6 +82,10 @@ function assertIncludes(markup, text, context) {
   assert.ok(markup.includes(text), `${context}: no aparece “${text}”`);
 }
 
+function assertNotIncludes(markup, text, context) {
+  assert.ok(!markup.includes(text), `${context}: aparece el texto no permitido “${text}”`);
+}
+
 export async function runConveniosSmokeTests() {
   const overview = renderManagement("overview");
   assertIncludes(overview, "Ficha administrativa", "Resumen");
@@ -107,6 +111,23 @@ export async function runConveniosSmokeTests() {
   const seniority = renderManagement("seniority");
   assertIncludes(seniority, "Importe antigüedad", "Antigüedad histórica");
   assertIncludes(seniority, "45,00", "Antigüedad histórica");
+
+  const loadingManagement = renderToString(
+    <CollectiveAgreementsManagementPage
+      loading
+      collectiveAgreements={[agreement]}
+      selectedAgreement={null}
+      selectedAgreementId={agreement.id}
+      onSelectedAgreementIdChange={() => {}}
+      activeTab="overview"
+      onActiveTabChange={() => {}}
+      onAgreementChanged={async () => agreement}
+    />
+  );
+  assertIncludes(loadingManagement, "Preparando convenio", "Carga interna de Gestión");
+  assertNotIncludes(loadingManagement, "Cargando datos...", "Carga interna de Gestión");
+  assertNotIncludes(loadingManagement, "Sin convenio seleccionado", "Carga interna de Gestión");
+  assertNotIncludes(loadingManagement, "Convenio demo cargado correctamente", "Carga interna de Gestión");
 
   const salaryWorkspace = renderToString(
     <AgreementSalaryWorkspace
