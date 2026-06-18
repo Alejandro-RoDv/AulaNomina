@@ -27,8 +27,10 @@ export default function CollectiveAgreementsWorkspacePage(props) {
     loading,
     error,
     refreshAgreement,
+    retryAgreement,
   } = useAgreementWorkspace({
     collectiveAgreements: agreements,
+    onAgreementListChanged: props.onAgreementListChanged,
     onDataChanged: props.onDataChanged,
   });
 
@@ -47,8 +49,16 @@ export default function CollectiveAgreementsWorkspacePage(props) {
         <button type="button" onClick={() => setView("criteria")} style={view === "criteria" ? styles.tabActive : styles.tab}>Criterios laborales</button>
       </nav>
 
+      {error && (
+        <div style={styles.errorRow}>
+          <span>{error}</span>
+          <button type="button" onClick={retryAgreement} style={styles.retryButton}>Reintentar carga</button>
+        </div>
+      )}
+
       {view === "management" && (
         <CollectiveAgreementsManagementPage
+          key={selected?.id || "sin-convenio"}
           loading={props.loading || loading}
           collectiveAgreements={agreements}
           selectedAgreement={agreement}
@@ -75,7 +85,6 @@ export default function CollectiveAgreementsWorkspacePage(props) {
             </label>
           </section>
 
-          {error && <div style={styles.error}>{error}</div>}
           {loading && <div style={styles.notice}>Cargando convenio…</div>}
           {!loading && !agreement && !error && <div style={styles.notice}>Selecciona o crea un convenio.</div>}
           {!loading && agreement && (
@@ -127,5 +136,6 @@ const styles = {
   summary: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: "12px", border: "1px solid #e5e7eb", borderLeft: "3px solid #facc15", background: "#fff", padding: "10px 12px" },
   summaryItem: { display: "flex", flexDirection: "column", gap: "2px", color: "#374151", fontSize: "12px" },
   notice: { border: "1px solid #e5e7eb", background: "#f9fafb", color: "#4b5563", padding: "12px", fontSize: "12px", fontWeight: 750 },
-  error: { border: "1px solid #fecaca", background: "#fef2f2", color: "#991b1b", padding: "10px", fontSize: "12px", fontWeight: 750 },
+  errorRow: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", border: "1px solid #fecaca", background: "#fef2f2", color: "#991b1b", padding: "10px", fontSize: "12px", fontWeight: 750 },
+  retryButton: { minHeight: "32px", border: "1px solid #b91c1c", background: "#fff", color: "#991b1b", padding: "5px 10px", fontSize: "12px", fontWeight: 800, cursor: "pointer" },
 };
