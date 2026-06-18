@@ -16,6 +16,7 @@ export function ManagementHeader({
   onSelectedAgreementIdChange,
   status,
   submitting,
+  seedDemoLoading,
   onSeedDemo,
   onOpenCreate,
   onDuplicate,
@@ -35,8 +36,8 @@ export function ManagementHeader({
             {agreements.map((agreement) => <option key={agreement.id} value={agreement.id}>{agreement.name} · {agreement.agreement_code || "sin código"}</option>)}
           </select>
           <StatusBadge status={status} />
-          <button type="button" onClick={onSeedDemo} disabled={submitting} style={styles.secondaryButton}>Cargar demo</button>
-          <button type="button" onClick={onOpenCreate} style={styles.primaryButton}>Nuevo convenio</button>
+          <button type="button" onClick={onSeedDemo} disabled={submitting} style={styles.secondaryButton}>{seedDemoLoading ? "Preparando demo…" : "Cargar demo"}</button>
+          <button type="button" onClick={onOpenCreate} disabled={submitting} style={styles.primaryButton}>Nuevo convenio</button>
         </div>
       </section>
 
