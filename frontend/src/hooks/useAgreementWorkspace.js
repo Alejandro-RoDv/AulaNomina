@@ -92,8 +92,9 @@ export function useAgreementWorkspace({
   async function refreshAgreement({ agreementId, refreshList = false } = {}) {
     const targetAgreementId = agreementId || selected?.id;
     if (refreshList) {
-      const refreshListAction = onAgreementListChanged || onDataChanged;
-      await refreshListAction?.();
+      if (onAgreementListChanged) await onAgreementListChanged();
+      else await onDataChanged?.("collective-agreements");
+
       if (targetAgreementId && String(targetAgreementId) !== String(selected?.id)) {
         selectAgreement(targetAgreementId);
         return null;
