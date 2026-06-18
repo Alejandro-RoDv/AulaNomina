@@ -52,7 +52,6 @@ export function useAppData({ onLoadError, onNextEmployeeCode } = {}) {
       return data;
     } catch (error) {
       console.error("[AulaNomina] Error cargando convenios:", error);
-      onLoadErrorRef.current?.(error, "convenios");
       throw error;
     }
   }, []);
