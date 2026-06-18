@@ -1,13 +1,6 @@
 import { lazy, Suspense } from "react";
 
-let workspacePromise;
-
-export function preloadCollectiveAgreementsWorkspace() {
-  if (!workspacePromise) {
-    workspacePromise = import("./CollectiveAgreementsWorkspacePage.jsx");
-  }
-  return workspacePromise;
-}
+import { preloadCollectiveAgreementsWorkspace } from "./collectiveAgreementsLoader";
 
 const CollectiveAgreementsWorkspacePage = lazy(preloadCollectiveAgreementsWorkspace);
 
