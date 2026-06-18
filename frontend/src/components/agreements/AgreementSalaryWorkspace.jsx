@@ -4,7 +4,7 @@ const AgreementSalaryStructurePanel = lazy(() => import("./AgreementSalaryStruct
 const SalaryTableRevisionPanel = lazy(() => import("./SalaryTableRevisionPanel"));
 const SalaryTableActivationPanel = lazy(() => import("./SalaryTableActivationPanel"));
 const SalaryRegularizationPanel = lazy(() => import("./SalaryRegularizationPanel"));
-const AgreementExtraPayPanelV2 = lazy(() => import("./AgreementExtraPayPanelV2"));
+const AgreementExtraPayPanel = lazy(() => import("./AgreementExtraPayPanel"));
 const ContractExtraPaySimulationPanel = lazy(() => import("./ContractExtraPaySimulationPanel"));
 
 const SECTIONS = [
@@ -107,7 +107,7 @@ export default function AgreementSalaryWorkspace({ agreement, onAgreementChanged
             {activeSection === "revision" && <SalaryTableRevisionPanel agreement={agreement} onCompleted={refreshAgreement} />}
             {activeSection === "activation" && <SalaryTableActivationPanel agreement={agreement} onChanged={refreshAgreement} />}
             {activeSection === "regularization" && <SalaryRegularizationPanel agreement={agreement} onGenerated={refreshAgreement} />}
-            {activeSection === "extra-pays" && <AgreementExtraPayPanelV2 agreement={agreement} onChanged={refreshAgreement} />}
+            {activeSection === "extra-pays" && <AgreementExtraPayPanel agreement={agreement} onChanged={refreshAgreement} />}
             {activeSection === "extra-pay-simulation" && <ContractExtraPaySimulationPanel agreement={agreement} />}
           </div>
         </Suspense>
@@ -173,7 +173,6 @@ const styles = {
     fontSize: "12px",
   },
   metric: {
-    minWidth: "110px",
     display: "flex",
     flexDirection: "column",
     alignItems: "flex-end",
@@ -183,22 +182,18 @@ const styles = {
   notice: {
     border: "1px solid #fde68a",
     backgroundColor: "#fffbeb",
-    color: "#78350f",
+    color: "#92400e",
     padding: "12px",
     fontSize: "12px",
-    fontWeight: 700,
+    fontWeight: 750,
   },
   loading: {
     border: "1px solid #e5e7eb",
     backgroundColor: "#f9fafb",
     color: "#4b5563",
-    padding: "14px",
+    padding: "12px",
     fontSize: "12px",
     fontWeight: 750,
   },
-  content: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "10px",
-  },
+  content: { display: "flex", flexDirection: "column", gap: "10px" },
 };

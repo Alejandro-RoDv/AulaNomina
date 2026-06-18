@@ -3,6 +3,7 @@ import { renderToString } from "react-dom/server";
 
 import AgreementCriteriaWorkspace from "../components/agreements/AgreementCriteriaWorkspace";
 import AgreementSalaryWorkspace from "../components/agreements/AgreementSalaryWorkspace";
+import AgreementSeniorityPanel from "../components/agreements/AgreementSeniorityPanel";
 import {
   cleanPayload,
   formatDate,
@@ -131,6 +132,12 @@ export async function runConveniosSmokeTests() {
   assertIncludes(criteriaWorkspace, "Criterios generales", "Workspace de criterios");
   assertIncludes(criteriaWorkspace, "Antigüedad y vencimientos", "Workspace de criterios");
   assertIncludes(criteriaWorkspace, "Cargando apartado laboral", "Workspace de criterios");
+
+  const seniorityPanel = renderToString(
+    <AgreementSeniorityPanel agreement={agreement} onChanged={async () => agreement} />
+  );
+  assertIncludes(seniorityPanel, "Calcular vencimientos", "Antigüedad bajo petición");
+  assertIncludes(seniorityPanel, "Selecciona una fecha", "Antigüedad bajo petición");
 
   assert.equal(formatDate("2026-06-16"), "16/06/2026");
   assert.equal(money(1500), "1500,00 €");
