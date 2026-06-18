@@ -97,19 +97,14 @@ export default function AgreementSeniorityPanel({ agreement, onChanged }) {
 
   const activeRules = useMemo(() => rules.filter((rule) => rule.is_active), [rules]);
 
-  async function loadData(showLoading = true) {
+  async function loadRules(showLoading = true) {
     if (!agreement?.id) return;
     if (showLoading) setLoading(true);
     setError("");
     try {
-      const [ruleData, previewData] = await Promise.all([
-        fetchAgreementSeniorityRules(agreement.id, true),
-        fetchAgreementSeniorityPreview(agreement.id, previewDate),
-      ]);
-      setRules(ruleData);
-      setPreview(previewData);
+      setRules(await fetchAgreementSeniorityRules(agreement.id, true));
     } catch (err) {
-      setError(err.message || "No se pudo cargar la antigüedad del convenio.");
+      setError(err.message || "No se pudieron cargar las reglas de antigüedad.");
     } finally {
       if (showLoading) setLoading(false);
     }
@@ -120,7 +115,7 @@ export default function AgreementSeniorityPanel({ agreement, onChanged }) {
     setFormOpen(false);
     setMessage("");
     setPreview(null);
-    loadData();
+    loadRules();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [agreement?.id]);
 
@@ -144,7 +139,8 @@ export default function AgreementSeniorityPanel({ agreement, onChanged }) {
       }
       setForm(EMPTY_FORM);
       setFormOpen(false);
-      await loadData(false);
+      setPreview(null);
+      await loadRules(false);
       await onChanged?.();
     } catch (err) {
       setError(err.message || "No se pudo guardar la regla de antigüedad.");
@@ -177,7 +173,8 @@ export default function AgreementSeniorityPanel({ agreement, onChanged }) {
     try {
       await deactivateAgreementSeniorityRule(rule.id);
       setMessage("Regla de antigüedad desactivada.");
-      await loadData(false);
+      setPreview(null);
+      await loadRules(false);
       await onChanged?.();
     } catch (err) {
       setError(err.message || "No se pudo desactivar la regla.");
@@ -284,8 +281,10 @@ export default function AgreementSeniorityPanel({ agreement, onChanged }) {
 
       <div style={styles.previewHeader}>
         <div><h4 style={styles.previewTitle}>Vencimientos por contrato</h4><p style={styles.previewSubtitle}>La fecha reconocida del contrato prevalece sobre la fecha ordinaria de antigüedad.</p></div>
-        <div style={styles.previewControls}><input type="date" style={styles.inputDate} value={previewDate} onChange={(event) => setPreviewDate(event.target.value)} /><button type="button" onClick={refreshPreview} disabled={loading} style={styles.secondaryButton}>{loading ? "Calculando…" : "Actualizar"}</button></div>
+        <div style={styles.previewControls}><input type="date" style={styles.inputDate} value={previewDate} onChange={(event) => { setPreviewDate(event.target.value); setPreview(null); }} /><button type="button" onClick={refreshPreview} disabled={loading} style={styles.secondaryButton}>{loading ? "Calculando…" : preview ? "Actualizar" : "Calcular vencimientos"}</button></div>
       </div>
+
+      {!preview && !loading && <div style={styles.previewNotice}>Selecciona una fecha y pulsa “Calcular vencimientos” para consultar los contratos vinculados.</div>}
 
       {preview && (
         <>
@@ -355,6 +354,7 @@ const styles = {
   previewTitle: { margin: 0, color: "#111827", fontSize: "14px", fontWeight: 900 },
   previewSubtitle: { margin: "3px 0 0", color: "#6b7280", fontSize: "11px" },
   previewControls: { display: "flex", alignItems: "center", gap: "8px" },
+  previewNotice: { border: "1px solid #e5e7eb", background: "#f9fafb", color: "#4b5563", padding: "12px", fontSize: "12px", fontWeight: 700 },
   tableWrapper: { width: "100%", overflowX: "auto", border: "1px solid #e5e7eb" },
   table: { width: "100%", minWidth: "900px", borderCollapse: "collapse", fontSize: "12px" },
   th: { padding: "9px", textAlign: "left", background: "#f9fafb", borderBottom: "1px solid #d1d5db", whiteSpace: "nowrap" },
