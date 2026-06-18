@@ -61,10 +61,7 @@ export function useAgreementWorkspace({
   }
 
   useEffect(() => {
-    if (!selected?.id) {
-      if (!selectedId) setLoading(false);
-      return undefined;
-    }
+    if (!selected?.id) return undefined;
 
     let active = true;
     const agreementId = selected.id;
@@ -87,7 +84,7 @@ export function useAgreementWorkspace({
       });
 
     return () => { active = false; };
-  }, [selected?.id, selectedId]);
+  }, [selected?.id]);
 
   async function refreshAgreement({ agreementId, refreshList = false } = {}) {
     const targetAgreementId = agreementId || selected?.id;
