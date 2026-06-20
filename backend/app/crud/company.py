@@ -1,6 +1,7 @@
 from sqlalchemy.orm import Session
 
 from app.models.company import Company
+from app.models.company_bank_account import CompanyBankAccount, CompanyPaymentAssignment
 from app.models.contract import Contract
 from app.schemas.company import CompanyCreate, CompanyUpdate
 
@@ -39,7 +40,6 @@ def update_company(db: Session, company_id: int, company_data: CompanyUpdate):
         return None
 
     update_data = company_data.model_dump(exclude_unset=True)
-
     for key, value in update_data.items():
         setattr(db_company, key, value)
 
@@ -53,7 +53,15 @@ def soft_delete_company(db: Session, company_id: int):
     if not db_company:
         return None
 
-    db.query(Contract).filter(Contract.company_id == company_id).delete(synchronize_session=False)
+    db.query(CompanyPaymentAssignment).filter(
+        CompanyPaymentAssignment.company_id == company_id
+    ).delete(synchronize_session=False)
+    db.query(CompanyBankAccount).filter(
+        CompanyBankAccount.company_id == company_id
+    ).delete(synchronize_session=False)
+    db.query(Contract).filter(
+        Contract.company_id == company_id
+    ).delete(synchronize_session=False)
     db.delete(db_company)
     db.commit()
     return db_company
