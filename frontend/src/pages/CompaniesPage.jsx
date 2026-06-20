@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import PageCard from "../components/layout/PageCard";
 import CompanyTable from "../components/CompanyTable";
+import CompanyPreferencesPanel from "../components/companyPreferences/CompanyPreferencesPanel";
 import WorkCenterTable from "../components/workCenters/WorkCenterTable";
 import CompanyCenterSplitForm from "../components/companyCenters/CompanyCenterSplitForm";
 import { openReportPreset } from "../utils/reportShortcuts";
@@ -9,6 +10,7 @@ import { openReportPreset } from "../utils/reportShortcuts";
 function getInitialSection() {
   if (window.location.hash === "#company-centers") return "centers";
   if (window.location.hash === "#company-list") return "list";
+  if (window.location.hash === "#company-preferences") return "preferences";
   return "new";
 }
 
@@ -45,8 +47,13 @@ export default function CompaniesPage({
   }, []);
 
   const changeSection = (nextSection) => {
-    const nextHash = nextSection === "centers" ? "#company-centers" : nextSection === "list" ? "#company-list" : "#company-companies";
-    window.location.hash = nextHash;
+    const hashBySection = {
+      centers: "#company-centers",
+      list: "#company-list",
+      preferences: "#company-preferences",
+      new: "#company-companies",
+    };
+    window.location.hash = hashBySection[nextSection] || hashBySection.new;
     window.dispatchEvent(new Event("aulanomina-route-change"));
     setSection(nextSection);
   };
@@ -61,6 +68,7 @@ export default function CompaniesPage({
         <button type="button" onClick={() => changeSection("new")} style={section === "new" ? styles.tabActive : styles.tab}>Nueva empresa</button>
         <button type="button" onClick={() => changeSection("centers")} style={section === "centers" ? styles.tabActive : styles.tab}>Centros</button>
         <button type="button" onClick={() => changeSection("list")} style={section === "list" ? styles.tabActive : styles.tab}>Listado empresas</button>
+        <button type="button" onClick={() => changeSection("preferences")} style={section === "preferences" ? styles.tabActive : styles.tab}>Preferencias</button>
       </div>
 
       {section === "new" && (
@@ -95,10 +103,21 @@ export default function CompaniesPage({
       {section === "list" && (
         <PageCard title="Listado empresas" subtitle="Consulta y edición completa de empresas ya creadas.">
           <div style={styles.reportActions}>
+            <button type="button" style={styles.preferencesButton} onClick={() => changeSection("preferences")}>Preferencias de empresa</button>
             <button type="button" style={styles.reportButton} onClick={() => openReportPreset({ category: "company", reportId: "companies-active" })}>Informe empresas activas</button>
             <button type="button" style={styles.reportButtonSecondary} onClick={() => openReportPreset({ category: "company", reportId: "centers-ccc" })}>Informe centros / CCC</button>
           </div>
           <CompanyTable loading={loading} companies={companies} onUpdateCompany={onUpdateCompany} onDeleteCompany={onDeleteCompany} submitting={companySubmitting} />
+        </PageCard>
+      )}
+
+      {section === "preferences" && (
+        <PageCard title="Preferencias de empresa" subtitle="Personaliza cálculo, cotización, retenciones, recibos, imagen corporativa e idioma sin duplicar los datos maestros de la empresa.">
+          <CompanyPreferencesPanel
+            companies={companies}
+            selectedCompanyId={selectedCompanyId}
+            onSelectedCompanyChange={setSelectedCompanyId}
+          />
         </PageCard>
       )}
     </div>
@@ -110,7 +129,8 @@ const styles = {
   tabs: { display: "flex", gap: "8px", borderBottom: "1px solid #e5e7eb", paddingBottom: "10px", flexWrap: "wrap" },
   tab: { backgroundColor: "#ffffff", color: "#374151", border: "1px solid #d1d5db", borderRadius: "8px", padding: "10px 14px", cursor: "pointer", fontWeight: 900 },
   tabActive: { backgroundColor: "#111827", color: "#ffffff", border: "1px solid #111827", borderRadius: "8px", padding: "10px 14px", cursor: "pointer", fontWeight: 900 },
-  reportActions: { display: "flex", gap: "10px", justifyContent: "flex-end", marginBottom: "14px" },
+  reportActions: { display: "flex", gap: "10px", justifyContent: "flex-end", marginBottom: "14px", flexWrap: "wrap" },
+  preferencesButton: { backgroundColor: "#facc15", color: "#111827", border: "1px solid #eab308", borderRadius: "7px", padding: "9px 12px", cursor: "pointer", fontWeight: 900 },
   reportButton: { backgroundColor: "#111827", color: "#fff", border: "1px solid #111827", borderRadius: "7px", padding: "9px 12px", cursor: "pointer", fontWeight: 900 },
   reportButtonSecondary: { backgroundColor: "#fff", color: "#111827", border: "1px solid #d1d5db", borderRadius: "7px", padding: "9px 12px", cursor: "pointer", fontWeight: 900 },
 };
