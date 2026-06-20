@@ -8,6 +8,7 @@ export default function EmbeddedCompanyPanel({
   onDirtyChange,
   successTexts = [],
   dirtyButtonTexts = [],
+  ignoreChangeSelector = "",
 }) {
   const rootRef = useRef(null);
   const dirtyRef = useRef(false);
@@ -35,6 +36,11 @@ export default function EmbeddedCompanyPanel({
 
   useEffect(() => () => onDirtyChange?.(false), [onDirtyChange]);
 
+  const handleChangeCapture = (event) => {
+    if (ignoreChangeSelector && event.target?.closest?.(ignoreChangeSelector)) return;
+    setDirty(true);
+  };
+
   const handleClickCapture = (event) => {
     const label = event.target?.textContent?.trim() || "";
     if (dirtyButtonTexts.some((text) => label.includes(text))) setDirty(true);
@@ -44,7 +50,7 @@ export default function EmbeddedCompanyPanel({
     <div
       ref={rootRef}
       className={className}
-      onChangeCapture={() => setDirty(true)}
+      onChangeCapture={handleChangeCapture}
       onClickCapture={handleClickCapture}
     >
       {children}
