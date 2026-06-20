@@ -76,7 +76,7 @@ export default function CompaniesPage({
 
       {section === "new" && (
         <PageCard title="Nueva empresa" subtitle="Alta de datos maestros. Las reglas operativas se configuran en Preferencias.">
-          <CompanyMasterCreateForm onOpenPreferences={openCompanyPreferences} />
+          <CompanyMasterCreateForm onCreated={reloadPageData} onOpenPreferences={openCompanyPreferences} />
         </PageCard>
       )}
 
