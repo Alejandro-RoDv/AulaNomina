@@ -12,6 +12,10 @@ export default function EmbeddedCompanyPanel({
 }) {
   const rootRef = useRef(null);
   const dirtyRef = useRef(false);
+  const isBankingPanel = className.includes("company-embedded-banking");
+  const resetTexts = isBankingPanel
+    ? successTexts.filter((text) => text.includes("Cuenta bancaria añadida"))
+    : successTexts;
 
   const setDirty = (value) => {
     if (dirtyRef.current === value) return;
@@ -21,23 +25,24 @@ export default function EmbeddedCompanyPanel({
 
   useEffect(() => {
     const root = rootRef.current;
-    if (!root || !successTexts.length) return undefined;
+    if (!root || !resetTexts.length) return undefined;
 
     const observer = new MutationObserver(() => {
       const text = root.textContent || "";
-      if (successTexts.some((successText) => text.includes(successText))) {
+      if (resetTexts.some((successText) => text.includes(successText))) {
         setDirty(false);
       }
     });
 
     observer.observe(root, { childList: true, subtree: true, characterData: true });
     return () => observer.disconnect();
-  }, [successTexts.join("|")]);
+  }, [resetTexts.join("|")]);
 
   useEffect(() => () => onDirtyChange?.(false), [onDirtyChange]);
 
   const handleChangeCapture = (event) => {
-    if (ignoreChangeSelector && event.target?.closest?.(ignoreChangeSelector)) return;
+    const selector = ignoreChangeSelector || (isBankingPanel ? ".banking-table" : "");
+    if (selector && event.target?.closest?.(selector)) return;
     setDirty(true);
   };
 
