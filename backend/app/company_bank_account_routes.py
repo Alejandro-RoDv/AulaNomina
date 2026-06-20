@@ -6,7 +6,7 @@ from app.crud.company_bank_account import assign_payment_operation, build_paymen
 from app.db import SessionLocal
 from app.schemas.company_bank_account import CompanyBankAccountCreate, CompanyBankAccountResponse, CompanyBankAccountUpdate, CompanyBankingResponse, PaymentAssignmentUpdate
 
-router = APIRouter(prefix="/companies", tags=["company-banking"])
+router = APIRouter(tags=["company-banking"])
 
 
 def get_db():
