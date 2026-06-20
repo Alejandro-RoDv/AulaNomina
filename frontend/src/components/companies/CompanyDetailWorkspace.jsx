@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import CompanyBankingPanel from "../companyBanking/CompanyBankingPanel";
 import CompanyPreferencesPanel from "../companyPreferences/CompanyPreferencesPanel";
 import WorkCenterTable from "../workCenters/WorkCenterTable";
+import EmbeddedCompanyPanel from "./EmbeddedCompanyPanel";
 import "./companyWorkspace.css";
 
 function emptyToNull(value) {
@@ -83,23 +84,75 @@ function Field({ label, name, value, onChange, type = "text", wide = false, chil
   );
 }
 
-export default function CompanyDetailWorkspace({ company, companies, workCenters, onBack, onUpdateCompany, onManageCenters, onUpdateWorkCenter, onDeleteWorkCenter, companySubmitting, workCenterSubmitting }) {
-  const [activeTab, setActiveTab] = useState("general");
-  const [form, setForm] = useState(() => toForm(company));
+export default function CompanyDetailWorkspace({
+  company,
+  companies,
+  workCenters,
+  activeTab = "general",
+  onTabChange,
+  onBack,
+  onDirtyChange,
+  onUpdateCompany,
+  onManageCenters,
+  onUpdateWorkCenter,
+  onDeleteWorkCenter,
+  companySubmitting,
+  workCenterSubmitting,
+}) {
+  const initialCompanyForm = useMemo(() => toForm(company), [company]);
+  const [form, setForm] = useState(initialCompanyForm);
+  const [savedForm, setSavedForm] = useState(initialCompanyForm);
+  const [preferencesDirty, setPreferencesDirty] = useState(false);
+  const [bankingDirty, setBankingDirty] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
   useEffect(() => {
-    setForm(toForm(company));
-    setActiveTab("general");
+    setForm(initialCompanyForm);
+    setSavedForm(initialCompanyForm);
+    setPreferencesDirty(false);
+    setBankingDirty(false);
     setMessage("");
     setError("");
-  }, [company.id]);
+  }, [company.id, initialCompanyForm]);
 
   const centers = useMemo(
     () => workCenters.filter((center) => center.is_active !== false && String(center.company_id) === String(company.id)),
     [workCenters, company.id]
   );
+
+  const generalDirty = useMemo(
+    () => JSON.stringify(form) !== JSON.stringify(savedForm),
+    [form, savedForm]
+  );
+
+  const changedFields = useMemo(
+    () => Object.keys(form).filter((key) => JSON.stringify(form[key]) !== JSON.stringify(savedForm[key])).length,
+    [form, savedForm]
+  );
+
+  const anyDirty = generalDirty || preferencesDirty || bankingDirty;
+  const currentTabDirty = activeTab === "general"
+    ? generalDirty
+    : activeTab === "preferences"
+      ? preferencesDirty
+      : activeTab === "banking"
+        ? bankingDirty
+        : false;
+
+  useEffect(() => {
+    onDirtyChange?.(anyDirty);
+  }, [anyDirty, onDirtyChange]);
+
+  useEffect(() => {
+    if (!anyDirty) return undefined;
+    const warnBeforeUnload = (event) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warnBeforeUnload);
+    return () => window.removeEventListener("beforeunload", warnBeforeUnload);
+  }, [anyDirty]);
 
   const change = (event) => {
     const { name, value, checked, type } = event.target;
@@ -114,22 +167,46 @@ export default function CompanyDetailWorkspace({ company, companies, workCenters
     setError("");
     try {
       await onUpdateCompany(company.id, buildPayload(form));
+      setSavedForm({ ...form });
       setMessage("Datos generales actualizados.");
     } catch (err) {
       setError(err.message || "No se pudo actualizar la empresa");
     }
   };
 
+  const discardCurrentTab = () => {
+    if (activeTab === "general") setForm(savedForm);
+    if (activeTab === "preferences") setPreferencesDirty(false);
+    if (activeTab === "banking") setBankingDirty(false);
+  };
+
+  const confirmLeaveCurrentTab = () => {
+    if (!currentTabDirty) return true;
+    const confirmed = window.confirm("Hay cambios sin guardar en esta sección. ¿Salir y descartarlos?");
+    if (confirmed) discardCurrentTab();
+    return confirmed;
+  };
+
+  const requestTab = (nextTab) => {
+    if (nextTab === activeTab || !confirmLeaveCurrentTab()) return;
+    onTabChange?.(nextTab);
+  };
+
+  const requestBack = () => {
+    if (!confirmLeaveCurrentTab()) return;
+    onBack?.();
+  };
+
   const tabs = [
-    ["general", "Datos generales"],
-    ["centers", `Centros (${centers.length})`],
-    ["preferences", "Preferencias"],
-    ["banking", "Domiciliación de pagos"],
+    ["general", "Datos generales", generalDirty],
+    ["centers", `Centros (${centers.length})`, false],
+    ["preferences", "Preferencias", preferencesDirty],
+    ["banking", "Domiciliación de pagos", bankingDirty],
   ];
 
   return (
     <div className="company-detail-workspace">
-      <button type="button" className="company-back-link" onClick={onBack}>← Volver al listado</button>
+      <button type="button" className="company-back-link" onClick={requestBack}>← Volver al listado</button>
 
       <header className="company-detail-header">
         <div>
@@ -137,11 +214,18 @@ export default function CompanyDetailWorkspace({ company, companies, workCenters
           <h2>{company.name}</h2>
           <p>CIF {company.cif || "sin informar"} · CCC {company.ccc || "sin informar"} · {company.company_type || "tipo sin definir"}</p>
         </div>
-        <span className={`company-status ${company.status === "alta" ? "company-status-active" : company.status === "baja_temporal" ? "company-status-warning" : "company-status-inactive"}`}>{statusLabel(company.status)}</span>
+        <div className="company-detail-header-status">
+          {anyDirty && <span className="company-unsaved-pill">Cambios sin guardar</span>}
+          <span className={`company-status ${company.status === "alta" ? "company-status-active" : company.status === "baja_temporal" ? "company-status-warning" : "company-status-inactive"}`}>{statusLabel(company.status)}</span>
+        </div>
       </header>
 
       <nav className="company-detail-tabs">
-        {tabs.map(([key, label]) => <button key={key} type="button" className={activeTab === key ? "active" : ""} onClick={() => setActiveTab(key)}>{label}</button>)}
+        {tabs.map(([key, label, dirty]) => (
+          <button key={key} type="button" className={activeTab === key ? "active" : ""} onClick={() => requestTab(key)}>
+            {label}{dirty && <span className="company-tab-dirty" aria-label="Cambios sin guardar" />}
+          </button>
+        ))}
       </nav>
 
       {activeTab === "general" && (
@@ -215,7 +299,10 @@ export default function CompanyDetailWorkspace({ company, companies, workCenters
 
           {error && <div className="company-form-error">{error}</div>}
           {message && <div className="company-form-success">{message}</div>}
-          <div className="company-detail-savebar"><span>Preferencias, cálculo e imagen corporativa se gestionan en su pestaña específica.</span><button type="submit" className="company-button-primary" disabled={companySubmitting}>{companySubmitting ? "Guardando..." : "Guardar cambios"}</button></div>
+          <div className="company-detail-savebar">
+            <span>{generalDirty ? `${changedFields} campos modificados sin guardar.` : "Preferencias, cálculo e imagen corporativa se gestionan en su pestaña específica."}</span>
+            <button type="submit" className="company-button-primary" disabled={companySubmitting || !generalDirty}>{companySubmitting ? "Guardando..." : generalDirty ? `Guardar cambios · ${changedFields}` : "Sin cambios pendientes"}</button>
+          </div>
         </form>
       )}
 
@@ -226,8 +313,26 @@ export default function CompanyDetailWorkspace({ company, companies, workCenters
         </section>
       )}
 
-      {activeTab === "preferences" && <CompanyPreferencesPanel companies={companies} selectedCompanyId={String(company.id)} onSelectedCompanyChange={() => {}} />}
-      {activeTab === "banking" && <CompanyBankingPanel companies={companies} selectedCompanyId={String(company.id)} onSelectedCompanyChange={() => {}} />}
+      {activeTab === "preferences" && (
+        <EmbeddedCompanyPanel
+          className="company-embedded-preferences"
+          onDirtyChange={setPreferencesDirty}
+          successTexts={["Preferencias guardadas correctamente."]}
+        >
+          <CompanyPreferencesPanel companies={companies} selectedCompanyId={String(company.id)} onSelectedCompanyChange={() => {}} />
+        </EmbeddedCompanyPanel>
+      )}
+
+      {activeTab === "banking" && (
+        <EmbeddedCompanyPanel
+          className="company-embedded-banking"
+          onDirtyChange={setBankingDirty}
+          successTexts={["Cuenta bancaria añadida.", "Cuenta asignada a la operación.", "Cuenta desvinculada de la operación."]}
+          dirtyButtonTexts={["Generar código simulado"]}
+        >
+          <CompanyBankingPanel companies={companies} selectedCompanyId={String(company.id)} onSelectedCompanyChange={() => {}} />
+        </EmbeddedCompanyPanel>
+      )}
     </div>
   );
 }

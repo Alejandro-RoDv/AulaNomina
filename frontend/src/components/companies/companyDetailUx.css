@@ -1,0 +1,63 @@
+.company-detail-header-status {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.company-unsaved-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 9px;
+  border-radius: 999px;
+  background: #fff7ed;
+  color: #c2410c;
+  border: 1px solid #fed7aa;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.company-unsaved-pill::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.company-tab-dirty {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-left: 7px;
+  border-radius: 50%;
+  background: #f97316;
+  vertical-align: middle;
+}
+
+.company-detail-savebar .company-button-primary:disabled {
+  border-color: #d1d5db;
+  background: #f3f4f6;
+  color: #9ca3af;
+  cursor: not-allowed;
+}
+
+.company-embedded-preferences > div > div:first-child {
+  justify-content: flex-end !important;
+}
+
+.company-embedded-preferences > div > div:first-child > div:first-child {
+  display: none !important;
+}
+
+.company-embedded-banking .banking-toolbar {
+  display: none !important;
+}
+
+@media (max-width: 760px) {
+  .company-detail-header-status {
+    justify-content: flex-start;
+  }
+}
