@@ -1,37 +1,54 @@
 import { useEffect, useMemo, useState } from "react";
 
-import CompanyTable from "../components/CompanyTable";
-import CompanyBankingPanel from "../components/companyBanking/CompanyBankingPanel";
 import CompanyCenterSplitForm from "../components/companyCenters/CompanyCenterSplitForm";
-import CompanyPreferencesPanel from "../components/companyPreferences/CompanyPreferencesPanel";
+import CompanyDetailWorkspace from "../components/companies/CompanyDetailWorkspace";
+import CompanyDirectory from "../components/companies/CompanyDirectory";
 import CompanyMasterCreateForm from "../components/companies/CompanyMasterCreateForm";
 import PageCard from "../components/layout/PageCard";
 import WorkCenterTable from "../components/workCenters/WorkCenterTable";
 import { openReportPreset } from "../utils/reportShortcuts";
 
-const SECTIONS = {
-  new: ["Nueva empresa", "#company-companies"],
-  centers: ["Centros", "#company-centers"],
-  list: ["Listado empresas", "#company-list"],
-  preferences: ["Preferencias", "#company-preferences"],
-  banking: ["Domiciliación de pagos", "#company-banking"],
+const HASHES = {
+  list: "#company-list",
+  new: "#company-new",
+  centers: "#company-centers",
+  reports: "#company-reports",
 };
 
-function getInitialSection() {
-  return Object.entries(SECTIONS).find(([, value]) => value[1] === window.location.hash)?.[0] || "new";
+function parseRoute() {
+  const hash = window.location.hash || HASHES.list;
+  if (hash.startsWith("#company-detail/")) {
+    return { area: "companies", view: "detail", companyId: hash.split("/")[1] || "" };
+  }
+  if (hash === HASHES.new) return { area: "companies", view: "new", companyId: "" };
+  if (hash === HASHES.centers) return { area: "centers", view: "centers", companyId: "" };
+  if (hash === HASHES.reports) return { area: "reports", view: "reports", companyId: "" };
+  return { area: "companies", view: "list", companyId: "" };
+}
+
+function navigate(hash) {
+  window.location.hash = hash;
+  window.dispatchEvent(new Event("aulanomina-route-change"));
 }
 
 export default function CompaniesPage(props) {
-  const { loading, companies, workCenters, onUpdateCompany, onDeleteCompany, onUpdateWorkCenter, onDeleteWorkCenter, companySubmitting, workCenterSubmitting } = props;
-  const [section, setSection] = useState(getInitialSection);
+  const {
+    loading,
+    companies,
+    workCenters,
+    onUpdateCompany,
+    onDeleteCompany,
+    onUpdateWorkCenter,
+    onDeleteWorkCenter,
+    companySubmitting,
+    workCenterSubmitting,
+  } = props;
+
+  const [route, setRoute] = useState(parseRoute);
   const [selectedCompanyId, setSelectedCompanyId] = useState("");
 
-  const visibleWorkCenters = useMemo(() => section === "centers" && selectedCompanyId
-    ? workCenters.filter((center) => center.is_active && String(center.company_id) === String(selectedCompanyId))
-    : [], [section, selectedCompanyId, workCenters]);
-
   useEffect(() => {
-    const sync = () => setSection(getInitialSection());
+    const sync = () => setRoute(parseRoute());
     window.addEventListener("hashchange", sync);
     window.addEventListener("aulanomina-route-change", sync);
     return () => {
@@ -40,54 +57,112 @@ export default function CompaniesPage(props) {
     };
   }, []);
 
-  const changeSection = (next) => {
-    window.location.hash = SECTIONS[next]?.[1] || SECTIONS.new[1];
-    window.dispatchEvent(new Event("aulanomina-route-change"));
-    setSection(next);
+  const selectedCompany = useMemo(
+    () => companies.find((company) => String(company.id) === String(route.companyId)),
+    [companies, route.companyId]
+  );
+
+  const visibleWorkCenters = useMemo(
+    () => selectedCompanyId
+      ? workCenters.filter((center) => center.is_active !== false && String(center.company_id) === String(selectedCompanyId))
+      : [],
+    [selectedCompanyId, workCenters]
+  );
+
+  const openCompany = (company) => navigate(`#company-detail/${company.id}`);
+
+  const manageCenters = (company) => {
+    setSelectedCompanyId(String(company.id));
+    navigate(HASHES.centers);
   };
 
-  const openPreferences = (company) => {
-    setSelectedCompanyId(String(company.id));
-    changeSection("preferences");
+  const handleCompanyCreated = () => {
+    window.location.hash = HASHES.list;
+    window.location.reload();
   };
+
+  const navItems = [
+    ["companies", "Empresas", HASHES.list],
+    ["centers", "Centros de trabajo", HASHES.centers],
+    ["reports", "Informes", HASHES.reports],
+  ];
 
   return (
     <div style={styles.wrapper}>
-      <div style={styles.tabs}>{Object.entries(SECTIONS).map(([key, value]) => <button key={key} type="button" onClick={() => changeSection(key)} style={section === key ? styles.tabActive : styles.tab}>{value[0]}</button>)}</div>
+      <nav className="company-primary-nav">
+        {navItems.map(([area, label, hash]) => (
+          <button key={area} type="button" className={route.area === area ? "active" : ""} onClick={() => navigate(hash)}>{label}</button>
+        ))}
+      </nav>
 
-      {section === "new" && <PageCard title="Nueva empresa" subtitle="Alta de datos maestros. Las reglas operativas se configuran en Preferencias."><CompanyMasterCreateForm onCreated={() => window.location.reload()} onOpenPreferences={openPreferences} /></PageCard>}
+      {route.area === "companies" && route.view === "list" && (
+        <>
+          <div className="company-module-header">
+            <div><h2>Empresas</h2><p>Localiza una empresa y accede a sus datos, centros, preferencias y cuentas bancarias.</p></div>
+            <div className="company-module-actions"><button type="button" className="company-button-primary" onClick={() => navigate(HASHES.new)}>+ Nueva empresa</button></div>
+          </div>
+          <PageCard title="Empresas registradas" subtitle="La tabla se utiliza para localizar y abrir fichas; las configuraciones se gestionan dentro de cada empresa.">
+            <CompanyDirectory companies={companies} workCenters={workCenters} loading={loading} onOpenCompany={openCompany} onDeleteCompany={onDeleteCompany} onCreated={handleCompanyCreated} />
+          </PageCard>
+        </>
+      )}
 
-      {section === "centers" && <>
-        <PageCard title="Centros" subtitle="Crea centros asociados a empresas existentes."><CompanyCenterSplitForm companies={companies} workCenters={workCenters} initialSection="centers" onReloadData={() => window.location.reload()} onSelectedCompanyChange={setSelectedCompanyId} /></PageCard>
-        <PageCard title="Centros de la empresa seleccionada" subtitle={selectedCompanyId ? "Centros vinculados a la empresa elegida." : "Selecciona una empresa para cargar sus centros."}><WorkCenterTable loading={loading} workCenters={visibleWorkCenters} companies={companies} onUpdateWorkCenter={onUpdateWorkCenter} onDeleteWorkCenter={onDeleteWorkCenter} submitting={workCenterSubmitting} /></PageCard>
-      </>}
+      {route.area === "companies" && route.view === "new" && (
+        <>
+          <div className="company-module-header">
+            <div><h2>Nueva empresa</h2><p>Alta de datos maestros. Las reglas operativas se completan posteriormente en su ficha.</p></div>
+            <button type="button" className="company-button-ghost" onClick={() => navigate(HASHES.list)}>Volver al listado</button>
+          </div>
+          <PageCard title="Alta de empresa" subtitle="Crea la empresa y continúa después con centros, preferencias y domiciliación de pagos.">
+            <CompanyMasterCreateForm onCreated={handleCompanyCreated} onOpenPreferences={openCompany} />
+          </PageCard>
+        </>
+      )}
 
-      {section === "list" && <PageCard title="Listado empresas" subtitle="Consulta y edición completa de empresas ya creadas.">
-        <div style={styles.actions}>
-          <button type="button" style={styles.banking} onClick={() => changeSection("banking")}>Domiciliación de pagos</button>
-          <button type="button" style={styles.preferences} onClick={() => changeSection("preferences")}>Preferencias de empresa</button>
-          <button type="button" style={styles.report} onClick={() => openReportPreset({ category: "company", reportId: "companies-active" })}>Informe empresas activas</button>
-          <button type="button" style={styles.reportAlt} onClick={() => openReportPreset({ category: "company", reportId: "centers-ccc" })}>Informe centros / CCC</button>
-        </div>
-        <CompanyTable loading={loading} companies={companies} onUpdateCompany={onUpdateCompany} onDeleteCompany={onDeleteCompany} onOpenPreferences={openPreferences} submitting={companySubmitting} />
-      </PageCard>}
+      {route.area === "companies" && route.view === "detail" && selectedCompany && (
+        <CompanyDetailWorkspace
+          company={selectedCompany}
+          companies={companies}
+          workCenters={workCenters}
+          onBack={() => navigate(HASHES.list)}
+          onUpdateCompany={onUpdateCompany}
+          onManageCenters={manageCenters}
+          onUpdateWorkCenter={onUpdateWorkCenter}
+          onDeleteWorkCenter={onDeleteWorkCenter}
+          companySubmitting={companySubmitting}
+          workCenterSubmitting={workCenterSubmitting}
+        />
+      )}
 
-      {section === "preferences" && <PageCard title="Preferencias de empresa" subtitle="Configuración operativa por empresa."><CompanyPreferencesPanel companies={companies} selectedCompanyId={selectedCompanyId} onSelectedCompanyChange={setSelectedCompanyId} /></PageCard>}
+      {route.area === "companies" && route.view === "detail" && !selectedCompany && !loading && (
+        <div className="company-empty-state">La empresa indicada no existe o ya no está disponible. <button type="button" className="company-button-ghost" onClick={() => navigate(HASHES.list)}>Volver al listado</button></div>
+      )}
 
-      {section === "banking" && <PageCard title="Domiciliación de pagos" subtitle="Cuentas bancarias simuladas y asignación por operación."><CompanyBankingPanel companies={companies} selectedCompanyId={selectedCompanyId} onSelectedCompanyChange={setSelectedCompanyId} /></PageCard>}
+      {route.area === "centers" && (
+        <>
+          <div className="company-module-header"><div><h2>Centros de trabajo</h2><p>Crea y mantiene centros vinculados a empresas existentes.</p></div></div>
+          <PageCard title="Gestión de centros" subtitle="Selecciona una empresa para cargar o crear sus centros.">
+            <CompanyCenterSplitForm companies={companies} workCenters={workCenters} initialSection="centers" onReloadData={() => window.location.reload()} onSelectedCompanyChange={setSelectedCompanyId} />
+          </PageCard>
+          <PageCard title="Centros de la empresa seleccionada" subtitle={selectedCompanyId ? "Centros vinculados a la empresa elegida." : "Selecciona una empresa para cargar sus centros."}>
+            <WorkCenterTable loading={loading} workCenters={visibleWorkCenters} companies={companies} onUpdateWorkCenter={onUpdateWorkCenter} onDeleteWorkCenter={onDeleteWorkCenter} submitting={workCenterSubmitting} />
+          </PageCard>
+        </>
+      )}
+
+      {route.area === "reports" && (
+        <>
+          <div className="company-module-header"><div><h2>Informes de empresas</h2><p>Consultas consolidadas del módulo de empresas y centros.</p></div></div>
+          <div className="company-report-grid">
+            <article className="company-report-card"><h3>Empresas activas</h3><p>Relación de empresas actualmente en situación de alta.</p><button type="button" className="company-button-primary" onClick={() => openReportPreset({ category: "company", reportId: "companies-active" })}>Abrir informe</button></article>
+            <article className="company-report-card"><h3>Centros y CCC</h3><p>Distribución de centros de trabajo y códigos de cuenta de cotización.</p><button type="button" className="company-button-primary" onClick={() => openReportPreset({ category: "company", reportId: "centers-ccc" })}>Abrir informe</button></article>
+          </div>
+        </>
+      )}
     </div>
   );
 }
 
-const baseButton = { borderRadius: "8px", padding: "9px 12px", cursor: "pointer", fontWeight: 900 };
 const styles = {
   wrapper: { display: "flex", flexDirection: "column", gap: "20px" },
-  tabs: { display: "flex", gap: "8px", borderBottom: "1px solid #e5e7eb", paddingBottom: "10px", flexWrap: "wrap" },
-  tab: { ...baseButton, backgroundColor: "#fff", color: "#374151", border: "1px solid #d1d5db" },
-  tabActive: { ...baseButton, backgroundColor: "#111827", color: "#fff", border: "1px solid #111827" },
-  actions: { display: "flex", gap: "10px", justifyContent: "flex-end", marginBottom: "14px", flexWrap: "wrap" },
-  banking: { ...baseButton, backgroundColor: "#16a34a", color: "#fff", border: "1px solid #15803d" },
-  preferences: { ...baseButton, backgroundColor: "#facc15", color: "#111827", border: "1px solid #eab308" },
-  report: { ...baseButton, backgroundColor: "#111827", color: "#fff", border: "1px solid #111827" },
-  reportAlt: { ...baseButton, backgroundColor: "#fff", color: "#111827", border: "1px solid #d1d5db" },
 };
