@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
+from app.company_bank_account_routes import router as company_bank_account_router
 from app.crud.company import get_company
 from app.crud.company_preferences import (
     create_default_company_preferences,
@@ -16,6 +17,7 @@ from app.schemas.company_preferences import (
 
 
 router = APIRouter(prefix="/companies", tags=["company-preferences"])
+router.include_router(company_bank_account_router)
 
 
 def get_db():

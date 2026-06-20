@@ -1,0 +1,38 @@
+.company-banking { display: flex; flex-direction: column; gap: 16px; }
+.banking-toolbar, .banking-card { border: 1px solid #e5e7eb; border-radius: 10px; background: #fff; }
+.banking-toolbar { display: flex; justify-content: space-between; align-items: end; gap: 16px; padding: 14px; background: #f8fafc; flex-wrap: wrap; }
+.banking-company-field { display: flex; flex-direction: column; gap: 6px; min-width: 320px; color: #334155; font-size: 12px; font-weight: 900; text-transform: uppercase; }
+.banking-company-field select, .banking-table select { min-height: 39px; width: 100%; border: 1px solid #cbd5e1; border-radius: 7px; padding: 8px 10px; background: #fff; }
+.banking-card { padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+.banking-card-header { display: flex; justify-content: space-between; align-items: start; gap: 16px; border-bottom: 1px solid #f1f5f9; padding-bottom: 12px; flex-wrap: wrap; }
+.banking-card-header h3 { margin: 0; font-size: 17px; color: #111827; }
+.banking-card-header p { margin: 4px 0 0; color: #64748b; font-size: 13px; }
+.banking-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; align-items: end; }
+.banking-field { display: flex; flex-direction: column; gap: 6px; color: #334155; font-size: 12px; font-weight: 900; }
+.banking-field-wide { grid-column: span 2; }
+.banking-field input { min-height: 39px; width: 100%; box-sizing: border-box; border: 1px solid #cbd5e1; border-radius: 7px; padding: 8px 10px; }
+.banking-iban-parts { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; padding: 10px; border-radius: 8px; background: #f8fafc; color: #64748b; font-size: 12px; }
+.banking-check { display: flex; align-items: center; gap: 7px; color: #334155; font-weight: 800; }
+.banking-table-wrap { overflow-x: auto; }
+.banking-table { width: 100%; border-collapse: collapse; }
+.banking-table th { text-align: left; padding: 10px; border-bottom: 1px solid #d1d5db; background: #f8fafc; white-space: nowrap; color: #334155; font-size: 12px; }
+.banking-table td { padding: 10px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; font-size: 13px; }
+.banking-actions { display: flex; gap: 7px; flex-wrap: wrap; }
+.banking-button-primary, .banking-button-secondary, .banking-button-danger, .banking-button-assign, .banking-button-unlink, .banking-button-unlink-disabled { min-height: 36px; border-radius: 7px; padding: 7px 10px; font-weight: 900; cursor: pointer; }
+.banking-button-primary { border: 1px solid #111827; background: #111827; color: #fff; }
+.banking-button-secondary { border: 1px solid #d1d5db; background: #fff; color: #111827; }
+.banking-button-danger { border: 1px solid #fecaca; background: #fee2e2; color: #991b1b; }
+.banking-button-assign { border: 1px solid #15803d; background: #16a34a; color: #fff; }
+.banking-button-unlink { border: 1px solid #9ca3af; background: #f3f4f6; color: #374151; }
+.banking-button-unlink-disabled { border: 1px solid #e5e7eb; background: #f9fafb; color: #9ca3af; cursor: not-allowed; }
+.banking-badge { display: inline-block; margin: 4px 5px 0 0; padding: 3px 6px; border-radius: 999px; background: #fef3c7; color: #92400e; font-size: 11px; font-weight: 900; }
+.banking-muted, .banking-muted-block { color: #64748b; }
+.banking-muted-block { display: block; margin-top: 3px; }
+.banking-account-summary { display: flex; flex-direction: column; gap: 3px; }
+.banking-empty, .banking-empty-cell { color: #64748b; text-align: center; }
+.banking-empty { padding: 28px; border: 1px dashed #cbd5e1; border-radius: 9px; background: #f8fafc; }
+.banking-empty-cell { padding: 18px; }
+.banking-error, .banking-success { padding: 10px 12px; border-radius: 8px; font-weight: 800; }
+.banking-error { background: #fef2f2; color: #b91c1c; }
+.banking-success { background: #f0fdf4; color: #166534; }
+@media (max-width: 760px) { .banking-field-wide { grid-column: 1 / -1; } .banking-company-field { min-width: 100%; } }
