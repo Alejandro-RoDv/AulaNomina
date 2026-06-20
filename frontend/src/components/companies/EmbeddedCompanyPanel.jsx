@@ -1,5 +1,7 @@
 import { useEffect, useRef } from "react";
 
+import "./companyDetailUx.css";
+
 export default function EmbeddedCompanyPanel({
   children,
   className = "",
