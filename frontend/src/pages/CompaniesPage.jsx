@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import CompanyTable from "../components/CompanyTable";
 import CompanyCenterSplitForm from "../components/companyCenters/CompanyCenterSplitForm";
 import CompanyPreferencesPanel from "../components/companyPreferences/CompanyPreferencesPanel";
+import CompanyMasterCreateForm from "../components/companies/CompanyMasterCreateForm";
 import PageCard from "../components/layout/PageCard";
 import WorkCenterTable from "../components/workCenters/WorkCenterTable";
 import { openReportPreset } from "../utils/reportShortcuts";
@@ -74,8 +75,8 @@ export default function CompaniesPage({
       </div>
 
       {section === "new" && (
-        <PageCard title="Nueva empresa" subtitle="Alta de empresa con ficha laboral, fiscal y calendario de trabajo.">
-          <CompanyCenterSplitForm companies={companies} workCenters={workCenters} initialSection="companies" onReloadData={reloadPageData} onSelectedCompanyChange={setSelectedCompanyId} />
+        <PageCard title="Nueva empresa" subtitle="Alta de datos maestros. Las reglas operativas se configuran en Preferencias.">
+          <CompanyMasterCreateForm onOpenPreferences={openCompanyPreferences} />
         </PageCard>
       )}
 
