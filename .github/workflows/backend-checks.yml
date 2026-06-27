@@ -29,4 +29,15 @@ jobs:
       - name: Compile backend
         run: python -m compileall app
       - name: Wage garnishment tests
-        run: pytest -q tests/test_wage_garnishment.py
+        id: tests
+        continue-on-error: true
+        run: pytest -q --tb=short tests/test_wage_garnishment.py > backend-test-output.txt 2>&1
+      - name: Upload backend test output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-test-output
+          path: backend/backend-test-output.txt
+      - name: Fail when backend tests fail
+        if: steps.tests.outcome == 'failure'
+        run: exit 1
