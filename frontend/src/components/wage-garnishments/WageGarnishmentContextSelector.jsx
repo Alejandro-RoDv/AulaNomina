@@ -93,11 +93,11 @@ export default function WageGarnishmentContextSelector({
 
 const styles = {
   panel: { border: "2px solid #111111", backgroundColor: "#ffffff" },
-  headingRow: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: "16px", padding: "14px 16px", borderBottom: "2px solid #111111", backgroundColor: "#fffef2" },
+  headingRow: { display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: "12px", padding: "14px 16px", borderBottom: "2px solid #111111", backgroundColor: "#fffef2" },
   title: { margin: 0, fontSize: "15px", fontWeight: 950, textTransform: "uppercase", letterSpacing: "0.03em" },
   subtitle: { margin: "4px 0 0", fontSize: "12px", color: "#4b5563", fontWeight: 650 },
   contextStatus: { border: "2px solid #111111", backgroundColor: "#f5ef9c", padding: "7px 10px", fontSize: "11px", fontWeight: 950, whiteSpace: "nowrap" },
-  selectorGrid: { display: "grid", gridTemplateColumns: "minmax(220px, 1.15fr) minmax(240px, 1.3fr) minmax(180px, 1fr) minmax(200px, 1fr) 110px", gap: "12px", alignItems: "end", padding: "16px" },
+  selectorGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "12px", alignItems: "end", padding: "16px" },
   field: { display: "flex", flexDirection: "column", gap: "6px", minWidth: 0 },
   label: { fontSize: "11px", fontWeight: 950, textTransform: "uppercase", letterSpacing: "0.03em" },
   input: { width: "100%", minHeight: "40px", border: "2px solid #111111", borderRadius: 0, backgroundColor: "#ffffff", padding: "8px 10px", boxSizing: "border-box", fontSize: "13px", fontWeight: 750 },
@@ -107,6 +107,6 @@ const styles = {
   summaryLabel: { fontSize: "9px", fontWeight: 900, color: "#4b5563", textTransform: "uppercase" },
   summaryValue: { fontSize: "12px", color: "#111111", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" },
   countValue: { fontSize: "18px", lineHeight: 1, color: "#111111" },
-  lockedRow: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px", borderTop: "1px solid #111111", backgroundColor: "#f3f4f6", padding: "9px 16px", fontSize: "11px", fontWeight: 700, color: "#4b5563" },
+  lockedRow: { display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: "12px", borderTop: "1px solid #111111", backgroundColor: "#f3f4f6", padding: "9px 16px", fontSize: "11px", fontWeight: 700, color: "#4b5563" },
   releaseButton: { border: "2px solid #111111", backgroundColor: "#ffffff", padding: "6px 10px", fontSize: "11px", fontWeight: 900, cursor: "pointer", textTransform: "uppercase" },
 };
