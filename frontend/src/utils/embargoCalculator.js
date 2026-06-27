@@ -1,10 +1,10 @@
 const TRAMOS_LEGALES = [
-  { nombre: "1º tramo", porcentaje: 0, unidadesSmi: 1 },
-  { nombre: "2º tramo", porcentaje: 30, unidadesSmi: 1 },
-  { nombre: "3º tramo", porcentaje: 50, unidadesSmi: 1 },
-  { nombre: "4º tramo", porcentaje: 60, unidadesSmi: 1 },
-  { nombre: "5º tramo", porcentaje: 75, unidadesSmi: 1 },
-  { nombre: "Exceso", porcentaje: 90, unidadesSmi: null },
+  { nombre: "1º tramo", porcentaje: 0, tipo: "protegido" },
+  { nombre: "2º tramo", porcentaje: 30, tipo: "smi" },
+  { nombre: "3º tramo", porcentaje: 50, tipo: "smi" },
+  { nombre: "4º tramo", porcentaje: 60, tipo: "smi" },
+  { nombre: "5º tramo", porcentaje: 75, tipo: "smi" },
+  { nombre: "Exceso", porcentaje: 90, tipo: "exceso" },
 ];
 
 function redondear(value, decimales = 2) {
@@ -43,67 +43,106 @@ function normalizarNumero(value, nombreCampo) {
 
 function validarEntrada({
   liquido,
-  smi,
+  smiAnual,
   porcentajeReduccion,
   pagasExtrasProrrateadas,
-  smiProrrateado,
   incluyePagaExtraCompleta,
   importePagaExtra,
 }) {
   if (liquido < 0) throw new RangeError("La cantidad líquida no puede ser negativa.");
-  if (smi <= 0) throw new RangeError("El SMI debe ser superior a 0.");
+  if (smiAnual <= 0) throw new RangeError("El SMI anual debe ser superior a 0.");
   if (porcentajeReduccion < 0 || porcentajeReduccion > 100) {
     throw new RangeError("El porcentaje de reducción debe estar entre 0 y 100.");
   }
-  if (pagasExtrasProrrateadas && smiProrrateado <= 0) {
-    throw new RangeError("El SMI prorrateado debe ser superior a 0.");
+  if (pagasExtrasProrrateadas && incluyePagaExtraCompleta) {
+    throw new RangeError("Las pagas prorrateadas y la paga extra completa no pueden aplicarse a la vez.");
   }
-  if (incluyePagaExtraCompleta && importePagaExtra < 0) {
-    throw new RangeError("El importe de la paga extra no puede ser negativo.");
+  if (incluyePagaExtraCompleta && importePagaExtra <= 0) {
+    throw new RangeError("El importe líquido de la paga extra debe ser superior a 0.");
   }
+}
+
+export function obtenerReferenciasSmi({
+  smi,
+  smiAnual = smi,
+  pagasExtrasProrrateadas = false,
+  incluyePagaExtraCompleta = false,
+}) {
+  const smiAnualNormalizado = normalizarNumero(smiAnual, "El SMI anual");
+  if (smiAnualNormalizado <= 0) throw new RangeError("El SMI anual debe ser superior a 0.");
+  if (pagasExtrasProrrateadas && incluyePagaExtraCompleta) {
+    throw new RangeError("Las pagas prorrateadas y la paga extra completa no pueden aplicarse a la vez.");
+  }
+
+  const smiMensual = redondear(smiAnualNormalizado / 14);
+  let minimoInembargable = smiMensual;
+
+  if (pagasExtrasProrrateadas) minimoInembargable = redondear(smiAnualNormalizado / 12);
+  if (incluyePagaExtraCompleta) minimoInembargable = redondear(smiMensual * 2);
+
+  return {
+    smiAnual: redondear(smiAnualNormalizado),
+    smiMensual,
+    minimoInembargable,
+  };
 }
 
 export function calcularEmbargo({
   liquido,
   smi,
+  smiAnual = smi,
   porcentajeReduccion = 0,
   pagasExtrasProrrateadas = false,
-  smiProrrateado,
   incluyePagaExtraCompleta = false,
-  importePagaExtra,
+  importePagaExtra = 0,
   cargasFamiliares = false,
 }) {
   const liquidoNormalizado = normalizarNumero(liquido, "La cantidad líquida");
-  const smiNormalizado = normalizarNumero(smi, "El SMI");
+  const smiAnualNormalizado = normalizarNumero(smiAnual, "El SMI anual");
   const reduccionNormalizada = normalizarNumero(porcentajeReduccion, "El porcentaje de reducción");
-  const smiProrrateadoNormalizado = pagasExtrasProrrateadas
-    ? normalizarNumero(smiProrrateado ?? smiNormalizado, "El SMI prorrateado")
-    : smiNormalizado;
   const pagaExtraNormalizada = incluyePagaExtraCompleta
-    ? normalizarNumero(importePagaExtra ?? smiProrrateadoNormalizado, "El importe de la paga extra")
+    ? normalizarNumero(importePagaExtra, "El importe líquido de la paga extra")
     : 0;
 
   validarEntrada({
     liquido: liquidoNormalizado,
-    smi: smiNormalizado,
+    smiAnual: smiAnualNormalizado,
     porcentajeReduccion: reduccionNormalizada,
     pagasExtrasProrrateadas,
-    smiProrrateado: smiProrrateadoNormalizado,
     incluyePagaExtraCompleta,
     importePagaExtra: pagaExtraNormalizada,
   });
 
-  const smiReferencia = pagasExtrasProrrateadas ? smiProrrateadoNormalizado : smiNormalizado;
+  const referencias = obtenerReferenciasSmi({
+    smiAnual: smiAnualNormalizado,
+    pagasExtrasProrrateadas,
+    incluyePagaExtraCompleta,
+  });
   const liquidoFinalCalculado = redondear(liquidoNormalizado + pagaExtraNormalizada);
-  const smiCentimos = Math.round(smiReferencia * 100);
+  const smiMensualCentimos = Math.round(referencias.smiMensual * 100);
+  const minimoInembargableCentimos = Math.round(referencias.minimoInembargable * 100);
   let pendienteCentimos = Math.round(liquidoFinalCalculado * 100);
 
   const tramos = TRAMOS_LEGALES.map((tramo) => {
-    const limiteCentimos = tramo.unidadesSmi === null ? pendienteCentimos : smiCentimos * tramo.unidadesSmi;
+    let limiteCentimos;
+    let smiReferencia;
+
+    if (tramo.tipo === "protegido") {
+      limiteCentimos = minimoInembargableCentimos;
+      smiReferencia = referencias.minimoInembargable;
+    } else if (tramo.tipo === "smi") {
+      limiteCentimos = smiMensualCentimos;
+      smiReferencia = referencias.smiMensual;
+    } else {
+      limiteCentimos = pendienteCentimos;
+      smiReferencia = referencias.smiMensual;
+    }
+
     const baseTramoCentimos = Math.max(0, Math.min(pendienteCentimos, limiteCentimos));
     pendienteCentimos -= baseTramoCentimos;
 
-    const admiteReduccion = tramo.porcentaje > 0 && (!cargasFamiliares || tramo.porcentaje < 90);
+    const admiteReduccion = tramo.porcentaje > 0
+      && (!cargasFamiliares || tramo.porcentaje < 90);
     const porcentajeAplicado = admiteReduccion
       ? redondear(tramo.porcentaje * (1 - reduccionNormalizada / 100))
       : tramo.porcentaje;
@@ -119,13 +158,14 @@ export function calcularEmbargo({
     };
   });
 
-  const totalEmbargable = redondear(
-    tramos.reduce((total, tramo) => total + tramo.importeEmbargable, 0)
-  );
-
   return {
-    totalEmbargable,
+    totalEmbargable: redondear(
+      tramos.reduce((total, tramo) => total + tramo.importeEmbargable, 0)
+    ),
     liquidoFinalCalculado,
+    smiAnual: referencias.smiAnual,
+    smiMensual: referencias.smiMensual,
+    minimoInembargable: referencias.minimoInembargable,
     tramos,
   };
 }
