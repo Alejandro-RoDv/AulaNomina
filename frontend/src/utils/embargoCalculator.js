@@ -75,15 +75,26 @@ export function obtenerReferenciasSmi({
   }
 
   const smiMensual = redondear(smiAnualNormalizado / 14);
+  const smiProrrateado = redondear(smiAnualNormalizado / 12);
   let minimoInembargable = smiMensual;
+  let unidadTramo = smiMensual;
 
-  if (pagasExtrasProrrateadas) minimoInembargable = redondear(smiAnualNormalizado / 12);
-  if (incluyePagaExtraCompleta) minimoInembargable = redondear(smiMensual * 2);
+  if (pagasExtrasProrrateadas) {
+    minimoInembargable = smiProrrateado;
+    unidadTramo = smiProrrateado;
+  }
+
+  if (incluyePagaExtraCompleta) {
+    minimoInembargable = redondear(smiMensual * 2);
+    unidadTramo = smiMensual;
+  }
 
   return {
     smiAnual: redondear(smiAnualNormalizado),
     smiMensual,
+    smiProrrateado,
     minimoInembargable,
+    unidadTramo,
   };
 }
 
@@ -119,7 +130,7 @@ export function calcularEmbargo({
     incluyePagaExtraCompleta,
   });
   const liquidoFinalCalculado = redondear(liquidoNormalizado + pagaExtraNormalizada);
-  const smiMensualCentimos = Math.round(referencias.smiMensual * 100);
+  const unidadTramoCentimos = Math.round(referencias.unidadTramo * 100);
   const minimoInembargableCentimos = Math.round(referencias.minimoInembargable * 100);
   let pendienteCentimos = Math.round(liquidoFinalCalculado * 100);
 
@@ -131,20 +142,19 @@ export function calcularEmbargo({
       limiteCentimos = minimoInembargableCentimos;
       smiReferencia = referencias.minimoInembargable;
     } else if (tramo.tipo === "smi") {
-      limiteCentimos = smiMensualCentimos;
-      smiReferencia = referencias.smiMensual;
+      limiteCentimos = unidadTramoCentimos;
+      smiReferencia = referencias.unidadTramo;
     } else {
       limiteCentimos = pendienteCentimos;
-      smiReferencia = referencias.smiMensual;
+      smiReferencia = referencias.unidadTramo;
     }
 
     const baseTramoCentimos = Math.max(0, Math.min(pendienteCentimos, limiteCentimos));
     pendienteCentimos -= baseTramoCentimos;
 
-    const admiteReduccion = tramo.porcentaje > 0
-      && (!cargasFamiliares || tramo.porcentaje < 90);
+    const admiteReduccion = tramo.porcentaje > 0 && tramo.porcentaje < 90;
     const porcentajeAplicado = admiteReduccion
-      ? redondear(tramo.porcentaje * (1 - reduccionNormalizada / 100))
+      ? Math.max(0, redondear(tramo.porcentaje - reduccionNormalizada))
       : tramo.porcentaje;
     const importeEmbargableCentimos = Math.round(baseTramoCentimos * (porcentajeAplicado / 100));
 
@@ -165,7 +175,10 @@ export function calcularEmbargo({
     liquidoFinalCalculado,
     smiAnual: referencias.smiAnual,
     smiMensual: referencias.smiMensual,
+    smiProrrateado: referencias.smiProrrateado,
     minimoInembargable: referencias.minimoInembargable,
+    unidadTramo: referencias.unidadTramo,
+    cargasFamiliares,
     tramos,
   };
 }
