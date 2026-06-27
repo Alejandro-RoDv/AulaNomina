@@ -7,8 +7,9 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "test": "npm run test:convenios",
+    "test": "npm run test:convenios && npm run test:embargos",
     "test:convenios": "node scripts/run-convenios-tests.mjs",
+    "test:embargos": "node --test src/tests/embargoCalculator.test.js",
     "preview": "vite preview"
   },
   "dependencies": {

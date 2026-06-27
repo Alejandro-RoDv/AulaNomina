@@ -24,14 +24,14 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - name: Install dependencies
         run: npm ci
-      - name: Lint Convenios files
+      - name: Lint checked frontend files
         id: lint
         continue-on-error: true
-        run: npx eslint src/hooks/useAppData.js src/hooks/useAgreementWorkspace.js src/pages/CollectiveAgreementsPage.js src/pages/CollectiveAgreementsPage.jsx src/pages/collectiveAgreementsLoader.js src/pages/CollectiveAgreementsWorkspacePage.jsx src/pages/CollectiveAgreementsManagementPage.jsx src/components/agreements/AgreementSalaryWorkspace.jsx src/components/agreements/AgreementCriteriaWorkspace.jsx src/components/agreements/AgreementSeniorityPanel.jsx src/components/agreements/management src/tests/convenios-smoke.jsx --format json --output-file lint-report.json
-      - name: Convenios regression tests
+        run: npx eslint src/hooks/useAppData.js src/hooks/useAgreementWorkspace.js src/pages/CollectiveAgreementsPage.js src/pages/CollectiveAgreementsPage.jsx src/pages/collectiveAgreementsLoader.js src/pages/CollectiveAgreementsWorkspacePage.jsx src/pages/CollectiveAgreementsManagementPage.jsx src/components/agreements/AgreementSalaryWorkspace.jsx src/components/agreements/AgreementCriteriaWorkspace.jsx src/components/agreements/AgreementSeniorityPanel.jsx src/components/agreements/management src/tests/convenios-smoke.jsx src/pages/EmbargoCalculatorPage.jsx src/utils/embargoCalculator.js src/tests/embargoCalculator.test.js --format json --output-file lint-report.json
+      - name: Frontend regression tests
         id: tests
         continue-on-error: true
-        run: npm run test:convenios
+        run: npm test
       - name: Build
         id: build
         continue-on-error: true
@@ -40,7 +40,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: convenios-lint-report
+          name: frontend-lint-report
           path: frontend/lint-report.json
       - name: Fail when checks fail
         if: steps.lint.outcome == 'failure' || steps.tests.outcome == 'failure' || steps.build.outcome == 'failure'
