@@ -1,10 +1,19 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
-import PageCard from "../components/layout/PageCard";
 import IncidentForm, { INCIDENT_TYPES, STATUS_OPTIONS } from "../components/incidents/IncidentForm";
 import IncidentTable from "../components/incidents/IncidentTable";
+import PageCard from "../components/layout/PageCard";
 import { getEmployeeVisibleCode } from "../utils/visibleCodes";
 import { openReportPreset } from "../utils/reportShortcuts";
+import EmbargoCalculatorPage from "./EmbargoCalculatorPage";
+
+const INCIDENTS_MODE_KEY = "aulanomina:incidentsMode";
+const INCIDENTS_MODE_EVENT = "aulanomina-incidents-mode";
+
+function getInitialMode() {
+  if (typeof window === "undefined") return "list";
+  return window.sessionStorage.getItem(INCIDENTS_MODE_KEY) || "list";
+}
 
 function normalizeText(value) {
   return String(value || "")
@@ -35,6 +44,7 @@ export default function IncidentsPage({
   incidentSuccess,
   incidentSubmitting,
 }) {
+  const [activeMode, setActiveMode] = useState(getInitialMode);
   const [filters, setFilters] = useState({
     employee: "",
     company: "",
@@ -43,6 +53,12 @@ export default function IncidentsPage({
     dateFrom: "",
     dateTo: "",
   });
+
+  useEffect(() => {
+    const handleModeChange = () => setActiveMode(getInitialMode());
+    window.addEventListener(INCIDENTS_MODE_EVENT, handleModeChange);
+    return () => window.removeEventListener(INCIDENTS_MODE_EVENT, handleModeChange);
+  }, []);
 
   const incidentsWithEmployeeData = useMemo(() => {
     const employeeMap = employees.reduce((acc, employee) => {
@@ -115,6 +131,8 @@ export default function IncidentsPage({
       return matchesEmployee && matchesCompany && matchesType && matchesStatus && matchesFromDate && matchesToDate;
     });
   }, [incidentsWithEmployeeData, filters, workCenters]);
+
+  if (activeMode === "embargo") return <EmbargoCalculatorPage />;
 
   return (
     <div style={styles.wrapper}>
