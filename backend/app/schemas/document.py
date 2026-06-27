@@ -13,6 +13,11 @@ DOCUMENT_TYPES = {
     "CONFIDENTIALITY_COMMITMENT",
     "DATA_CONSENT",
     "DEGREE_CERTIFICATE",
+    "WAGE_GARNISHMENT_ORDER",
+    "WAGE_GARNISHMENT_MODIFICATION",
+    "WAGE_GARNISHMENT_SUSPENSION",
+    "WAGE_GARNISHMENT_RELEASE",
+    "WAGE_GARNISHMENT_PAYMENT_RECEIPT",
     "OTHER",
 }
 
@@ -28,6 +33,7 @@ class DocumentBase(BaseModel):
     employee_id: int
     company_id: Optional[int] = None
     center_id: Optional[int] = None
+    wage_garnishment_id: Optional[int] = None
     document_type: str
     document_name: str
     status: str = "pending"
@@ -56,6 +62,7 @@ class DocumentCreate(DocumentBase):
 
 class DocumentUpdate(BaseModel):
     center_id: Optional[int] = None
+    wage_garnishment_id: Optional[int] = None
     document_type: Optional[str] = None
     document_name: Optional[str] = None
     status: Optional[str] = None
@@ -83,6 +90,7 @@ class DocumentResponse(BaseModel):
     employee_id: int
     company_id: int
     center_id: Optional[int] = None
+    wage_garnishment_id: Optional[int] = None
     document_type: str
     document_name: str
     status: str
