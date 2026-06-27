@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import PageCard from "../components/layout/PageCard";
+import { fetchCurrentSmi } from "../services/wageGarnishmentApi";
 import {
   calcularEmbargo,
   formatEuro,
@@ -11,7 +12,7 @@ import {
 const TRAMO_NAMES = ["1º tramo", "2º tramo", "3º tramo", "4º tramo", "5º tramo", "Exceso"];
 
 const DEFAULT_FORM = {
-  smiAnual: "17.094,00",
+  smiAnual: "",
   liquido: "",
   porcentajeReduccion: "0",
   pagasExtrasProrrateadas: false,
@@ -47,11 +48,7 @@ function AmountField({ label, value, onChange, onBlur, readOnly = false, disable
         onBlur={onBlur}
         readOnly={readOnly}
         disabled={disabled}
-        style={{
-          ...styles.input,
-          ...(readOnly ? styles.readOnlyInput : {}),
-          ...(disabled ? styles.disabledInput : {}),
-        }}
+        style={{ ...styles.input, ...(readOnly ? styles.readOnlyInput : {}), ...(disabled ? styles.disabledInput : {}) }}
       />
     </label>
   );
@@ -85,13 +82,32 @@ export default function EmbargoCalculatorPage({
   initialForm = DEFAULT_FORM,
   initialResult = null,
   readOnly = false,
+  smiDate = "",
   onCalculated,
   onDirty,
 }) {
   const [form, setForm] = useState(() => ({ ...DEFAULT_FORM, ...initialForm }));
   const [result, setResult] = useState(initialResult);
   const [error, setError] = useState("");
+  const [smiSource, setSmiSource] = useState("");
   const liveReferences = getLiveReferences(form);
+
+  useEffect(() => {
+    if (readOnly || form.smiAnual) return;
+    let active = true;
+    fetchCurrentSmi(smiDate || undefined)
+      .then((parameter) => {
+        if (!active) return;
+        setForm((previous) => ({ ...previous, smiAnual: formatAmountInput(Number(parameter.annual_amount)) }));
+        setSmiSource(parameter.source_reference || "Parámetro SMI vigente");
+      })
+      .catch((loadError) => {
+        if (active) setError(loadError.message || "No se ha podido cargar el SMI vigente.");
+      });
+    return () => {
+      active = false;
+    };
+  }, [readOnly, smiDate, form.smiAnual]);
 
   const markDirty = () => {
     setResult(null);
@@ -134,26 +150,30 @@ export default function EmbargoCalculatorPage({
     markDirty();
   };
 
+  const toggleAuthorizedReduction = (checked) => {
+    if (readOnly) return;
+    setForm((previous) => ({
+      ...previous,
+      cargasFamiliares: checked,
+      reduccionCargas: checked ? (previous.reduccionCargas === "0" ? "10" : previous.reduccionCargas) : "0",
+      porcentajeReduccion: "0",
+    }));
+    markDirty();
+  };
+
   const handleCalculate = () => {
     setError("");
-
     try {
-      const porcentajeReduccion = form.cargasFamiliares
-        ? Number(form.reduccionCargas)
-        : Number(form.porcentajeReduccion);
-
+      const porcentajeReduccion = form.cargasFamiliares ? Number(form.reduccionCargas) : 0;
       const calculation = calcularEmbargo({
         liquido: parseEuropeanAmount(form.liquido),
         smiAnual: parseEuropeanAmount(form.smiAnual),
         porcentajeReduccion,
         pagasExtrasProrrateadas: form.pagasExtrasProrrateadas,
         incluyePagaExtraCompleta: form.incluyePagaExtraCompleta,
-        importePagaExtra: form.incluyePagaExtraCompleta
-          ? parseEuropeanAmount(form.importePagaExtra)
-          : 0,
+        importePagaExtra: form.incluyePagaExtraCompleta ? parseEuropeanAmount(form.importePagaExtra) : 0,
         cargasFamiliares: form.cargasFamiliares,
       });
-
       setResult(calculation);
       onCalculated?.({ form: { ...form }, result: calculation });
     } catch (calculationError) {
@@ -167,111 +187,39 @@ export default function EmbargoCalculatorPage({
 
   return (
     <div style={styles.wrapper}>
-      <PageCard title="Calculadora de embargos judiciales">
+      <PageCard title="Calculadora de embargos judiciales" subtitle={smiSource || "El SMI se obtiene del parámetro vigente para la fecha del expediente."}>
         <section style={styles.section}>
           <h3 style={styles.sectionTitle}>Datos principales</h3>
           <div style={styles.fieldsGrid}>
-            <AmountField
-              label="S.M.I. anual"
-              value={form.smiAnual}
-              onChange={(event) => setField("smiAnual", event.target.value)}
-              onBlur={() => formatField("smiAnual")}
-              readOnly={readOnly}
-            />
-            <AmountField
-              label="Cantidad líquida mensual"
-              value={form.liquido}
-              onChange={(event) => setField("liquido", event.target.value)}
-              onBlur={() => formatField("liquido")}
-              readOnly={readOnly}
-            />
-            <label style={styles.field}>
-              <span style={styles.label}>% Reducción</span>
-              <input
-                type="number"
-                min="0"
-                max="100"
-                step="0.01"
-                value={form.cargasFamiliares ? form.reduccionCargas : form.porcentajeReduccion}
-                onChange={(event) => setField("porcentajeReduccion", event.target.value)}
-                disabled={readOnly || form.cargasFamiliares}
-                style={{ ...styles.input, ...((readOnly || form.cargasFamiliares) ? styles.disabledInput : {}) }}
-              />
-            </label>
-            <AmountField
-              label="Total embargable"
-              value={formatEuro(result?.totalEmbargable || 0)}
-              onChange={() => {}}
-              readOnly
-            />
+            <AmountField label="S.M.I. anual" value={form.smiAnual} onChange={(event) => setField("smiAnual", event.target.value)} onBlur={() => formatField("smiAnual")} readOnly={readOnly} />
+            <AmountField label="Cantidad líquida mensual" value={form.liquido} onChange={(event) => setField("liquido", event.target.value)} onBlur={() => formatField("liquido")} readOnly={readOnly} />
+            <AmountField label="Reducción autorizada" value={formatPercentage(form.cargasFamiliares ? Number(form.reduccionCargas) : 0)} onChange={() => {}} readOnly />
+            <AmountField label="Total embargable" value={formatEuro(result?.totalEmbargable || 0)} onChange={() => {}} readOnly />
           </div>
           <div style={styles.referenceStrip}>
-            <div style={styles.referenceBox}>
-              <span style={styles.referenceLabel}>S.M.I. mensual · 14 pagas</span>
-              <strong style={styles.referenceValue}>{formatEuro(liveReferences.smiMensual)}</strong>
-            </div>
-            <div style={styles.referenceBox}>
-              <span style={styles.referenceLabel}>Mínimo inembargable aplicado</span>
-              <strong style={styles.referenceValue}>{formatEuro(liveReferences.minimoInembargable)}</strong>
-            </div>
+            <div style={styles.referenceBox}><span style={styles.referenceLabel}>S.M.I. mensual · 14 pagas</span><strong style={styles.referenceValue}>{formatEuro(liveReferences.smiMensual)}</strong></div>
+            <div style={styles.referenceBox}><span style={styles.referenceLabel}>Mínimo inembargable aplicado</span><strong style={styles.referenceValue}>{formatEuro(liveReferences.minimoInembargable)}</strong></div>
           </div>
         </section>
 
         <section style={styles.section}>
           <h3 style={styles.sectionTitle}>Opciones</h3>
           <div style={styles.optionsGrid}>
-            <OptionRow
-              checked={form.pagasExtrasProrrateadas}
-              onChange={(event) => toggleProrratedPayments(event.target.checked)}
-              label="Pagas extras prorrateadas"
-              disabled={readOnly}
-            >
-              <AmountField
-                label="Mínimo inembargable mensual"
-                value={formatEuro(liveReferences.minimoInembargable)}
-                onChange={() => {}}
-                readOnly
-              />
+            <OptionRow checked={form.pagasExtrasProrrateadas} onChange={(event) => toggleProrratedPayments(event.target.checked)} label="Pagas extras prorrateadas" disabled={readOnly}>
+              <AmountField label="Mínimo inembargable mensual" value={formatEuro(liveReferences.minimoInembargable)} onChange={() => {}} readOnly />
             </OptionRow>
 
-            <OptionRow
-              checked={form.incluyePagaExtraCompleta}
-              onChange={(event) => toggleFullExtraPayment(event.target.checked)}
-              label="Incluye paga extra completa"
-              disabled={readOnly}
-            >
+            <OptionRow checked={form.incluyePagaExtraCompleta} onChange={(event) => toggleFullExtraPayment(event.target.checked)} label="Incluye paga extra completa" disabled={readOnly}>
               <div style={styles.optionFields}>
-                <AmountField
-                  label="Importe líquido paga extra"
-                  value={form.importePagaExtra}
-                  onChange={(event) => setField("importePagaExtra", event.target.value)}
-                  onBlur={() => formatField("importePagaExtra")}
-                  readOnly={readOnly}
-                />
-                <AmountField
-                  label="Mínimo inembargable del mes"
-                  value={formatEuro(liveReferences.minimoInembargable)}
-                  onChange={() => {}}
-                  readOnly
-                />
+                <AmountField label="Importe líquido paga extra" value={form.importePagaExtra} onChange={(event) => setField("importePagaExtra", event.target.value)} onBlur={() => formatField("importePagaExtra")} readOnly={readOnly} />
+                <AmountField label="Mínimo inembargable del mes" value={formatEuro(liveReferences.minimoInembargable)} onChange={() => {}} readOnly />
               </div>
             </OptionRow>
 
-            <OptionRow
-              checked={form.cargasFamiliares}
-              onChange={(event) => setField("cargasFamiliares", event.target.checked)}
-              label="Cargas familiares"
-              disabled={readOnly}
-            >
+            <OptionRow checked={form.cargasFamiliares} onChange={(event) => toggleAuthorizedReduction(event.target.checked)} label="Reducción autorizada por el órgano ejecutante" disabled={readOnly}>
               <label style={styles.field}>
-                <span style={styles.label}>Reducción</span>
-                <select
-                  value={form.reduccionCargas}
-                  onChange={(event) => setField("reduccionCargas", event.target.value)}
-                  disabled={readOnly}
-                  style={styles.input}
-                >
-                  <option value="0">0 %</option>
+                <span style={styles.label}>Porcentaje autorizado</span>
+                <select value={form.reduccionCargas} onChange={(event) => setField("reduccionCargas", event.target.value)} disabled={readOnly} style={styles.input}>
                   <option value="10">10 %</option>
                   <option value="15">15 %</option>
                 </select>
@@ -281,55 +229,24 @@ export default function EmbargoCalculatorPage({
         </section>
 
         {error && <div style={styles.error}>{error}</div>}
-
-        {!readOnly && (
-          <div style={styles.buttonRow}>
-            <button type="button" onClick={handleCalculate} style={styles.calculateButton}>
-              Realizar cálculo
-            </button>
-          </div>
-        )}
+        {!readOnly && <div style={styles.buttonRow}><button type="button" onClick={handleCalculate} style={styles.calculateButton}>Realizar cálculo</button></div>}
 
         <section style={styles.tableSection}>
           <h3 style={styles.sectionTitle}>Desglose por tramos</h3>
           <div style={styles.tableWrapper}>
             <table style={styles.table}>
-              <thead>
-                <tr>
-                  <th style={styles.rowHeader}>Concepto</th>
-                  {TRAMO_NAMES.map((column) => <th key={column} style={styles.columnHeader}>{column}</th>)}
-                  <th style={styles.totalHeader}>Total</th>
-                </tr>
-              </thead>
+              <thead><tr><th style={styles.rowHeader}>Concepto</th>{TRAMO_NAMES.map((column) => <th key={column} style={styles.columnHeader}>{column}</th>)}<th style={styles.totalHeader}>Total</th></tr></thead>
               <tbody>
-                <tr>
-                  <th scope="row" style={styles.rowHeader}>Líquido</th>
-                  {tramos.map((tramo) => <td key={`liquido-${tramo.nombre}`} style={styles.cell}>{result ? formatEuro(tramo.baseTramo) : "—"}</td>)}
-                  <td style={styles.totalCell}>{result ? formatEuro(result.liquidoFinalCalculado) : "—"}</td>
-                </tr>
-                <tr>
-                  <th scope="row" style={styles.rowHeader}>S.M.I.</th>
-                  {tramos.map((tramo) => <td key={`smi-${tramo.nombre}`} style={styles.cell}>{result ? formatEuro(tramo.smiReferencia) : "—"}</td>)}
-                  <td style={styles.totalCell}>{result ? formatEuro(result.smiAnual) : "—"}</td>
-                </tr>
-                <tr>
-                  <th scope="row" style={styles.rowHeader}>%</th>
-                  {tramos.map((tramo) => <td key={`porcentaje-${tramo.nombre}`} style={styles.cell}>{result ? formatPercentage(tramo.porcentajeAplicado) : "—"}</td>)}
-                  <td style={styles.totalCell}>—</td>
-                </tr>
-                <tr>
-                  <th scope="row" style={styles.rowHeader}>Importe</th>
-                  {tramos.map((tramo) => <td key={`importe-${tramo.nombre}`} style={styles.cell}>{result ? formatEuro(tramo.importeEmbargable) : "—"}</td>)}
-                  <td style={styles.totalCell}>{result ? formatEuro(result.totalEmbargable) : "—"}</td>
-                </tr>
+                <tr><th scope="row" style={styles.rowHeader}>Líquido</th>{tramos.map((tramo) => <td key={`liquido-${tramo.nombre}`} style={styles.cell}>{result ? formatEuro(tramo.baseTramo) : "—"}</td>)}<td style={styles.totalCell}>{result ? formatEuro(result.liquidoFinalCalculado) : "—"}</td></tr>
+                <tr><th scope="row" style={styles.rowHeader}>S.M.I.</th>{tramos.map((tramo) => <td key={`smi-${tramo.nombre}`} style={styles.cell}>{result ? formatEuro(tramo.smiReferencia) : "—"}</td>)}<td style={styles.totalCell}>{result ? formatEuro(result.smiAnual) : "—"}</td></tr>
+                <tr><th scope="row" style={styles.rowHeader}>%</th>{tramos.map((tramo) => <td key={`porcentaje-${tramo.nombre}`} style={styles.cell}>{result ? formatPercentage(tramo.porcentajeAplicado) : "—"}</td>)}<td style={styles.totalCell}>—</td></tr>
+                <tr><th scope="row" style={styles.rowHeader}>Importe</th>{tramos.map((tramo) => <td key={`importe-${tramo.nombre}`} style={styles.cell}>{result ? formatEuro(tramo.importeEmbargable) : "—"}</td>)}<td style={styles.totalCell}>{result ? formatEuro(result.totalEmbargable) : "—"}</td></tr>
               </tbody>
             </table>
           </div>
         </section>
 
-        <p style={styles.notice}>
-          Cálculo orientativo conforme a la regla general del art. 607 LEC. Puede variar en casos especiales como pensión de alimentos, varios ingresos, embargos previos o instrucciones específicas del órgano ejecutante.
-        </p>
+        <p style={styles.notice}>Cálculo orientativo conforme a la regla general del art. 607 LEC. El servidor recalcula el resultado al grabar. Puede variar en supuestos especiales o por instrucciones del órgano ejecutante.</p>
       </PageCard>
     </div>
   );
