@@ -13,6 +13,7 @@ class Document(Base):
     employee_id = Column(Integer, ForeignKey("employees.id"), nullable=False)
     company_id = Column(Integer, ForeignKey("companies.id"), nullable=False)
     center_id = Column(Integer, ForeignKey("work_centers.id"), nullable=True)
+    wage_garnishment_id = Column(Integer, ForeignKey("wage_garnishments.id"), nullable=True, index=True)
     document_type = Column(String, nullable=False)
     document_name = Column(String, nullable=False)
     status = Column(String, default="pending", nullable=False)
@@ -24,6 +25,7 @@ class Document(Base):
     employee = relationship("Employee", back_populates="documents")
     company = relationship("Company", back_populates="documents")
     work_center = relationship("WorkCenter", back_populates="documents")
+    wage_garnishment = relationship("WageGarnishment", back_populates="documents")
 
     @property
     def employee_name(self):
