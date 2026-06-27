@@ -5,7 +5,7 @@ from typing import Any
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 
-ALLOWED_STATUSES = {"active", "suspended", "completed", "cancelled"}
+ALLOWED_STATUSES = {"draft", "active", "suspended", "completed", "cancelled"}
 
 
 class WageGarnishmentBase(BaseModel):
@@ -15,7 +15,8 @@ class WageGarnishmentBase(BaseModel):
     reference: str = Field(min_length=1, max_length=120)
     issuing_body: str = Field(min_length=1, max_length=200)
     creditor: str | None = Field(default=None, max_length=200)
-    status: str = "active"
+    status: str = "draft"
+    priority: int = Field(default=1, ge=1)
     notification_date: date | None = None
     start_date: date
     end_date: date | None = None
@@ -23,13 +24,16 @@ class WageGarnishmentBase(BaseModel):
     withheld_to_date: Decimal = Field(default=Decimal("0"), ge=0)
     monthly_net: Decimal = Field(ge=0)
     smi_annual: Decimal = Field(gt=0)
-    reduction_percentage: Decimal = Field(default=Decimal("0"), ge=0, le=100)
+    reduction_percentage: Decimal = Field(default=Decimal("0"), ge=0, le=15)
+    reduction_authorized: bool = False
+    reduction_authorization_date: date | None = None
+    reduction_authorization_reference: str | None = Field(default=None, max_length=180)
     extra_pay_prorated: bool = False
     includes_full_extra_pay: bool = False
     extra_pay_amount: Decimal = Field(default=Decimal("0"), ge=0)
     family_burdens: bool = False
-    monthly_garnishable: Decimal = Field(ge=0)
-    calculation_snapshot: dict[str, Any]
+    monthly_garnishable: Decimal | None = Field(default=None, ge=0)
+    calculation_snapshot: dict[str, Any] | None = None
     notes: str | None = None
 
     @field_validator("status")
@@ -49,6 +53,12 @@ class WageGarnishmentBase(BaseModel):
             raise ValueError("El importe de la paga extra debe ser superior a cero")
         if self.total_debt is not None and self.withheld_to_date > self.total_debt:
             raise ValueError("Lo retenido no puede superar la deuda total")
+        if self.reduction_percentage > 0 and not self.reduction_authorized:
+            raise ValueError("La reducción debe estar autorizada por el órgano ejecutante")
+        if self.reduction_authorized and self.reduction_percentage not in {Decimal("10"), Decimal("15")}:
+            raise ValueError("La reducción autorizada debe ser del 10 % o del 15 %")
+        if self.reduction_authorized and not self.reduction_authorization_reference:
+            raise ValueError("Debe informarse la referencia de la resolución que autoriza la reducción")
         return self
 
 
@@ -64,6 +74,7 @@ class WageGarnishmentUpdate(BaseModel):
     issuing_body: str | None = Field(default=None, min_length=1, max_length=200)
     creditor: str | None = Field(default=None, max_length=200)
     status: str | None = None
+    priority: int | None = Field(default=None, ge=1)
     notification_date: date | None = None
     start_date: date | None = None
     end_date: date | None = None
@@ -71,7 +82,10 @@ class WageGarnishmentUpdate(BaseModel):
     withheld_to_date: Decimal | None = Field(default=None, ge=0)
     monthly_net: Decimal | None = Field(default=None, ge=0)
     smi_annual: Decimal | None = Field(default=None, gt=0)
-    reduction_percentage: Decimal | None = Field(default=None, ge=0, le=100)
+    reduction_percentage: Decimal | None = Field(default=None, ge=0, le=15)
+    reduction_authorized: bool | None = None
+    reduction_authorization_date: date | None = None
+    reduction_authorization_reference: str | None = Field(default=None, max_length=180)
     extra_pay_prorated: bool | None = None
     includes_full_extra_pay: bool | None = None
     extra_pay_amount: Decimal | None = Field(default=None, ge=0)
@@ -79,6 +93,7 @@ class WageGarnishmentUpdate(BaseModel):
     monthly_garnishable: Decimal | None = Field(default=None, ge=0)
     calculation_snapshot: dict[str, Any] | None = None
     notes: str | None = None
+    updated_by: str | None = Field(default="usuario-demo", max_length=120)
 
     @field_validator("status")
     @classmethod
@@ -90,10 +105,20 @@ class WageGarnishmentUpdate(BaseModel):
 
 class WageGarnishmentResponse(WageGarnishmentBase):
     id: int
+    monthly_garnishable: Decimal
+    calculation_snapshot: dict[str, Any]
     employee_name: str | None = None
     company_name: str | None = None
     contract_type: str | None = None
     remaining_debt: Decimal | None = None
+    movement_count: int = 0
+    document_count: int = 0
+    archived: bool = False
+    deleted_at: datetime | None = None
+    deleted_by: str | None = None
+    deleted_reason: str | None = None
+    created_by: str
+    updated_by: str
     created_at: datetime
     updated_at: datetime
 
