@@ -15,6 +15,7 @@ jobs:
         working-directory: backend
     env:
       DATABASE_URL: sqlite:///./aulanomina_test.db
+      PYTHONPATH: .
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -31,7 +32,7 @@ jobs:
       - name: Wage garnishment tests
         id: tests
         continue-on-error: true
-        run: pytest -q --tb=short tests/test_wage_garnishment.py > backend-test-output.txt 2>&1
+        run: python -m pytest -q --tb=short tests/test_wage_garnishment.py > backend-test-output.txt 2>&1
       - name: Upload backend test output
         if: always()
         uses: actions/upload-artifact@v4
