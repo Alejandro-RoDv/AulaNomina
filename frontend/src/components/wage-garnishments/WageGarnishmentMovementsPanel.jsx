@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 
+import { fetchPayrolls } from "../../services/payrollApi";
 import {
   createWageGarnishmentMovement,
   fetchCurrentSmi,
@@ -26,6 +27,7 @@ function parseAmount(value) {
 export default function WageGarnishmentMovementsPanel({ garnishment, payrolls = [], onChanged }) {
   const today = new Date();
   const [movements, setMovements] = useState([]);
+  const [availablePayrolls, setAvailablePayrolls] = useState(payrolls);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -42,8 +44,8 @@ export default function WageGarnishmentMovementsPanel({ garnishment, payrolls = 
   });
 
   const employeePayrolls = useMemo(
-    () => payrolls.filter((payroll) => String(payroll.employee_id) === String(garnishment.employee_id)),
-    [payrolls, garnishment.employee_id]
+    () => availablePayrolls.filter((payroll) => String(payroll.employee_id) === String(garnishment.employee_id)),
+    [availablePayrolls, garnishment.employee_id]
   );
 
   const loadMovements = async () => {
@@ -58,8 +60,23 @@ export default function WageGarnishmentMovementsPanel({ garnishment, payrolls = 
   };
 
   useEffect(() => {
+    let active = true;
     loadMovements();
-  }, [garnishment.id]);
+    if (payrolls.length === 0) {
+      fetchPayrolls()
+        .then((data) => {
+          if (active) setAvailablePayrolls(data);
+        })
+        .catch(() => {
+          if (active) setAvailablePayrolls([]);
+        });
+    } else {
+      setAvailablePayrolls(payrolls);
+    }
+    return () => {
+      active = false;
+    };
+  }, [garnishment.id, payrolls]);
 
   const setField = (name, value) => {
     setError("");
