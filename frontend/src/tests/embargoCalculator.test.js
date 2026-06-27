@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { calcularEmbargo } from "../utils/embargoCalculator.js";
+import { calcularEmbargo, parseEuropeanAmount } from "../utils/embargoCalculator.js";
 
 const calc = (liquido, datos = {}) => calcularEmbargo({ liquido, smiAnual: 17094, ...datos });
 
@@ -32,4 +32,12 @@ test("court reduction", () => {
   const result = calcularEmbargo({ liquido: 6000, smiAnual: 14000, porcentajeReduccion: 10 });
   assert.deepEqual(result.tramos.map((tramo) => tramo.porcentajeAplicado), [0, 20, 40, 50, 65, 90]);
   assert.equal(result.totalEmbargable, 2650);
+});
+
+test("validation and european format", () => {
+  assert.equal(parseEuropeanAmount("17.094,00 €"), 17094);
+  assert.throws(() => calcularEmbargo({ liquido: -1, smiAnual: 17094 }));
+  assert.throws(() => calcularEmbargo({ liquido: 1000, smiAnual: 0 }));
+  assert.throws(() => calc(1000, { porcentajeReduccion: 101 }));
+  assert.throws(() => calc(2000, { pagasExtrasProrrateadas: true, incluyePagaExtraCompleta: true, importePagaExtra: 1000 }));
 });
