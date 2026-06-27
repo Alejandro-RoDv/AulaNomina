@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 
+import PageCard from "../components/layout/PageCard";
 import WageGarnishmentContextSelector from "../components/wage-garnishments/WageGarnishmentContextSelector";
 import WageGarnishmentHistory from "../components/wage-garnishments/WageGarnishmentHistory";
 import WageGarnishmentRecordForm from "../components/wage-garnishments/WageGarnishmentRecordForm";
-import PageCard from "../components/layout/PageCard";
 import {
   createWageGarnishment,
   deleteWageGarnishment,
@@ -36,6 +36,13 @@ const EMPTY_CALCULATION = {
   importePagaExtra: "",
   cargasFamiliares: false,
   reduccionCargas: "0",
+};
+
+const STATUS_LABELS = {
+  active: "Activo",
+  suspended: "Suspendido",
+  completed: "Finalizado",
+  cancelled: "Cancelado",
 };
 
 function amountToInput(value) {
@@ -154,9 +161,8 @@ export default function WageGarnishmentManagementPage({ companies = [], employee
     };
   }, []);
 
-  const resetDraft = () => {
-    const activeContract = contractsForContext.find((contract) => contract.status === "active") || contractsForContext[0];
-    setForm({ ...EMPTY_FORM, contract_id: activeContract ? String(activeContract.id) : "" });
+  const clearDraft = (contractId = "") => {
+    setForm({ ...EMPTY_FORM, contract_id: contractId });
     setCalculationInitialForm(EMPTY_CALCULATION);
     setCalculationInitialResult(null);
     setCalculationState(null);
@@ -167,11 +173,16 @@ export default function WageGarnishmentManagementPage({ companies = [], employee
     setCalculatorKey((value) => value + 1);
   };
 
+  const defaultContractId = () => {
+    const activeContract = contractsForContext.find((contract) => contract.status === "active") || contractsForContext[0];
+    return activeContract ? String(activeContract.id) : "";
+  };
+
   const handleCompanyChange = (companyId) => {
     setContext({ companyId, employeeId: "" });
     setActiveTab("new");
     setMessage("");
-    resetDraft();
+    clearDraft();
   };
 
   const handleEmployeeChange = (employeeId) => {
@@ -181,29 +192,22 @@ export default function WageGarnishmentManagementPage({ companies = [], employee
     ));
     const activeContract = employeeContracts.find((contract) => contract.status === "active") || employeeContracts[0];
     setContext((previous) => ({ ...previous, employeeId }));
-    setForm({ ...EMPTY_FORM, contract_id: activeContract ? String(activeContract.id) : "" });
-    setCalculationInitialForm(EMPTY_CALCULATION);
-    setCalculationInitialResult(null);
-    setCalculationState(null);
-    setSelectedId(null);
-    setMode("new");
-    setWorkflowStep(1);
+    clearDraft(activeContract ? String(activeContract.id) : "");
     setActiveTab("new");
     setMessage("");
-    setError("");
-    setCalculatorKey((value) => value + 1);
   };
 
   const releaseContext = () => {
     setContext({ companyId: "", employeeId: "" });
     setActiveTab("new");
     setMessage("");
-    resetDraft();
+    clearDraft();
   };
 
   const startNew = () => {
-    resetDraft();
+    clearDraft(defaultContractId());
     setActiveTab("new");
+    setMessage("");
   };
 
   const setField = (name, value) => {
@@ -287,7 +291,7 @@ export default function WageGarnishmentManagementPage({ companies = [], employee
       if (selectedId) await updateWageGarnishment(selectedId, payload);
       else await createWageGarnishment(payload);
       await loadRecords();
-      resetDraft();
+      clearDraft(defaultContractId());
       setActiveTab("history");
       setMessage(wasEditing ? "Embargo actualizado correctamente." : "Embargo grabado correctamente.");
     } catch (saveError) {
@@ -319,7 +323,7 @@ export default function WageGarnishmentManagementPage({ companies = [], employee
 
   return (
     <div style={styles.wrapper}>
-      <PageCard title="Gestión de embargos judiciales" subtitle="Selecciona un trabajador y gestiona sus expedientes desde un flujo único y ordenado.">
+      <PageCard title="Embargos judiciales" subtitle="Gestiona cada expediente desde el trabajador, con cálculo y seguimiento económico.">
         <WageGarnishmentContextSelector
           companies={companies}
           employees={employees}
@@ -332,65 +336,64 @@ export default function WageGarnishmentManagementPage({ companies = [], employee
           onReleaseContext={releaseContext}
         />
 
-        <div style={styles.tabs}>
-          <button
-            type="button"
-            disabled={!contextReady}
-            onClick={startNew}
-            style={{ ...styles.tab, ...(activeTab === "new" ? styles.activeTab : {}), ...(!contextReady ? styles.disabledTab : {}) }}
-          >
-            Nuevo embargo
+        <div style={styles.operationGrid}>
+          <button type="button" disabled={!contextReady} onClick={startNew} style={{ ...styles.operationCard, ...(activeTab === "new" ? styles.operationCardActive : {}), ...(!contextReady ? styles.operationCardDisabled : {}) }}>
+            <span style={styles.operationIcon}>＋</span>
+            <span style={styles.operationText}>
+              <strong>Nuevo embargo</strong>
+              <small>Registrar orden, calcular retención y grabar.</small>
+            </span>
           </button>
-          <button
-            type="button"
-            disabled={!contextReady}
-            onClick={() => setActiveTab("history")}
-            style={{ ...styles.tab, ...(activeTab === "history" ? styles.activeTab : {}), ...(!contextReady ? styles.disabledTab : {}) }}
-          >
-            Historial del trabajador
-            {contextReady && <span style={styles.tabCount}>{recordsForContext.length}</span>}
+          <button type="button" disabled={!contextReady} onClick={() => setActiveTab("history")} style={{ ...styles.operationCard, ...(activeTab === "history" ? styles.operationCardActive : {}), ...(!contextReady ? styles.operationCardDisabled : {}) }}>
+            <span style={styles.operationIcon}>↺</span>
+            <span style={styles.operationText}>
+              <strong>Historial del trabajador</strong>
+              <small>Consultar y mantener expedientes registrados.</small>
+            </span>
+            {contextReady && <span style={styles.operationCount}>{recordsForContext.length}</span>}
           </button>
         </div>
       </PageCard>
 
       {!contextReady && (
-        <div style={styles.contextGate}>
-          <strong>Selecciona empresa y trabajador para continuar</strong>
-          <span>El formulario de alta y el historial permanecen ocultos hasta establecer el contexto.</span>
-        </div>
+        <section style={styles.emptyState}>
+          <div style={styles.emptyHeader}>
+            <span style={styles.emptyIcon}>1</span>
+            <div>
+              <strong>Selecciona empresa y trabajador</strong>
+              <p>Después podrás crear un embargo o consultar el historial del trabajador.</p>
+            </div>
+          </div>
+          <div style={styles.emptySteps}>
+            <div><span>1</span><strong>Seleccionar contexto</strong></div>
+            <div><span>2</span><strong>Completar expediente</strong></div>
+            <div><span>3</span><strong>Calcular y grabar</strong></div>
+          </div>
+        </section>
       )}
 
       {contextReady && activeTab === "history" && (
         <PageCard title="Historial de embargos" subtitle="Expedientes asociados al trabajador seleccionado.">
           {message && <div style={styles.success}>{message}</div>}
           {error && <div style={styles.error}>{error}</div>}
-          <WageGarnishmentHistory
-            records={recordsForContext}
-            loading={loading}
-            onView={(record) => openRecord(record, "view")}
-            onEdit={(record) => openRecord(record, "edit")}
-            onDelete={removeRecord}
-          />
+          <WageGarnishmentHistory records={recordsForContext} loading={loading} onView={(record) => openRecord(record, "view")} onEdit={(record) => openRecord(record, "edit")} onDelete={removeRecord} />
         </PageCard>
       )}
 
       {contextReady && activeTab === "new" && (
         <>
-          <PageCard
-            title={mode === "new" ? "Nuevo embargo" : mode === "edit" ? "Editar embargo" : "Consulta de embargo"}
-            subtitle={mode === "view" ? "Expediente en modo consulta." : "Completa el expediente y calcula la retención antes de grabar."}
-          >
+          <PageCard title={mode === "new" ? "Nuevo embargo" : mode === "edit" ? "Editar embargo" : "Consulta de embargo"} subtitle={mode === "view" ? "Expediente en modo consulta." : "Completa el expediente y calcula la retención antes de grabar."}>
             <div style={styles.workflowHeader}>
-              <button type="button" onClick={() => setWorkflowStep(1)} style={{ ...styles.stepButton, ...(workflowStep === 1 ? styles.activeStep : {}) }}>
-                <span style={styles.stepNumber}>1</span>
-                Datos del expediente
-              </button>
-              <div style={styles.stepLine} />
-              <button type="button" onClick={goToCalculation} style={{ ...styles.stepButton, ...(workflowStep === 2 ? styles.activeStep : {}) }}>
-                <span style={styles.stepNumber}>2</span>
-                Cálculo y grabación
-              </button>
-              <span style={styles.modeBadge}>{mode === "new" ? "ALTA" : mode === "edit" ? "EDICIÓN" : "CONSULTA"}</span>
+              <div style={{ ...styles.workflowStep, ...(workflowStep === 1 ? styles.workflowStepActive : {}) }}>
+                <span>1</span>
+                <div><strong>Expediente</strong><small>Orden, fechas y deuda</small></div>
+              </div>
+              <div style={styles.workflowConnector} />
+              <div style={{ ...styles.workflowStep, ...(workflowStep === 2 ? styles.workflowStepActive : {}) }}>
+                <span>2</span>
+                <div><strong>Cálculo</strong><small>Tramos y grabación</small></div>
+              </div>
+              <span style={styles.modeBadge}>{mode === "new" ? "Alta" : mode === "edit" ? "Edición" : "Consulta"}</span>
             </div>
 
             {error && <div style={styles.error}>{error}</div>}
@@ -398,18 +401,11 @@ export default function WageGarnishmentManagementPage({ companies = [], employee
 
             {workflowStep === 1 && (
               <>
-                <WageGarnishmentRecordForm
-                  form={form}
-                  contracts={contractsForContext}
-                  readOnly={readOnly}
-                  onChange={setField}
-                />
+                <WageGarnishmentRecordForm form={form} contracts={contractsForContext} readOnly={readOnly} onChange={setField} />
                 <div style={styles.footerActions}>
-                  {readOnly && <button type="button" onClick={() => setMode("edit")} style={styles.secondaryButton}>Editar expediente</button>}
-                  <button type="button" onClick={goToCalculation} style={styles.primaryButton}>
-                    {readOnly ? "Ver cálculo" : "Continuar al cálculo"}
-                  </button>
                   <button type="button" onClick={() => setActiveTab("history")} style={styles.secondaryButton}>Volver al historial</button>
+                  {readOnly && <button type="button" onClick={() => setMode("edit")} style={styles.secondaryButton}>Editar expediente</button>}
+                  <button type="button" onClick={goToCalculation} style={styles.primaryButton}>{readOnly ? "Ver cálculo" : "Continuar al cálculo"}</button>
                 </div>
               </>
             )}
@@ -417,21 +413,21 @@ export default function WageGarnishmentManagementPage({ companies = [], employee
 
           {workflowStep === 2 && (
             <>
-              <EmbargoCalculatorPage
-                key={calculatorKey}
-                initialForm={calculationInitialForm}
-                initialResult={calculationInitialResult}
-                readOnly={readOnly}
-                onDirty={() => setCalculationState(null)}
-                onCalculated={(state) => setCalculationState(state)}
-              />
+              <EmbargoCalculatorPage key={calculatorKey} initialForm={calculationInitialForm} initialResult={calculationInitialResult} readOnly={readOnly} onDirty={() => setCalculationState(null)} onCalculated={(state) => setCalculationState(state)} />
 
               <section style={styles.savePanel}>
+                <div style={styles.saveHeader}>
+                  <div>
+                    <h3>Resumen antes de grabar</h3>
+                    <p>Comprueba los datos principales del embargo.</p>
+                  </div>
+                  <span style={styles.readyBadge}>{calculationState?.result ? "Cálculo preparado" : "Cálculo pendiente"}</span>
+                </div>
                 <div style={styles.summaryGrid}>
                   <div style={styles.summaryItem}><span>Líquido calculado</span><strong>{calculationState?.result ? formatEuro(calculationState.result.liquidoFinalCalculado) : "Pendiente"}</strong></div>
-                  <div style={styles.summaryItem}><span>Embargo mensual</span><strong>{calculationState?.result ? formatEuro(calculationState.result.totalEmbargable) : "Pendiente"}</strong></div>
+                  <div style={styles.summaryItemAccent}><span>Embargo mensual</span><strong>{calculationState?.result ? formatEuro(calculationState.result.totalEmbargable) : "Pendiente"}</strong></div>
                   <div style={styles.summaryItem}><span>Deuda pendiente</span><strong>{remainingDebt === null ? "Sin informar" : formatEuro(remainingDebt)}</strong></div>
-                  <div style={styles.summaryItem}><span>Estado</span><strong>{form.status.toUpperCase()}</strong></div>
+                  <div style={styles.summaryItem}><span>Estado</span><strong>{STATUS_LABELS[form.status] || form.status}</strong></div>
                 </div>
 
                 <div style={styles.footerActions}>
@@ -454,26 +450,33 @@ export default function WageGarnishmentManagementPage({ companies = [], employee
 }
 
 const styles = {
-  wrapper: { display: "flex", flexDirection: "column", gap: "18px" },
-  tabs: { display: "flex", gap: "8px", marginTop: "14px", borderBottom: "3px solid #111111" },
-  tab: { display: "inline-flex", alignItems: "center", gap: "8px", border: "2px solid #111111", borderBottom: "none", backgroundColor: "#ffffff", padding: "10px 16px", fontSize: "12px", fontWeight: 950, textTransform: "uppercase", cursor: "pointer", transform: "translateY(3px)" },
-  activeTab: { backgroundColor: "#f5ef9c", boxShadow: "3px -2px 0 #111111" },
-  disabledTab: { opacity: 0.45, cursor: "not-allowed", boxShadow: "none" },
-  tabCount: { display: "inline-flex", minWidth: "20px", height: "20px", alignItems: "center", justifyContent: "center", border: "1px solid #111111", backgroundColor: "#ffffff", fontSize: "10px" },
-  contextGate: { minHeight: "150px", border: "2px dashed #9ca3af", backgroundColor: "#f9fafb", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "8px", color: "#4b5563", textAlign: "center", padding: "24px" },
-  workflowHeader: { display: "flex", alignItems: "center", gap: "10px", marginBottom: "18px", padding: "10px", border: "2px solid #111111", backgroundColor: "#f3f4f6" },
-  stepButton: { display: "inline-flex", alignItems: "center", gap: "8px", border: "none", backgroundColor: "transparent", padding: "6px 8px", fontSize: "11px", fontWeight: 900, textTransform: "uppercase", cursor: "pointer" },
-  activeStep: { backgroundColor: "#f5ef9c", outline: "2px solid #111111" },
-  stepNumber: { width: "24px", height: "24px", display: "inline-flex", alignItems: "center", justifyContent: "center", border: "2px solid #111111", backgroundColor: "#ffffff", fontSize: "11px", fontWeight: 950 },
-  stepLine: { flex: 1, maxWidth: "70px", height: "2px", backgroundColor: "#111111" },
-  modeBadge: { marginLeft: "auto", border: "2px solid #111111", backgroundColor: "#ffffff", padding: "7px 10px", fontSize: "10px", fontWeight: 950 },
-  footerActions: { display: "flex", justifyContent: "center", flexWrap: "wrap", gap: "10px", marginTop: "18px" },
-  primaryButton: { border: "3px solid #111111", backgroundColor: "#f5ef9c", boxShadow: "3px 3px 0 #111111", padding: "10px 18px", fontSize: "11px", fontWeight: 950, textTransform: "uppercase", cursor: "pointer" },
-  secondaryButton: { border: "2px solid #111111", backgroundColor: "#ffffff", padding: "10px 16px", fontSize: "11px", fontWeight: 900, textTransform: "uppercase", cursor: "pointer" },
+  wrapper: { display: "flex", flexDirection: "column", gap: "20px" },
+  operationGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: "12px", marginTop: "16px" },
+  operationCard: { display: "grid", gridTemplateColumns: "44px 1fr auto", gap: "12px", alignItems: "center", border: "1px solid #d4d4d8", borderRadius: "11px", backgroundColor: "#ffffff", color: "#111827", padding: "15px", textAlign: "left", cursor: "pointer", boxShadow: "0 6px 16px rgba(15, 23, 42, 0.04)" },
+  operationCardActive: { borderColor: "#c3b526", backgroundColor: "#fffbea", boxShadow: "0 8px 20px rgba(195, 181, 38, 0.15)" },
+  operationCardDisabled: { opacity: 0.45, cursor: "not-allowed", boxShadow: "none" },
+  operationIcon: { width: "42px", height: "42px", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: "10px", backgroundColor: "#111827", color: "#ffffff", fontSize: "20px", fontWeight: 900 },
+  operationText: { display: "flex", flexDirection: "column", gap: "3px" },
+  operationCount: { minWidth: "28px", height: "28px", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: "999px", backgroundColor: "#f4e96b", fontSize: "11px", fontWeight: 900 },
+  emptyState: { border: "1px solid #d4d4d8", borderRadius: "12px", backgroundColor: "#f8fafc", padding: "22px", color: "#475569" },
+  emptyHeader: { display: "flex", alignItems: "center", justifyContent: "center", gap: "14px", textAlign: "left" },
+  emptyIcon: { width: "42px", height: "42px", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: "50%", backgroundColor: "#f4e96b", color: "#111827", fontWeight: 900 },
+  emptySteps: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "10px", marginTop: "20px" },
+  workflowHeader: { display: "flex", flexWrap: "wrap", alignItems: "center", gap: "12px", marginBottom: "20px", padding: "14px 16px", border: "1px solid #d4d4d8", borderRadius: "11px", backgroundColor: "#f8fafc" },
+  workflowStep: { display: "flex", alignItems: "center", gap: "9px", color: "#94a3b8" },
+  workflowStepActive: { color: "#111827" },
+  workflowConnector: { width: "56px", height: "2px", backgroundColor: "#cbd5e1" },
+  modeBadge: { marginLeft: "auto", borderRadius: "999px", backgroundColor: "#111827", color: "#ffffff", padding: "7px 11px", fontSize: "10px", fontWeight: 850, textTransform: "uppercase" },
+  footerActions: { display: "flex", justifyContent: "flex-end", flexWrap: "wrap", gap: "10px", marginTop: "18px" },
+  primaryButton: { border: "1px solid #111827", borderRadius: "8px", backgroundColor: "#f4e96b", color: "#111827", boxShadow: "0 5px 0 #111827", padding: "11px 18px", fontSize: "11px", fontWeight: 900, cursor: "pointer" },
+  secondaryButton: { border: "1px solid #94a3b8", borderRadius: "8px", backgroundColor: "#ffffff", color: "#334155", padding: "11px 16px", fontSize: "11px", fontWeight: 800, cursor: "pointer" },
   disabledButton: { opacity: 0.45, cursor: "not-allowed", boxShadow: "none" },
-  error: { border: "2px solid #991b1b", backgroundColor: "#fee2e2", color: "#7f1d1d", padding: "10px 12px", fontSize: "12px", fontWeight: 800, marginBottom: "14px" },
-  success: { border: "2px solid #166534", backgroundColor: "#dcfce7", color: "#14532d", padding: "10px 12px", fontSize: "12px", fontWeight: 800, marginBottom: "14px" },
-  savePanel: { border: "3px solid #111111", backgroundColor: "#fffef2", padding: "16px" },
+  error: { border: "1px solid #fecaca", borderRadius: "8px", backgroundColor: "#fff1f2", color: "#991b1b", padding: "11px 13px", fontSize: "12px", fontWeight: 750, marginBottom: "14px" },
+  success: { border: "1px solid #bbf7d0", borderRadius: "8px", backgroundColor: "#f0fdf4", color: "#166534", padding: "11px 13px", fontSize: "12px", fontWeight: 750, marginBottom: "14px" },
+  savePanel: { border: "1px solid #d4d4d8", borderRadius: "12px", backgroundColor: "#ffffff", boxShadow: "0 10px 24px rgba(15, 23, 42, 0.06)", padding: "18px" },
+  saveHeader: { display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: "12px", marginBottom: "14px" },
+  readyBadge: { borderRadius: "999px", backgroundColor: "#fffbea", color: "#665c00", padding: "7px 11px", fontSize: "10px", fontWeight: 850 },
   summaryGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: "10px" },
-  summaryItem: { border: "1px solid #111111", backgroundColor: "#ffffff", padding: "10px", display: "flex", flexDirection: "column", gap: "4px" },
+  summaryItem: { border: "1px solid #e2e8f0", borderRadius: "9px", backgroundColor: "#f8fafc", padding: "12px", display: "flex", flexDirection: "column", gap: "5px", color: "#64748b", fontSize: "10px" },
+  summaryItemAccent: { border: "1px solid #d8ca3f", borderRadius: "9px", backgroundColor: "#fffbea", padding: "12px", display: "flex", flexDirection: "column", gap: "5px", color: "#64748b", fontSize: "10px" },
 };
