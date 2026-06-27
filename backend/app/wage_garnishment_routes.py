@@ -36,8 +36,14 @@ from app.schemas.wage_garnishment_movement import (
     WageGarnishmentMovementResponse,
     WageGarnishmentMovementUpdate,
 )
+from app.wage_garnishment_schema_patch import apply_wage_garnishment_schema_patch
 
 router = APIRouter(prefix="/wage-garnishments", tags=["wage-garnishments"])
+
+
+@router.on_event("startup")
+def initialize_wage_garnishment_schema():
+    apply_wage_garnishment_schema_patch()
 
 
 def get_db():
