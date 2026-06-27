@@ -44,7 +44,20 @@ export default function WageGarnishmentDocumentsPanel({ garnishment }) {
   };
 
   useEffect(() => {
-    loadDocuments();
+    let active = true;
+    fetchWageGarnishmentDocuments(garnishment.id)
+      .then((data) => {
+        if (active) setDocuments(data);
+      })
+      .catch((loadError) => {
+        if (active) setError(loadError.message || "No se han podido cargar los documentos");
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
   }, [garnishment.id]);
 
   const submitDocument = async () => {
