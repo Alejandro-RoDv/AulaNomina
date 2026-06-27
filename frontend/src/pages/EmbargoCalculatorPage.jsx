@@ -10,7 +10,7 @@ import {
 
 const TRAMO_NAMES = ["1º tramo", "2º tramo", "3º tramo", "4º tramo", "5º tramo", "Exceso"];
 
-const INITIAL_FORM = {
+const DEFAULT_FORM = {
   smiAnual: "17.094,00",
   liquido: "",
   porcentajeReduccion: "0",
@@ -57,11 +57,11 @@ function AmountField({ label, value, onChange, onBlur, readOnly = false, disable
   );
 }
 
-function OptionRow({ checked, onChange, label, children }) {
+function OptionRow({ checked, onChange, label, children, disabled = false }) {
   return (
     <div style={styles.optionRow}>
-      <label style={styles.checkboxLabel}>
-        <input type="checkbox" checked={checked} onChange={onChange} style={styles.checkbox} />
+      <label style={{ ...styles.checkboxLabel, ...(disabled ? styles.disabledLabel : {}) }}>
+        <input type="checkbox" checked={checked} onChange={onChange} disabled={disabled} style={styles.checkbox} />
         <span>{label}</span>
       </label>
       {checked && <div style={styles.optionControl}>{children}</div>}
@@ -81,42 +81,57 @@ function getLiveReferences(form) {
   }
 }
 
-export default function EmbargoCalculatorPage() {
-  const [form, setForm] = useState(INITIAL_FORM);
-  const [result, setResult] = useState(null);
+export default function EmbargoCalculatorPage({
+  initialForm = DEFAULT_FORM,
+  initialResult = null,
+  readOnly = false,
+  onCalculated,
+  onDirty,
+}) {
+  const [form, setForm] = useState(() => ({ ...DEFAULT_FORM, ...initialForm }));
+  const [result, setResult] = useState(initialResult);
   const [error, setError] = useState("");
   const liveReferences = getLiveReferences(form);
 
-  const setField = (field, value) => {
-    setForm((previous) => ({ ...previous, [field]: value }));
+  const markDirty = () => {
     setResult(null);
     setError("");
+    onDirty?.();
+  };
+
+  const setField = (field, value) => {
+    if (readOnly) return;
+    setForm((previous) => ({ ...previous, [field]: value }));
+    markDirty();
   };
 
   const formatField = (field) => {
+    if (readOnly) return;
     const value = parseEuropeanAmount(form[field]);
-    if (Number.isFinite(value) && value >= 0) setField(field, formatAmountInput(value));
+    if (Number.isFinite(value) && value >= 0) {
+      setForm((previous) => ({ ...previous, [field]: formatAmountInput(value) }));
+    }
   };
 
   const toggleProrratedPayments = (checked) => {
+    if (readOnly) return;
     setForm((previous) => ({
       ...previous,
       pagasExtrasProrrateadas: checked,
       incluyePagaExtraCompleta: checked ? false : previous.incluyePagaExtraCompleta,
       importePagaExtra: checked ? "" : previous.importePagaExtra,
     }));
-    setResult(null);
-    setError("");
+    markDirty();
   };
 
   const toggleFullExtraPayment = (checked) => {
+    if (readOnly) return;
     setForm((previous) => ({
       ...previous,
       incluyePagaExtraCompleta: checked,
       pagasExtrasProrrateadas: checked ? false : previous.pagasExtrasProrrateadas,
     }));
-    setResult(null);
-    setError("");
+    markDirty();
   };
 
   const handleCalculate = () => {
@@ -140,8 +155,10 @@ export default function EmbargoCalculatorPage() {
       });
 
       setResult(calculation);
+      onCalculated?.({ form: { ...form }, result: calculation });
     } catch (calculationError) {
       setResult(null);
+      onDirty?.();
       setError(calculationError instanceof Error ? calculationError.message : "No se ha podido realizar el cálculo.");
     }
   };
@@ -159,12 +176,14 @@ export default function EmbargoCalculatorPage() {
               value={form.smiAnual}
               onChange={(event) => setField("smiAnual", event.target.value)}
               onBlur={() => formatField("smiAnual")}
+              readOnly={readOnly}
             />
             <AmountField
               label="Cantidad líquida mensual"
               value={form.liquido}
               onChange={(event) => setField("liquido", event.target.value)}
               onBlur={() => formatField("liquido")}
+              readOnly={readOnly}
             />
             <label style={styles.field}>
               <span style={styles.label}>% Reducción</span>
@@ -175,8 +194,8 @@ export default function EmbargoCalculatorPage() {
                 step="0.01"
                 value={form.cargasFamiliares ? form.reduccionCargas : form.porcentajeReduccion}
                 onChange={(event) => setField("porcentajeReduccion", event.target.value)}
-                disabled={form.cargasFamiliares}
-                style={{ ...styles.input, ...(form.cargasFamiliares ? styles.disabledInput : {}) }}
+                disabled={readOnly || form.cargasFamiliares}
+                style={{ ...styles.input, ...((readOnly || form.cargasFamiliares) ? styles.disabledInput : {}) }}
               />
             </label>
             <AmountField
@@ -205,6 +224,7 @@ export default function EmbargoCalculatorPage() {
               checked={form.pagasExtrasProrrateadas}
               onChange={(event) => toggleProrratedPayments(event.target.checked)}
               label="Pagas extras prorrateadas"
+              disabled={readOnly}
             >
               <AmountField
                 label="Mínimo inembargable mensual"
@@ -218,6 +238,7 @@ export default function EmbargoCalculatorPage() {
               checked={form.incluyePagaExtraCompleta}
               onChange={(event) => toggleFullExtraPayment(event.target.checked)}
               label="Incluye paga extra completa"
+              disabled={readOnly}
             >
               <div style={styles.optionFields}>
                 <AmountField
@@ -225,6 +246,7 @@ export default function EmbargoCalculatorPage() {
                   value={form.importePagaExtra}
                   onChange={(event) => setField("importePagaExtra", event.target.value)}
                   onBlur={() => formatField("importePagaExtra")}
+                  readOnly={readOnly}
                 />
                 <AmountField
                   label="Mínimo inembargable del mes"
@@ -239,12 +261,14 @@ export default function EmbargoCalculatorPage() {
               checked={form.cargasFamiliares}
               onChange={(event) => setField("cargasFamiliares", event.target.checked)}
               label="Cargas familiares"
+              disabled={readOnly}
             >
               <label style={styles.field}>
                 <span style={styles.label}>Reducción</span>
                 <select
                   value={form.reduccionCargas}
                   onChange={(event) => setField("reduccionCargas", event.target.value)}
+                  disabled={readOnly}
                   style={styles.input}
                 >
                   <option value="0">0 %</option>
@@ -258,11 +282,13 @@ export default function EmbargoCalculatorPage() {
 
         {error && <div style={styles.error}>{error}</div>}
 
-        <div style={styles.buttonRow}>
-          <button type="button" onClick={handleCalculate} style={styles.calculateButton}>
-            Realizar cálculo
-          </button>
-        </div>
+        {!readOnly && (
+          <div style={styles.buttonRow}>
+            <button type="button" onClick={handleCalculate} style={styles.calculateButton}>
+              Realizar cálculo
+            </button>
+          </div>
+        )}
 
         <section style={styles.tableSection}>
           <h3 style={styles.sectionTitle}>Desglose por tramos</h3>
@@ -271,9 +297,7 @@ export default function EmbargoCalculatorPage() {
               <thead>
                 <tr>
                   <th style={styles.rowHeader}>Concepto</th>
-                  {TRAMO_NAMES.map((column) => (
-                    <th key={column} style={styles.columnHeader}>{column}</th>
-                  ))}
+                  {TRAMO_NAMES.map((column) => <th key={column} style={styles.columnHeader}>{column}</th>)}
                   <th style={styles.totalHeader}>Total</th>
                 </tr>
               </thead>
@@ -321,6 +345,7 @@ const styles = {
   input: { width: "100%", minHeight: "38px", border: "2px solid #111111", borderRadius: 0, backgroundColor: "#ffffff", color: "#111111", padding: "8px 10px", boxSizing: "border-box", fontSize: "14px", fontWeight: 700, fontFamily: "inherit" },
   readOnlyInput: { backgroundColor: "#f3f4f6", fontWeight: 900 },
   disabledInput: { backgroundColor: "#e5e7eb", color: "#6b7280", cursor: "not-allowed" },
+  disabledLabel: { opacity: 0.65, cursor: "default" },
   referenceStrip: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "10px", padding: "0 18px 18px" },
   referenceBox: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", border: "1px solid #111111", backgroundColor: "#fffef2", padding: "9px 10px" },
   referenceLabel: { fontSize: "11px", fontWeight: 900, color: "#374151", textTransform: "uppercase" },

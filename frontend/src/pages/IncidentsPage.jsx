@@ -5,7 +5,7 @@ import IncidentTable from "../components/incidents/IncidentTable";
 import PageCard from "../components/layout/PageCard";
 import { getEmployeeVisibleCode } from "../utils/visibleCodes";
 import { openReportPreset } from "../utils/reportShortcuts";
-import EmbargoCalculatorPage from "./EmbargoCalculatorPage";
+import WageGarnishmentManagementPage from "./WageGarnishmentManagementPage";
 
 const INCIDENTS_MODE_KEY = "aulanomina:incidentsMode";
 const INCIDENTS_MODE_EVENT = "aulanomina-incidents-mode";
@@ -132,7 +132,9 @@ export default function IncidentsPage({
     });
   }, [incidentsWithEmployeeData, filters, workCenters]);
 
-  if (activeMode === "embargo") return <EmbargoCalculatorPage />;
+  if (activeMode === "embargo") {
+    return <WageGarnishmentManagementPage companies={companies} employees={employees} contracts={contracts} />;
+  }
 
   return (
     <div style={styles.wrapper}>

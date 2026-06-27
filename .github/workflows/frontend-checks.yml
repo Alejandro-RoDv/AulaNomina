@@ -27,7 +27,7 @@ jobs:
       - name: Lint checked frontend files
         id: lint
         continue-on-error: true
-        run: npx eslint src/hooks/useAppData.js src/hooks/useAgreementWorkspace.js src/pages/CollectiveAgreementsPage.js src/pages/CollectiveAgreementsPage.jsx src/pages/collectiveAgreementsLoader.js src/pages/CollectiveAgreementsWorkspacePage.jsx src/pages/CollectiveAgreementsManagementPage.jsx src/components/agreements/AgreementSalaryWorkspace.jsx src/components/agreements/AgreementCriteriaWorkspace.jsx src/components/agreements/AgreementSeniorityPanel.jsx src/components/agreements/management src/tests/convenios-smoke.jsx src/pages/EmbargoCalculatorPage.jsx src/utils/embargoCalculator.js src/tests/embargoCalculator.test.js --format json --output-file lint-report.json
+        run: npx eslint src/hooks/useAppData.js src/hooks/useAgreementWorkspace.js src/pages/CollectiveAgreementsPage.js src/pages/CollectiveAgreementsPage.jsx src/pages/collectiveAgreementsLoader.js src/pages/CollectiveAgreementsWorkspacePage.jsx src/pages/CollectiveAgreementsManagementPage.jsx src/components/agreements/AgreementSalaryWorkspace.jsx src/components/agreements/AgreementCriteriaWorkspace.jsx src/components/agreements/AgreementSeniorityPanel.jsx src/components/agreements/management src/tests/convenios-smoke.jsx src/pages/EmbargoCalculatorPage.jsx src/pages/WageGarnishmentManagementPage.jsx src/pages/IncidentsPage.jsx src/services/wageGarnishmentApi.js src/utils/embargoCalculator.js src/tests/embargoCalculator.test.js --format json --output-file lint-report.json
       - name: Frontend regression tests
         id: tests
         continue-on-error: true
