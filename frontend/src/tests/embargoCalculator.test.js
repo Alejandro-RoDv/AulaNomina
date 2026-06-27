@@ -27,3 +27,9 @@ test("full extra payment", () => {
   assert.equal(result.unidadTramo, 1221);
   assert.equal(result.totalEmbargable, 167.4);
 });
+
+test("court reduction", () => {
+  const result = calcularEmbargo({ liquido: 6000, smiAnual: 14000, porcentajeReduccion: 10 });
+  assert.deepEqual(result.tramos.map((tramo) => tramo.porcentajeAplicado), [0, 20, 40, 50, 65, 90]);
+  assert.equal(result.totalEmbargable, 2650);
+});
