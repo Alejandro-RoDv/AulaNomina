@@ -4,19 +4,19 @@ import PageCard from "../components/layout/PageCard";
 import {
   calcularEmbargo,
   formatEuro,
+  obtenerReferenciasSmi,
   parseEuropeanAmount,
 } from "../utils/embargoCalculator";
 
 const TRAMO_NAMES = ["1º tramo", "2º tramo", "3º tramo", "4º tramo", "5º tramo", "Exceso"];
 
 const INITIAL_FORM = {
-  smi: "1.221,00",
+  smiAnual: "17.094,00",
   liquido: "",
   porcentajeReduccion: "0",
   pagasExtrasProrrateadas: false,
-  smiProrrateado: "1.221,00",
   incluyePagaExtraCompleta: false,
-  importePagaExtra: "1.221,00",
+  importePagaExtra: "",
   cargasFamiliares: false,
   reduccionCargas: "0",
 };
@@ -69,18 +69,54 @@ function OptionRow({ checked, onChange, label, children }) {
   );
 }
 
+function getLiveReferences(form) {
+  try {
+    return obtenerReferenciasSmi({
+      smiAnual: parseEuropeanAmount(form.smiAnual),
+      pagasExtrasProrrateadas: form.pagasExtrasProrrateadas,
+      incluyePagaExtraCompleta: form.incluyePagaExtraCompleta,
+    });
+  } catch {
+    return { smiAnual: 0, smiMensual: 0, minimoInembargable: 0 };
+  }
+}
+
 export default function EmbargoCalculatorPage() {
   const [form, setForm] = useState(INITIAL_FORM);
   const [result, setResult] = useState(null);
   const [error, setError] = useState("");
+  const liveReferences = getLiveReferences(form);
 
   const setField = (field, value) => {
     setForm((previous) => ({ ...previous, [field]: value }));
+    setResult(null);
+    setError("");
   };
 
   const formatField = (field) => {
     const value = parseEuropeanAmount(form[field]);
     if (Number.isFinite(value) && value >= 0) setField(field, formatAmountInput(value));
+  };
+
+  const toggleProrratedPayments = (checked) => {
+    setForm((previous) => ({
+      ...previous,
+      pagasExtrasProrrateadas: checked,
+      incluyePagaExtraCompleta: checked ? false : previous.incluyePagaExtraCompleta,
+      importePagaExtra: checked ? "" : previous.importePagaExtra,
+    }));
+    setResult(null);
+    setError("");
+  };
+
+  const toggleFullExtraPayment = (checked) => {
+    setForm((previous) => ({
+      ...previous,
+      incluyePagaExtraCompleta: checked,
+      pagasExtrasProrrateadas: checked ? false : previous.pagasExtrasProrrateadas,
+    }));
+    setResult(null);
+    setError("");
   };
 
   const handleCalculate = () => {
@@ -93,12 +129,13 @@ export default function EmbargoCalculatorPage() {
 
       const calculation = calcularEmbargo({
         liquido: parseEuropeanAmount(form.liquido),
-        smi: parseEuropeanAmount(form.smi),
+        smiAnual: parseEuropeanAmount(form.smiAnual),
         porcentajeReduccion,
         pagasExtrasProrrateadas: form.pagasExtrasProrrateadas,
-        smiProrrateado: parseEuropeanAmount(form.smiProrrateado),
         incluyePagaExtraCompleta: form.incluyePagaExtraCompleta,
-        importePagaExtra: parseEuropeanAmount(form.importePagaExtra),
+        importePagaExtra: form.incluyePagaExtraCompleta
+          ? parseEuropeanAmount(form.importePagaExtra)
+          : 0,
         cargasFamiliares: form.cargasFamiliares,
       });
 
@@ -118,13 +155,13 @@ export default function EmbargoCalculatorPage() {
           <h3 style={styles.sectionTitle}>Datos principales</h3>
           <div style={styles.fieldsGrid}>
             <AmountField
-              label="S.M.I."
-              value={form.smi}
-              onChange={(event) => setField("smi", event.target.value)}
-              onBlur={() => formatField("smi")}
+              label="S.M.I. anual"
+              value={form.smiAnual}
+              onChange={(event) => setField("smiAnual", event.target.value)}
+              onBlur={() => formatField("smiAnual")}
             />
             <AmountField
-              label="Cantidad líquida"
+              label="Cantidad líquida mensual"
               value={form.liquido}
               onChange={(event) => setField("liquido", event.target.value)}
               onBlur={() => formatField("liquido")}
@@ -149,6 +186,16 @@ export default function EmbargoCalculatorPage() {
               readOnly
             />
           </div>
+          <div style={styles.referenceStrip}>
+            <div style={styles.referenceBox}>
+              <span style={styles.referenceLabel}>S.M.I. mensual · 14 pagas</span>
+              <strong style={styles.referenceValue}>{formatEuro(liveReferences.smiMensual)}</strong>
+            </div>
+            <div style={styles.referenceBox}>
+              <span style={styles.referenceLabel}>Mínimo inembargable aplicado</span>
+              <strong style={styles.referenceValue}>{formatEuro(liveReferences.minimoInembargable)}</strong>
+            </div>
+          </div>
         </section>
 
         <section style={styles.section}>
@@ -156,28 +203,36 @@ export default function EmbargoCalculatorPage() {
           <div style={styles.optionsGrid}>
             <OptionRow
               checked={form.pagasExtrasProrrateadas}
-              onChange={(event) => setField("pagasExtrasProrrateadas", event.target.checked)}
+              onChange={(event) => toggleProrratedPayments(event.target.checked)}
               label="Pagas extras prorrateadas"
             >
               <AmountField
-                label="S.M.I. prorrateado"
-                value={form.smiProrrateado}
-                onChange={(event) => setField("smiProrrateado", event.target.value)}
-                onBlur={() => formatField("smiProrrateado")}
+                label="Mínimo inembargable mensual"
+                value={formatEuro(liveReferences.minimoInembargable)}
+                onChange={() => {}}
+                readOnly
               />
             </OptionRow>
 
             <OptionRow
               checked={form.incluyePagaExtraCompleta}
-              onChange={(event) => setField("incluyePagaExtraCompleta", event.target.checked)}
+              onChange={(event) => toggleFullExtraPayment(event.target.checked)}
               label="Incluye paga extra completa"
             >
-              <AmountField
-                label="Importe paga extra"
-                value={form.importePagaExtra}
-                onChange={(event) => setField("importePagaExtra", event.target.value)}
-                onBlur={() => formatField("importePagaExtra")}
-              />
+              <div style={styles.optionFields}>
+                <AmountField
+                  label="Importe líquido paga extra"
+                  value={form.importePagaExtra}
+                  onChange={(event) => setField("importePagaExtra", event.target.value)}
+                  onBlur={() => formatField("importePagaExtra")}
+                />
+                <AmountField
+                  label="Mínimo inembargable del mes"
+                  value={formatEuro(liveReferences.minimoInembargable)}
+                  onChange={() => {}}
+                  readOnly
+                />
+              </div>
             </OptionRow>
 
             <OptionRow
@@ -231,7 +286,7 @@ export default function EmbargoCalculatorPage() {
                 <tr>
                   <th scope="row" style={styles.rowHeader}>S.M.I.</th>
                   {tramos.map((tramo) => <td key={`smi-${tramo.nombre}`} style={styles.cell}>{result ? formatEuro(tramo.smiReferencia) : "—"}</td>)}
-                  <td style={styles.totalCell}>{result ? formatEuro(tramos[0]?.smiReferencia) : "—"}</td>
+                  <td style={styles.totalCell}>{result ? formatEuro(result.smiAnual) : "—"}</td>
                 </tr>
                 <tr>
                   <th scope="row" style={styles.rowHeader}>%</th>
@@ -260,17 +315,22 @@ const styles = {
   wrapper: { display: "flex", flexDirection: "column", gap: "20px" },
   section: { border: "2px solid #111111", marginBottom: "18px", backgroundColor: "#ffffff" },
   sectionTitle: { margin: 0, padding: "9px 12px", backgroundColor: "#f5ef9c", borderBottom: "2px solid #111111", fontSize: "14px", fontWeight: 950, color: "#111111", textTransform: "uppercase", letterSpacing: "0.04em" },
-  fieldsGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: "14px 18px", padding: "18px" },
+  fieldsGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: "14px 18px", padding: "18px 18px 12px" },
   field: { display: "flex", flexDirection: "column", gap: "6px", minWidth: 0 },
   label: { fontSize: "12px", fontWeight: 900, color: "#111111", textTransform: "uppercase", letterSpacing: "0.03em" },
   input: { width: "100%", minHeight: "38px", border: "2px solid #111111", borderRadius: 0, backgroundColor: "#ffffff", color: "#111111", padding: "8px 10px", boxSizing: "border-box", fontSize: "14px", fontWeight: 700, fontFamily: "inherit" },
   readOnlyInput: { backgroundColor: "#f3f4f6", fontWeight: 900 },
   disabledInput: { backgroundColor: "#e5e7eb", color: "#6b7280", cursor: "not-allowed" },
+  referenceStrip: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "10px", padding: "0 18px 18px" },
+  referenceBox: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", border: "1px solid #111111", backgroundColor: "#fffef2", padding: "9px 10px" },
+  referenceLabel: { fontSize: "11px", fontWeight: 900, color: "#374151", textTransform: "uppercase" },
+  referenceValue: { fontSize: "13px", color: "#111111", whiteSpace: "nowrap" },
   optionsGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(270px, 1fr))", gap: "12px", padding: "18px" },
   optionRow: { border: "2px solid #111111", padding: "12px", minHeight: "76px", boxSizing: "border-box", backgroundColor: "#fffef2" },
   checkboxLabel: { display: "flex", alignItems: "center", gap: "9px", fontSize: "13px", fontWeight: 900, color: "#111111", cursor: "pointer" },
   checkbox: { width: "18px", height: "18px", accentColor: "#111111" },
   optionControl: { marginTop: "12px" },
+  optionFields: { display: "grid", gap: "10px" },
   error: { border: "2px solid #991b1b", backgroundColor: "#fee2e2", color: "#7f1d1d", padding: "10px 12px", fontSize: "13px", fontWeight: 800, marginBottom: "16px" },
   buttonRow: { display: "flex", justifyContent: "center", margin: "20px 0 24px" },
   calculateButton: { border: "3px solid #111111", borderRadius: 0, backgroundColor: "#f5ef9c", color: "#111111", boxShadow: "4px 4px 0 #111111", padding: "11px 28px", fontSize: "14px", fontWeight: 950, textTransform: "uppercase", letterSpacing: "0.04em", cursor: "pointer" },
