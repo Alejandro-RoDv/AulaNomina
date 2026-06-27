@@ -9,6 +9,13 @@ const STATUS_LABELS = {
   cancelled: "Cancelado",
 };
 
+function formatDate(value) {
+  if (!value) return "—";
+  const [year, month, day] = String(value).split("-");
+  if (!year || !month || !day) return value;
+  return `${day}/${month}/${year}`;
+}
+
 export default function WageGarnishmentHistory({
   records = [],
   loading = false,
@@ -29,20 +36,20 @@ export default function WageGarnishmentHistory({
     });
   }, [records, search, status]);
 
+  const activeRecords = visibleRecords.filter((record) => record.status === "active").length;
+  const monthlyTotal = visibleRecords
+    .filter((record) => record.status === "active")
+    .reduce((total, record) => total + Number(record.monthly_garnishable || 0), 0);
+
   return (
     <div style={styles.wrapper}>
-      <div style={styles.toolbar}>
+      <div style={styles.header}>
         <div>
-          <h3 style={styles.title}>Historial del trabajador</h3>
-          <p style={styles.subtitle}>Solo se muestran los embargos de la empresa y trabajador seleccionados.</p>
+          <h3 style={styles.title}>Expedientes del trabajador</h3>
+          <p style={styles.subtitle}>Consulta, edita o elimina los embargos asociados al contexto seleccionado.</p>
         </div>
         <div style={styles.filters}>
-          <input
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Buscar referencia, órgano o acreedor"
-            style={styles.searchInput}
-          />
+          <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar por referencia, órgano o acreedor" style={styles.searchInput} />
           <select value={status} onChange={(event) => setStatus(event.target.value)} style={styles.select}>
             <option value="">Todos los estados</option>
             {Object.entries(STATUS_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
@@ -50,9 +57,19 @@ export default function WageGarnishmentHistory({
         </div>
       </div>
 
-      <div style={styles.resultBar}>
-        <span>{visibleRecords.length} expediente{visibleRecords.length === 1 ? "" : "s"}</span>
-        <span>{visibleRecords.filter((record) => record.status === "active").length} activo{visibleRecords.filter((record) => record.status === "active").length === 1 ? "" : "s"}</span>
+      <div style={styles.metrics}>
+        <div style={styles.metricCard}>
+          <span>Expedientes visibles</span>
+          <strong>{visibleRecords.length}</strong>
+        </div>
+        <div style={styles.metricCard}>
+          <span>Embargos activos</span>
+          <strong>{activeRecords}</strong>
+        </div>
+        <div style={styles.metricCardAccent}>
+          <span>Retención mensual activa</span>
+          <strong>{formatEuro(monthlyTotal)}</strong>
+        </div>
       </div>
 
       <div style={styles.tableWrapper}>
@@ -61,7 +78,7 @@ export default function WageGarnishmentHistory({
             <tr>
               <th style={styles.th}>Referencia</th>
               <th style={styles.th}>Órgano emisor</th>
-              <th style={styles.th}>Inicio</th>
+              <th style={styles.th}>Fecha inicio</th>
               <th style={styles.th}>Estado</th>
               <th style={styles.th}>Embargo mensual</th>
               <th style={styles.th}>Deuda pendiente</th>
@@ -77,7 +94,7 @@ export default function WageGarnishmentHistory({
               <tr key={record.id}>
                 <td style={styles.referenceCell}>{record.reference}</td>
                 <td style={styles.td}>{record.issuing_body}</td>
-                <td style={styles.td}>{record.start_date}</td>
+                <td style={styles.dateCell}>{formatDate(record.start_date)}</td>
                 <td style={styles.td}><span style={statusStyle(record.status)}>{STATUS_LABELS[record.status] || record.status}</span></td>
                 <td style={styles.moneyCell}>{formatEuro(record.monthly_garnishable)}</td>
                 <td style={styles.moneyCell}>{record.remaining_debt === null ? "—" : formatEuro(record.remaining_debt)}</td>
@@ -107,33 +124,35 @@ function statusStyle(status) {
   return {
     display: "inline-block",
     minWidth: "78px",
-    border: "1px solid #111111",
+    borderRadius: "999px",
     backgroundColor,
-    padding: "5px 8px",
+    padding: "6px 9px",
     textAlign: "center",
     fontSize: "10px",
-    fontWeight: 900,
-    textTransform: "uppercase",
+    fontWeight: 850,
   };
 }
 
 const styles = {
-  wrapper: { border: "2px solid #111111", backgroundColor: "#ffffff" },
-  toolbar: { display: "flex", justifyContent: "space-between", alignItems: "end", gap: "18px", padding: "16px", borderBottom: "1px solid #111111", backgroundColor: "#fffef2" },
-  title: { margin: 0, fontSize: "14px", fontWeight: 950, textTransform: "uppercase" },
-  subtitle: { margin: "4px 0 0", color: "#4b5563", fontSize: "11px", fontWeight: 650 },
-  filters: { display: "grid", gridTemplateColumns: "minmax(250px, 1fr) 180px", gap: "10px", minWidth: "470px" },
-  searchInput: { minHeight: "38px", border: "2px solid #111111", borderRadius: 0, padding: "8px 10px", fontSize: "12px", fontWeight: 700 },
-  select: { minHeight: "38px", border: "2px solid #111111", borderRadius: 0, padding: "8px 10px", fontSize: "12px", fontWeight: 700, backgroundColor: "#ffffff" },
-  resultBar: { display: "flex", justifyContent: "space-between", gap: "12px", padding: "8px 12px", borderBottom: "2px solid #111111", backgroundColor: "#f3f4f6", fontSize: "10px", fontWeight: 900, textTransform: "uppercase" },
+  wrapper: { border: "1px solid #d4d4d8", borderRadius: "12px", backgroundColor: "#ffffff", boxShadow: "0 8px 20px rgba(15, 23, 42, 0.05)", overflow: "hidden" },
+  header: { display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "end", gap: "18px", padding: "18px 20px", borderBottom: "1px solid #e4e4e7", background: "linear-gradient(90deg, #fffdf0 0%, #ffffff 75%)" },
+  title: { margin: 0, color: "#111827", fontSize: "16px", fontWeight: 900 },
+  subtitle: { margin: "4px 0 0", color: "#64748b", fontSize: "11px", fontWeight: 600 },
+  filters: { display: "grid", gridTemplateColumns: "minmax(260px, 1fr) 180px", gap: "10px", flex: "1 1 480px", maxWidth: "620px" },
+  searchInput: { minHeight: "42px", border: "1px solid #a1a1aa", borderRadius: "8px", padding: "9px 11px", fontSize: "12px", fontWeight: 650 },
+  select: { minHeight: "42px", border: "1px solid #a1a1aa", borderRadius: "8px", padding: "9px 11px", fontSize: "12px", fontWeight: 650, backgroundColor: "#ffffff" },
+  metrics: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: "10px", padding: "14px 18px", borderBottom: "1px solid #e4e4e7", backgroundColor: "#f8fafc" },
+  metricCard: { display: "flex", flexDirection: "column", gap: "3px", border: "1px solid #e2e8f0", borderRadius: "9px", backgroundColor: "#ffffff", padding: "11px 12px", color: "#475569", fontSize: "10px", fontWeight: 750 },
+  metricCardAccent: { display: "flex", flexDirection: "column", gap: "3px", border: "1px solid #d8ca3f", borderRadius: "9px", backgroundColor: "#fffbea", padding: "11px 12px", color: "#475569", fontSize: "10px", fontWeight: 750 },
   tableWrapper: { overflowX: "auto" },
   table: { width: "100%", borderCollapse: "collapse", minWidth: "980px" },
-  th: { backgroundColor: "#f5ef9c", borderBottom: "2px solid #111111", borderRight: "1px solid #111111", padding: "10px", fontSize: "10px", textAlign: "left", textTransform: "uppercase" },
-  td: { borderBottom: "1px solid #111111", borderRight: "1px solid #111111", padding: "9px", fontSize: "11px", fontWeight: 650 },
-  referenceCell: { borderBottom: "1px solid #111111", borderRight: "1px solid #111111", padding: "9px", fontSize: "11px", fontWeight: 900 },
-  moneyCell: { borderBottom: "1px solid #111111", borderRight: "1px solid #111111", padding: "9px", fontSize: "11px", fontWeight: 900, textAlign: "right" },
-  actions: { borderBottom: "1px solid #111111", padding: "7px", display: "flex", gap: "6px", whiteSpace: "nowrap" },
-  actionButton: { border: "1px solid #111111", backgroundColor: "#ffffff", padding: "6px 8px", fontSize: "10px", fontWeight: 850, cursor: "pointer", textTransform: "uppercase" },
-  deleteButton: { border: "1px solid #991b1b", backgroundColor: "#fee2e2", color: "#7f1d1d", padding: "6px 8px", fontSize: "10px", fontWeight: 850, cursor: "pointer", textTransform: "uppercase" },
-  emptyCell: { padding: "36px", textAlign: "center", color: "#6b7280", fontSize: "12px", fontWeight: 750 },
+  th: { backgroundColor: "#111827", color: "#ffffff", borderRight: "1px solid #374151", padding: "11px 10px", fontSize: "10px", textAlign: "left", textTransform: "uppercase", letterSpacing: "0.03em" },
+  td: { borderBottom: "1px solid #e4e4e7", padding: "11px 10px", fontSize: "11px", fontWeight: 650, color: "#334155" },
+  referenceCell: { borderBottom: "1px solid #e4e4e7", padding: "11px 10px", fontSize: "11px", fontWeight: 900, color: "#111827" },
+  dateCell: { borderBottom: "1px solid #e4e4e7", padding: "11px 10px", fontSize: "11px", fontWeight: 700, color: "#334155", whiteSpace: "nowrap" },
+  moneyCell: { borderBottom: "1px solid #e4e4e7", padding: "11px 10px", fontSize: "11px", fontWeight: 850, color: "#111827", textAlign: "right" },
+  actions: { borderBottom: "1px solid #e4e4e7", padding: "8px 10px", display: "flex", gap: "6px", whiteSpace: "nowrap" },
+  actionButton: { border: "1px solid #94a3b8", borderRadius: "6px", backgroundColor: "#ffffff", color: "#334155", padding: "6px 8px", fontSize: "10px", fontWeight: 800, cursor: "pointer" },
+  deleteButton: { border: "1px solid #fca5a5", borderRadius: "6px", backgroundColor: "#fff1f2", color: "#991b1b", padding: "6px 8px", fontSize: "10px", fontWeight: 800, cursor: "pointer" },
+  emptyCell: { padding: "42px", textAlign: "center", color: "#64748b", fontSize: "12px", fontWeight: 700 },
 };
