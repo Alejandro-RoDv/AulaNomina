@@ -1,3 +1,4 @@
+import "../utils/headerContextBridge";
 import { apiRequest } from "./httpClient";
 
 const BASE_PATH = "/wage-garnishments";
