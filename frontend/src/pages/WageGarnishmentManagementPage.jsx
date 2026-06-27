@@ -63,7 +63,7 @@ function recordToCalculationForm(record) {
   return {
     smiAnual: amountToInput(record.smi_annual),
     liquido: amountToInput(record.monthly_net),
-    porcentajeReduccion: amountToInput(record.reduction_percentage || 0),
+    porcentajeReduccion: String(Number(record.reduction_percentage || 0)),
     pagasExtrasProrrateadas: Boolean(record.extra_pay_prorated),
     incluyePagaExtraCompleta: Boolean(record.includes_full_extra_pay),
     importePagaExtra: record.includes_full_extra_pay ? amountToInput(record.extra_pay_amount) : "",
@@ -92,9 +92,12 @@ export default function WageGarnishmentManagementPage({ companies = [], employee
   const loadRecords = async () => {
     try {
       setLoading(true);
-      setRecords(await fetchWageGarnishments());
+      const data = await fetchWageGarnishments();
+      setRecords(data);
+      return data;
     } catch (loadError) {
       setError(loadError.message || "No se han podido cargar los embargos");
+      return [];
     } finally {
       setLoading(false);
     }
@@ -156,6 +159,7 @@ export default function WageGarnishmentManagementPage({ companies = [], employee
   };
 
   const openRecord = (record, nextMode) => {
+    if (!record) return;
     setSelectedId(record.id);
     setMode(nextMode);
     setForm({
@@ -226,15 +230,12 @@ export default function WageGarnishmentManagementPage({ companies = [], employee
     try {
       const payload = buildPayload();
       setSubmitting(true);
-      if (selectedId) {
-        await updateWageGarnishment(selectedId, payload);
-        setMessage("Embargo actualizado correctamente.");
-      } else {
-        await createWageGarnishment(payload);
-        setMessage("Embargo grabado correctamente.");
-      }
+      const savedRecord = selectedId
+        ? await updateWageGarnishment(selectedId, payload)
+        : await createWageGarnishment(payload);
       await loadRecords();
-      setMode("view");
+      openRecord(savedRecord, "view");
+      setMessage(selectedId ? "Embargo actualizado correctamente." : "Embargo grabado correctamente.");
     } catch (saveError) {
       setError(saveError.message || "No se ha podido guardar el embargo");
     } finally {
@@ -264,7 +265,7 @@ export default function WageGarnishmentManagementPage({ companies = [], employee
       <PageCard title="Gestión de embargos judiciales" subtitle="Alta, consulta, modificación y seguimiento de embargos por trabajador.">
         <div style={styles.toolbar}>
           <button type="button" style={styles.primaryButton} onClick={resetWorkspace}>Nuevo embargo</button>
-          {mode === "view" && <button type="button" style={styles.secondaryButton} onClick={() => setMode("edit")}>Editar registro</button>}
+          {mode === "view" && selectedId && <button type="button" style={styles.secondaryButton} onClick={() => setMode("edit")}>Editar registro</button>}
           <span style={styles.modeBadge}>{mode === "new" ? "ALTA" : mode === "edit" ? "EDICIÓN" : "CONSULTA"}</span>
         </div>
 
