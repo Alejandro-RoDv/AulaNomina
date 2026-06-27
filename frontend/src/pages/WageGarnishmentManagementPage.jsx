@@ -104,7 +104,22 @@ export default function WageGarnishmentManagementPage({ companies = [], employee
   };
 
   useEffect(() => {
-    loadRecords();
+    let active = true;
+
+    fetchWageGarnishments()
+      .then((data) => {
+        if (active) setRecords(data);
+      })
+      .catch((loadError) => {
+        if (active) setError(loadError.message || "No se han podido cargar los embargos");
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
   }, []);
 
   const availableEmployees = useMemo(
