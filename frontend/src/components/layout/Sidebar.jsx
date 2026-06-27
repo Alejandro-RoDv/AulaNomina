@@ -59,7 +59,8 @@ const groups = [
         label: "Incidencias",
         enabled: true,
         children: [
-          { id: "incidents", label: "Incidencias laborales", enabled: true },
+          { id: "incidents", label: "Incidencias laborales", enabled: true, modeGroup: "incidents", modeValue: "list" },
+          { id: "incidents", label: "Embargos judiciales", enabled: true, modeGroup: "incidents", modeValue: "embargo" },
           { id: "affiliations", label: "Altas y bajas", enabled: false },
           { id: "variations", label: "Variaciones", enabled: false },
           { id: "communications", label: "Comunicados", enabled: false },
@@ -116,11 +117,13 @@ const groups = [
 const modeStorageKeys = {
   contracts: "aulanomina:contractsMode",
   companies: "aulanomina:companiesMode",
+  incidents: "aulanomina:incidentsMode",
 };
 
 const modeEvents = {
   contracts: "aulanomina-contract-mode",
   companies: "aulanomina-route-change",
+  incidents: "aulanomina-incidents-mode",
 };
 
 function getItemKey(item) {
@@ -137,6 +140,10 @@ function getInitialActiveKey(activePage) {
   if (activePage === "companies") {
     const mode = window.sessionStorage.getItem(modeStorageKeys.companies) || getCompanyModeFromHash();
     return `companies:companies:${mode}`;
+  }
+  if (activePage === "incidents") {
+    const mode = window.sessionStorage.getItem(modeStorageKeys.incidents) || "list";
+    return `incidents:incidents:${mode}`;
   }
   return activePage;
 }
