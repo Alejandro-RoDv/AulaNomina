@@ -9,6 +9,7 @@ import {
 } from "../../services/wageGarnishmentApi";
 import { formatEuro } from "../../utils/embargoCalculator";
 
+const EMPTY_PAYROLLS = [];
 const MONTHS = [
   [1, "Enero"], [2, "Febrero"], [3, "Marzo"], [4, "Abril"], [5, "Mayo"], [6, "Junio"],
   [7, "Julio"], [8, "Agosto"], [9, "Septiembre"], [10, "Octubre"], [11, "Noviembre"], [12, "Diciembre"],
@@ -24,7 +25,7 @@ function parseAmount(value) {
   return Number(String(value || "0").replace(/\./g, "").replace(",", "."));
 }
 
-export default function WageGarnishmentMovementsPanel({ garnishment, payrolls = [], onChanged }) {
+export default function WageGarnishmentMovementsPanel({ garnishment, payrolls = EMPTY_PAYROLLS, onChanged }) {
   const today = new Date();
   const [movements, setMovements] = useState([]);
   const [availablePayrolls, setAvailablePayrolls] = useState(payrolls);
@@ -61,18 +62,24 @@ export default function WageGarnishmentMovementsPanel({ garnishment, payrolls = 
 
   useEffect(() => {
     let active = true;
-    loadMovements();
-    if (payrolls.length === 0) {
-      fetchPayrolls()
-        .then((data) => {
-          if (active) setAvailablePayrolls(data);
-        })
-        .catch(() => {
-          if (active) setAvailablePayrolls([]);
-        });
-    } else {
-      setAvailablePayrolls(payrolls);
-    }
+    const payrollRequest = payrolls.length > 0 ? Promise.resolve(payrolls) : fetchPayrolls();
+
+    Promise.all([
+      fetchWageGarnishmentMovements(garnishment.id),
+      payrollRequest,
+    ])
+      .then(([movementData, payrollData]) => {
+        if (!active) return;
+        setMovements(movementData);
+        setAvailablePayrolls(payrollData);
+      })
+      .catch((loadError) => {
+        if (active) setError(loadError.message || "No se han podido cargar los movimientos");
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+
     return () => {
       active = false;
     };
