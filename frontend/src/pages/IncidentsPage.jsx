@@ -9,10 +9,24 @@ import WageGarnishmentManagementPage from "./WageGarnishmentManagementPage";
 
 const INCIDENTS_MODE_KEY = "aulanomina:incidentsMode";
 const INCIDENTS_MODE_EVENT = "aulanomina-incidents-mode";
+const HEADER_EVENT = "aulanomina-header-context";
 
 function getInitialMode() {
   if (typeof window === "undefined") return "list";
   return window.sessionStorage.getItem(INCIDENTS_MODE_KEY) || "list";
+}
+
+function publishHeader(mode) {
+  const detail = mode === "embargo"
+    ? {
+        title: "Embargos judiciales",
+        subtitle: "Gestión, cálculo y seguimiento de retenciones judiciales",
+      }
+    : {
+        title: "Incidencias laborales",
+        subtitle: "Gestión de IT, recaídas, vacaciones, ausencias y permisos",
+      };
+  window.dispatchEvent(new CustomEvent(HEADER_EVENT, { detail }));
 }
 
 function normalizeText(value) {
@@ -35,6 +49,7 @@ export default function IncidentsPage({
   contracts,
   companies,
   workCenters,
+  payrolls = [],
   incidentForm,
   onIncidentChange,
   onIncidentSubmit,
@@ -55,9 +70,17 @@ export default function IncidentsPage({
   });
 
   useEffect(() => {
-    const handleModeChange = () => setActiveMode(getInitialMode());
+    const handleModeChange = () => {
+      const mode = getInitialMode();
+      setActiveMode(mode);
+      publishHeader(mode);
+    };
+    handleModeChange();
     window.addEventListener(INCIDENTS_MODE_EVENT, handleModeChange);
-    return () => window.removeEventListener(INCIDENTS_MODE_EVENT, handleModeChange);
+    return () => {
+      window.removeEventListener(INCIDENTS_MODE_EVENT, handleModeChange);
+      window.dispatchEvent(new CustomEvent(HEADER_EVENT, { detail: null }));
+    };
   }, []);
 
   const incidentsWithEmployeeData = useMemo(() => {
@@ -68,7 +91,6 @@ export default function IncidentsPage({
 
     return incidents.map((incident) => {
       const linkedEmployee = employeeMap[String(incident.employee_id)];
-
       return {
         ...incident,
         employee_code: linkedEmployee
@@ -84,14 +106,7 @@ export default function IncidentsPage({
   };
 
   const clearFilters = () => {
-    setFilters({
-      employee: "",
-      company: "",
-      incidentType: "",
-      status: "",
-      dateFrom: "",
-      dateTo: "",
-    });
+    setFilters({ employee: "", company: "", incidentType: "", status: "", dateFrom: "", dateTo: "" });
   };
 
   const openIncidentsMonthReport = () => {
@@ -116,24 +131,28 @@ export default function IncidentsPage({
       const center = workCenters.find((item) => Number(item.id) === Number(incident.center_id));
       const employeeText = normalizeText(`${incident.employee_code || ""} ${incident.employee_name || ""} ${incident.employee_id || ""}`);
       const companyText = normalizeText(`${incident.company_name || ""} ${center?.name || ""} ${incident.company_id || ""} ${incident.center_id || ""}`);
-      const typeText = normalizeText(incident.incident_type);
-      const statusText = normalizeText(incident.status);
       const incidentStartDate = dateToNumber(incident.start_date);
       const incidentEndDate = dateToNumber(incident.end_date) || incidentStartDate;
-
-      const matchesEmployee = !employeeFilter || employeeText.includes(employeeFilter);
-      const matchesCompany = !companyFilter || companyText.includes(companyFilter);
-      const matchesType = !typeFilter || typeText === typeFilter;
-      const matchesStatus = !statusFilter || statusText === statusFilter;
-      const matchesFromDate = !fromDate || (incidentEndDate && incidentEndDate >= fromDate);
-      const matchesToDate = !toDate || (incidentStartDate && incidentStartDate <= toDate);
-
-      return matchesEmployee && matchesCompany && matchesType && matchesStatus && matchesFromDate && matchesToDate;
+      return (
+        (!employeeFilter || employeeText.includes(employeeFilter))
+        && (!companyFilter || companyText.includes(companyFilter))
+        && (!typeFilter || normalizeText(incident.incident_type) === typeFilter)
+        && (!statusFilter || normalizeText(incident.status) === statusFilter)
+        && (!fromDate || (incidentEndDate && incidentEndDate >= fromDate))
+        && (!toDate || (incidentStartDate && incidentStartDate <= toDate))
+      );
     });
   }, [incidentsWithEmployeeData, filters, workCenters]);
 
   if (activeMode === "embargo") {
-    return <WageGarnishmentManagementPage companies={companies} employees={employees} contracts={contracts} />;
+    return (
+      <WageGarnishmentManagementPage
+        companies={companies}
+        employees={employees}
+        contracts={contracts}
+        payrolls={payrolls}
+      />
+    );
   }
 
   return (
@@ -160,84 +179,16 @@ export default function IncidentsPage({
         </div>
 
         <div style={styles.filters}>
-          <div style={styles.filterGroupWide}>
-            <label style={styles.label}>Trabajador</label>
-            <input
-              name="employee"
-              value={filters.employee}
-              onChange={handleFilterChange}
-              placeholder="Nombre, código o ID"
-              style={styles.input}
-            />
-          </div>
-
-          <div style={styles.filterGroupWide}>
-            <label style={styles.label}>Empresa / centro</label>
-            <input
-              name="company"
-              value={filters.company}
-              onChange={handleFilterChange}
-              placeholder="Empresa, centro o ID"
-              style={styles.input}
-            />
-          </div>
-
-          <div style={styles.filterGroupType}>
-            <label style={styles.label}>Tipo</label>
-            <select
-              name="incidentType"
-              value={filters.incidentType}
-              onChange={handleFilterChange}
-              style={styles.input}
-            >
-              <option value="">Todos</option>
-              {INCIDENT_TYPES.map((type) => (
-                <option key={type.value} value={type.value}>{type.label}</option>
-              ))}
-            </select>
-          </div>
-
-          <div style={styles.filterGroupSmall}>
-            <label style={styles.label}>Estado</label>
-            <select name="status" value={filters.status} onChange={handleFilterChange} style={styles.input}>
-              <option value="">Todos</option>
-              {STATUS_OPTIONS.map((status) => (
-                <option key={status.value} value={status.value}>{status.label}</option>
-              ))}
-            </select>
-          </div>
-
-          <div style={styles.filterGroupDate}>
-            <label style={styles.label}>Desde</label>
-            <input
-              type="date"
-              name="dateFrom"
-              value={filters.dateFrom}
-              onChange={handleFilterChange}
-              style={styles.input}
-            />
-          </div>
-
-          <div style={styles.filterGroupDate}>
-            <label style={styles.label}>Hasta</label>
-            <input
-              type="date"
-              name="dateTo"
-              value={filters.dateTo}
-              onChange={handleFilterChange}
-              style={styles.input}
-            />
-          </div>
-
-          <button type="button" onClick={clearFilters} style={styles.clearButton}>
-            Limpiar
-          </button>
+          <div style={styles.filterGroupWide}><label style={styles.label}>Trabajador</label><input name="employee" value={filters.employee} onChange={handleFilterChange} placeholder="Nombre, código o ID" style={styles.input} /></div>
+          <div style={styles.filterGroupWide}><label style={styles.label}>Empresa / centro</label><input name="company" value={filters.company} onChange={handleFilterChange} placeholder="Empresa, centro o ID" style={styles.input} /></div>
+          <div style={styles.filterGroupType}><label style={styles.label}>Tipo</label><select name="incidentType" value={filters.incidentType} onChange={handleFilterChange} style={styles.input}><option value="">Todos</option>{INCIDENT_TYPES.map((type) => <option key={type.value} value={type.value}>{type.label}</option>)}</select></div>
+          <div style={styles.filterGroupSmall}><label style={styles.label}>Estado</label><select name="status" value={filters.status} onChange={handleFilterChange} style={styles.input}><option value="">Todos</option>{STATUS_OPTIONS.map((status) => <option key={status.value} value={status.value}>{status.label}</option>)}</select></div>
+          <div style={styles.filterGroupDate}><label style={styles.label}>Desde</label><input type="date" name="dateFrom" value={filters.dateFrom} onChange={handleFilterChange} style={styles.input} /></div>
+          <div style={styles.filterGroupDate}><label style={styles.label}>Hasta</label><input type="date" name="dateTo" value={filters.dateTo} onChange={handleFilterChange} style={styles.input} /></div>
+          <button type="button" onClick={clearFilters} style={styles.clearButton}>Limpiar</button>
         </div>
 
-        <div style={styles.resultInfo}>
-          Mostrando {filteredIncidents.length} de {incidentsWithEmployeeData.length} incidencias
-        </div>
-
+        <div style={styles.resultInfo}>Mostrando {filteredIncidents.length} de {incidentsWithEmployeeData.length} incidencias</div>
         <IncidentTable
           loading={loading}
           incidents={filteredIncidents}
@@ -253,78 +204,17 @@ export default function IncidentsPage({
 }
 
 const styles = {
-  wrapper: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "20px",
-  },
+  wrapper: { display: "flex", flexDirection: "column", gap: "20px" },
   reportActions: { display: "flex", gap: "10px", justifyContent: "flex-end", marginBottom: "14px" },
   reportButton: { backgroundColor: "#111827", color: "#fff", border: "1px solid #111827", borderRadius: "7px", padding: "9px 12px", cursor: "pointer", fontWeight: 900 },
   reportButtonSecondary: { backgroundColor: "#fff", color: "#111827", border: "1px solid #d1d5db", borderRadius: "7px", padding: "9px 12px", cursor: "pointer", fontWeight: 900 },
-  filters: {
-    display: "grid",
-    gridTemplateColumns: "minmax(170px, 1.1fr) minmax(170px, 1.1fr) minmax(150px, 0.8fr) 118px 132px 132px 86px",
-    columnGap: "10px",
-    rowGap: "10px",
-    alignItems: "end",
-    marginBottom: "10px",
-    width: "100%",
-  },
-  filterGroupWide: {
-    minWidth: 0,
-    display: "flex",
-    flexDirection: "column",
-    gap: "5px",
-  },
-  filterGroupType: {
-    minWidth: 0,
-    display: "flex",
-    flexDirection: "column",
-    gap: "5px",
-  },
-  filterGroupSmall: {
-    minWidth: 0,
-    display: "flex",
-    flexDirection: "column",
-    gap: "5px",
-  },
-  filterGroupDate: {
-    minWidth: 0,
-    display: "flex",
-    flexDirection: "column",
-    gap: "5px",
-  },
-  label: {
-    fontSize: "13px",
-    fontWeight: 700,
-    color: "#374151",
-  },
-  input: {
-    width: "100%",
-    height: "36px",
-    boxSizing: "border-box",
-    padding: "7px 9px",
-    border: "1px solid #ccc",
-    borderRadius: "7px",
-    fontSize: "13px",
-  },
-  clearButton: {
-    width: "86px",
-    height: "36px",
-    backgroundColor: "#f3f4f6",
-    color: "#111827",
-    border: "1px solid #d1d5db",
-    borderRadius: "7px",
-    padding: "7px 8px",
-    cursor: "pointer",
-    fontWeight: 800,
-    fontSize: "12px",
-    whiteSpace: "nowrap",
-  },
-  resultInfo: {
-    marginBottom: "16px",
-    color: "#6b7280",
-    fontSize: "13px",
-    fontWeight: 700,
-  },
+  filters: { display: "grid", gridTemplateColumns: "minmax(170px, 1.1fr) minmax(170px, 1.1fr) minmax(150px, 0.8fr) 118px 132px 132px 86px", columnGap: "10px", rowGap: "10px", alignItems: "end", marginBottom: "10px", width: "100%" },
+  filterGroupWide: { minWidth: 0, display: "flex", flexDirection: "column", gap: "5px" },
+  filterGroupType: { minWidth: 0, display: "flex", flexDirection: "column", gap: "5px" },
+  filterGroupSmall: { minWidth: 0, display: "flex", flexDirection: "column", gap: "5px" },
+  filterGroupDate: { minWidth: 0, display: "flex", flexDirection: "column", gap: "5px" },
+  label: { fontSize: "13px", fontWeight: 700, color: "#374151" },
+  input: { width: "100%", height: "36px", boxSizing: "border-box", padding: "7px 9px", border: "1px solid #ccc", borderRadius: "7px", fontSize: "13px" },
+  clearButton: { width: "86px", height: "36px", backgroundColor: "#f3f4f6", color: "#111827", border: "1px solid #d1d5db", borderRadius: "7px", padding: "7px 8px", cursor: "pointer", fontWeight: 800, fontSize: "12px", whiteSpace: "nowrap" },
+  resultInfo: { marginBottom: "16px", color: "#6b7280", fontSize: "13px", fontWeight: 700 },
 };

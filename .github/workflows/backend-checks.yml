@@ -29,16 +29,24 @@ jobs:
         run: pip install -r requirements.txt pytest
       - name: Compile backend
         run: python -m compileall app
+      - name: Apply wage garnishment schema patch
+        id: schema
+        continue-on-error: true
+        run: python -c "from app.wage_garnishment_schema_patch import apply_wage_garnishment_schema_patch; apply_wage_garnishment_schema_patch()" > backend-test-output.txt 2>&1
       - name: Wage garnishment tests
         id: tests
         continue-on-error: true
-        run: python -m pytest -q --tb=short tests/test_wage_garnishment.py > backend-test-output.txt 2>&1
+        run: python -m pytest -q --tb=short tests/test_wage_garnishment.py tests/test_wage_garnishment_calculator.py >> backend-test-output.txt 2>&1
+      - name: Import application
+        id: import_app
+        continue-on-error: true
+        run: python -c "from app.main import app; print(app.title)" >> backend-test-output.txt 2>&1
       - name: Upload backend test output
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: backend-test-output
           path: backend/backend-test-output.txt
-      - name: Fail when backend tests fail
-        if: steps.tests.outcome == 'failure'
+      - name: Fail when backend checks fail
+        if: steps.schema.outcome == 'failure' || steps.tests.outcome == 'failure' || steps.import_app.outcome == 'failure'
         run: exit 1
