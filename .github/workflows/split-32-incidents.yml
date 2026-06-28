@@ -1,0 +1,40 @@
+name: Split 32 incidents
+
+on:
+  pull_request:
+    paths:
+      - "backend/app/**incident**"
+      - "backend/tests/test_incident_lifecycle.py"
+      - "frontend/src/**incident**"
+      - "frontend/package.json"
+      - ".github/workflows/split-32-incidents.yml"
+  workflow_dispatch:
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      - run: python -m unittest tests.test_incident_lifecycle
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm install
+      - run: npm run test:incidencias
+      - run: npm run build
+      - run: npm run lint
