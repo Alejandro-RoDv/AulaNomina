@@ -1,0 +1,55 @@
+name: Split 34 advanced incidents
+
+on:
+  pull_request:
+    paths:
+      - "backend/**"
+      - "frontend/**"
+      - ".github/workflows/split-34-advanced-incidents.yml"
+  workflow_dispatch:
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      DATABASE_URL: sqlite:///./split34_test.db
+      PYTHONPATH: .
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt pytest
+      - run: python -m compileall app
+      - run: python -c "from app.main import app; print(app.title)"
+      - name: Regulatory base scenarios
+        run: python -m pytest -q --tb=short tests/test_incident_regulatory_base_advanced.py
+      - name: Vacation balance scenarios
+        id: vacation_tests
+        continue-on-error: true
+        run: python -m pytest -q --tb=short tests/test_vacation_balance_advanced.py > vacation-test-output.txt 2>&1
+      - name: Upload vacation diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vacation-test-output
+          path: backend/vacation-test-output.txt
+      - name: Fail when vacation tests fail
+        if: steps.vacation_tests.outcome == 'failure'
+        run: exit 1
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm ci
+      - run: npm run build

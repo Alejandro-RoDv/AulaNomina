@@ -2,6 +2,7 @@ import { lazy, Suspense, useState } from "react";
 
 const AgreementCriteriaPanel = lazy(() => import("./AgreementCriteriaPanel"));
 const AgreementSeniorityPanel = lazy(() => import("./AgreementSeniorityPanel"));
+const IncidentRuleManager = lazy(() => import("./IncidentRuleManager"));
 
 const SECTIONS = [
   {
@@ -9,6 +10,12 @@ const SECTIONS = [
     label: "Criterios generales",
     title: "Criterios laborales",
     description: "SMI e IPREM, pagas, atrasos, contratación, período de prueba y complementos de IT.",
+  },
+  {
+    id: "incident-rules",
+    label: "Reglas de incidencias",
+    title: "Motor de incidencias",
+    description: "Reglas por convenio, vigencias, prioridades, bandas de IT y tratamiento de cotización.",
   },
   {
     id: "seniority",
@@ -73,6 +80,10 @@ export default function AgreementCriteriaWorkspace({
               categories={agreement.professional_categories || []}
               onOpenTab={handleCriteriaNavigation}
             />
+          )}
+
+          {activeSection === "incident-rules" && (
+            <IncidentRuleManager agreement={agreement} />
           )}
 
           {activeSection === "seniority" && (
