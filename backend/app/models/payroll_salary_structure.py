@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import Boolean, Column, Date, DateTime, ForeignKey, Integer, Numeric, String, Text
+from sqlalchemy import Boolean, Column, Date, DateTime, ForeignKey, Integer, JSON, Numeric, String, Text
 from sqlalchemy.orm import relationship
 
 from app.db import Base
@@ -89,10 +89,18 @@ class PayrollItem(Base):
     amount = Column(Numeric(10, 2), default=0, nullable=False)
     display_order = Column(Integer, default=0, nullable=False)
     notes = Column(Text, nullable=True)
+    source_type = Column(String, default="manual", nullable=False, index=True)
+    source_id = Column(Integer, nullable=True, index=True)
+    source_key = Column(String, unique=True, nullable=True, index=True)
+    segment_id = Column(Integer, ForeignKey("payroll_segments.id"), nullable=True, index=True)
+    is_automatic = Column(Boolean, default=False, nullable=False)
+    calculation_trace = Column(JSON, default=dict, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     payroll = relationship("Payroll", back_populates="items")
     concept = relationship("PayrollConcept", back_populates="payroll_items")
+    segment = relationship("PayrollSegment", back_populates="payroll_items")
 
     @property
     def concept_name(self):
