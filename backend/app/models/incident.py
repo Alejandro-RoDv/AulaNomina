@@ -100,6 +100,10 @@ class Incident(Base):
         return self.detail.processed_payroll_id if self.detail else None
 
     @property
+    def processed_payroll(self):
+        return self.detail.processed_payroll if self.detail else None
+
+    @property
     def generated_amount(self):
         return self.detail.generated_amount if self.detail else None
 
