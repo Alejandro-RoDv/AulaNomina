@@ -9,6 +9,10 @@ const EMPTY = { search: "", employeeId: "", companyId: "", centerId: "", agreeme
 export default function IncidentHistoryPanel({ loading, incidents, employees, companies, workCenters, contracts, onUpdateIncident, incidentSubmitting }) {
   const [filters, setFilters] = useState(EMPTY);
   const filtered = useMemo(() => filterIncidentHistory(incidents, filters), [incidents, filters]);
+  const tableRows = useMemo(() => filtered.map((item) => ({
+    ...item,
+    company_name: [item.company_name, item.center_name, item.agreement_name].filter(Boolean).join(" · "),
+  })), [filtered]);
   const agreements = useMemo(() => {
     const map = new Map();
     incidents.forEach((item) => { if (item.agreement_key) map.set(String(item.agreement_key), item.agreement_name || item.agreement_key); });
@@ -30,6 +34,6 @@ export default function IncidentHistoryPanel({ loading, incidents, employees, co
       <label>Hasta<input type="date" name="dateTo" value={filters.dateTo} onChange={change} /></label>
     </div>
     <div className="incident-history-result">Mostrando <strong>{filtered.length}</strong> de {incidents.length} incidencias</div>
-    <IncidentTable loading={loading} incidents={filtered} contracts={contracts} employees={employees} onUpdateIncident={onUpdateIncident} submitting={incidentSubmitting} />
+    <IncidentTable loading={loading} incidents={tableRows} contracts={contracts} employees={employees} onUpdateIncident={onUpdateIncident} submitting={incidentSubmitting} />
   </section>;
 }
