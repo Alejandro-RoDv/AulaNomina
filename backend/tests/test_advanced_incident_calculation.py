@@ -23,22 +23,15 @@ from app.services.incident_segmenter import build_incident_segments
 class AdvancedIncidentCalculationTest(unittest.TestCase):
     def setUp(self):
         self.engine = create_engine("sqlite+pysqlite:///:memory:")
-        self.Session = sessionmaker(bind=self.engine, autoflush=False)
+        self.db = sessionmaker(bind=self.engine, autoflush=False)()
         Base.metadata.create_all(self.engine)
-        self.db = self.Session()
-
         self.company = Company(name="Empresa avanzada", cif="B35000001", is_active=True)
         self.db.add(self.company)
         self.db.flush()
         self.employee = Employee(
-            employee_code="ADV-001",
-            company_id=self.company.id,
-            dni="35000001C",
-            first_name="Marta",
-            last_name="Avanzada",
-            birth_date=date(1990, 1, 1),
-            is_active=True,
-            status="active",
+            employee_code="ADV-001", company_id=self.company.id, dni="35000001C",
+            first_name="Marta", last_name="Avanzada", birth_date=date(1990, 1, 1),
+            is_active=True, status="active",
         )
         self.db.add(self.employee)
         self.db.flush()
@@ -46,18 +39,11 @@ class AdvancedIncidentCalculationTest(unittest.TestCase):
         self.db.add(self.agreement)
         self.db.flush()
         self.contract = Contract(
-            employee_id=self.employee.id,
-            company_id=self.company.id,
-            collective_agreement_id=self.agreement.id,
-            contract_type="200",
-            start_date=date(2026, 1, 1),
-            end_date=date(2026, 12, 31),
-            status="active",
-            salary_base=Decimal("1500.00"),
-            partiality_coefficient=50,
-            monthly_hours=75,
-            working_day_type="tiempo parcial",
-            monthly_or_daily_contribution="monthly",
+            employee_id=self.employee.id, company_id=self.company.id,
+            collective_agreement_id=self.agreement.id, contract_type="200",
+            start_date=date(2026, 1, 1), end_date=date(2026, 12, 31), status="active",
+            salary_base=Decimal("1500"), partiality_coefficient=50, monthly_hours=75,
+            working_day_type="tiempo parcial", monthly_or_daily_contribution="monthly",
         )
         self.db.add(self.contract)
         self.db.commit()
@@ -67,56 +53,39 @@ class AdvancedIncidentCalculationTest(unittest.TestCase):
         Base.metadata.drop_all(self.engine)
         self.engine.dispose()
 
-    def add_payroll(self, month, common, professional, days=30):
-        payroll = Payroll(
-            employee_id=self.employee.id,
-            contract_id=self.contract.id,
-            company_id=self.company.id,
-            period_month=month,
-            period_year=2026,
+    def payroll(self, month, common, professional, days=30, status="closed"):
+        row = Payroll(
+            employee_id=self.employee.id, contract_id=self.contract.id,
+            company_id=self.company.id, period_month=month, period_year=2026,
             common_contingencies_base=Decimal(common),
             professional_contingencies_base=Decimal(professional),
-            contribution_days=days,
-            status="closed",
+            contribution_days=days, status=status,
         )
-        self.db.add(payroll)
+        self.db.add(row)
         self.db.commit()
-        return payroll
+        return row
 
-    def add_incident(self, start, end, process_type="common_disease"):
-        incident = Incident(
-            employee_id=self.employee.id,
-            contract_id=self.contract.id,
-            company_id=self.company.id,
-            incident_type="IT",
-            start_date=start,
-            end_date=end,
-            status="open",
+    def incident(self, start, end, process_type="common_disease"):
+        row = Incident(
+            employee_id=self.employee.id, contract_id=self.contract.id,
+            company_id=self.company.id, incident_type="IT",
+            start_date=start, end_date=end, status="open",
         )
-        self.db.add(incident)
+        self.db.add(row)
         self.db.flush()
-        incident.detail = IncidentDetail(
-            incident_id=incident.id,
-            details={"process_type": process_type},
-        )
+        row.detail = IncidentDetail(incident_id=row.id, details={"process_type": process_type})
         self.db.commit()
-        self.db.refresh(incident)
-        return incident
+        self.db.refresh(row)
+        return row
 
     def test_part_time_base_uses_three_month_average(self):
-        self.add_payroll(3, "1200", "1250", 30)
-        self.add_payroll(4, "1350", "1400", 30)
-        self.add_payroll(5, "1450", "1500", 30)
-        incident = self.add_incident(date(2026, 6, 1), date(2026, 6, 10))
-
+        self.payroll(3, "1200", "1250")
+        self.payroll(4, "1350", "1400")
+        self.payroll(5, "1450", "1500")
+        incident = self.incident(date(2026, 6, 1), date(2026, 6, 10))
         daily, source, warnings, trace = advanced_regulatory_daily_base(
-            self.db,
-            self.contract,
-            incident,
-            {"regulatory_base": "common"},
-            Decimal("25"),
+            self.db, self.contract, incident, {"regulatory_base": "common"}, Decimal("25")
         )
-
         self.assertEqual(source, "part_time_three_month_average")
         self.assertEqual(daily, Decimal("44.4444"))
         self.assertEqual(warnings, [])
@@ -126,45 +95,24 @@ class AdvancedIncidentCalculationTest(unittest.TestCase):
         self.contract.partiality_coefficient = 100
         self.contract.working_day_type = "completa"
         concept = PayrollConcept(
-            name="Horas extraordinarias",
-            code="INC_OVERTIME",
-            category="HORAS_EXTRA",
-            concept_type="DEVENGO",
-            salary_nature="SALARIAL",
-            source_type="SYSTEM",
-            calculation_type="INCIDENT_ENGINE",
-            default_amount=0,
-            default_unit_price=0,
-            applies_workday_percentage=False,
-            is_system=True,
-            is_taxable=True,
-            is_contribution_base=False,
-            is_active=True,
+            name="Horas extraordinarias", code="INC_OVERTIME", category="HORAS_EXTRA",
+            concept_type="DEVENGO", salary_nature="SALARIAL", source_type="SYSTEM",
+            calculation_type="INCIDENT_ENGINE", default_amount=0, default_unit_price=0,
+            applies_workday_percentage=False, is_system=True, is_taxable=True,
+            is_contribution_base=False, is_active=True,
         )
         self.db.add(concept)
         self.db.flush()
-        previous = self.add_payroll(5, "3000", "3300", 30)
-        self.db.add(
-            PayrollItem(
-                payroll_id=previous.id,
-                concept_id=concept.id,
-                description="Horas extra mayo",
-                quantity=10,
-                unit_price=30,
-                amount=300,
-            )
-        )
+        previous = self.payroll(5, "3000", "3300")
+        self.db.add(PayrollItem(
+            payroll_id=previous.id, concept_id=concept.id, description="Horas extra mayo",
+            quantity=10, unit_price=30, amount=300,
+        ))
         self.db.commit()
-        incident = self.add_incident(date(2026, 6, 1), date(2026, 6, 5), "work_accident")
-
+        incident = self.incident(date(2026, 6, 1), date(2026, 6, 5), "work_accident")
         daily, source, warnings, trace = advanced_regulatory_daily_base(
-            self.db,
-            self.contract,
-            incident,
-            {"regulatory_base": "professional"},
-            Decimal("100"),
+            self.db, self.contract, incident, {"regulatory_base": "professional"}, Decimal("100")
         )
-
         self.assertEqual(source, "professional_previous_month_plus_annual_overtime")
         self.assertEqual(daily, Decimal("100.8219"))
         self.assertEqual(warnings, [])
@@ -174,65 +122,27 @@ class AdvancedIncidentCalculationTest(unittest.TestCase):
         self.contract.partiality_coefficient = 100
         self.contract.salary_base = Decimal("3000")
         header = AgreementRuleHeader(
-            collective_agreement_id=self.agreement.id,
-            rule_type="it_complement",
-            code="IT-100",
-            name="Complemento IT al 100 por cien",
-            scope="global",
-            effective_from=date(2026, 1, 1),
-            is_default=True,
-            is_active=True,
+            collective_agreement_id=self.agreement.id, rule_type="it_complement",
+            code="IT-100", name="Complemento IT al 100 por cien", scope="global",
+            effective_from=date(2026, 1, 1), is_default=True, is_active=True,
             options={"process_types": ["common_disease"]},
         )
         self.db.add(header)
         self.db.flush()
-        self.db.add(
-            AgreementRuleDetail(
-                rule_header_id=header.id,
-                detail_type="band",
-                code="IT-4-20",
-                name="Días 4 a 20",
-                display_order=1,
-                minimum_value=4,
-                maximum_value=20,
-                percentage=Decimal("100"),
-                options={},
-                is_active=True,
-            )
-        )
-        payroll = Payroll(
-            employee_id=self.employee.id,
-            contract_id=self.contract.id,
-            company_id=self.company.id,
-            period_month=6,
-            period_year=2026,
-            base_salary=Decimal("3000"),
-            status="draft",
-        )
-        self.db.add(payroll)
-        self.db.commit()
-        incident = self.add_incident(date(2026, 6, 1), date(2026, 6, 10))
-
+        self.db.add(AgreementRuleDetail(
+            rule_header_id=header.id, detail_type="band", code="IT-4-20",
+            name="Días 4 a 20", display_order=1, minimum_value=4,
+            maximum_value=20, percentage=Decimal("100"), options={}, is_active=True,
+        ))
+        payroll = self.payroll(6, "3000", "3000", status="draft")
+        incident = self.incident(date(2026, 6, 1), date(2026, 6, 10))
         result = build_incident_segments(
-            self.db,
-            payroll.id,
-            self.contract,
-            6,
-            2026,
-            [incident],
+            self.db, payroll.id, self.contract, 6, 2026, [incident]
         )
-        complemented = next(
-            segment
-            for segment in result["segments"]
-            if segment["segment_type"] == "it_common_60_company"
-        )
-
-        self.assertEqual(complemented["complement_percentage"], Decimal("0.4"))
-        self.assertEqual(complemented["complement_amount"], Decimal("480.00"))
-        self.assertEqual(
-            complemented["trace"]["agreement_rule_code"],
-            "IT-100",
-        )
+        segment = next(item for item in result["segments"] if item["segment_type"] == "it_common_60_company")
+        self.assertEqual(segment["complement_percentage"], Decimal("0.4"))
+        self.assertEqual(segment["complement_amount"], Decimal("280.00"))
+        self.assertEqual(segment["trace"]["agreement_rule_code"], "IT-100")
 
 
 if __name__ == "__main__":
