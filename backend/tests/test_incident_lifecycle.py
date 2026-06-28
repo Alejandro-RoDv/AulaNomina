@@ -1,5 +1,6 @@
 import unittest
 from datetime import date
+from decimal import Decimal
 
 from fastapi import HTTPException
 from sqlalchemy import create_engine
@@ -13,6 +14,21 @@ from app.models.contract import Contract
 from app.models.employee import Employee
 from app.models.payroll import Payroll
 from app.schemas.incident import IncidentCreate, IncidentUpdate
+from app.schemas.incident_actions import (
+    IncidentCancelRequest,
+    IncidentConfirmationCancelRequest,
+    IncidentConfirmationCreate,
+    IncidentProcessRequest,
+    IncidentRecalculationRequest,
+)
+from app.services.incident_actions import (
+    build_monthly_incident_summary,
+    cancel_confirmation,
+    cancel_incident,
+    create_confirmation,
+    process_incident,
+    request_incident_recalculation,
+)
 
 
 class IncidentLifecycleTest(unittest.TestCase):
@@ -67,6 +83,20 @@ class IncidentLifecycleTest(unittest.TestCase):
         values.update(overrides)
         return IncidentCreate(**values)
 
+    def payroll(self, status="draft"):
+        payroll = Payroll(
+            employee_id=self.employee.id,
+            contract_id=self.contract.id,
+            company_id=self.company.id,
+            period_month=6,
+            period_year=2026,
+            status=status,
+        )
+        self.db.add(payroll)
+        self.db.commit()
+        self.db.refresh(payroll)
+        return payroll
+
     def test_create_inside_employment_period_and_register_audit(self):
         incident = create_incident(self.db, self.payload())
         self.assertEqual(incident.version, 1)
@@ -119,17 +149,7 @@ class IncidentLifecycleTest(unittest.TestCase):
 
     def test_change_affecting_closed_payroll_requires_regularization(self):
         incident = create_incident(self.db, self.payload())
-        self.db.add(
-            Payroll(
-                employee_id=self.employee.id,
-                contract_id=self.contract.id,
-                company_id=self.company.id,
-                period_month=6,
-                period_year=2026,
-                status="closed",
-            )
-        )
-        self.db.commit()
+        self.payroll(status="closed")
 
         updated = update_incident(
             self.db,
@@ -156,6 +176,113 @@ class IncidentLifecycleTest(unittest.TestCase):
         self.assertTrue(cancelled.is_cancelled)
         self.assertEqual(cancelled.status, "cancelled")
         self.assertGreaterEqual(len(cancelled.audit_entries), 3)
+
+    def test_process_is_idempotent_and_prevents_double_payroll(self):
+        incident = create_incident(self.db, self.payload())
+        payroll = self.payroll()
+        processed = process_incident(
+            self.db,
+            incident.id,
+            IncidentProcessRequest(
+                payroll_id=payroll.id,
+                generated_amount=Decimal("125.50"),
+                expected_version=incident.version,
+                actor="docente-demo",
+            ),
+        )
+        self.assertEqual(processed.status, "processed")
+        self.assertEqual(processed.processed_payroll_id, payroll.id)
+        self.assertEqual(processed.generated_amount, Decimal("125.50"))
+
+        same_result = process_incident(
+            self.db,
+            incident.id,
+            IncidentProcessRequest(
+                payroll_id=payroll.id,
+                generated_amount=Decimal("125.50"),
+                expected_version=processed.version,
+                actor="docente-demo",
+            ),
+        )
+        self.assertEqual(same_result.version, processed.version)
+
+    def test_confirmation_lifecycle_is_audited(self):
+        incident = create_incident(self.db, self.payload())
+        with_confirmation = create_confirmation(
+            self.db,
+            incident.id,
+            IncidentConfirmationCreate(
+                number="PC-001",
+                confirmation_date=date(2026, 6, 3),
+                confirmation_type="confirmation",
+                observations="Parte demostrativo",
+                actor="tecnico-demo",
+                expected_incident_version=incident.version,
+            ),
+        )
+        self.assertEqual(len(with_confirmation.confirmations), 1)
+        confirmation = with_confirmation.confirmations[0]
+
+        cancelled = cancel_confirmation(
+            self.db,
+            incident.id,
+            confirmation.id,
+            IncidentConfirmationCancelRequest(
+                reason="Documento sustituido por otro parte",
+                actor="tecnico-demo",
+                expected_version=confirmation.version,
+                expected_incident_version=with_confirmation.version,
+            ),
+        )
+        self.assertTrue(cancelled.confirmations[0].is_cancelled)
+        self.assertEqual(cancelled.audit_entries[0].action, "confirmation_cancelled")
+
+    def test_cancel_processed_incident_requires_regularization(self):
+        incident = create_incident(self.db, self.payload())
+        payroll = self.payroll(status="closed")
+        processed = process_incident(
+            self.db,
+            incident.id,
+            IncidentProcessRequest(
+                payroll_id=payroll.id,
+                generated_amount=Decimal("80.00"),
+                expected_version=incident.version,
+            ),
+        )
+        cancelled = cancel_incident(
+            self.db,
+            incident.id,
+            IncidentCancelRequest(
+                reason="Parte médico anulado por resolución posterior",
+                expected_version=processed.version,
+            ),
+        )
+        self.assertTrue(cancelled.is_cancelled)
+        self.assertTrue(cancelled.requires_recalculation)
+        self.assertTrue(cancelled.requires_regularization)
+
+    def test_recalculation_request_and_monthly_summary(self):
+        incident = create_incident(self.db, self.payload())
+        requested = request_incident_recalculation(
+            self.db,
+            incident.id,
+            IncidentRecalculationRequest(
+                reason="Revisión del cálculo didáctico",
+                expected_version=incident.version,
+            ),
+        )
+        self.assertTrue(requested.requires_recalculation)
+
+        summary = build_monthly_incident_summary(
+            self.db,
+            self.employee.id,
+            2026,
+            6,
+            contract_id=self.contract.id,
+        )
+        self.assertEqual(summary["total"], 1)
+        self.assertEqual(summary["requires_recalculation"], 1)
+        self.assertEqual(summary["by_type"], {"IT": 1})
 
 
 if __name__ == "__main__":
