@@ -10,6 +10,7 @@ from app.models.work_calendar import WorkCalendar
 from app.models.incident import Incident
 from app.models.incident_detail import IncidentAudit, IncidentConfirmation, IncidentDetail
 from app.models.incident_calculation import IncidentCalculationRule, PayrollSegment
+from app.models.incident_advanced import IncidentRegularization, VacationLedgerEntry
 from app.models.wage_garnishment import WageGarnishment
 from app.models.wage_garnishment_movement import WageGarnishmentMovement
 from app.models.smi_parameter import SmiParameter
@@ -42,6 +43,8 @@ from app.models.collective_agreement import (
     VacationRule,
     WorkTimeRule,
 )
+from app.services.advanced_incident_engine import install_advanced_incident_engine
 from app.services.payroll_incident_bridge import install_payroll_incident_bridge
 
+install_advanced_incident_engine()
 install_payroll_incident_bridge()
