@@ -40,7 +40,7 @@ jobs:
       - name: Incident payroll engine tests
         id: incident_engine
         continue-on-error: true
-        run: python -m unittest -v tests.test_incident_payroll_engine >> backend-test-output.txt 2>&1
+        run: python -m unittest -v tests.test_incident_payroll_engine tests.test_payroll_incident_bridge tests.test_advanced_incident_calculation >> backend-test-output.txt 2>&1
       - name: Import application
         id: import_app
         continue-on-error: true
