@@ -1,7 +1,16 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { INCIDENT_TYPES, STATUS_OPTIONS } from "./IncidentForm";
+import {
+  cancelIncident as cancelIncidentRequest,
+  cancelIncidentConfirmation,
+  createIncidentConfirmation,
+  requestIncidentRecalculation,
+} from "../../services/incidentApi";
 import { getIncidentContractVisibleCode } from "../../utils/visibleCodes";
+
+const MEDICAL_TYPES = new Set(["IT", "RECAIDA", "NACIMIENTO_CUIDADO", "RIESGO_EMBARAZO", "RIESGO_LACTANCIA", "CUIDADO_MENOR"]);
+const EMPTY_CONFIRMATION = { number: "", confirmation_date: "", doctor_number: "", confirmation_type: "confirmation", observations: "" };
 
 function formatDate(value) {
   if (!value) return "—";
@@ -56,19 +65,35 @@ function DetailItem({ label, value }) {
   return <div style={styles.detailItem}><span>{label}</span><strong>{value ?? "—"}</strong></div>;
 }
 
-export default function IncidentTable({ loading, incidents, contracts = [], employees = [], onUpdateIncident, onDeleteIncident, submitting }) {
+export default function IncidentTable({ loading, incidents, contracts = [], employees = [], onUpdateIncident, submitting }) {
+  const [displayIncidents, setDisplayIncidents] = useState(incidents);
   const [selected, setSelected] = useState(null);
   const [editForm, setEditForm] = useState(null);
   const [editing, setEditing] = useState(false);
   const [error, setError] = useState("");
+  const [showCancellation, setShowCancellation] = useState(false);
+  const [cancellationReason, setCancellationReason] = useState("");
+  const [confirmationForm, setConfirmationForm] = useState(EMPTY_CONFIRMATION);
+  const [actionSubmitting, setActionSubmitting] = useState(false);
+
+  useEffect(() => setDisplayIncidents(incidents), [incidents]);
 
   const contractCode = (incident) => getIncidentContractVisibleCode(incident, contracts, employees);
+
+  const applyUpdatedIncident = (updated) => {
+    setSelected(updated);
+    setEditForm(toEditForm(updated));
+    setDisplayIncidents((current) => current.map((item) => item.id === updated.id ? { ...item, ...updated } : item));
+  };
 
   const open = (incident) => {
     setSelected(incident);
     setEditForm(toEditForm(incident));
     setEditing(false);
     setError("");
+    setShowCancellation(false);
+    setCancellationReason("");
+    setConfirmationForm(EMPTY_CONFIRMATION);
   };
 
   const close = () => {
@@ -76,11 +101,19 @@ export default function IncidentTable({ loading, incidents, contracts = [], empl
     setEditForm(null);
     setEditing(false);
     setError("");
+    setShowCancellation(false);
+    setCancellationReason("");
+    setConfirmationForm(EMPTY_CONFIRMATION);
   };
 
   const change = (event) => {
     const { name, value, type, checked } = event.target;
     setEditForm((current) => ({ ...current, [name]: type === "checkbox" ? checked : value }));
+  };
+
+  const changeConfirmation = (event) => {
+    const { name, value } = event.target;
+    setConfirmationForm((current) => ({ ...current, [name]: value }));
   };
 
   const submit = async (event) => {
@@ -98,14 +131,82 @@ export default function IncidentTable({ loading, incidents, contracts = [], empl
     }
   };
 
-  const cancelIncident = async () => {
-    if (!window.confirm("La incidencia se anulará conservando su histórico. ¿Continuar?")) return;
+  const confirmCancellation = async () => {
+    if (cancellationReason.trim().length < 3) {
+      setError("Indique un motivo de anulación de al menos tres caracteres");
+      return;
+    }
     try {
+      setActionSubmitting(true);
       setError("");
-      await onDeleteIncident(selected.id);
-      close();
+      const updated = await cancelIncidentRequest(selected.id, {
+        reason: cancellationReason.trim(),
+        expected_version: selected.version,
+      });
+      applyUpdatedIncident(updated);
+      setShowCancellation(false);
+      setCancellationReason("");
     } catch (err) {
       setError(err.message || "No se pudo anular la incidencia");
+    } finally {
+      setActionSubmitting(false);
+    }
+  };
+
+  const requestRecalculation = async () => {
+    const reason = window.prompt("Motivo del recálculo o regularización:");
+    if (!reason?.trim()) return;
+    try {
+      setActionSubmitting(true);
+      setError("");
+      const updated = await requestIncidentRecalculation(selected.id, {
+        reason: reason.trim(),
+        expected_version: selected.version,
+      });
+      applyUpdatedIncident(updated);
+    } catch (err) {
+      setError(err.message || "No se pudo solicitar el recálculo");
+    } finally {
+      setActionSubmitting(false);
+    }
+  };
+
+  const addConfirmation = async (event) => {
+    event.preventDefault();
+    try {
+      setActionSubmitting(true);
+      setError("");
+      const updated = await createIncidentConfirmation(selected.id, {
+        ...confirmationForm,
+        doctor_number: confirmationForm.doctor_number || null,
+        observations: confirmationForm.observations || null,
+        expected_incident_version: selected.version,
+      });
+      applyUpdatedIncident(updated);
+      setConfirmationForm(EMPTY_CONFIRMATION);
+    } catch (err) {
+      setError(err.message || "No se pudo añadir el parte de confirmación");
+    } finally {
+      setActionSubmitting(false);
+    }
+  };
+
+  const annulConfirmation = async (confirmation) => {
+    const reason = window.prompt("Motivo de anulación del parte de confirmación:");
+    if (!reason?.trim()) return;
+    try {
+      setActionSubmitting(true);
+      setError("");
+      const updated = await cancelIncidentConfirmation(selected.id, confirmation.id, {
+        reason: reason.trim(),
+        expected_version: confirmation.version,
+        expected_incident_version: selected.version,
+      });
+      applyUpdatedIncident(updated);
+    } catch (err) {
+      setError(err.message || "No se pudo anular el parte de confirmación");
+    } finally {
+      setActionSubmitting(false);
     }
   };
 
@@ -119,7 +220,7 @@ export default function IncidentTable({ loading, incidents, contracts = [], empl
             <tr><th>Trabajador</th><th>Vida laboral</th><th>Tipo</th><th>Periodo</th><th>Estado</th><th>Impacto</th><th>Importe</th><th>Acciones</th></tr>
           </thead>
           <tbody>
-            {incidents.map((incident) => (
+            {displayIncidents.map((incident) => (
               <tr key={incident.id} style={incident.is_cancelled ? styles.cancelledRow : undefined}>
                 <td><strong>{incident.employee_name || incident.employee_id}</strong><small>{incident.employee_code || `${incident.company_id}.${incident.employee_id}`}</small></td>
                 <td><strong>{contractCode(incident)}</strong><small>{incident.company_name || incident.company_id}</small></td>
@@ -131,7 +232,7 @@ export default function IncidentTable({ loading, incidents, contracts = [], empl
                 <td><button type="button" onClick={() => open(incident)} style={styles.actionButton}>Consultar</button></td>
               </tr>
             ))}
-            {!incidents.length && <tr><td colSpan="8">No hay incidencias para los filtros seleccionados.</td></tr>}
+            {!displayIncidents.length && <tr><td colSpan="8">No hay incidencias para los filtros seleccionados.</td></tr>}
           </tbody>
         </table>
       </div>
@@ -172,10 +273,47 @@ export default function IncidentTable({ loading, incidents, contracts = [], empl
               {editing && <label style={styles.fullLabel}>Motivo del cambio<textarea name="change_reason" value={editForm.change_reason} onChange={change} rows="2" placeholder="Obligatorio cuando afecta a una nómina ya procesada" /></label>}
               {error && <div style={styles.error}>{error}</div>}
               <div style={styles.actions}>
-                <button type="button" onClick={cancelIncident} disabled={submitting || selected.is_cancelled} style={styles.dangerButton}>Anular</button>
-                <div><button type="button" onClick={close} style={styles.secondaryButton}>Cerrar</button><button type="submit" disabled={submitting} style={styles.primaryButton}>{editing ? "Guardar cambios" : "Editar"}</button></div>
+                <div style={styles.actionCluster}>
+                  <button type="button" onClick={() => setShowCancellation(true)} disabled={submitting || actionSubmitting || selected.is_cancelled} style={styles.dangerButton}>Anular</button>
+                  <button type="button" onClick={requestRecalculation} disabled={submitting || actionSubmitting || selected.is_cancelled} style={styles.secondaryButton}>Solicitar recálculo</button>
+                </div>
+                <div><button type="button" onClick={close} style={styles.secondaryButton}>Cerrar</button><button type="submit" disabled={submitting || actionSubmitting || selected.is_cancelled} style={styles.primaryButton}>{editing ? "Guardar cambios" : "Editar"}</button></div>
               </div>
             </form>
+
+            {showCancellation && (
+              <section style={styles.cancellationBox}>
+                <strong>Anulación con trazabilidad</strong>
+                <textarea value={cancellationReason} onChange={(event) => setCancellationReason(event.target.value)} rows="2" placeholder="Motivo obligatorio" />
+                <div><button type="button" onClick={() => setShowCancellation(false)} style={styles.secondaryButton}>Cancelar</button><button type="button" onClick={confirmCancellation} disabled={actionSubmitting} style={styles.dangerButton}>Confirmar anulación</button></div>
+              </section>
+            )}
+
+            {MEDICAL_TYPES.has(selected.incident_type) && (
+              <section style={styles.historySection}>
+                <h4>Partes de confirmación</h4>
+                <div style={styles.confirmationList}>
+                  {(selected.confirmations || []).map((confirmation) => (
+                    <div key={confirmation.id} style={confirmation.is_cancelled ? styles.cancelledConfirmation : styles.confirmationItem}>
+                      <div><strong>{confirmation.number}</strong><span>{formatDate(confirmation.confirmation_date)} · {confirmation.confirmation_type || "Confirmación"}</span></div>
+                      <div>{confirmation.observations || "Sin observaciones"}</div>
+                      <button type="button" onClick={() => annulConfirmation(confirmation)} disabled={confirmation.is_cancelled || actionSubmitting} style={styles.smallDangerButton}>{confirmation.is_cancelled ? "Anulado" : "Anular"}</button>
+                    </div>
+                  ))}
+                  {!selected.confirmations?.length && <p>No hay partes de confirmación registrados.</p>}
+                </div>
+                {!selected.is_cancelled && (
+                  <form onSubmit={addConfirmation} style={styles.confirmationForm}>
+                    <label>Número<input name="number" value={confirmationForm.number} onChange={changeConfirmation} required /></label>
+                    <label>Fecha<input type="date" name="confirmation_date" value={confirmationForm.confirmation_date} onChange={changeConfirmation} required /></label>
+                    <label>Tipo<select name="confirmation_type" value={confirmationForm.confirmation_type} onChange={changeConfirmation}><option value="confirmation">Confirmación</option><option value="discharge">Alta</option><option value="administrative">Administrativo</option><option value="other">Otro</option></select></label>
+                    <label>N.º colegiado<input name="doctor_number" value={confirmationForm.doctor_number} onChange={changeConfirmation} /></label>
+                    <label style={styles.confirmationObservation}>Observaciones<textarea name="observations" value={confirmationForm.observations} onChange={changeConfirmation} rows="2" /></label>
+                    <button type="submit" disabled={actionSubmitting} style={styles.primaryButton}>Añadir parte</button>
+                  </form>
+                )}
+              </section>
+            )}
 
             <section style={styles.historySection}>
               <h4>Histórico y auditoría</h4>
@@ -212,11 +350,19 @@ const styles = {
   form: { marginTop: "14px", borderTop: "1px solid #e5e7eb", paddingTop: "14px" },
   editGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: "10px" },
   fullLabel: { display: "flex", flexDirection: "column", gap: "5px", marginTop: "10px", fontWeight: 700 },
-  actions: { display: "flex", justifyContent: "space-between", gap: "10px", marginTop: "14px" },
+  actions: { display: "flex", justifyContent: "space-between", gap: "10px", marginTop: "14px", flexWrap: "wrap" },
+  actionCluster: { display: "flex", gap: "8px", flexWrap: "wrap" },
   dangerButton: { border: "1px solid #dc2626", background: "#fff", color: "#b91c1c", borderRadius: "7px", padding: "8px 12px", fontWeight: 900, cursor: "pointer" },
+  smallDangerButton: { border: "1px solid #fecaca", background: "#fff", color: "#b91c1c", borderRadius: "6px", padding: "5px 8px", fontWeight: 800, cursor: "pointer" },
   secondaryButton: { border: "1px solid #cbd5e1", background: "#fff", borderRadius: "7px", padding: "8px 12px", fontWeight: 800, marginRight: "8px", cursor: "pointer" },
   primaryButton: { border: "1px solid #111827", background: "#111827", color: "#fff", borderRadius: "7px", padding: "8px 12px", fontWeight: 900, cursor: "pointer" },
   error: { marginTop: "10px", padding: "10px", borderRadius: "8px", background: "#fee2e2", color: "#991b1b" },
+  cancellationBox: { marginTop: "14px", padding: "12px", border: "1px solid #fecaca", borderRadius: "8px", display: "flex", flexDirection: "column", gap: "8px", background: "#fff7f7" },
   historySection: { marginTop: "18px", borderTop: "1px solid #e5e7eb", paddingTop: "12px" },
   historyItem: { display: "grid", gridTemplateColumns: "120px 1fr", gap: "6px 12px", borderBottom: "1px solid #f1f5f9", padding: "8px 0", fontSize: "12px" },
+  confirmationList: { display: "flex", flexDirection: "column", gap: "7px" },
+  confirmationItem: { display: "grid", gridTemplateColumns: "minmax(180px,1fr) minmax(220px,2fr) auto", gap: "10px", alignItems: "center", padding: "9px", border: "1px solid #e5e7eb", borderRadius: "7px" },
+  cancelledConfirmation: { display: "grid", gridTemplateColumns: "minmax(180px,1fr) minmax(220px,2fr) auto", gap: "10px", alignItems: "center", padding: "9px", border: "1px solid #e5e7eb", borderRadius: "7px", opacity: 0.55 },
+  confirmationForm: { display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))", gap: "9px", alignItems: "end", marginTop: "12px", padding: "12px", background: "#f8fafc", borderRadius: "8px" },
+  confirmationObservation: { gridColumn: "span 2" },
 };
