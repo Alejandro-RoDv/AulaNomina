@@ -1,4 +1,5 @@
-from datetime import datetime
+from calendar import monthrange
+from datetime import date, datetime
 from decimal import Decimal, ROUND_HALF_UP
 
 from sqlalchemy.orm import joinedload
@@ -14,15 +15,35 @@ def money(value):
     return Decimal(str(value or 0)).quantize(MONEY, rounding=ROUND_HALF_UP)
 
 
+def payroll_period_bounds(payroll):
+    if payroll.period_month not in range(1, 13):
+        return date(payroll.period_year, 1, 1), date(payroll.period_year, 12, 31)
+    return (
+        date(payroll.period_year, payroll.period_month, 1),
+        date(
+            payroll.period_year,
+            payroll.period_month,
+            monthrange(payroll.period_year, payroll.period_month)[1],
+        ),
+    )
+
+
 def active_contract_concepts(db, payroll):
+    period_start, period_end = payroll_period_bounds(payroll)
     return (
         db.query(ContractPayrollConcept)
         .options(joinedload(ContractPayrollConcept.concept))
         .filter(
             ContractPayrollConcept.contract_id == payroll.contract_id,
             ContractPayrollConcept.is_active.is_(True),
-            ((ContractPayrollConcept.start_date.is_(None)) | (ContractPayrollConcept.start_date <= payroll.created_at.date())),
-            ((ContractPayrollConcept.end_date.is_(None)) | (ContractPayrollConcept.end_date >= payroll.created_at.date())),
+            (
+                ContractPayrollConcept.start_date.is_(None)
+                | (ContractPayrollConcept.start_date <= period_end)
+            ),
+            (
+                ContractPayrollConcept.end_date.is_(None)
+                | (ContractPayrollConcept.end_date >= period_start)
+            ),
         )
         .order_by(ContractPayrollConcept.display_order, ContractPayrollConcept.id)
         .all()
@@ -53,14 +74,20 @@ def segment_factor(line, segment):
 
 
 def sync_segmented_contract_concepts(db, payroll):
-    segments = [segment for segment in payroll.segments if not segment.segment_type.startswith("overtime")]
+    segments = [
+        segment
+        for segment in payroll.segments
+        if not segment.segment_type.startswith("overtime")
+    ]
     lines = active_contract_concepts(db, payroll)
     existing = {
         item.source_key: item
-        for item in db.query(PayrollItem).filter(
+        for item in db.query(PayrollItem)
+        .filter(
             PayrollItem.payroll_id == payroll.id,
             PayrollItem.source_type == SOURCE_TYPE,
-        ).all()
+        )
+        .all()
         if item.source_key
     }
     desired = set()
@@ -80,7 +107,10 @@ def sync_segmented_contract_concepts(db, payroll):
             total += amount
             values = {
                 "concept_id": line.concept_id,
-                "description": f"{line.description or line.concept.name} · {segment.start_date:%d/%m}-{segment.end_date:%d/%m}",
+                "description": (
+                    f"{line.description or line.concept.name} ÷ "
+                    f"{segment.start_date:%d/%m}-{segment.end_date:%d/%m}"
+                ),
                 "quantity": segment.payroll_days,
                 "unit_price": money(monthly / Decimal("30")),
                 "amount": amount,
@@ -95,12 +125,21 @@ def sync_segmented_contract_concepts(db, payroll):
                     "monthly_amount": str(monthly),
                     "payroll_days": str(segment.payroll_days),
                     "salary_percentage": str(segment.salary_percentage),
-                    "applies_workday_percentage": bool(line.concept.applies_workday_percentage),
+                    "applies_workday_percentage": bool(
+                        line.concept.applies_workday_percentage
+                    ),
                 },
             }
             item = existing.get(key)
             if item is None:
-                db.add(PayrollItem(payroll_id=payroll.id, source_type=SOURCE_TYPE, source_key=key, **values))
+                db.add(
+                    PayrollItem(
+                        payroll_id=payroll.id,
+                        source_type=SOURCE_TYPE,
+                        source_key=key,
+                        **values,
+                    )
+                )
                 created += 1
             else:
                 for field, value in values.items():
