@@ -55,6 +55,7 @@ def recalculate_after_concept_segmentation(db, payroll, concept_total):
 def install_advanced_incident_engine():
     import app.services.incident_actions as actions
     import app.services.incident_payroll_orchestrator as orchestrator
+    import app.services.incident_payroll_processor as processor
     import app.services.incident_segmenter as segmenter
 
     if getattr(segmenter, "_advanced_incident_engine_installed", False):
@@ -97,5 +98,6 @@ def install_advanced_incident_engine():
     segmenter.build_incident_segments = advanced_build
     orchestrator.build_incident_segments = advanced_build
     orchestrator.process_payroll_incidents = advanced_process
+    processor.process_payroll_incidents = advanced_process
     actions.request_incident_recalculation = advanced_recalculation
     segmenter._advanced_incident_engine_installed = True
