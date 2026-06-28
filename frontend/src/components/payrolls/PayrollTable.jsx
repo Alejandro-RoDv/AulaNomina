@@ -1,7 +1,7 @@
 import { Fragment, useState } from "react";
 import { PAYROLL_STATUS_OPTIONS, formatCurrency } from "./PayrollForm";
 import PayrollDetailsModal from "./PayrollDetailsModal";
-import PayrollConceptBreakdown from "./PayrollConceptBreakdown";
+import PayrollConceptBreakdownWithSegments from "./PayrollConceptBreakdownWithSegments";
 import { getPayrollVisibleCode } from "../../utils/visibleCodes";
 
 function formatPeriod(payroll) {
@@ -180,10 +180,10 @@ export default function PayrollTable({
                     <tr>
                       <td colSpan="10" style={styles.expandedCell}>
                         <div style={styles.expandedHeader}>
-                          <strong>Conceptos de nómina</strong>
+                          <strong>Conceptos, segmentos y trazas de nómina</strong>
                           <span>Nómina {getPayrollCode(payroll)} · {payroll.employee_name || payroll.employee_id}</span>
                         </div>
-                        <PayrollConceptBreakdown payrollId={payroll.id} />
+                        <PayrollConceptBreakdownWithSegments payrollId={payroll.id} />
                       </td>
                     </tr>
                   )}
