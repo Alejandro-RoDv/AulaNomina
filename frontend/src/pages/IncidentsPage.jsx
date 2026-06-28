@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 
-import IncidentForm, { INCIDENT_TYPES, STATUS_OPTIONS } from "../components/incidents/IncidentForm";
-import IncidentTable from "../components/incidents/IncidentTableContent";
+import CategoryIncidentForm from "../components/incidents/CategoryIncidentForm";
+import IncidentDashboard from "../components/incidents/IncidentDashboard";
+import IncidentHistoryPanel from "../components/incidents/IncidentHistoryPanel";
+import "../components/incidents/incidentWorkspace.css";
 import PageCard from "../components/layout/PageCard";
 import { getCategoryFormUpdates, getIncidentCategory, INCIDENT_CATEGORY_TABS } from "../utils/incidentCategories";
 import { getEmployeeVisibleCode } from "../utils/visibleCodes";
-import { openReportPreset } from "../utils/reportShortcuts";
 import WageGarnishmentManagementPage from "./WageGarnishmentManagementPage";
 
 const INCIDENTS_MODE_KEY = "aulanomina:incidentsMode";
@@ -24,16 +25,10 @@ function publishHeader(mode) {
   window.dispatchEvent(new CustomEvent(HEADER_EVENT, { detail }));
 }
 
-function normalizeText(value) {
-  return String(value || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
-}
-
-function dateToNumber(value) {
-  return value ? Number(String(value).replaceAll("-", "")) : null;
-}
-
-function SummaryCard({ label, value, note }) {
-  return <div style={styles.summaryCard}><span>{label}</span><strong>{value}</strong><small>{note}</small></div>;
+function agreementData(contract) {
+  const key = contract?.collective_agreement_id || contract?.collective_agreement_code || contract?.collective_agreement_name || "";
+  const name = contract?.collective_agreement_name || contract?.collective_agreement_code || (key ? `Convenio ${key}` : "Sin convenio asignado");
+  return { key: String(key), name };
 }
 
 export default function IncidentsPage({
@@ -48,14 +43,12 @@ export default function IncidentsPage({
   onIncidentChange,
   onIncidentSubmit,
   onUpdateIncident,
-  onDeleteIncident,
   incidentError,
   incidentSuccess,
   incidentSubmitting,
 }) {
   const [activeMode, setActiveMode] = useState(getInitialMode);
   const [activeCategory, setActiveCategory] = useState("all");
-  const [filters, setFilters] = useState({ employee: "", company: "", incidentType: "", status: "", dateFrom: "", dateTo: "" });
   const activeTab = getIncidentCategory(activeCategory);
 
   useEffect(() => {
@@ -72,142 +65,60 @@ export default function IncidentsPage({
     };
   }, []);
 
-  const handleCategoryChange = (tab) => {
-    setActiveCategory(tab.value);
-    const updates = getCategoryFormUpdates(tab, incidentForm.incident_type);
-    Object.entries(updates).forEach(([name, value]) => {
-      onIncidentChange({ target: { name, value, type: "select-one" } });
-    });
-  };
+  const enrichedIncidents = useMemo(() => {
+    const employeeMap = Object.fromEntries(employees.map((item) => [String(item.id), item]));
+    const contractMap = Object.fromEntries(contracts.map((item) => [String(item.id), item]));
+    const companyMap = Object.fromEntries(companies.map((item) => [String(item.id), item]));
+    const centerMap = Object.fromEntries(workCenters.map((item) => [String(item.id), item]));
 
-  const incidentsWithEmployeeData = useMemo(() => {
-    const employeeMap = Object.fromEntries(employees.map((employee) => [String(employee.id), employee]));
     return incidents.map((incident) => {
-      const linkedEmployee = employeeMap[String(incident.employee_id)];
+      const contract = contractMap[String(incident.contract_id)];
+      const employee = employeeMap[String(incident.employee_id)];
+      const companyId = incident.company_id || contract?.company_id;
+      const centerId = incident.center_id || contract?.center_id;
+      const agreement = agreementData(contract);
       return {
         ...incident,
-        employee_code: linkedEmployee ? getEmployeeVisibleCode(linkedEmployee, employees, contracts, incident.company_id) : `${incident.company_id || "?"}.${incident.employee_id || "?"}`,
+        company_id: companyId,
+        center_id: centerId,
+        employee_name: incident.employee_name || [employee?.first_name, employee?.last_name].filter(Boolean).join(" "),
+        employee_code: employee ? getEmployeeVisibleCode(employee, employees, contracts, companyId) : incident.employee_code,
+        company_name: incident.company_name || companyMap[String(companyId)]?.name || "Empresa sin identificar",
+        center_name: centerMap[String(centerId)]?.name || "Centro sin identificar",
+        agreement_key: agreement.key,
+        agreement_name: agreement.name,
+        professional_category: contract?.professional_category || contract?.professional_category_name || "",
       };
     });
-  }, [incidents, employees, contracts]);
+  }, [incidents, employees, contracts, companies, workCenters]);
 
-  const summary = useMemo(() => ({
-    total: incidentsWithEmployeeData.length,
-    pending: incidentsWithEmployeeData.filter((item) => ["draft", "open", "pending"].includes(item.status) && !item.is_cancelled).length,
-    processed: incidentsWithEmployeeData.filter((item) => item.processed_payroll_id || item.status === "processed").length,
-    recalculate: incidentsWithEmployeeData.filter((item) => item.requires_recalculation).length,
-    regularize: incidentsWithEmployeeData.filter((item) => item.requires_regularization).length,
-  }), [incidentsWithEmployeeData]);
-
-  const filteredIncidents = useMemo(() => {
-    const employeeFilter = normalizeText(filters.employee);
-    const companyFilter = normalizeText(filters.company);
-    const typeFilter = normalizeText(filters.incidentType);
-    const statusFilter = normalizeText(filters.status);
-    const fromDate = dateToNumber(filters.dateFrom);
-    const toDate = dateToNumber(filters.dateTo);
-    const category = getIncidentCategory(activeCategory);
-
-    return incidentsWithEmployeeData.filter((incident) => {
-      const center = workCenters.find((item) => Number(item.id) === Number(incident.center_id));
-      const employeeText = normalizeText(`${incident.employee_code || ""} ${incident.employee_name || ""} ${incident.employee_id || ""}`);
-      const companyText = normalizeText(`${incident.company_name || ""} ${center?.name || ""} ${incident.company_id || ""}`);
-      const incidentStartDate = dateToNumber(incident.start_date);
-      const incidentEndDate = dateToNumber(incident.end_date) || incidentStartDate;
-      return (
-        (!category.types || category.types.includes(incident.incident_type))
-        && (!employeeFilter || employeeText.includes(employeeFilter))
-        && (!companyFilter || companyText.includes(companyFilter))
-        && (!typeFilter || normalizeText(incident.incident_type) === typeFilter)
-        && (!statusFilter || normalizeText(incident.status) === statusFilter)
-        && (!fromDate || (incidentEndDate && incidentEndDate >= fromDate))
-        && (!toDate || (incidentStartDate && incidentStartDate <= toDate))
-      );
+  const openCategory = (value) => {
+    const tab = getIncidentCategory(value);
+    if (tab.value === activeCategory) return;
+    setActiveCategory(tab.value);
+    const updates = getCategoryFormUpdates(tab, incidentForm.incident_type);
+    Object.entries(updates).forEach(([name, valueToApply]) => {
+      onIncidentChange({ target: { name, value: valueToApply, type: "select-one" } });
     });
-  }, [incidentsWithEmployeeData, filters, workCenters, activeCategory]);
+  };
 
   if (activeMode === "embargo") {
     return <WageGarnishmentManagementPage companies={companies} employees={employees} contracts={contracts} payrolls={payrolls} />;
   }
 
-  return (
-    <div style={styles.wrapper}>
-      <div style={styles.summaryGrid}>
-        <SummaryCard label="Incidencias registradas" value={summary.total} note="Histórico completo" />
-        <SummaryCard label="Pendientes" value={summary.pending} note="Borrador, abiertas o pendientes" />
-        <SummaryCard label="Procesadas" value={summary.processed} note="Vinculadas a nómina" />
-        <SummaryCard label="Requieren recálculo" value={summary.recalculate} note="Resultado previo afectado" />
-        <SummaryCard label="Regularización" value={summary.regularize} note="Existe nómina cerrada" />
-      </div>
+  return <div className="incident-workspace">
+    <nav className="incident-workspace-tabs" role="tablist" aria-label="Módulos de incidencias">
+      {INCIDENT_CATEGORY_TABS.map((tab) => <button key={tab.value} type="button" role="tab" aria-selected={activeCategory === tab.value} onClick={() => openCategory(tab.value)} className={activeCategory === tab.value ? "active" : ""}>{tab.label}</button>)}
+    </nav>
 
-      <div style={styles.tabs} role="tablist" aria-label="Tipos de incidencias">
-        {INCIDENT_CATEGORY_TABS.map((tab) => (
-          <button
-            key={tab.value}
-            id={`incident-tab-${tab.value}`}
-            type="button"
-            role="tab"
-            aria-selected={activeCategory === tab.value}
-            aria-controls="incident-category-panel"
-            onClick={() => handleCategoryChange(tab)}
-            style={activeCategory === tab.value ? styles.activeTab : styles.tab}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
+    <div role="tabpanel">
+      {activeTab.kind === "dashboard" && <IncidentDashboard incidents={enrichedIncidents} onOpenCategory={openCategory} />}
 
-      <div id="incident-category-panel" role="tabpanel" aria-labelledby={`incident-tab-${activeTab.value}`}>
-        <PageCard title={activeTab.title} subtitle={activeTab.subtitle}>
-          <IncidentForm
-            form={incidentForm}
-            employees={employees}
-            contracts={contracts}
-            companies={companies}
-            workCenters={workCenters}
-            onChange={onIncidentChange}
-            onSubmit={onIncidentSubmit}
-            error={incidentError}
-            success={incidentSuccess}
-            submitting={incidentSubmitting}
-            allowedIncidentTypes={activeTab.types}
-            submitLabel={activeTab.submitLabel}
-          />
-        </PageCard>
-      </div>
+      {activeTab.kind === "history" && <IncidentHistoryPanel loading={loading} incidents={enrichedIncidents} employees={employees} companies={companies} workCenters={workCenters} contracts={contracts} onUpdateIncident={onUpdateIncident} incidentSubmitting={incidentSubmitting} />}
 
-      <PageCard title="Histórico de incidencias" subtitle="Los registros anulados y procesados se conservan para reconstrucción y auditoría.">
-        <div style={styles.reportActions}>
-          <button type="button" style={styles.reportButton} onClick={() => { const today = new Date(); openReportPreset({ category: "incident", reportId: "incidents-open", year: String(today.getFullYear()), month: String(today.getMonth() + 1).padStart(2, "0") }); }}>Informe del mes</button>
-          <button type="button" style={styles.reportButtonSecondary} onClick={() => openReportPreset({ category: "incident", reportId: "incidents-all" })}>Histórico completo</button>
-        </div>
-        <div style={styles.filters}>
-          <label>Trabajador<input name="employee" value={filters.employee} onChange={(event) => setFilters((prev) => ({ ...prev, employee: event.target.value }))} placeholder="Nombre, código o ID" /></label>
-          <label>Empresa / centro<input name="company" value={filters.company} onChange={(event) => setFilters((prev) => ({ ...prev, company: event.target.value }))} placeholder="Empresa o centro" /></label>
-          <label>Tipo<select name="incidentType" value={filters.incidentType} onChange={(event) => setFilters((prev) => ({ ...prev, incidentType: event.target.value }))}><option value="">Todos</option>{INCIDENT_TYPES.map((type) => <option key={type.value} value={type.value}>{type.label}</option>)}</select></label>
-          <label>Estado<select name="status" value={filters.status} onChange={(event) => setFilters((prev) => ({ ...prev, status: event.target.value }))}><option value="">Todos</option>{STATUS_OPTIONS.map((status) => <option key={status.value} value={status.value}>{status.label}</option>)}</select></label>
-          <label>Desde<input type="date" name="dateFrom" value={filters.dateFrom} onChange={(event) => setFilters((prev) => ({ ...prev, dateFrom: event.target.value }))} /></label>
-          <label>Hasta<input type="date" name="dateTo" value={filters.dateTo} onChange={(event) => setFilters((prev) => ({ ...prev, dateTo: event.target.value }))} /></label>
-          <button type="button" onClick={() => setFilters({ employee: "", company: "", incidentType: "", status: "", dateFrom: "", dateTo: "" })} style={styles.clearButton}>Limpiar</button>
-        </div>
-        <div style={styles.resultInfo}>Mostrando {filteredIncidents.length} de {incidentsWithEmployeeData.length} incidencias</div>
-        <IncidentTable loading={loading} incidents={filteredIncidents} contracts={contracts} employees={employees} onUpdateIncident={onUpdateIncident} onDeleteIncident={onDeleteIncident} submitting={incidentSubmitting} />
-      </PageCard>
+      {activeTab.kind === "form" && <PageCard title={activeTab.title} subtitle={activeTab.subtitle}>
+        <CategoryIncidentForm category={activeTab} form={incidentForm} employees={employees} contracts={contracts} companies={companies} workCenters={workCenters} onChange={onIncidentChange} onSubmit={onIncidentSubmit} error={incidentError} success={incidentSuccess} submitting={incidentSubmitting} />
+      </PageCard>}
     </div>
-  );
+  </div>;
 }
-
-const styles = {
-  wrapper: { display: "flex", flexDirection: "column", gap: "18px" },
-  summaryGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))", gap: "10px" },
-  summaryCard: { border: "1px solid #e5e7eb", borderRadius: "10px", background: "#fff", padding: "12px", display: "flex", flexDirection: "column", gap: "3px" },
-  tabs: { display: "flex", gap: "6px", overflowX: "auto", paddingBottom: "2px" },
-  tab: { border: "1px solid #d1d5db", background: "#fff", borderRadius: "7px", padding: "8px 11px", whiteSpace: "nowrap", fontWeight: 800, cursor: "pointer" },
-  activeTab: { border: "1px solid #111827", background: "#111827", color: "#fff", borderRadius: "7px", padding: "8px 11px", whiteSpace: "nowrap", fontWeight: 900, cursor: "pointer" },
-  reportActions: { display: "flex", gap: "10px", justifyContent: "flex-end", marginBottom: "12px" },
-  reportButton: { backgroundColor: "#111827", color: "#fff", border: "1px solid #111827", borderRadius: "7px", padding: "8px 11px", cursor: "pointer", fontWeight: 900 },
-  reportButtonSecondary: { backgroundColor: "#fff", color: "#111827", border: "1px solid #d1d5db", borderRadius: "7px", padding: "8px 11px", cursor: "pointer", fontWeight: 900 },
-  filters: { display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(145px,1fr))", gap: "9px", alignItems: "end", marginBottom: "10px" },
-  clearButton: { height: "36px", border: "1px solid #d1d5db", borderRadius: "7px", background: "#f3f4f6", fontWeight: 800, cursor: "pointer" },
-  resultInfo: { marginBottom: "12px", color: "#6b7280", fontSize: "13px", fontWeight: 700 },
-};
