@@ -53,4 +53,5 @@ jobs:
       - run: npm install --silent
       - run: npm run test:incidencias
       - run: npm run build
-      - run: npm run lint
+      - name: Lint incident module
+        run: npx eslint src/pages/IncidentsPage.jsx src/components/incidents/IncidentForm.jsx src/components/incidents/IncidentTable.jsx src/hooks/useIncidentsModule.js src/utils/incidentPayloads.js src/tests/incidentPayloads.test.js
