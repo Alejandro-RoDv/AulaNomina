@@ -28,6 +28,14 @@ export async function updateIncident(incidentId, payload) {
   );
 }
 
+export async function deleteIncident(incidentId) {
+  return apiRequest(
+    `/incidents/${incidentId}`,
+    { method: "DELETE" },
+    "Error al anular incidencia"
+  );
+}
+
 export async function cancelIncident(incidentId, payload) {
   return apiRequest(
     `/incidents/${incidentId}/cancel`,
