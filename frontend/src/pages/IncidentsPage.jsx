@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 import IncidentForm, { INCIDENT_TYPES, STATUS_OPTIONS } from "../components/incidents/IncidentForm";
-import IncidentTable from "../components/incidents/IncidentTable";
+import IncidentTable from "../components/incidents/IncidentTableContent";
 import PageCard from "../components/layout/PageCard";
 import { getEmployeeVisibleCode } from "../utils/visibleCodes";
 import { openReportPreset } from "../utils/reportShortcuts";
