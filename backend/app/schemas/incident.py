@@ -1,6 +1,73 @@
-from pydantic import BaseModel, field_validator
 from datetime import date, datetime
-from typing import Optional
+from decimal import Decimal
+from typing import Any, Optional
+
+from pydantic import BaseModel, Field, field_validator, model_validator
+
+
+INCIDENT_TYPES = {
+    "IT",
+    "RECAIDA",
+    "NACIMIENTO_CUIDADO",
+    "RIESGO_EMBARAZO",
+    "RIESGO_LACTANCIA",
+    "CUIDADO_MENOR",
+    "VACACIONES",
+    "AUSENCIA",
+    "PERMISO_RETRIBUIDO",
+    "PERMISO_NO_RETRIBUIDO",
+    "SUSPENSION",
+    "SANCION",
+    "HORAS_EXTRA",
+    "MOVIMIENTO",
+}
+
+INCIDENT_STATUSES = {
+    "draft",
+    "open",
+    "pending",
+    "validated",
+    "processed",
+    "closed",
+    "regularized",
+    "cancelled",
+}
+
+
+class IncidentAuditResponse(BaseModel):
+    id: int
+    action: str
+    version: int
+    actor: str | None = None
+    reason: str | None = None
+    previous_values: dict[str, Any] | None = None
+    new_values: dict[str, Any] | None = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class IncidentConfirmationBase(BaseModel):
+    number: str
+    confirmation_date: date
+    doctor_number: str | None = None
+    confirmation_type: str | None = None
+    observations: str | None = None
+    document_id: int | None = None
+    status: str = "active"
+
+
+class IncidentConfirmationResponse(IncidentConfirmationBase):
+    id: int
+    is_cancelled: bool = False
+    cancellation_reason: str | None = None
+    created_at: datetime
+    updated_at: datetime
+    version: int
+
+    class Config:
+        from_attributes = True
 
 
 class IncidentBase(BaseModel):
@@ -12,22 +79,58 @@ class IncidentBase(BaseModel):
     start_date: date
     end_date: Optional[date] = None
     description: Optional[str] = None
-    status: Optional[str] = "open"
+    status: str = "open"
+    unit_type: str | None = None
+    hours: Decimal | None = None
+    days: Decimal | None = None
+    paid: bool | None = None
+    payroll_effect: str = "pending"
+    processed_payroll_id: int | None = None
+    generated_amount: Decimal | None = None
+    overlap_override: bool = False
+    overlap_reason: str | None = None
+    origin: str = "manual"
+    details: dict[str, Any] = Field(default_factory=dict)
+    created_by: str | None = None
+    updated_by: str | None = None
 
     @field_validator("incident_type")
     @classmethod
-    def validate_type(cls, value):
-        allowed = {
-            "IT",
-            "RECAIDA",
-            "VACACIONES",
-            "AUSENCIA",
-            "PERMISO_RETRIBUIDO",
-            "PERMISO_NO_RETRIBUIDO",
-        }
-        if value not in allowed:
+    def validate_type(cls, value: str):
+        if value not in INCIDENT_TYPES:
             raise ValueError("Tipo de incidencia no válido")
         return value
+
+    @field_validator("status")
+    @classmethod
+    def validate_status(cls, value: str):
+        if value not in INCIDENT_STATUSES:
+            raise ValueError("Estado de incidencia no válido")
+        return value
+
+    @field_validator("hours")
+    @classmethod
+    def validate_hours(cls, value: Decimal | None):
+        if value is not None and (value < 0 or value > 24):
+            raise ValueError("Las horas deben estar entre 0 y 24")
+        return value
+
+    @field_validator("days", "generated_amount")
+    @classmethod
+    def validate_non_negative(cls, value: Decimal | None):
+        if value is not None and value < 0:
+            raise ValueError("El valor no puede ser negativo")
+        return value
+
+    @model_validator(mode="after")
+    def validate_dates_and_override(self):
+        if self.end_date and self.end_date < self.start_date:
+            raise ValueError("La fecha final no puede ser anterior a la inicial")
+        if self.overlap_override and not (self.overlap_reason or "").strip():
+            raise ValueError("Debe indicar el motivo para autorizar un solapamiento")
+        if self.incident_type == "HORAS_EXTRA" and self.hours is None:
+            raise ValueError("Las horas extraordinarias requieren número de horas")
+        return self
 
 
 class IncidentCreate(IncidentBase):
@@ -41,6 +144,48 @@ class IncidentUpdate(BaseModel):
     end_date: Optional[date] = None
     description: Optional[str] = None
     status: Optional[str] = None
+    unit_type: str | None = None
+    hours: Decimal | None = None
+    days: Decimal | None = None
+    paid: bool | None = None
+    payroll_effect: str | None = None
+    processed_payroll_id: int | None = None
+    generated_amount: Decimal | None = None
+    overlap_override: bool | None = None
+    overlap_reason: str | None = None
+    origin: str | None = None
+    details: dict[str, Any] | None = None
+    updated_by: str | None = None
+    change_reason: str | None = None
+    expected_version: int | None = None
+
+    @field_validator("incident_type")
+    @classmethod
+    def validate_type(cls, value: str | None):
+        if value is not None and value not in INCIDENT_TYPES:
+            raise ValueError("Tipo de incidencia no válido")
+        return value
+
+    @field_validator("status")
+    @classmethod
+    def validate_status(cls, value: str | None):
+        if value is not None and value not in INCIDENT_STATUSES:
+            raise ValueError("Estado de incidencia no válido")
+        return value
+
+    @field_validator("hours")
+    @classmethod
+    def validate_hours(cls, value: Decimal | None):
+        if value is not None and (value < 0 or value > 24):
+            raise ValueError("Las horas deben estar entre 0 y 24")
+        return value
+
+    @field_validator("days", "generated_amount")
+    @classmethod
+    def validate_non_negative(cls, value: Decimal | None):
+        if value is not None and value < 0:
+            raise ValueError("El valor no puede ser negativo")
+        return value
 
 
 class IncidentResponse(BaseModel):
@@ -64,7 +209,30 @@ class IncidentResponse(BaseModel):
     end_date: Optional[date]
     description: Optional[str]
     status: str
+    unit_type: str | None = None
+    hours: Decimal | None = None
+    days: Decimal | None = None
+    paid: bool | None = None
+    payroll_effect: str = "pending"
+    processed_payroll_id: int | None = None
+    generated_amount: Decimal | None = None
+    processed_at: datetime | None = None
+    is_cancelled: bool = False
+    cancelled_at: datetime | None = None
+    cancellation_reason: str | None = None
+    requires_recalculation: bool = False
+    requires_regularization: bool = False
+    overlap_override: bool = False
+    overlap_reason: str | None = None
+    origin: str = "manual"
+    details: dict[str, Any] = Field(default_factory=dict)
+    created_by: str | None = None
+    updated_by: str | None = None
+    version: int = 1
     created_at: datetime
+    updated_at: datetime | None = None
+    audit_entries: list[IncidentAuditResponse] = Field(default_factory=list)
+    confirmations: list[IncidentConfirmationResponse] = Field(default_factory=list)
 
     class Config:
         from_attributes = True
