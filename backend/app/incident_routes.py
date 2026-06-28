@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session, joinedload
 
 from app.crud.incident import get_incident
 from app.db import SessionLocal
+from app.incident_advanced_routes import router as advanced_router
 from app.models.incident_calculation import PayrollSegment
 from app.models.payroll import Payroll
 from app.schemas.incident import IncidentAuditResponse, IncidentResponse
@@ -35,6 +36,7 @@ from app.services.incident_segmenter import build_incident_segments
 
 
 router = APIRouter(prefix="/incidents", tags=["incidents"])
+router.include_router(advanced_router)
 
 
 def get_db():
