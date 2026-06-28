@@ -7,6 +7,7 @@ from app.models.work_center import WorkCenter
 from app.models.work_calendar import WorkCalendar
 from app.models.incident import Incident
 from app.models.incident_detail import IncidentAudit, IncidentConfirmation, IncidentDetail
+from app.models.incident_calculation import IncidentCalculationRule, PayrollSegment
 from app.models.wage_garnishment import WageGarnishment
 from app.models.wage_garnishment_movement import WageGarnishmentMovement
 from app.models.smi_parameter import SmiParameter
