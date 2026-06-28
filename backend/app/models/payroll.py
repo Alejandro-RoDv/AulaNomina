@@ -70,6 +70,7 @@ class Payroll(Base):
     company = relationship("Company", back_populates="payrolls")
     work_center = relationship("WorkCenter", back_populates="payrolls")
     items = relationship("PayrollItem", back_populates="payroll")
+    segments = relationship("PayrollSegment", back_populates="payroll", cascade="all, delete-orphan")
 
     @property
     def employee_name(self):
