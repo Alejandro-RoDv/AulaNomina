@@ -15,7 +15,7 @@ jobs:
       run:
         working-directory: backend
     env:
-      DATABASE_URL: sqlite:///./split34_test.db
+      DATABASE_URL: insqlite:///./split34_test.db
       PYTHONPATH: .
     steps:
       - uses: actions/checkout@v4
@@ -28,7 +28,18 @@ jobs:
       - name: Regulatory base scenarios
         run: python -m pytest -q --tb=short tests/test_incident_regulatory_base_advanced.py
       - name: Vacation balance scenarios
-        run: python -m pytest -q --tb=short tests/test_vacation_balance_advanced.py
+        id: vacation_tests
+        continue-on-error: true
+        run: python -m pytest -q --tb=short tests/test_vacation_balance_advanced.py > vacation-test-output.txt 2>&1
+      - name: Upload vacation diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vacation-test-output
+          path: backend/vacation-test-output.txt
+      - name: Fail when vacation tests fail
+        if: steps.vacation_tests.outcome == 'failure'
+        run: exit 1
 
   frontend:
     runs-on: ubuntu-latest
