@@ -15,7 +15,7 @@ jobs:
       run:
         working-directory: backend
     env:
-      DATABASE_URL: insqlite:///./split34_test.db
+      DATABASE_URL: sqlite:///./split34_test.db
       PYTHONPATH: .
     steps:
       - uses: actions/checkout@v4
