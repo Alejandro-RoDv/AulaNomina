@@ -159,13 +159,15 @@ class IncidentPayrollEngineTest(unittest.TestCase):
         self.assertEqual(benefit_segment["daily_regulatory_base"], Decimal("110.0000"))
         self.assertEqual(benefit_segment["benefit_amount"], Decimal("198.00"))
 
-    def test_unpaid_absence_reduces_salary_and_contribution_days(self):
+    def test_unpaid_absence_reduces_salary_and_uses_minimum_contribution(self):
         payroll = self.payroll()
         incident = self.incident("PERMISO_NO_RETRIBUIDO", date(2026, 6, 10), date(2026, 6, 14))
         result = build_incident_segments(self.db, payroll.id, self.contract, 6, 2026, [incident])
         self.assertEqual(result["worked_base_salary"], Decimal("2500.00"))
         self.assertEqual(result["salary_deductions"], Decimal("500.00"))
-        self.assertEqual(result["contribution_days"], 25)
+        self.assertEqual(result["contribution_days"], 30)
+        segment = next(item for item in result["segments"] if item["incident_id"] == incident.id)
+        self.assertEqual(segment["contribution_treatment"], "minimum")
 
     def test_vacation_keeps_salary_and_contribution(self):
         payroll = self.payroll(month=2)
