@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import IncidentForm, { INCIDENT_TYPES, STATUS_OPTIONS } from "../components/incidents/IncidentForm";
 import IncidentTable from "../components/incidents/IncidentTableContent";
 import PageCard from "../components/layout/PageCard";
+import { getCategoryFormUpdates, getIncidentCategory, INCIDENT_CATEGORY_TABS } from "../utils/incidentCategories";
 import { getEmployeeVisibleCode } from "../utils/visibleCodes";
 import { openReportPreset } from "../utils/reportShortcuts";
 import WageGarnishmentManagementPage from "./WageGarnishmentManagementPage";
@@ -10,15 +11,6 @@ import WageGarnishmentManagementPage from "./WageGarnishmentManagementPage";
 const INCIDENTS_MODE_KEY = "aulanomina:incidentsMode";
 const INCIDENTS_MODE_EVENT = "aulanomina-incidents-mode";
 const HEADER_EVENT = "aulanomina-header-context";
-
-const CATEGORY_TABS = [
-  { value: "all", label: "Resumen mensual", types: null },
-  { value: "medical", label: "Incapacidad y prestaciones", types: ["IT", "RECAIDA", "NACIMIENTO_CUIDADO", "RIESGO_EMBARAZO", "RIESGO_LACTANCIA", "CUIDADO_MENOR"] },
-  { value: "absence", label: "Absentismo", types: ["AUSENCIA", "PERMISO_RETRIBUIDO", "PERMISO_NO_RETRIBUIDO", "SUSPENSION", "SANCION"] },
-  { value: "vacation", label: "Vacaciones", types: ["VACACIONES"] },
-  { value: "overtime", label: "Horas extraordinarias", types: ["HORAS_EXTRA"] },
-  { value: "movement", label: "Cambios del trabajador", types: ["MOVIMIENTO"] },
-];
 
 function getInitialMode() {
   if (typeof window === "undefined") return "list";
@@ -64,6 +56,7 @@ export default function IncidentsPage({
   const [activeMode, setActiveMode] = useState(getInitialMode);
   const [activeCategory, setActiveCategory] = useState("all");
   const [filters, setFilters] = useState({ employee: "", company: "", incidentType: "", status: "", dateFrom: "", dateTo: "" });
+  const activeTab = getIncidentCategory(activeCategory);
 
   useEffect(() => {
     const handleModeChange = () => {
@@ -78,6 +71,14 @@ export default function IncidentsPage({
       window.dispatchEvent(new CustomEvent(HEADER_EVENT, { detail: null }));
     };
   }, []);
+
+  const handleCategoryChange = (tab) => {
+    setActiveCategory(tab.value);
+    const updates = getCategoryFormUpdates(tab, incidentForm.incident_type);
+    Object.entries(updates).forEach(([name, value]) => {
+      onIncidentChange({ target: { name, value, type: "select-one" } });
+    });
+  };
 
   const incidentsWithEmployeeData = useMemo(() => {
     const employeeMap = Object.fromEntries(employees.map((employee) => [String(employee.id), employee]));
@@ -105,7 +106,7 @@ export default function IncidentsPage({
     const statusFilter = normalizeText(filters.status);
     const fromDate = dateToNumber(filters.dateFrom);
     const toDate = dateToNumber(filters.dateTo);
-    const category = CATEGORY_TABS.find((tab) => tab.value === activeCategory);
+    const category = getIncidentCategory(activeCategory);
 
     return incidentsWithEmployeeData.filter((incident) => {
       const center = workCenters.find((item) => Number(item.id) === Number(incident.center_id));
@@ -114,7 +115,7 @@ export default function IncidentsPage({
       const incidentStartDate = dateToNumber(incident.start_date);
       const incidentEndDate = dateToNumber(incident.end_date) || incidentStartDate;
       return (
-        (!category?.types || category.types.includes(incident.incident_type))
+        (!category.types || category.types.includes(incident.incident_type))
         && (!employeeFilter || employeeText.includes(employeeFilter))
         && (!companyFilter || companyText.includes(companyFilter))
         && (!typeFilter || normalizeText(incident.incident_type) === typeFilter)
@@ -140,12 +141,40 @@ export default function IncidentsPage({
       </div>
 
       <div style={styles.tabs} role="tablist" aria-label="Tipos de incidencias">
-        {CATEGORY_TABS.map((tab) => <button key={tab.value} type="button" role="tab" aria-selected={activeCategory === tab.value} onClick={() => setActiveCategory(tab.value)} style={activeCategory === tab.value ? styles.activeTab : styles.tab}>{tab.label}</button>)}
+        {INCIDENT_CATEGORY_TABS.map((tab) => (
+          <button
+            key={tab.value}
+            id={`incident-tab-${tab.value}`}
+            type="button"
+            role="tab"
+            aria-selected={activeCategory === tab.value}
+            aria-controls="incident-category-panel"
+            onClick={() => handleCategoryChange(tab)}
+            style={activeCategory === tab.value ? styles.activeTab : styles.tab}
+          >
+            {tab.label}
+          </button>
+        ))}
       </div>
 
-      <PageCard title="Registrar incidencia" subtitle="Selecciona trabajador y vida laboral; el backend comprobará vigencia, solapamientos y nóminas afectadas.">
-        <IncidentForm form={incidentForm} employees={employees} contracts={contracts} companies={companies} workCenters={workCenters} onChange={onIncidentChange} onSubmit={onIncidentSubmit} error={incidentError} success={incidentSuccess} submitting={incidentSubmitting} />
-      </PageCard>
+      <div id="incident-category-panel" role="tabpanel" aria-labelledby={`incident-tab-${activeTab.value}`}>
+        <PageCard title={activeTab.title} subtitle={activeTab.subtitle}>
+          <IncidentForm
+            form={incidentForm}
+            employees={employees}
+            contracts={contracts}
+            companies={companies}
+            workCenters={workCenters}
+            onChange={onIncidentChange}
+            onSubmit={onIncidentSubmit}
+            error={incidentError}
+            success={incidentSuccess}
+            submitting={incidentSubmitting}
+            allowedIncidentTypes={activeTab.types}
+            submitLabel={activeTab.submitLabel}
+          />
+        </PageCard>
+      </div>
 
       <PageCard title="Histórico de incidencias" subtitle="Los registros anulados y procesados se conservan para reconstrucción y auditoría.">
         <div style={styles.reportActions}>
