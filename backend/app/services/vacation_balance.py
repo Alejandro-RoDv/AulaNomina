@@ -1,6 +1,7 @@
 from calendar import isleap
 from datetime import date
 from decimal import Decimal, ROUND_HALF_UP
+from uuid import uuid4
 
 from sqlalchemy import or_
 
@@ -21,14 +22,32 @@ def four(value):
 def annual_entitlement(db, contract: Contract):
     rule = None
     if contract.collective_agreement_id:
+        professional_group_id = getattr(
+            contract.agreement_professional_category,
+            "professional_group_id",
+            None,
+        )
         rule = (
             db.query(VacationRule)
             .filter(
-                VacationRule.collective_agreement_id == contract.collective_agreement_id,
-                or_(VacationRule.professional_category_id.is_(None), VacationRule.professional_category_id == contract.professional_category_id),
-                or_(VacationRule.professional_group_id.is_(None), VacationRule.professional_group_id == getattr(contract.agreement_professional_category, "professional_group_id", None)),
+                VacationRule.collective_agreement_id
+                == contract.collective_agreement_id,
+                or_(
+                    VacationRule.professional_category_id.is_(None),
+                    VacationRule.professional_category_id
+                    == contract.professional_category_id,
+                ),
+                or_(
+                    VacationRule.professional_group_id.is_(None),
+                    VacationRule.professional_group_id
+                    == professional_group_id,
+                ),
             )
-            .order_by(VacationRule.professional_category_id.desc().nullslast(), VacationRule.id.desc())
+            .order_by(
+                VacationRule.professional_category_id.isnot(None).desc(),
+                VacationRule.professional_group_id.isnot(None).desc(),
+                VacationRule.id.desc(),
+            )
             .first()
         )
     if rule and rule.working_days:
@@ -46,20 +65,35 @@ def active_days_in_year(contract: Contract, year: int):
     return (end - start).days + 1
 
 
+def incident_vacation_amount(incident: Incident, start: date, end: date, unit: str):
+    if unit == "working_days" and incident.days is not None:
+        return Decimal(str(incident.days))
+    return Decimal((end - start).days + 1)
+
+
 def sync_vacation_ledger(db, contract: Contract, year: int):
     entitlement, unit, rule_id = annual_entitlement(db, contract)
     days_year = Decimal("366" if isleap(year) else "365")
-    accrued = four(entitlement * Decimal(active_days_in_year(contract, year)) / days_year)
+    accued = four(
+        entitlement * Decimal(active_days_in_year(contract, year)) / days_year
+    )
     accrual_key = f"vacation:contract:{contract.id}:year:{year}:accrual"
-    accrual = db.query(VacationLedgerEntry).filter(VacationLedgerEntry.source_key == accrual_key).first()
+    accual = (
+        db.query(VacationLedgerEntry)
+        .filter(VacationLedgerEntry.source_key == accual_key)
+        .first()
+    )
     values = {
         "employee_id": contract.employee_id,
         "contract_id": contract.id,
         "year": year,
         "entry_type": "accrual",
         "unit": unit,
-        "amount": accrued,
-        "description": f"Devengo anual proporcional. Regla de convenio: {rule_id or 'general 30 días'}",
+        "amount": accued,
+        "description": (
+            "Devengo anual proporcional. "
+            f"Regla de convenio: {rule_id or 'general 30 días'}"
+        ),
         "is_automatic": True,
     }
     if accrual is None:
@@ -74,18 +108,30 @@ def sync_vacation_ledger(db, contract: Contract, year: int):
             Incident.contract_id == contract.id,
             Incident.incident_type.in_(VACATION_TYPES),
             Incident.start_date <= date(year, 12, 31),
-            or_(Incident.end_date.is_(None), Incident.end_date >= date(year, 1, 1)),
+            or_(
+                Incident.end_date.is_(None),
+                Incident.end_date >= date(year, 1, 1),
+            ),
         )
         .all()
     )
-    active_keys = {accrual_key}
+    active_keys = {accual_key}
     for incident in incidents:
+        if incident.is_cancelled:
+            continue
         start = max(incident.start_date, date(year, 1, 1))
-        end = min(incident.end_date or incident.start_date, date(year, 12, 31))
-        amount = Decimal((end - start).days + 1)
+        end = min(
+            incident.end_date or incident.start_date,
+            date(year, 12, 31),
+        )
+        amount = incident_vacation_amount(incident, start, end, unit)
         key = f"vacation:incident:{incident.id}:year:{year}"
         active_keys.add(key)
-        entry = db.query(VacationLedgerEntry).filter(VacationLedgerEntry.source_key == key).first()
+        entry = (
+            db.query(VacationLedgerEntry)
+            .filter(VacationLedgerEntry.source_key == key)
+            .first()
+        )
         item_values = {
             "employee_id": contract.employee_id,
             "contract_id": contract.id,
@@ -105,38 +151,87 @@ def sync_vacation_ledger(db, contract: Contract, year: int):
             for field, value in item_values.items():
                 setattr(entry, field, value)
 
-    stale = db.query(VacationLedgerEntry).filter(
-        VacationLedgerEntry.contract_id == contract.id,
-        VacationLedgerEntry.year == year,
-        VacationLedgerEntry.is_automatic.is_(True),
-        VacationLedgerEntry.source_key.notin_(active_keys),
-    ).all()
+    stale = (
+        db.query(VacationLedgerEntry)
+        .filter(
+            VacationLedgerEntry.contract_id == contract.id,
+            VacationLedgerEntry.year == year,
+            VacationLedgerEntry.is_automatic.is_(True),
+            VacationLedgerEntry.source_key.notin_(active_keys),
+        )
+        .all()
+    )
     for entry in stale:
         db.delete(entry)
     db.flush()
 
 
-def vacation_balance(db, employee_id: int, year: int, contract_id: int | None = None):
+def vacation_balance(
+    db,
+    employee_id: int,
+    year: int,
+    contract_id: int | None = None,
+):
     query = db.query(Contract).filter(Contract.employee_id == employee_id)
     if contract_id is not None:
         query = query.filter(Contract.id == contract_id)
     contracts = query.order_by(Contract.start_date, Contract.id).all()
     if not contracts:
-        return {"employee_id": employee_id, "year": year, "contracts": [], "accrued": 0, "taken": 0, "adjustments": 0, "balance": 0}
+        return {
+            "employee_id": employee_id,
+            "year": year,
+            "contracts": [],
+            "accrued": 0,
+            "taken": 0,
+            "adjustments": 0,
+            "balance": 0,
+        }
 
     for contract in contracts:
         sync_vacation_ledger(db, contract, year)
     db.commit()
 
-    rows = db.query(VacationLedgerEntry).filter(
-        VacationLedgerEntry.employee_id == employee_id,
-        VacationLedgerEntry.year == year,
-        VacationLedgerEntry.contract_id.in_([item.id for item in contracts]),
-    ).order_by(VacationLedgerEntry.contract_id, VacationLedgerEntry.created_at, VacationLedgerEntry.id).all()
+    rows = (
+        db.query(VacationLedgerEntry)
+        .filter(
+            VacationLedgerEntry.employee_id == employee_id,
+            VacationLedgerEntry.year == year,
+            VacationLedgerEntry.contract_id.in_(
+                [item.id for item in contracts]
+            ),
+        )
+        .order_by(
+            VacationLedgerEntry.contract_id,
+            VacationLedgerEntry.created_at,
+            VacationLedgerEntry.id,
+        )
+        .all()
+    )
 
-    accrued = sum((Decimal(str(row.amount)) for row in rows if row.entry_type in {"accrual", "carryover"}), Decimal("0"))
-    taken = -sum((Decimal(str(row.amount)) for row in rows if row.entry_type == "taken"), Decimal("0"))
-    adjustments = sum((Decimal(str(row.amount)) for row in rows if row.entry_type == "adjustment"), Decimal("0"))
+    accued = sum(
+        (
+            Decimal(str(row.amount))
+            for row in rows
+            if row.entry_type in {"accrual", "carryover"}
+        ),
+        Decimal("0"),
+    )
+    taken = -sum(
+        (
+            Decimal(str(row.amount))
+            for row in rows
+            if row.entry_type == "taken"
+        ),
+        Decimal("0"),
+    )
+    adjustments = sum(
+        (
+            Decimal(str(row.amount))
+            for row in rows
+            if row.entry_type == "adjustment"
+        ),
+        Decimal("0"),
+    )
     return {
         "employee_id": employee_id,
         "year": year,
@@ -162,7 +257,15 @@ def vacation_balance(db, employee_id: int, year: int, contract_id: int | None = 
     }
 
 
-def add_vacation_adjustment(db, contract_id: int, year: int, amount, unit: str, description: str, actor: str | None):
+def add_vacation_adjustment(
+    db,
+    contract_id: int,
+    year: int,
+    amount,
+    unit: str,
+    description: str,
+    actor: str | None,
+):
     contract = db.query(Contract).filter(Contract.id == contract_id).first()
     if not contract:
         return None
@@ -173,11 +276,14 @@ def add_vacation_adjustment(db, contract_id: int, year: int, amount, unit: str, 
         entry_type="adjustment",
         unit=unit,
         amount=four(amount),
-        source_key=f"vacation:adjustment:{contract.id}:{year}:{date.today().isoformat()}:{actor or 'system'}:{description}",
+        source_key=(
+            f"vacation:adjustment:{contract.id}:{year}:{uuid4().hex}"
+        ),
         description=description,
         is_automatic=False,
         created_by=actor,
     )
     db.add(entry)
     db.commit()
+    db.refresh(entry)
     return entry
