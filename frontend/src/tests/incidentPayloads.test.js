@@ -45,3 +45,20 @@ test("envía la versión esperada al editar", () => {
   assert.equal(payload.expected_version, 4);
   assert.equal(payload.change_reason, "Corrección del parte");
 });
+
+
+test("conserva la autorización y el motivo de un solapamiento revisado", () => {
+  const payload = buildIncidentPayload({
+    ...initialIncidentForm,
+    employee_id: "1",
+    contract_id: "2",
+    company_id: "3",
+    incident_type: "VACACIONES",
+    start_date: "2026-08-03",
+    end_date: "2026-08-07",
+    overlap_override: true,
+    overlap_reason: "Conflicto revisado por el docente",
+  });
+  assert.equal(payload.overlap_override, true);
+  assert.equal(payload.overlap_reason, "Conflicto revisado por el docente");
+});
