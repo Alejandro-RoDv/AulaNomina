@@ -37,6 +37,10 @@ jobs:
         id: tests
         continue-on-error: true
         run: python -m pytest -q --tb=short tests/test_wage_garnishment.py tests/test_wage_garnishment_calculator.py >> backend-test-output.txt 2>&1
+      - name: Incident payroll engine tests
+        id: incident_engine
+        continue-on-error: true
+        run: python -m unittest -v tests.test_incident_payroll_engine >> backend-test-output.txt 2>&1
       - name: Import application
         id: import_app
         continue-on-error: true
@@ -47,6 +51,6 @@ jobs:
         with:
           name: backend-test-output
           path: backend/backend-test-output.txt
-      - name: Fail when backend checks fail
-        if: steps.schema.outcome == 'failure' || steps.tests.outcome == 'failure' || steps.import_app.outcome == 'failure'
+      - name: Fail when checks fail
+        if: steps.schema.outcome == 'failure' || steps.tests.outcome == 'failure' || steps.incident_engine.outcome == 'failure' || steps.import_app.outcome == 'failure'
         run: exit 1
