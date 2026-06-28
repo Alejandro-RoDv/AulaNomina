@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import {
+  getCategoryFormUpdates,
+  getIncidentCategory,
+  INCIDENT_CATEGORY_TABS,
+} from "../utils/incidentCategories.js";
 import { buildIncidentPayload, buildIncidentUpdatePayload, initialIncidentForm } from "../utils/incidentPayloads.js";
 
 
@@ -61,4 +66,45 @@ test("conserva la autorización y el motivo de un solapamiento revisado", () => 
   });
   assert.equal(payload.overlap_override, true);
   assert.equal(payload.overlap_reason, "Conflicto revisado por el docente");
+});
+
+
+test("cada pestaña funcional tiene un tipo de incidencia predeterminado válido", () => {
+  for (const tab of INCIDENT_CATEGORY_TABS.filter((item) => item.defaultType)) {
+    assert.ok(tab.types.includes(tab.defaultType), `${tab.value} tiene un tipo predeterminado inválido`);
+  }
+});
+
+
+test("la pestaña médica selecciona IT al venir de otra categoría", () => {
+  const tab = getIncidentCategory("medical");
+  assert.deepEqual(getCategoryFormUpdates(tab, "VACACIONES"), {
+    incident_type: "IT",
+    unit_type: "days",
+    payroll_effect: "pending",
+  });
+});
+
+
+test("una pestaña conserva un subtipo compatible", () => {
+  const tab = getIncidentCategory("medical");
+  assert.deepEqual(getCategoryFormUpdates(tab, "RECAIDA"), {
+    unit_type: "days",
+    payroll_effect: "pending",
+  });
+});
+
+
+test("horas extraordinarias activa el formulario por horas y devengo", () => {
+  const tab = getIncidentCategory("overtime");
+  assert.deepEqual(getCategoryFormUpdates(tab, ""), {
+    incident_type: "HORAS_EXTRA",
+    unit_type: "hours",
+    payroll_effect: "earning",
+  });
+});
+
+
+test("el resumen mensual no sobrescribe el formulario actual", () => {
+  assert.deepEqual(getCategoryFormUpdates(getIncidentCategory("all"), "IT"), {});
 });
