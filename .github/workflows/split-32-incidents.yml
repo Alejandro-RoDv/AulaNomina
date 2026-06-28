@@ -1,0 +1,57 @@
+name: Split 32 incidents
+
+on:
+  pull_request:
+    paths:
+      - "backend/app/**incident**"
+      - "backend/tests/test_incident_lifecycle.py"
+      - "frontend/src/**incident**"
+      - "frontend/package.json"
+      - ".github/workflows/split-32-incidents.yml"
+  workflow_dispatch:
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      DATABASE_URL: sqlite:///./aulanomina_incidents_test.db
+      PYTHONPATH: .
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install --quiet -r requirements.txt
+      - name: Run incident lifecycle tests
+        id: incident-tests
+        continue-on-error: true
+        run: python -m unittest -v tests.test_incident_lifecycle > incident-test.log 2>&1
+      - name: Upload incident test log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: incident-test-log
+          path: backend/incident-test.log
+          if-no-files-found: error
+      - name: Enforce incident test result
+        if: steps.incident-tests.outcome == 'failure'
+        run: exit 1
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm install --silent
+      - run: npm run test:incidencias
+      - run: npm run build
+      - name: Lint incident module
+        run: npx eslint src/pages/IncidentsPage.jsx src/components/incidents/IncidentForm.jsx src/components/incidents/IncidentTable.jsx src/hooks/useIncidentsModule.js src/utils/incidentPayloads.js src/tests/incidentPayloads.test.js
