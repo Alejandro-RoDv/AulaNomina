@@ -1,8 +1,10 @@
-from fastapi import APIRouter, Depends
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session, joinedload
 
 from app.crud.incident import get_incident
 from app.db import SessionLocal
+from app.models.incident_calculation import PayrollSegment
+from app.models.payroll import Payroll
 from app.schemas.incident import IncidentAuditResponse, IncidentResponse
 from app.schemas.incident_actions import (
     IncidentCancelRequest,
@@ -13,6 +15,12 @@ from app.schemas.incident_actions import (
     IncidentProcessRequest,
     IncidentRecalculationRequest,
 )
+from app.schemas.incident_payroll_engine import (
+    IncidentPayrollPreviewResponse,
+    IncidentPayrollProcessRequest,
+    IncidentPayrollProcessResponse,
+    PayrollSegmentResponse,
+)
 from app.services.incident_actions import (
     build_monthly_incident_summary,
     cancel_confirmation,
@@ -22,6 +30,8 @@ from app.services.incident_actions import (
     request_incident_recalculation,
     update_confirmation,
 )
+from app.services.incident_payroll_processor import period_incidents, process_payroll_incidents
+from app.services.incident_segmenter import build_incident_segments
 
 
 router = APIRouter(prefix="/incidents", tags=["incidents"])
@@ -39,8 +49,6 @@ def get_db():
 def incident_history(incident_id: int, db: Session = Depends(get_db)):
     incident = get_incident(db, incident_id)
     if not incident:
-        from fastapi import HTTPException
-
         raise HTTPException(status_code=404, detail="Incidencia no encontrada")
     return incident.audit_entries
 
@@ -113,3 +121,58 @@ def monthly_summary_endpoint(
     db: Session = Depends(get_db),
 ):
     return build_monthly_incident_summary(db, employee_id, year, month, contract_id)
+
+
+@router.post(
+    "/payrolls/{payroll_id}/process",
+    response_model=IncidentPayrollProcessResponse,
+)
+def process_payroll_incidents_endpoint(
+    payroll_id: int,
+    request: IncidentPayrollProcessRequest,
+    db: Session = Depends(get_db),
+):
+    return process_payroll_incidents(db, payroll_id, actor=request.actor)
+
+
+@router.get(
+    "/payrolls/{payroll_id}/segments",
+    response_model=list[PayrollSegmentResponse],
+)
+def payroll_segments_endpoint(payroll_id: int, db: Session = Depends(get_db)):
+    payroll = db.query(Payroll).filter(Payroll.id == payroll_id).first()
+    if not payroll:
+        raise HTTPException(status_code=404, detail="Nómina no encontrada")
+    return (
+        db.query(PayrollSegment)
+        .filter(PayrollSegment.payroll_id == payroll_id)
+        .order_by(PayrollSegment.start_date, PayrollSegment.id)
+        .all()
+    )
+
+
+@router.get(
+    "/payrolls/{payroll_id}/preview",
+    response_model=IncidentPayrollPreviewResponse,
+)
+def preview_payroll_incidents_endpoint(payroll_id: int, db: Session = Depends(get_db)):
+    payroll = (
+        db.query(Payroll)
+        .options(joinedload(Payroll.contract))
+        .filter(Payroll.id == payroll_id)
+        .first()
+    )
+    if not payroll:
+        raise HTTPException(status_code=404, detail="Nómina no encontrada")
+    if payroll.period_month not in range(1, 13):
+        raise HTTPException(status_code=400, detail="La segmentación solo se aplica a nóminas mensuales")
+    incidents = period_incidents(db, payroll)
+    result = build_incident_segments(
+        db,
+        payroll.id,
+        payroll.contract,
+        payroll.period_month,
+        payroll.period_year,
+        incidents,
+    )
+    return {"payroll_id": payroll.id, **result}
