@@ -62,6 +62,6 @@ class PayrollSegment(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
     payroll = relationship("Payroll", back_populates="segments")
-    incident = relationship("Incident", back_populates="payroll_segments")
+    incident = relationship("Incident")
     rule = relationship("IncidentCalculationRule", back_populates="segments")
     payroll_items = relationship("PayrollItem", back_populates="segment")
