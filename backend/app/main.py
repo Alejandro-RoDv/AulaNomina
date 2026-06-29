@@ -80,12 +80,14 @@ from app.schemas.payroll import (
     PayrollResponse,
 )
 from app.crud.payroll import (
-    create_payroll,
     get_payrolls,
-    update_payroll,
     delete_payroll,
-    prepare_monthly_payrolls,
     simulate_future_payrolls,
+)
+from app.services.payroll_application_service import (
+    create_payroll,
+    prepare_monthly_payrolls,
+    update_payroll,
 )
 from app.schemas.document import DocumentCreate, DocumentUpdate, DocumentResponse
 from app.crud.document import (
