@@ -1,4 +1,5 @@
 import app.incident_payroll_schema_patch  # noqa: F401
+import app.payroll_stability_schema_patch  # noqa: F401
 
 from app.models.user import User
 from app.models.employee import Employee
