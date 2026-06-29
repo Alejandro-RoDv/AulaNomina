@@ -9,9 +9,9 @@ import {
 
 import { formatDate, money } from "./incidentPayrollUi";
 
-function Metric({ icon: Icon, label, value, note, tone = "" }) {
+function Metric({ icon, label, value, note, tone = "" }) {
   return <article className={`incident-engine-metric ${tone}`}>
-    <span className="incident-engine-metric-icon"><Icon size={18} /></span>
+    <span className="incident-engine-metric-icon">{icon}</span>
     <div><small>{label}</small><strong>{value}</strong><p>{note}</p></div>
   </article>;
 }
@@ -45,10 +45,10 @@ export function IncidentOverlapConflicts({ error }) {
 export function IncidentPayrollMetrics({ preview }) {
   if (!preview) return null;
   return <section className="incident-engine-metrics">
-    <Metric icon={CalendarDays} label="Días trabajados" value={preview.worked_days} note={`${preview.incident_days} días con incidencia`} />
-    <Metric icon={ShieldCheck} label="Días de cotización" value={preview.contribution_days} note={`${preview.non_contribution_days} sin cotización`} tone="success" />
-    <Metric icon={FileClock} label="Días IT" value={preview.it_days} note="Procesos médicos del periodo" tone={preview.it_days ? "warning" : ""} />
-    <Metric icon={Database} label="Deducciones" value={money(preview.salary_deductions)} note="Reducción salarial calculada" tone={Number(preview.salary_deductions) ? "critical" : ""} />
-    <Metric icon={CheckCircle2} label="Horas extraordinarias" value={money(preview.overtime_amount)} note="Devengo adicional" />
+    <Metric icon={<CalendarDays size={18} />} label="Días trabajados" value={preview.worked_days} note={`${preview.incident_days} días con incidencia`} />
+    <Metric icon={<ShieldCheck size={18} />} label="Días de cotización" value={preview.contribution_days} note={`${preview.non_contribution_days} sin cotización`} tone="success" />
+    <Metric icon={<FileClock size={18} />} label="Días IT" value={preview.it_days} note="Procesos médicos del periodo" tone={preview.it_days ? "warning" : ""} />
+    <Metric icon={<Database size={18} />} label="Deducciones" value={money(preview.salary_deductions)} note="Reducción salarial calculada" tone={Number(preview.salary_deductions) ? "critical" : ""} />
+    <Metric icon={<CheckCircle2 size={18} />} label="Horas extraordinarias" value={money(preview.overtime_amount)} note="Devengo adicional" />
   </section>;
 }
