@@ -35,10 +35,10 @@ class PayrollComponentAdjustment:
     def to_dict(self) -> dict[str, Any]:
         return {
             "field": self.field,
-            "original_amount": self.original_amount,
-            "factor": self.factor,
-            "adjusted_amount": self.adjusted_amount,
-            "reduction_amount": self.reduction_amount,
+            "original_amount": str(self.original_amount),
+            "factor": str(self.factor),
+            "adjusted_amount": str(self.adjusted_amount),
+            "reduction_amount": str(self.reduction_amount),
         }
 
 
