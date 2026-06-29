@@ -2,9 +2,12 @@ import ast
 import unittest
 from datetime import date
 from pathlib import Path
+from types import SimpleNamespace
 
+from fastapi import HTTPException
 from pydantic import ValidationError
 
+from app.crud.incident import _sanitize_general_update
 from app.schemas.incident import IncidentCreate, IncidentUpdate
 
 
@@ -52,21 +55,61 @@ class IncidentStructuralContractsTests(unittest.TestCase):
                 )
             )
 
-    def test_general_update_rejects_action_only_states(self):
-        for status in ("draft", "open", "pending", "validated"):
+    def test_update_schema_accepts_known_states_for_compatibility(self):
+        for status in (
+            "draft",
+            "open",
+            "pending",
+            "validated",
+            "processed",
+            "closed",
+            "regularized",
+            "cancelled",
+        ):
             update = IncidentUpdate(status=status)
             self.assertEqual(update.status, status)
 
-        for status in ("processed", "closed", "regularized", "cancelled"):
-            with self.subTest(status=status):
-                with self.assertRaises(ValidationError):
-                    IncidentUpdate(status=status)
+        with self.assertRaises(ValidationError):
+            IncidentUpdate(status="unknown")
 
-    def test_general_update_cannot_overwrite_processing_result(self):
-        with self.assertRaises(ValidationError):
-            IncidentUpdate(processed_payroll_id=20)
-        with self.assertRaises(ValidationError):
-            IncidentUpdate(generated_amount="80.00")
+    def test_general_update_allows_only_editable_status_transitions(self):
+        incident = SimpleNamespace(
+            status="open",
+            processed_payroll_id=None,
+            generated_amount=None,
+        )
+        update_data = {"status": "validated"}
+        _sanitize_general_update(incident, update_data)
+        self.assertEqual(update_data, {"status": "validated"})
+
+        with self.assertRaises(HTTPException) as context:
+            _sanitize_general_update(incident, {"status": "processed"})
+        self.assertEqual(context.exception.status_code, 409)
+
+    def test_general_update_accepts_unchanged_action_fields_but_rejects_overwrite(self):
+        incident = SimpleNamespace(
+            status="processed",
+            processed_payroll_id=20,
+            generated_amount="80.00",
+        )
+        unchanged = {
+            "status": "processed",
+            "processed_payroll_id": 20,
+            "generated_amount": "80.0",
+        }
+        _sanitize_general_update(incident, unchanged)
+        self.assertEqual(unchanged, {})
+
+        with self.assertRaises(HTTPException):
+            _sanitize_general_update(
+                incident,
+                {"generated_amount": "81.00"},
+            )
+        with self.assertRaises(HTTPException):
+            _sanitize_general_update(
+                incident,
+                {"processed_payroll_id": 21},
+            )
 
     def test_routes_and_bridge_use_canonical_payroll_service(self):
         route_file = BACKEND_ROOT / "app" / "incident_routes.py"
