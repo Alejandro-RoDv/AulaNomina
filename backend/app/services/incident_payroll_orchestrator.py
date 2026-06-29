@@ -18,9 +18,7 @@ from app.services.incident_service import incident_snapshot, register_incident_a
 
 
 def load_payroll_for_incident_engine(db: Session, payroll_id: int) -> Payroll:
-    payroll = db.query(Payroll).options(
-        joinedload(Payroll.contract), joinedload(Payroll.segments)
-    ).filter(Payroll.id == payroll_id).first()
+    payroll = db.query(Payroll).options(joinedload(Payroll.contract), joinedload(Payroll.segments)).filter(Payroll.id == payroll_id).first()
     if not payroll:
         raise HTTPException(status_code=404, detail="Nómina no encontrada")
     if payroll.period_month not in range(1, 13):
@@ -71,9 +69,13 @@ def mark_changed_incidents_processed(db: Session, payroll: Payroll, incidents: l
         incident.detail.updated_at = datetime.utcnow()
         db.flush()
         register_incident_audit(
-            db, incident, action="payroll_engine_processed", actor=actor,
+            db,
+            incident,
+            action="payroll_engine_processed",
+            actor=actor,
             reason=f"Procesada automáticamente en nómina {payroll.id}",
-            previous_values=previous, new_values=incident_snapshot(incident),
+            previous_values=previous,
+            new_values=incident_snapshot(incident),
         )
         changed += 1
     return changed
@@ -82,7 +84,13 @@ def mark_changed_incidents_processed(db: Session, payroll: Payroll, incidents: l
 def persist_payroll_incident_calculation(db: Session, payroll: Payroll, incidents: list[Incident], calculation: IncidentPayrollCalculationResult, actor: str | None) -> dict[str, int]:
     concepts = ensure_incident_concepts(db)
     segments = upsert_segments(db, payroll, calculation.segment_payload())
-    created, updated, deleted = sync_payroll_items(db, payroll, segments, concepts)
+    created, updated, deleted = sync_payroll_items(
+        db,
+        payroll,
+        segments,
+        concepts,
+        calculation.component_adjustments,
+    )
     apply_payroll_amounts(payroll, calculation)
     changed = mark_changed_incidents_processed(db, payroll, incidents, calculation, actor)
     payroll.status = "calculated"
@@ -136,7 +144,10 @@ def process_payroll_incidents(db: Session, payroll_id: int, actor: str | None = 
 
 
 __all__ = [
-    "apply_payroll_amounts", "calculate_payroll_incidents",
-    "load_payroll_for_incident_engine", "persist_payroll_incident_calculation",
-    "preview_payroll_incidents", "process_payroll_incidents",
+    "apply_payroll_amounts",
+    "calculate_payroll_incidents",
+    "load_payroll_for_incident_engine",
+    "persist_payroll_incident_calculation",
+    "preview_payroll_incidents",
+    "process_payroll_incidents",
 ]
