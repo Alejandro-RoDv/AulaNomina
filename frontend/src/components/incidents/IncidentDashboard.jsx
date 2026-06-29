@@ -27,9 +27,9 @@ const dateOf = (value) => value
   ? String(value).slice(0, 10).split("-").reverse().join("/")
   : "—";
 
-function DashboardMetric({ icon: Icon, label, value, note, tone = "" }) {
+function DashboardMetric({ icon, label, value, note, tone = "" }) {
   return <article className={`incident-metric ${value ? tone : ""}`}>
-    <span className="incident-metric-icon"><Icon size={18} /></span>
+    <span className="incident-metric-icon">{icon}</span>
     <div><small>{label}</small><strong>{value}</strong><p>{note}</p></div>
   </article>;
 }
@@ -57,34 +57,34 @@ export default function IncidentDashboard({ incidents, onOpenCategory }) {
     .slice(0, 6);
 
   const metrics = [
-    { label: "Incidencias del mes", value: monthly.length, note: "Incluye anuladas", icon: ClipboardList },
+    { label: "Incidencias del mes", value: monthly.length, note: "Incluye anuladas", icon: <ClipboardList size={18} /> },
     {
       label: "Pendientes",
       value: active.filter((item) => ["draft", "open", "pending"].includes(item.status) && !item.processed_payroll_id).length,
       note: "Sin procesar en nómina",
       tone: "warning",
-      icon: CalendarClock,
+      icon: <CalendarClock size={18} />,
     },
     {
       label: "Procesadas",
       value: active.filter((item) => item.processed_payroll_id || item.status === "processed").length,
       note: "Vinculadas a nómina",
       tone: "success",
-      icon: CheckCircle2,
+      icon: <CheckCircle2 size={18} />,
     },
     {
       label: "Recálculo",
       value: active.filter((item) => item.requires_recalculation).length,
       note: "Resultado económico afectado",
       tone: "warning",
-      icon: RefreshCw,
+      icon: <RefreshCw size={18} />,
     },
     {
       label: "Regularización",
       value: active.filter((item) => item.requires_regularization).length,
       note: "Nómina cerrada",
       tone: "critical",
-      icon: AlertTriangle,
+      icon: <AlertTriangle size={18} />,
     },
   ];
 
