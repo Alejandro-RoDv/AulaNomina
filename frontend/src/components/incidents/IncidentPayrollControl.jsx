@@ -6,6 +6,7 @@ import {
   processPayrollIncidents,
   updatePayrollContributionBaseOverrides,
 } from "../../services/incidentApi";
+import { fetchPayrolls } from "../../services/payrollApi";
 import { IncidentComponentAdjustments, IncidentSegmentTable } from "./IncidentCalculationDetails";
 import IncidentContributionControl from "./IncidentContributionControl";
 import {
@@ -25,6 +26,7 @@ export default function IncidentPayrollControl({
   contracts = [],
   onDataChanged,
 }) {
+  const [payrollRows, setPayrollRows] = useState(payrolls);
   const employeeMap = useMemo(
     () => new Map(employees.map((item) => [String(item.id), item])),
     [employees]
@@ -34,14 +36,14 @@ export default function IncidentPayrollControl({
     [contracts]
   );
   const options = useMemo(
-    () => payrolls
+    () => payrollRows
       .filter((item) => Number(item.period_month) >= 1 && Number(item.period_month) <= 12)
       .sort((left, right) => (
         Number(right.period_year) - Number(left.period_year)
         || Number(right.period_month) - Number(left.period_month)
         || Number(right.id) - Number(left.id)
       )),
-    [payrolls]
+    [payrollRows]
   );
 
   const [payrollId, setPayrollId] = useState("");
@@ -66,6 +68,19 @@ export default function IncidentPayrollControl({
   const resolution = preview?.contribution_base_resolution
     || processResult?.contribution_base_resolution
     || {};
+
+  const refreshPayrollRows = useCallback(async () => {
+    const rows = await fetchPayrolls();
+    setPayrollRows(rows);
+  }, []);
+
+  useEffect(() => {
+    if (payrolls.length) {
+      setPayrollRows(payrolls);
+      return;
+    }
+    refreshPayrollRows().catch(setError);
+  }, [payrolls, refreshPayrollRows]);
 
   useEffect(() => {
     if (!payrollId && options.length) {
@@ -98,6 +113,12 @@ export default function IncidentPayrollControl({
 
   useEffect(() => { loadPreview(); }, [loadPreview]);
 
+  const refreshAfterMutation = async () => {
+    await onDataChanged?.();
+    await refreshPayrollRows();
+    await loadPreview();
+  };
+
   const processPayroll = async () => {
     if (!payrollId) return;
     setProcessing(true);
@@ -108,8 +129,7 @@ export default function IncidentPayrollControl({
         expected_version: version,
       });
       setProcessResult(result);
-      await onDataChanged?.();
-      await loadPreview();
+      await refreshAfterMutation();
     } catch (requestError) {
       setError(requestError);
     } finally {
@@ -131,8 +151,7 @@ export default function IncidentPayrollControl({
         expected_version: version,
       });
       setProcessResult(result);
-      await onDataChanged?.();
-      await loadPreview();
+      await refreshAfterMutation();
     } catch (requestError) {
       setError(requestError);
     } finally {
