@@ -30,15 +30,16 @@ def json_safe(value: Any) -> Any:
 
 
 def incident_input(incident: Incident) -> dict[str, Any]:
+    """Only include fields that can change the economic calculation."""
+
     return {
         "id": incident.id,
         "incident_type": incident.incident_type,
         "start_date": incident.start_date,
         "end_date": incident.end_date,
-        "status": incident.status,
         "hours": incident.hours,
         "details": incident.details or {},
-        "version": getattr(incident.detail, "version", None) if incident.detail else None,
+        "is_cancelled": bool(incident.is_cancelled),
     }
 
 
