@@ -40,6 +40,9 @@ class Payroll(Base):
     common_contingencies_base = Column(Numeric(10, 2), default=0, nullable=False)
     professional_contingencies_base = Column(Numeric(10, 2), default=0, nullable=False)
     unemployment_training_fogasa_base = Column(Numeric(10, 2), default=0, nullable=False)
+    common_contingencies_base_override = Column(Numeric(10, 2), nullable=True)
+    professional_contingencies_base_override = Column(Numeric(10, 2), nullable=True)
+    unemployment_training_fogasa_base_override = Column(Numeric(10, 2), nullable=True)
     irpf_base = Column(Numeric(10, 2), default=0, nullable=False)
     daily_common_base = Column(Numeric(10, 2), default=0, nullable=False)
     daily_professional_base = Column(Numeric(10, 2), default=0, nullable=False)
@@ -62,6 +65,10 @@ class Payroll(Base):
     company_mei = Column(Numeric(10, 2), default=0, nullable=False)
     company_total_social_security = Column(Numeric(10, 2), default=0, nullable=False)
     company_total_cost = Column(Numeric(10, 2), default=0, nullable=False)
+    calculation_version = Column(Integer, default=0, nullable=False)
+    calculation_engine_version = Column(String, nullable=True)
+    calculation_fingerprint = Column(String, nullable=True, index=True)
+    last_calculated_at = Column(DateTime, nullable=True)
     status = Column(String, default="draft", nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
@@ -71,6 +78,12 @@ class Payroll(Base):
     work_center = relationship("WorkCenter", back_populates="payrolls")
     items = relationship("PayrollItem", back_populates="payroll")
     segments = relationship("PayrollSegment", back_populates="payroll", cascade="all, delete-orphan")
+    calculation_snapshots = relationship(
+        "PayrollCalculationSnapshot",
+        back_populates="payroll",
+        cascade="all, delete-orphan",
+        order_by="PayrollCalculationSnapshot.calculation_version",
+    )
 
     @property
     def employee_name(self):
