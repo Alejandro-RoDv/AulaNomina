@@ -9,7 +9,7 @@ def install_payroll_incident_bridge() -> None:
     if getattr(payroll_crud, "_incident_engine_bridge_installed", False):
         return
 
-    from app.services.incident_payroll_orchestrator import process_payroll_incidents
+    from app.services.incident_payroll_service import process_payroll_incidents
 
     original_create_payroll = payroll_crud.create_payroll
     original_update_payroll = payroll_crud.update_payroll
