@@ -111,33 +111,42 @@ class IncidentStructuralContractsTests(unittest.TestCase):
                 {"processed_payroll_id": 21},
             )
 
-    def test_routes_and_bridge_use_canonical_payroll_service(self):
+    def test_routes_and_payroll_application_use_canonical_services(self):
         route_file = BACKEND_ROOT / "app" / "incident_routes.py"
-        bridge_file = BACKEND_ROOT / "app" / "services" / "payroll_incident_bridge.py"
+        main_file = BACKEND_ROOT / "app" / "main.py"
+        application_file = BACKEND_ROOT / "app" / "services" / "payroll_application_service.py"
 
         route_imports = imports_from(
             route_file,
             "app.services.incident_payroll_service",
         )
-        bridge_imports = imports_from(
-            bridge_file,
+        application_imports = imports_from(
+            application_file,
             "app.services.incident_payroll_service",
+        )
+        main_imports = imports_from(
+            main_file,
+            "app.services.payroll_application_service",
         )
 
         self.assertIn("process_payroll_incidents", route_imports)
         self.assertIn("period_incidents", route_imports)
-        self.assertIn("process_payroll_incidents", bridge_imports)
+        self.assertIn("process_payroll_incidents", application_imports)
+        self.assertEqual(
+            {"create_payroll", "prepare_monthly_payrolls", "update_payroll"},
+            main_imports,
+        )
 
         legacy_route_imports = imports_from(
             route_file,
             "app.services.incident_payroll_processor",
         )
-        legacy_bridge_imports = imports_from(
-            bridge_file,
+        legacy_application_imports = imports_from(
+            application_file,
             "app.services.incident_payroll_processor",
         )
         self.assertNotIn("process_payroll_incidents", legacy_route_imports)
-        self.assertNotIn("process_payroll_incidents", legacy_bridge_imports)
+        self.assertNotIn("process_payroll_incidents", legacy_application_imports)
 
     def test_segmenter_uses_explicit_policy_instead_of_runtime_patch(self):
         removed_bridge = BACKEND_ROOT / "app" / "services" / "advanced_incident_bridge.py"
@@ -163,6 +172,16 @@ class IncidentStructuralContractsTests(unittest.TestCase):
             and any(isinstance(target, ast.Attribute) for target in node.targets)
         ]
         self.assertEqual(runtime_attribute_assignments, [])
+
+    def test_payroll_crud_is_not_replaced_at_model_import_time(self):
+        removed_bridge = BACKEND_ROOT / "app" / "services" / "payroll_incident_bridge.py"
+        models_init = BACKEND_ROOT / "app" / "models" / "__init__.py"
+
+        self.assertFalse(removed_bridge.exists())
+        models_source = models_init.read_text(encoding="utf-8")
+        self.assertNotIn("install_payroll_incident_bridge", models_source)
+        self.assertNotIn("payroll_crud.create_payroll =", models_source)
+        self.assertNotIn("payroll_crud.update_payroll =", models_source)
 
 
 if __name__ == "__main__":
