@@ -129,9 +129,25 @@ class IncidentPayrollCalculationResultTest(unittest.TestCase):
         self.assertEqual(self.payroll.variable_incentives, Decimal("90.00"))
         self.assertEqual(self.payroll.extra_pay_proration, Decimal("210.00"))
 
+        reduction_items = self.db.query(PayrollItem).filter(
+            PayrollItem.payroll_id == self.payroll.id,
+            PayrollItem.segment_id.is_(None),
+            PayrollItem.source_key.like("payroll:%:component:%:reduction"),
+        ).all()
+        self.assertEqual(len(reduction_items), 4)
+        self.assertTrue(all(item.calculation_trace.get("factor") == "0.5000" for item in reduction_items))
+
         process_payroll_incidents(self.db, self.payroll.id, actor="test")
         self.db.refresh(self.payroll)
         self.assertEqual(self.payroll.gross_salary, Decimal("1860.00"))
+        self.assertEqual(
+            self.db.query(PayrollItem).filter(
+                PayrollItem.payroll_id == self.payroll.id,
+                PayrollItem.segment_id.is_(None),
+                PayrollItem.source_key.like("payroll:%:component:%:reduction"),
+            ).count(),
+            4,
+        )
 
     def test_rule_can_override_component_sensitivity(self):
         self.db.add(IncidentCalculationRule(
