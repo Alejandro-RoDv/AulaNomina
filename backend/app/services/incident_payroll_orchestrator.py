@@ -10,12 +10,11 @@ from sqlalchemy.orm import Session, joinedload
 from app.models.incident import Incident
 from app.models.incident_detail import IncidentDetail
 from app.models.payroll import Payroll
-from app.services.incident_payroll_processor import (
+from app.services.incident_payroll_concepts import (
     ensure_incident_concepts,
-    period_incidents,
     sync_payroll_items,
-    upsert_segments,
 )
+from app.services.incident_payroll_segments import period_incidents, upsert_segments
 from app.services.incident_segmenter import build_incident_segments, money
 from app.services.incident_service import incident_snapshot, register_incident_audit
 from app.services.payroll_amounts import calculate_social_security_amounts_from_bases
