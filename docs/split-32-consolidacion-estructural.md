@@ -2,76 +2,80 @@
 
 ## Objetivo
 
-Consolidar el backend del módulo de incidencias antes de continuar con el rediseño del frontend y el dashboard.
+Consolidar el backend del módulo de incidencias antes de continuar con el frontend y el dashboard.
 
-## Cambios aplicados
+## Arquitectura aplicada
 
-### Punto de entrada único para el motor de nómina
+### Entrada única al motor
 
-Se añade `app.services.incident_payroll_service` como fachada canónica.
+`app.services.incident_payroll_service` es la fachada canónica para el endpoint manual, la creación y actualización de nóminas, la preparación mensual y futuras integraciones.
 
-Deben importar desde esta fachada:
+La implementación completa vive en `incident_payroll_orchestrator`, que coordina cálculo, Seguridad Social, IRPF, neto, coste empresarial, auditoría y transacción.
 
-- el endpoint manual de procesamiento de incidencias en nómina;
-- el puente que procesa incidencias al crear o actualizar una nómina;
-- futuras integraciones con el motor.
+El antiguo `incident_payroll_processor.py` se ha eliminado. Sus responsabilidades quedan separadas en:
 
-La implementación completa continúa en `incident_payroll_orchestrator`, que recalcula importes de nómina, Seguridad Social, IRPF, neto y coste empresarial. El antiguo `incident_payroll_processor` queda limitado a primitivas reutilizables de consulta y persistencia para las llamadas internas actuales.
+- `incident_payroll_segments.py`: consulta y persistencia idempotente de segmentos;
+- `incident_payroll_concepts.py`: catálogo y sincronización de conceptos automáticos;
+- `incident_payroll_orchestrator.py`: coordinación del proceso completo.
 
-Esto elimina la divergencia práctica entre el procesamiento manual y el automático.
+Así desaparece la segunda implementación del motor.
 
-### Ciclo de vida controlado
+### Dependencias explícitas del segmentador
+
+El segmentador recibe una política inmutable `IncidentCalculationPolicy` con los resolutores de base reguladora y complemento de IT por convenio.
+
+Se ha eliminado `advanced_incident_bridge.py`. La traza avanzada y las reglas de convenio se incorporan directamente durante la construcción de cada segmento.
+
+### Flujo explícito de nómina
+
+`payroll_application_service.py` coordina el alta, actualización y preparación mensual de nóminas con la ejecución posterior del motor de incidencias.
+
+`app.models` ya no modifica funciones de `app.crud.payroll` durante la importación. Se ha eliminado `payroll_incident_bridge.py`.
+
+## Ciclo de vida
 
 Una incidencia nueva solo puede crearse como:
 
 - `draft`;
 - `open`.
 
-La edición general permite trabajar con los estados de preparación:
+La edición general permite los estados de preparación:
 
 - `draft`;
 - `open`;
 - `pending`;
 - `validated`.
 
-Los estados siguientes quedan reservados para acciones controladas:
+Los estados `processed`, `closed`, `regularized` y `cancelled` quedan reservados para acciones controladas.
 
-- `processed`;
-- `closed`;
-- `regularized`;
-- `cancelled`.
+Para mantener compatibilidad con el formulario actual, una edición puede reenviar el mismo estado, la misma nómina procesada y el mismo importe generado, pero no puede alterarlos mediante el `PUT` general.
 
-Para mantener compatibilidad con el formulario actual, una edición puede reenviar el mismo estado, la misma nómina procesada y el mismo importe generado. No puede cambiar esos datos mediante el `PUT` general.
+## Datos calculados protegidos
 
-### Protección de datos calculados
+`processed_payroll_id` y `generated_amount` solo pueden cambiar mediante procesos controlados de cálculo, regularización o anulación.
 
-`processed_payroll_id` y `generated_amount` no pueden alterarse mediante la edición general. Solo pueden cambiar por los procesos de:
+## Pruebas y CI
 
-- procesamiento;
-- recálculo;
-- regularización;
-- anulación controlada cuando corresponda.
+Las pruebas cubren:
 
-### Pruebas y CI
+- estados iniciales y transiciones;
+- protección de resultados calculados;
+- uso de la fachada canónica;
+- política de cálculo inyectable;
+- ausencia de sustituciones dinámicas de funciones;
+- procesamiento automático en alta, actualización y preparación mensual;
+- idempotencia de segmentos y conceptos.
 
-Se añade `test_incident_structural_contracts.py`, que verifica:
+Los workflows compilan el backend, ejecutan las pruebas del motor y validan la importación completa de FastAPI.
 
-- estados iniciales permitidos;
-- rechazo de resultados de nómina inyectados al crear;
-- transiciones permitidas en edición general;
-- protección de nómina procesada e importe generado;
-- uso de la fachada canónica por rutas y puente de nómina.
+## Fuera de alcance
 
-El workflow general de backend ejecuta estas pruebas junto al motor de incidencias existente.
-
-## Fuera de alcance de este bloque
-
-Se dejan para un split posterior:
+Quedan para bloques posteriores:
 
 - rediseño de `IncidentForm`;
 - retirada visual de campos auxiliares ambiguos;
-- dashboard global de incidencias;
-- historial paginado en servidor;
+- dashboard global e historial paginado;
 - vista previa visual de segmentos;
 - regularización económica completa;
-- eliminación definitiva de los bridges instalados por efectos laterales de importación.
+- sensibilidad de todos los conceptos salariales ante incidencias;
+- cálculo completo de topes y bases de cotización.
