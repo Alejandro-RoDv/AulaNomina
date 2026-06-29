@@ -2,11 +2,45 @@ from datetime import date
 from decimal import Decimal
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class IncidentPayrollProcessRequest(BaseModel):
     actor: str | None = None
+    expected_version: int | None = None
+
+    @field_validator("expected_version")
+    @classmethod
+    def validate_expected_version(cls, value):
+        if value is not None and value < 0:
+            raise ValueError("expected_version no puede ser negativo")
+        return value
+
+
+class ContributionBaseOverridesRequest(BaseModel):
+    common_contingencies_base_override: Decimal | None = None
+    professional_contingencies_base_override: Decimal | None = None
+    unemployment_training_fogasa_base_override: Decimal | None = None
+    actor: str | None = None
+    expected_version: int | None = None
+
+    @field_validator(
+        "common_contingencies_base_override",
+        "professional_contingencies_base_override",
+        "unemployment_training_fogasa_base_override",
+    )
+    @classmethod
+    def validate_non_negative_override(cls, value):
+        if value is not None and value < 0:
+            raise ValueError("Las bases forzadas no pueden ser negativas")
+        return value
+
+    @field_validator("expected_version")
+    @classmethod
+    def validate_override_expected_version(cls, value):
+        if value is not None and value < 0:
+            raise ValueError("expected_version no puede ser negativo")
+        return value
 
 
 class PayrollComponentAdjustmentResponse(BaseModel):
@@ -48,6 +82,8 @@ class PayrollSegmentResponse(BaseModel):
 
 class IncidentPayrollProcessResponse(BaseModel):
     payroll_id: int
+    calculation_version: int
+    calculation_fingerprint: str | None = None
     segments: int
     created_items: int
     updated_items: int
@@ -65,10 +101,12 @@ class IncidentPayrollProcessResponse(BaseModel):
     warnings: list[str] = Field(default_factory=list)
     component_adjustments: list[PayrollComponentAdjustmentResponse] = Field(default_factory=list)
     adjusted_components: dict[str, Decimal] = Field(default_factory=dict)
+    contribution_base_resolution: dict[str, Any] = Field(default_factory=dict)
 
 
 class IncidentPayrollPreviewResponse(BaseModel):
     payroll_id: int
+    calculation_version: int = 0
     period_start: date
     period_end: date
     segments: list[dict[str, Any]]
@@ -76,6 +114,7 @@ class IncidentPayrollPreviewResponse(BaseModel):
     component_factors: dict[str, Decimal] = Field(default_factory=dict)
     component_adjustments: list[PayrollComponentAdjustmentResponse] = Field(default_factory=list)
     adjusted_components: dict[str, Decimal] = Field(default_factory=dict)
+    contribution_base_resolution: dict[str, Any] = Field(default_factory=dict)
     worked_base_salary: Decimal
     temporary_disability_benefit: Decimal
     company_disability_complement: Decimal
