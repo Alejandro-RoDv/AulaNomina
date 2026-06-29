@@ -38,8 +38,10 @@ class IncidentStructuralContractsTests(unittest.TestCase):
 
     def test_new_incident_only_accepts_initial_states(self):
         for status in ("draft", "open"):
-            incident = IncidentCreate(**self.valid_create_payload(status=status))
-            self.assertEqual(incident.status, status)
+            self.assertEqual(
+                IncidentCreate(**self.valid_create_payload(status=status)).status,
+                status,
+            )
         for status in ("pending", "validated", "processed", "closed", "regularized", "cancelled"):
             with self.subTest(status=status):
                 with self.assertRaises(ValidationError):
@@ -70,7 +72,7 @@ class IncidentStructuralContractsTests(unittest.TestCase):
             _sanitize_general_update(incident, {"status": "processed"})
         self.assertEqual(context.exception.status_code, 409)
 
-    def test_general_update_accepts_unchanged_action_fields_but_rejects_overwrite(self):
+    def test_general_update_protects_action_fields(self):
         incident = SimpleNamespace(
             status="processed",
             processed_payroll_id=20,
@@ -92,25 +94,24 @@ class IncidentStructuralContractsTests(unittest.TestCase):
         route_file = BACKEND_ROOT / "app" / "incident_routes.py"
         main_file = BACKEND_ROOT / "app" / "main.py"
         application_file = BACKEND_ROOT / "app" / "services" / "payroll_application_service.py"
-        route_imports = imports_from(route_file, "app.services.incident_payroll_service")
-        application_imports = imports_from(application_file, "app.services.incident_payroll_service")
-        main_imports = imports_from(main_file, "app.services.payroll_application_service")
-
         self.assertEqual(
-            {"preview_payroll_incidents", "process_payroll_incidents"},
-            route_imports,
+            {
+                "preview_payroll_incidents",
+                "process_payroll_incidents",
+                "update_contribution_base_overrides",
+            },
+            imports_from(route_file, "app.services.incident_payroll_service"),
         )
-        self.assertIn("process_payroll_incidents", application_imports)
+        self.assertIn(
+            "process_payroll_incidents",
+            imports_from(application_file, "app.services.incident_payroll_service"),
+        )
         self.assertEqual(
             {"create_payroll", "prepare_monthly_payrolls", "update_payroll"},
-            main_imports,
+            imports_from(main_file, "app.services.payroll_application_service"),
         )
-        self.assertFalse(
-            imports_from(route_file, "app.services.incident_payroll_processor")
-        )
-        self.assertFalse(
-            imports_from(application_file, "app.services.incident_payroll_processor")
-        )
+        self.assertFalse(imports_from(route_file, "app.services.incident_payroll_processor"))
+        self.assertFalse(imports_from(application_file, "app.services.incident_payroll_processor"))
 
     def test_segmenter_uses_explicit_policy_instead_of_runtime_patch(self):
         removed_bridge = BACKEND_ROOT / "app" / "services" / "advanced_incident_bridge.py"
@@ -118,40 +119,38 @@ class IncidentStructuralContractsTests(unittest.TestCase):
         segmenter = BACKEND_ROOT / "app" / "services" / "incident_segmenter.py"
         self.assertFalse(removed_bridge.exists())
         self.assertNotIn("install_advanced_incident_calculation", models_init.read_text(encoding="utf-8"))
-
         tree = ast.parse(segmenter.read_text(encoding="utf-8"))
         build_function = next(
             node for node in tree.body
             if isinstance(node, ast.FunctionDef) and node.name == "build_incident_segments"
         )
         self.assertIn("calculation_policy", [argument.arg for argument in build_function.args.args])
-        runtime_attribute_assignments = [
+        runtime_assignments = [
             node for node in ast.walk(tree)
             if isinstance(node, ast.Assign)
             and any(isinstance(target, ast.Attribute) for target in node.targets)
         ]
-        self.assertEqual(runtime_attribute_assignments, [])
+        self.assertEqual(runtime_assignments, [])
 
-    def test_payroll_crud_is_not_replaced_at_model_import_time(self):
+    def test_payroll_crud_is_not_replaced_at_import_time(self):
         removed_bridge = BACKEND_ROOT / "app" / "services" / "payroll_incident_bridge.py"
-        models_init = BACKEND_ROOT / "app" / "models" / "__init__.py"
+        models_source = (BACKEND_ROOT / "app" / "models" / "__init__.py").read_text(encoding="utf-8")
         self.assertFalse(removed_bridge.exists())
-        models_source = models_init.read_text(encoding="utf-8")
         self.assertNotIn("install_payroll_incident_bridge", models_source)
         self.assertNotIn("payroll_crud.create_payroll =", models_source)
         self.assertNotIn("payroll_crud.update_payroll =", models_source)
 
-    def test_calculation_and_transaction_are_separate_services(self):
+    def test_calculation_persistence_and_locking_are_separate(self):
         orchestrator = BACKEND_ROOT / "app" / "services" / "incident_payroll_orchestrator.py"
-        imports = imports_from(
-            orchestrator,
-            "app.services.incident_payroll_calculator",
-        )
-        self.assertEqual({"calculate_incident_payroll"}, imports)
         source = orchestrator.read_text(encoding="utf-8")
+        self.assertEqual(
+            {"calculate_incident_payroll"},
+            imports_from(orchestrator, "app.services.incident_payroll_calculator"),
+        )
         self.assertIn("def calculate_payroll_incidents", source)
         self.assertIn("def persist_payroll_incident_calculation", source)
-        self.assertIn("db.commit()", source)
+        self.assertIn("with_for_update", source)
+        self.assertIn("persist_calculation_snapshot", source)
         self.assertNotIn("calculate_social_security_amounts_from_bases", source)
 
     def test_rule_resolution_does_not_seed_during_calculation(self):
