@@ -1,4 +1,5 @@
 from datetime import date, datetime
+from decimal import Decimal
 
 from fastapi import HTTPException
 from sqlalchemy.orm import Session, joinedload
@@ -10,7 +11,11 @@ from app.models.incident import Incident
 from app.models.incident_detail import IncidentDetail
 from app.models.payroll import Payroll
 from app.models.work_center import WorkCenter
-from app.schemas.incident import IncidentCreate, IncidentUpdate
+from app.schemas.incident import (
+    INCIDENT_ACTION_ONLY_STATUSES,
+    IncidentCreate,
+    IncidentUpdate,
+)
 from app.services.incident_service import (
     BASE_FIELDS,
     DETAIL_FIELDS,
@@ -23,6 +28,12 @@ from app.services.incident_service import (
 )
 
 ACTIVE_PAYROLL_STATUSES = {"draft", "pending", "calculated", "reviewed", "closed"}
+GENERAL_STATUS_TRANSITIONS = {
+    "draft": {"draft", "open"},
+    "open": {"open", "pending", "validated"},
+    "pending": {"pending", "open", "validated"},
+    "validated": {"validated", "open", "pending"},
+}
 
 
 def iter_months_between(start_date: date, end_date: date | None):
@@ -104,6 +115,48 @@ def _detail_payload(data: dict) -> dict:
     payload["created_by"] = data.get("created_by")
     payload["updated_by"] = data.get("updated_by") or data.get("created_by")
     return payload
+
+
+def _same_nullable_decimal(current, requested) -> bool:
+    if current is None or requested is None:
+        return current is None and requested is None
+    return Decimal(str(current)) == Decimal(str(requested))
+
+
+def _sanitize_general_update(db_incident: Incident, update_data: dict) -> None:
+    requested_status = update_data.pop("status", None)
+    if requested_status is not None and requested_status != db_incident.status:
+        if db_incident.status in INCIDENT_ACTION_ONLY_STATUSES or requested_status in INCIDENT_ACTION_ONLY_STATUSES:
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    "Los estados processed, closed, regularized y cancelled solo pueden modificarse "
+                    "mediante sus acciones controladas"
+                ),
+            )
+        allowed = GENERAL_STATUS_TRANSITIONS.get(db_incident.status, {db_incident.status})
+        if requested_status not in allowed:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Transición de estado no permitida: {db_incident.status} -> {requested_status}",
+            )
+        update_data["status"] = requested_status
+
+    if "processed_payroll_id" in update_data:
+        requested_payroll_id = update_data.pop("processed_payroll_id")
+        if requested_payroll_id != db_incident.processed_payroll_id:
+            raise HTTPException(
+                status_code=409,
+                detail="La nómina procesada solo puede asignarse mediante la acción de procesamiento",
+            )
+
+    if "generated_amount" in update_data:
+        requested_amount = update_data.pop("generated_amount")
+        if not _same_nullable_decimal(db_incident.generated_amount, requested_amount):
+            raise HTTPException(
+                status_code=409,
+                detail="El importe generado solo puede cambiar mediante procesamiento, recálculo o regularización",
+            )
 
 
 def create_incident(db: Session, incident: IncidentCreate):
@@ -202,6 +255,8 @@ def update_incident(db: Session, incident_id: int, data: IncidentUpdate):
             detail="La incidencia fue modificada por otro usuario. Recargue el registro antes de guardar.",
         )
 
+    _sanitize_general_update(db_incident, update_data)
+
     new_start = update_data.get("start_date", db_incident.start_date)
     new_end = update_data.get("end_date", db_incident.end_date)
     new_type = update_data.get("incident_type", db_incident.incident_type)
@@ -238,14 +293,6 @@ def update_incident(db: Session, incident_id: int, data: IncidentUpdate):
                 db_incident.detail.details = {**(db_incident.detail.details or {}), **value}
             else:
                 setattr(db_incident.detail, key, value)
-
-    if update_data.get("processed_payroll_id") is not None:
-        payroll = db.query(Payroll).filter(Payroll.id == update_data["processed_payroll_id"]).first()
-        if not payroll:
-            raise HTTPException(status_code=404, detail="Nómina no encontrada")
-        if payroll.contract_id != db_incident.contract_id:
-            raise HTTPException(status_code=400, detail="La nómina no pertenece a la vida laboral de la incidencia")
-        db_incident.detail.processed_at = datetime.utcnow()
 
     requires_recalculation, requires_regularization = payroll_change_flags(db, db_incident)
     if changed_business_data and (db_incident.processed_payroll_id or requires_recalculation):
