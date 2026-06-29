@@ -42,8 +42,6 @@ from app.models.collective_agreement import (
     VacationRule,
     WorkTimeRule,
 )
-from app.services.advanced_incident_bridge import install_advanced_incident_calculation
 from app.services.payroll_incident_bridge import install_payroll_incident_bridge
 
-install_advanced_incident_calculation()
 install_payroll_incident_bridge()
