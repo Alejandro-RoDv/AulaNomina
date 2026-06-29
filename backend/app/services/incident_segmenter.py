@@ -12,6 +12,10 @@ from app.services.incident_calculation_policy import (
     DEFAULT_INCIDENT_CALCULATION_POLICY,
     IncidentCalculationPolicy,
 )
+from app.services.incident_component_sensitivity import (
+    COMPONENT_FIELDS,
+    component_factors,
+)
 from app.services.incident_rule_catalog import normalized_process_type, resolve_band, resolve_calculation_rule
 
 
@@ -113,6 +117,40 @@ def active_incidents_for_day(incidents: list[Incident], current: date) -> list[I
     ]
 
 
+def _normal_day_record(current: date, day_weight: Decimal, daily_salary: Decimal) -> dict[str, Any]:
+    factors, modes = component_factors(
+        {},
+        kind="normal_work",
+        salary_percentage=Decimal("1"),
+        segment_type="normal_work",
+    )
+    return {
+        "date": current,
+        "incident_id": None,
+        "rule_id": None,
+        "segment_type": "normal_work",
+        "calendar_days": 1,
+        "payroll_days": day_weight,
+        "process_day": None,
+        "salary_percentage": Decimal("1"),
+        "benefit_percentage": Decimal("0"),
+        "complement_percentage": Decimal("0"),
+        "contribution_treatment": "maintain",
+        "daily_salary_base": daily_salary,
+        "daily_regulatory_base": Decimal("0"),
+        "salary_amount": daily_salary * day_weight,
+        "benefit_amount": Decimal("0"),
+        "complement_amount": Decimal("0"),
+        "deduction_amount": Decimal("0"),
+        "component_factors": factors,
+        "trace": {
+            "kind": "normal_work",
+            "component_sensitivity": modes,
+            "component_factors": {key: str(value) for key, value in factors.items()},
+        },
+    }
+
+
 def _day_record(
     db: Session,
     contract,
@@ -125,29 +163,16 @@ def _day_record(
     calculation_policy: IncidentCalculationPolicy,
 ) -> tuple[dict[str, Any], list[str]]:
     if incident is None:
-        return {
-            "date": current,
-            "incident_id": None,
-            "rule_id": None,
-            "segment_type": "normal_work",
-            "calendar_days": 1,
-            "payroll_days": day_weight,
-            "process_day": None,
-            "salary_percentage": Decimal("1"),
-            "benefit_percentage": Decimal("0"),
-            "complement_percentage": Decimal("0"),
-            "contribution_treatment": "maintain",
-            "daily_salary_base": daily_salary,
-            "daily_regulatory_base": Decimal("0"),
-            "salary_amount": daily_salary * day_weight,
-            "benefit_amount": Decimal("0"),
-            "complement_amount": Decimal("0"),
-            "deduction_amount": Decimal("0"),
-            "trace": {"kind": "normal_work"},
-        }, []
+        return _normal_day_record(current, day_weight, daily_salary), []
 
     rule = resolve_calculation_rule(db, incident, current)
     if not rule:
+        factors, modes = component_factors(
+            {},
+            kind="unconfigured",
+            salary_percentage=Decimal("1"),
+            segment_type="unconfigured_incident",
+        )
         return {
             "date": current,
             "incident_id": incident.id,
@@ -166,7 +191,13 @@ def _day_record(
             "benefit_amount": Decimal("0"),
             "complement_amount": Decimal("0"),
             "deduction_amount": Decimal("0"),
-            "trace": {"kind": "unconfigured", "incident_type": incident.incident_type},
+            "component_factors": factors,
+            "trace": {
+                "kind": "unconfigured",
+                "incident_type": incident.incident_type,
+                "component_sensitivity": modes,
+                "component_factors": {key: str(value) for key, value in factors.items()},
+            },
         }, [f"La incidencia {incident.id} no tiene una regla de cálculo vigente."]
 
     configuration = rule.configuration or {}
@@ -222,6 +253,12 @@ def _day_record(
             effective_target - benefit_percentage - salary_percentage,
         )
 
+    factors, modes = component_factors(
+        configuration,
+        kind=kind,
+        salary_percentage=salary_percentage,
+        segment_type=segment_type,
+    )
     salary_amount = daily_salary * day_weight * salary_percentage
     deduction_amount = daily_salary * day_weight * (Decimal("1") - salary_percentage)
     benefit_amount = regulatory_daily * benefit_percentage
@@ -234,6 +271,8 @@ def _day_record(
         "payer": payer,
         "regulatory_base_source": regulatory_source,
         "legal_reference": rule.legal_reference,
+        "component_sensitivity": modes,
+        "component_factors": {key: str(value) for key, value in factors.items()},
     }
     if advanced_regulatory_trace:
         trace["advanced_regulatory_base"] = advanced_regulatory_trace
@@ -260,6 +299,7 @@ def _day_record(
         "benefit_amount": benefit_amount,
         "complement_amount": complement_amount,
         "deduction_amount": deduction_amount,
+        "component_factors": factors,
         "trace": trace,
     }, warnings
 
@@ -275,6 +315,7 @@ def same_segment(previous: dict[str, Any], current: dict[str, Any]) -> bool:
         "contribution_treatment",
         "daily_salary_base",
         "daily_regulatory_base",
+        "component_factors",
     )
     return all(previous.get(key) == current.get(key) for key in keys)
 
@@ -312,6 +353,9 @@ def compress_day_records(payroll_id: int, records: list[dict[str, Any]]) -> list
             segment[key] = money(segment[key])
         segment["daily_salary_base"] = four(segment["daily_salary_base"])
         segment["daily_regulatory_base"] = four(segment["daily_regulatory_base"])
+        segment["component_factors"] = {
+            key: four(value) for key, value in segment["component_factors"].items()
+        }
         segment["segment_key"] = (
             f"payroll:{payroll_id}:incident:{segment['incident_id'] or 'normal'}:"
             f"{segment['start_date'].isoformat()}:{segment['end_date'].isoformat()}:"
@@ -351,12 +395,11 @@ def overtime_segments(
         amount = Decimal("0") if compensated else money(hours * unit_price)
         start = max(incident.start_date, period_start)
         end = min(incident.end_date or incident.start_date, period_end)
-        rule = None
         segments.append(
             {
                 "segment_key": f"payroll:{payroll_id}:incident:{incident.id}:{start.isoformat()}:{end.isoformat()}:overtime",
                 "incident_id": incident.id,
-                "rule_id": rule.id if rule else None,
+                "rule_id": None,
                 "segment_type": "overtime_rest" if compensated else "overtime",
                 "start_date": start,
                 "end_date": end,
@@ -374,6 +417,7 @@ def overtime_segments(
                 "benefit_amount": Decimal("0"),
                 "complement_amount": Decimal("0"),
                 "deduction_amount": Decimal("0"),
+                "component_factors": {field: Decimal("1") for field in COMPONENT_FIELDS},
                 "trace": {
                     "kind": "overtime",
                     "hours": str(hours),
@@ -384,6 +428,30 @@ def overtime_segments(
             }
         )
     return segments, warnings
+
+
+def aggregate_component_factors(primary_segments: list[dict[str, Any]]) -> dict[str, Decimal]:
+    total_weight = sum(
+        (Decimal(str(segment["payroll_days"])) for segment in primary_segments),
+        Decimal("0"),
+    )
+    if total_weight <= 0:
+        return {field: Decimal("1.0000") for field in COMPONENT_FIELDS}
+
+    return {
+        field: four(
+            sum(
+                (
+                    Decimal(str(segment["payroll_days"]))
+                    * Decimal(str(segment["component_factors"].get(field, 1)))
+                    for segment in primary_segments
+                ),
+                Decimal("0"),
+            )
+            / total_weight
+        )
+        for field in COMPONENT_FIELDS
+    }
 
 
 def build_incident_segments(
@@ -445,6 +513,7 @@ def build_incident_segments(
         "period_end": period_end,
         "segments": segments,
         "warnings": list(dict.fromkeys(warnings)),
+        "component_factors": aggregate_component_factors(primary),
         "worked_base_salary": money(sum((segment["salary_amount"] for segment in primary), Decimal("0"))),
         "temporary_disability_benefit": money(sum((segment["benefit_amount"] for segment in primary), Decimal("0"))),
         "company_disability_complement": money(sum((segment["complement_amount"] for segment in primary), Decimal("0"))),
