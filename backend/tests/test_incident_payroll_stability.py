@@ -101,3 +101,35 @@ class IncidentPayrollStabilityTest(unittest.TestCase):
         self.assertEqual(response["contribution_base_resolution"]["sources"]["common_contingencies_base"], "manual_override")
         self.db.refresh(self.payroll)
         self.assertEqual(self.payroll.common_contingencies_base, Decimal("2000.00"))
+
+    def test_incompatible_overlap_blocks_calculation(self):
+        first = self.incident("AUSENCIA", date(2026, 6, 1), date(2026, 6, 10))
+        second = self.incident("VACACIONES", date(2026, 6, 5), date(2026, 6, 8))
+        with self.assertRaises(HTTPException) as context:
+            calculate_payroll_incidents(self.db, self.payroll)
+        self.assertEqual(context.exception.status_code, 409)
+        detail = context.exception.detail
+        self.assertEqual(detail["code"], "incident_overlap_conflict")
+        self.assertEqual(detail["conflicts"][0]["start_date"], "2026-06-05")
+        self.assertEqual(detail["conflicts"][0]["end_date"], "2026-06-08")
+        self.assertEqual(set(detail["conflicts"][0]["incident_ids"]), {first.id, second.id})
+
+    def test_version_conflict_and_snapshots_are_reproducible(self):
+        first = process_payroll_incidents(self.db, self.payroll.id, actor="first", expected_version=0)
+        self.assertEqual(first["calculation_version"], 1)
+        with self.assertRaises(HTTPException) as context:
+            process_payroll_incidents(self.db, self.payroll.id, actor="stale", expected_version=0)
+        self.assertEqual(context.exception.detail["code"], "payroll_calculation_version_conflict")
+        second = process_payroll_incidents(self.db, self.payroll.id, actor="second", expected_version=1)
+        self.assertEqual(second["calculation_version"], 2)
+        self.assertEqual(first["calculation_fingerprint"], second["calculation_fingerprint"])
+        snapshots = self.db.query(PayrollCalculationSnapshot).filter(
+            PayrollCalculationSnapshot.payroll_id == self.payroll.id
+        ).order_by(PayrollCalculationSnapshot.calculation_version).all()
+        self.assertEqual([snapshot.calculation_version for snapshot in snapshots], [1, 2])
+        self.assertEqual(snapshots[0].fingerprint, snapshots[1].fingerprint)
+        self.assertIn("payroll_amounts", snapshots[0].result_snapshot)
+
+
+if __name__ == "__main__":
+    unittest.main()
