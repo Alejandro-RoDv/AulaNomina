@@ -9,6 +9,14 @@ class IncidentPayrollProcessRequest(BaseModel):
     actor: str | None = None
 
 
+class PayrollComponentAdjustmentResponse(BaseModel):
+    field: str
+    original_amount: Decimal
+    factor: Decimal
+    adjusted_amount: Decimal
+    reduction_amount: Decimal
+
+
 class PayrollSegmentResponse(BaseModel):
     id: int
     payroll_id: int
@@ -44,6 +52,7 @@ class IncidentPayrollProcessResponse(BaseModel):
     created_items: int
     updated_items: int
     deleted_items: int
+    changed_incidents: int = 0
     worked_base_salary: Decimal
     temporary_disability_benefit: Decimal
     company_disability_complement: Decimal
@@ -54,6 +63,8 @@ class IncidentPayrollProcessResponse(BaseModel):
     it_days: int
     contribution_days: int
     warnings: list[str] = Field(default_factory=list)
+    component_adjustments: list[PayrollComponentAdjustmentResponse] = Field(default_factory=list)
+    adjusted_components: dict[str, Decimal] = Field(default_factory=dict)
 
 
 class IncidentPayrollPreviewResponse(BaseModel):
@@ -62,6 +73,9 @@ class IncidentPayrollPreviewResponse(BaseModel):
     period_end: date
     segments: list[dict[str, Any]]
     warnings: list[str]
+    component_factors: dict[str, Decimal] = Field(default_factory=dict)
+    component_adjustments: list[PayrollComponentAdjustmentResponse] = Field(default_factory=list)
+    adjusted_components: dict[str, Decimal] = Field(default_factory=dict)
     worked_base_salary: Decimal
     temporary_disability_benefit: Decimal
     company_disability_complement: Decimal
