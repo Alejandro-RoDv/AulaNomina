@@ -14,6 +14,13 @@ from app.services.incident_segmenter import build_incident_segments, money
 from app.services.payroll_amounts import calculate_social_security_amounts_from_bases
 
 
+SUPPORTED_CONTRIBUTION_TREATMENTS = {
+    "maintain",
+    "reduce",
+    "none",
+}
+
+
 def calculate_component_adjustments(payroll: Payroll, segment_result: dict[str, Any]) -> list[PayrollComponentAdjustment]:
     factors = segment_result.get("component_factors") or {}
     adjustments = []
@@ -47,7 +54,78 @@ def calculate_incident_amounts(segment_result: dict[str, Any]) -> dict[int, Deci
     return {incident_id: money(amount) for incident_id, amount in amounts.items()}
 
 
-def calculate_payroll_amounts(payroll: Payroll, segment_result: dict[str, Any], adjustments: list[PayrollComponentAdjustment]) -> dict[str, Decimal | int]:
+def calculate_contribution_salary_base(segment_result: dict[str, Any]) -> Decimal:
+    total = Decimal("0")
+    for segment in segment_result["segments"]:
+        if segment["segment_type"].startswith("overtime"):
+            continue
+        treatment = str(segment.get("contribution_treatment") or "maintain")
+        if treatment not in SUPPORTED_CONTRIBUTION_TREATMENTS:
+            raise ValueError(
+                f"Tratamiento de cotización no soportado: {treatment} "
+                f"en el segmento {segment.get('segment_key')}"
+            )
+        if treatment == "maintain":
+            total += Decimal(str(segment["daily_salary_base"])) * Decimal(str(segment["payroll_days"]))
+        elif treatment == "reduce":
+            total += Decimal(str(segment["salary_amount"]))
+    return money(total)
+
+
+def calculate_fresh_contribution_bases(
+    payroll: Payroll,
+    segment_result: dict[str, Any],
+    adjustments: list[PayrollComponentAdjustment],
+) -> dict[str, Any]:
+    adjusted_components = sum(
+        (adjustment.adjusted_amount for adjustment in adjustments),
+        Decimal("0"),
+    )
+    contribution_salary = calculate_contribution_salary_base(segment_result)
+    overtime = money(segment_result["overtime_amount"])
+
+    automatic_common = money(contribution_salary + adjusted_components)
+    automatic_professional = money(automatic_common + overtime)
+    automatic_unemployment = automatic_professional
+
+    overrides = {
+        "common_contingencies_base": payroll.common_contingencies_base_override,
+        "professional_contingencies_base": payroll.professional_contingencies_base_override,
+        "unemployment_training_fogasa_base": payroll.unemployment_training_fogasa_base_override,
+    }
+    automatic = {
+        "common_contingencies_base": automatic_common,
+        "professional_contingencies_base": automatic_professional,
+        "unemployment_training_fogasa_base": automatic_unemployment,
+    }
+    resolved = {
+        field: money(overrides[field]) if overrides[field] is not None else automatic[field]
+        for field in automatic
+    }
+    sources = {
+        field: "manual_override" if overrides[field] is not None else "incident_engine"
+        for field in automatic
+    }
+    return {
+        "contribution_salary_amount": contribution_salary,
+        "adjusted_contribution_components": money(adjusted_components),
+        "overtime_amount": overtime,
+        "automatic": automatic,
+        "overrides": {
+            field: money(value) if value is not None else None
+            for field, value in overrides.items()
+        },
+        "resolved": resolved,
+        "sources": sources,
+    }
+
+
+def calculate_payroll_amounts(
+    payroll: Payroll,
+    segment_result: dict[str, Any],
+    adjustments: list[PayrollComponentAdjustment],
+    contribution_bases: dict[str, Any],
+) -> dict[str, Decimal | int]:
     components = {item.field: item.adjusted_amount for item in adjustments}
     gross_salary = money(
         segment_result["worked_base_salary"]
@@ -56,19 +134,12 @@ def calculate_payroll_amounts(payroll: Payroll, segment_result: dict[str, Any], 
         + sum(components.values(), Decimal("0"))
         + segment_result["overtime_amount"]
     )
-    common = Decimal(str(payroll.common_contingencies_base or 0)) or gross_salary
-    professional = Decimal(str(payroll.professional_contingencies_base or 0)) or gross_salary
-    if segment_result["overtime_amount"] > 0:
-        professional = money(professional + segment_result["overtime_amount"])
-    unemployment = Decimal(str(payroll.unemployment_training_fogasa_base or 0)) or professional
-    if unemployment < professional:
-        unemployment = professional
-
+    resolved_bases = contribution_bases["resolved"]
     amounts = calculate_social_security_amounts_from_bases(
         gross_salary=gross_salary,
-        common_contingencies_base=common,
-        professional_contingencies_base=professional,
-        unemployment_training_fogasa_base=unemployment,
+        common_contingencies_base=resolved_bases["common_contingencies_base"],
+        professional_contingencies_base=resolved_bases["professional_contingencies_base"],
+        unemployment_training_fogasa_base=resolved_bases["unemployment_training_fogasa_base"],
         irpf_base=gross_salary,
         irpf_percentage=Decimal(str(payroll.irpf_percentage or 0)),
     )
@@ -89,20 +160,49 @@ def calculate_payroll_amounts(payroll: Payroll, segment_result: dict[str, Any], 
     }
 
 
-def calculate_incident_payroll(db: Session, payroll: Payroll, incidents: list[Incident], *, calculation_policy: IncidentCalculationPolicy = DEFAULT_INCIDENT_CALCULATION_POLICY) -> IncidentPayrollCalculationResult:
+def calculate_incident_payroll(
+    db: Session,
+    payroll: Payroll,
+    incidents: list[Incident],
+    *,
+    calculation_policy: IncidentCalculationPolicy = DEFAULT_INCIDENT_CALCULATION_POLICY,
+) -> IncidentPayrollCalculationResult:
     segment_result = build_incident_segments(
-        db, payroll.id, payroll.contract, payroll.period_month, payroll.period_year,
-        incidents, calculation_policy=calculation_policy,
+        db,
+        payroll.id,
+        payroll.contract,
+        payroll.period_month,
+        payroll.period_year,
+        incidents,
+        calculation_policy=calculation_policy,
     )
     adjustments = calculate_component_adjustments(payroll, segment_result)
+    contribution_bases = calculate_fresh_contribution_bases(
+        payroll,
+        segment_result,
+        adjustments,
+    )
+    segment_result["contribution_base_resolution"] = contribution_bases
     return IncidentPayrollCalculationResult.create(
         payroll_id=payroll.id,
         incident_ids=[incident.id for incident in incidents],
         segment_result=segment_result,
         component_adjustments=adjustments,
-        payroll_amounts=calculate_payroll_amounts(payroll, segment_result, adjustments),
+        payroll_amounts=calculate_payroll_amounts(
+            payroll,
+            segment_result,
+            adjustments,
+            contribution_bases,
+        ),
         incident_amounts=calculate_incident_amounts(segment_result),
     )
 
 
-__all__ = ["calculate_component_adjustments", "calculate_incident_amounts", "calculate_incident_payroll", "calculate_payroll_amounts"]
+__all__ = [
+    "calculate_component_adjustments",
+    "calculate_contribution_salary_base",
+    "calculate_fresh_contribution_bases",
+    "calculate_incident_amounts",
+    "calculate_incident_payroll",
+    "calculate_payroll_amounts",
+]
