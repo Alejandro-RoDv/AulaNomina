@@ -14,6 +14,7 @@ from app.models.wage_garnishment import WageGarnishment
 from app.models.wage_garnishment_movement import WageGarnishmentMovement
 from app.models.smi_parameter import SmiParameter
 from app.models.payroll import Payroll
+from app.models.payroll_calculation_snapshot import PayrollCalculationSnapshot
 from app.models.payroll_salary_structure import ContractPayrollConcept, PayrollConcept, PayrollItem
 from app.models.document import Document
 from app.models.employee_assignment_history import EmployeeAssignmentHistory
