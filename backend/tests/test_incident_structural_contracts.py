@@ -40,7 +40,6 @@ class IncidentStructuralContractsTests(unittest.TestCase):
         for status in ("draft", "open"):
             incident = IncidentCreate(**self.valid_create_payload(status=status))
             self.assertEqual(incident.status, status)
-
         for status in ("pending", "validated", "processed", "closed", "regularized", "cancelled"):
             with self.subTest(status=status):
                 with self.assertRaises(ValidationError):
@@ -48,40 +47,25 @@ class IncidentStructuralContractsTests(unittest.TestCase):
 
     def test_new_incident_cannot_inject_payroll_processing_result(self):
         with self.assertRaises(ValidationError):
-            IncidentCreate(
-                **self.valid_create_payload(
-                    processed_payroll_id=10,
-                    generated_amount="125.50",
-                )
-            )
+            IncidentCreate(**self.valid_create_payload(
+                processed_payroll_id=10,
+                generated_amount="125.50",
+            ))
 
     def test_update_schema_accepts_known_states_for_compatibility(self):
         for status in (
-            "draft",
-            "open",
-            "pending",
-            "validated",
-            "processed",
-            "closed",
-            "regularized",
-            "cancelled",
+            "draft", "open", "pending", "validated",
+            "processed", "closed", "regularized", "cancelled",
         ):
-            update = IncidentUpdate(status=status)
-            self.assertEqual(update.status, status)
-
+            self.assertEqual(IncidentUpdate(status=status).status, status)
         with self.assertRaises(ValidationError):
             IncidentUpdate(status="unknown")
 
     def test_general_update_allows_only_editable_status_transitions(self):
-        incident = SimpleNamespace(
-            status="open",
-            processed_payroll_id=None,
-            generated_amount=None,
-        )
+        incident = SimpleNamespace(status="open", processed_payroll_id=None, generated_amount=None)
         update_data = {"status": "validated"}
         _sanitize_general_update(incident, update_data)
         self.assertEqual(update_data, {"status": "validated"})
-
         with self.assertRaises(HTTPException) as context:
             _sanitize_general_update(incident, {"status": "processed"})
         self.assertEqual(context.exception.status_code, 409)
@@ -99,75 +83,50 @@ class IncidentStructuralContractsTests(unittest.TestCase):
         }
         _sanitize_general_update(incident, unchanged)
         self.assertEqual(unchanged, {})
-
         with self.assertRaises(HTTPException):
-            _sanitize_general_update(
-                incident,
-                {"generated_amount": "81.00"},
-            )
+            _sanitize_general_update(incident, {"generated_amount": "81.00"})
         with self.assertRaises(HTTPException):
-            _sanitize_general_update(
-                incident,
-                {"processed_payroll_id": 21},
-            )
+            _sanitize_general_update(incident, {"processed_payroll_id": 21})
 
     def test_routes_and_payroll_application_use_canonical_services(self):
         route_file = BACKEND_ROOT / "app" / "incident_routes.py"
         main_file = BACKEND_ROOT / "app" / "main.py"
         application_file = BACKEND_ROOT / "app" / "services" / "payroll_application_service.py"
+        route_imports = imports_from(route_file, "app.services.incident_payroll_service")
+        application_imports = imports_from(application_file, "app.services.incident_payroll_service")
+        main_imports = imports_from(main_file, "app.services.payroll_application_service")
 
-        route_imports = imports_from(
-            route_file,
-            "app.services.incident_payroll_service",
+        self.assertEqual(
+            {"preview_payroll_incidents", "process_payroll_incidents"},
+            route_imports,
         )
-        application_imports = imports_from(
-            application_file,
-            "app.services.incident_payroll_service",
-        )
-        main_imports = imports_from(
-            main_file,
-            "app.services.payroll_application_service",
-        )
-
-        self.assertIn("process_payroll_incidents", route_imports)
-        self.assertIn("period_incidents", route_imports)
         self.assertIn("process_payroll_incidents", application_imports)
         self.assertEqual(
             {"create_payroll", "prepare_monthly_payrolls", "update_payroll"},
             main_imports,
         )
-
-        legacy_route_imports = imports_from(
-            route_file,
-            "app.services.incident_payroll_processor",
+        self.assertFalse(
+            imports_from(route_file, "app.services.incident_payroll_processor")
         )
-        legacy_application_imports = imports_from(
-            application_file,
-            "app.services.incident_payroll_processor",
+        self.assertFalse(
+            imports_from(application_file, "app.services.incident_payroll_processor")
         )
-        self.assertNotIn("process_payroll_incidents", legacy_route_imports)
-        self.assertNotIn("process_payroll_incidents", legacy_application_imports)
 
     def test_segmenter_uses_explicit_policy_instead_of_runtime_patch(self):
         removed_bridge = BACKEND_ROOT / "app" / "services" / "advanced_incident_bridge.py"
         models_init = BACKEND_ROOT / "app" / "models" / "__init__.py"
         segmenter = BACKEND_ROOT / "app" / "services" / "incident_segmenter.py"
-
         self.assertFalse(removed_bridge.exists())
         self.assertNotIn("install_advanced_incident_calculation", models_init.read_text(encoding="utf-8"))
 
         tree = ast.parse(segmenter.read_text(encoding="utf-8"))
         build_function = next(
-            node
-            for node in tree.body
+            node for node in tree.body
             if isinstance(node, ast.FunctionDef) and node.name == "build_incident_segments"
         )
-        argument_names = [argument.arg for argument in build_function.args.args]
-        self.assertIn("calculation_policy", argument_names)
-
+        self.assertIn("calculation_policy", [argument.arg for argument in build_function.args.args])
         runtime_attribute_assignments = [
-            node
-            for node in ast.walk(tree)
+            node for node in ast.walk(tree)
             if isinstance(node, ast.Assign)
             and any(isinstance(target, ast.Attribute) for target in node.targets)
         ]
@@ -176,12 +135,38 @@ class IncidentStructuralContractsTests(unittest.TestCase):
     def test_payroll_crud_is_not_replaced_at_model_import_time(self):
         removed_bridge = BACKEND_ROOT / "app" / "services" / "payroll_incident_bridge.py"
         models_init = BACKEND_ROOT / "app" / "models" / "__init__.py"
-
         self.assertFalse(removed_bridge.exists())
         models_source = models_init.read_text(encoding="utf-8")
         self.assertNotIn("install_payroll_incident_bridge", models_source)
         self.assertNotIn("payroll_crud.create_payroll =", models_source)
         self.assertNotIn("payroll_crud.update_payroll =", models_source)
+
+    def test_calculation_and_transaction_are_separate_services(self):
+        orchestrator = BACKEND_ROOT / "app" / "services" / "incident_payroll_orchestrator.py"
+        imports = imports_from(
+            orchestrator,
+            "app.services.incident_payroll_calculator",
+        )
+        self.assertEqual({"calculate_incident_payroll"}, imports)
+        source = orchestrator.read_text(encoding="utf-8")
+        self.assertIn("def calculate_payroll_incidents", source)
+        self.assertIn("def persist_payroll_incident_calculation", source)
+        self.assertIn("db.commit()", source)
+        self.assertNotIn("calculate_social_security_amounts_from_bases", source)
+
+    def test_rule_resolution_does_not_seed_during_calculation(self):
+        catalog = BACKEND_ROOT / "app" / "services" / "incident_rule_catalog.py"
+        tree = ast.parse(catalog.read_text(encoding="utf-8"))
+        resolver = next(
+            node for node in tree.body
+            if isinstance(node, ast.FunctionDef) and node.name == "resolve_calculation_rule"
+        )
+        called_names = {
+            node.func.id
+            for node in ast.walk(resolver)
+            if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+        }
+        self.assertNotIn("ensure_default_incident_rules", called_names)
 
 
 if __name__ == "__main__":
