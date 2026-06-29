@@ -9,8 +9,9 @@ from app.models.incident import Incident
 from app.models.payroll import Payroll
 from app.services.incident_calculation_policy import DEFAULT_INCIDENT_CALCULATION_POLICY, IncidentCalculationPolicy
 from app.services.incident_component_sensitivity import COMPONENT_FIELDS
+from app.services.incident_overlap_policy import validate_incident_overlaps
 from app.services.incident_payroll_result import IncidentPayrollCalculationResult, PayrollComponentAdjustment
-from app.services.incident_segmenter import build_incident_segments, money
+from app.services.incident_segmenter import build_incident_segments, money, month_bounds
 from app.services.payroll_amounts import calculate_social_security_amounts_from_bases
 
 
@@ -167,6 +168,8 @@ def calculate_incident_payroll(
     *,
     calculation_policy: IncidentCalculationPolicy = DEFAULT_INCIDENT_CALCULATION_POLICY,
 ) -> IncidentPayrollCalculationResult:
+    period_start, period_end = month_bounds(payroll.period_month, payroll.period_year)
+    validate_incident_overlaps(incidents, period_start, period_end)
     segment_result = build_incident_segments(
         db,
         payroll.id,
