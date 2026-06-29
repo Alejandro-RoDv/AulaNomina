@@ -5,11 +5,17 @@ from datetime import date, timedelta
 from decimal import Decimal, ROUND_HALF_UP
 from typing import Any
 
-from sqlalchemy import and_, or_
 from sqlalchemy.orm import Session
 
 from app.models.incident import Incident
-from app.models.payroll import Payroll
+from app.services.incident_calculation_policy import (
+    DEFAULT_INCIDENT_CALCULATION_POLICY,
+    IncidentCalculationPolicy,
+)
+from app.services.incident_component_sensitivity import (
+    COMPONENT_FIELDS,
+    component_factors,
+)
 from app.services.incident_rule_catalog import normalized_process_type, resolve_band, resolve_calculation_rule
 
 
@@ -82,35 +88,6 @@ def incident_process_start(incident: Incident) -> date:
     return incident.start_date
 
 
-def previous_payroll_daily_base(
-    db: Session,
-    contract_id: int,
-    before_date: date,
-    professional: bool,
-) -> tuple[Decimal | None, str | None]:
-    payroll = (
-        db.query(Payroll)
-        .filter(
-            Payroll.contract_id == contract_id,
-            Payroll.period_month.between(1, 12),
-            Payroll.status.in_(["calculated", "reviewed", "closed"]),
-            or_(
-                Payroll.period_year < before_date.year,
-                and_(Payroll.period_year == before_date.year, Payroll.period_month < before_date.month),
-            ),
-        )
-        .order_by(Payroll.period_year.desc(), Payroll.period_month.desc())
-        .first()
-    )
-    if not payroll:
-        return None, None
-    base = payroll.professional_contingencies_base if professional else payroll.common_contingencies_base
-    days = Decimal(str(payroll.contribution_days or 30))
-    if Decimal(str(base or 0)) <= 0 or days <= 0:
-        return None, None
-    return four(Decimal(str(base)) / days), f"previous_payroll:{payroll.id}"
-
-
 def resolve_regulatory_daily_base(
     db: Session,
     contract,
@@ -118,21 +95,16 @@ def resolve_regulatory_daily_base(
     configuration: dict[str, Any],
     fallback_daily_salary: Decimal,
 ) -> tuple[Decimal, str, list[str]]:
-    warnings: list[str] = []
-    professional = configuration.get("regulatory_base") == "professional"
-    previous, source = previous_payroll_daily_base(
-        db,
-        contract.id,
-        incident_process_start(incident),
-        professional=professional,
-    )
-    if previous is not None:
-        return previous, source or "previous_payroll", warnings
+    """Compatibility wrapper around the canonical calculation policy."""
 
-    warnings.append(
-        "No existe una nómina anterior válida para obtener la base reguladora; se usa el salario mensual dividido entre 30."
+    daily, source, warnings, _trace = DEFAULT_INCIDENT_CALCULATION_POLICY.regulatory_daily_base(
+        db,
+        contract,
+        incident,
+        configuration,
+        fallback_daily_salary,
     )
-    return four(fallback_daily_salary), "salary_fallback", warnings
+    return daily, source, warnings
 
 
 def active_incidents_for_day(incidents: list[Incident], current: date) -> list[Incident]:
@@ -145,6 +117,40 @@ def active_incidents_for_day(incidents: list[Incident], current: date) -> list[I
     ]
 
 
+def _normal_day_record(current: date, day_weight: Decimal, daily_salary: Decimal) -> dict[str, Any]:
+    factors, modes = component_factors(
+        {},
+        kind="normal_work",
+        salary_percentage=Decimal("1"),
+        segment_type="normal_work",
+    )
+    return {
+        "date": current,
+        "incident_id": None,
+        "rule_id": None,
+        "segment_type": "normal_work",
+        "calendar_days": 1,
+        "payroll_days": day_weight,
+        "process_day": None,
+        "salary_percentage": Decimal("1"),
+        "benefit_percentage": Decimal("0"),
+        "complement_percentage": Decimal("0"),
+        "contribution_treatment": "maintain",
+        "daily_salary_base": daily_salary,
+        "daily_regulatory_base": Decimal("0"),
+        "salary_amount": daily_salary * day_weight,
+        "benefit_amount": Decimal("0"),
+        "complement_amount": Decimal("0"),
+        "deduction_amount": Decimal("0"),
+        "component_factors": factors,
+        "trace": {
+            "kind": "normal_work",
+            "component_sensitivity": modes,
+            "component_factors": {key: str(value) for key, value in factors.items()},
+        },
+    }
+
+
 def _day_record(
     db: Session,
     contract,
@@ -154,31 +160,19 @@ def _day_record(
     incident: Incident | None,
     day_weight: Decimal,
     daily_salary: Decimal,
+    calculation_policy: IncidentCalculationPolicy,
 ) -> tuple[dict[str, Any], list[str]]:
     if incident is None:
-        return {
-            "date": current,
-            "incident_id": None,
-            "rule_id": None,
-            "segment_type": "normal_work",
-            "calendar_days": 1,
-            "payroll_days": day_weight,
-            "process_day": None,
-            "salary_percentage": Decimal("1"),
-            "benefit_percentage": Decimal("0"),
-            "complement_percentage": Decimal("0"),
-            "contribution_treatment": "maintain",
-            "daily_salary_base": daily_salary,
-            "daily_regulatory_base": Decimal("0"),
-            "salary_amount": daily_salary * day_weight,
-            "benefit_amount": Decimal("0"),
-            "complement_amount": Decimal("0"),
-            "deduction_amount": Decimal("0"),
-            "trace": {"kind": "normal_work"},
-        }, []
+        return _normal_day_record(current, day_weight, daily_salary), []
 
     rule = resolve_calculation_rule(db, incident, current)
     if not rule:
+        factors, modes = component_factors(
+            {},
+            kind="unconfigured",
+            salary_percentage=Decimal("1"),
+            segment_type="unconfigured_incident",
+        )
         return {
             "date": current,
             "incident_id": incident.id,
@@ -197,7 +191,13 @@ def _day_record(
             "benefit_amount": Decimal("0"),
             "complement_amount": Decimal("0"),
             "deduction_amount": Decimal("0"),
-            "trace": {"kind": "unconfigured", "incident_type": incident.incident_type},
+            "component_factors": factors,
+            "trace": {
+                "kind": "unconfigured",
+                "incident_type": incident.incident_type,
+                "component_sensitivity": modes,
+                "component_factors": {key: str(value) for key, value in factors.items()},
+            },
         }, [f"La incidencia {incident.id} no tiene una regla de cálculo vigente."]
 
     configuration = rule.configuration or {}
@@ -212,6 +212,9 @@ def _day_record(
     payer = None
     regulatory_daily = Decimal("0")
     regulatory_source = None
+    advanced_regulatory_trace: dict[str, Any] = {}
+    agreement_trace: dict[str, Any] = {}
+    effective_target = Decimal("0")
 
     if kind == "medical":
         band = resolve_band(configuration, process_day)
@@ -219,7 +222,12 @@ def _day_record(
         salary_percentage = Decimal(str(band.get("salary_percentage", 0))) / PERCENT
         benefit_percentage = Decimal(str(band.get("benefit_percentage", 0))) / PERCENT
         payer = band.get("payer")
-        regulatory_daily, regulatory_source, base_warnings = resolve_regulatory_daily_base(
+        (
+            regulatory_daily,
+            regulatory_source,
+            base_warnings,
+            advanced_regulatory_trace,
+        ) = calculation_policy.regulatory_daily_base(
             db,
             contract,
             incident,
@@ -227,13 +235,51 @@ def _day_record(
             daily_salary,
         )
         warnings.extend(base_warnings)
-        target = Decimal(str((incident.details or {}).get("company_complement_target_percentage", 0))) / PERCENT
-        complement_percentage = max(Decimal("0"), target - benefit_percentage)
 
+        agreement_target, agreement_trace = calculation_policy.agreement_it_target(
+            db,
+            contract,
+            incident,
+            current,
+            process_day,
+            normalized_process_type(incident),
+        )
+        manual_target = Decimal(
+            str((incident.details or {}).get("company_complement_target_percentage", 0))
+        ) / PERCENT
+        effective_target = agreement_target if agreement_target is not None else manual_target
+        complement_percentage = max(
+            Decimal("0"),
+            effective_target - benefit_percentage - salary_percentage,
+        )
+
+    factors, modes = component_factors(
+        configuration,
+        kind=kind,
+        salary_percentage=salary_percentage,
+        segment_type=segment_type,
+    )
     salary_amount = daily_salary * day_weight * salary_percentage
     deduction_amount = daily_salary * day_weight * (Decimal("1") - salary_percentage)
     benefit_amount = regulatory_daily * benefit_percentage
     complement_amount = daily_salary * complement_percentage
+
+    trace = {
+        "kind": kind,
+        "rule_code": rule.code,
+        "process_type": normalized_process_type(incident),
+        "payer": payer,
+        "regulatory_base_source": regulatory_source,
+        "legal_reference": rule.legal_reference,
+        "component_sensitivity": modes,
+        "component_factors": {key: str(value) for key, value in factors.items()},
+    }
+    if advanced_regulatory_trace:
+        trace["advanced_regulatory_base"] = advanced_regulatory_trace
+    if agreement_trace:
+        trace.update(agreement_trace)
+    if effective_target > 0:
+        trace["effective_target_percentage"] = str(money(effective_target * PERCENT))
 
     return {
         "date": current,
@@ -253,14 +299,8 @@ def _day_record(
         "benefit_amount": benefit_amount,
         "complement_amount": complement_amount,
         "deduction_amount": deduction_amount,
-        "trace": {
-            "kind": kind,
-            "rule_code": rule.code,
-            "process_type": normalized_process_type(incident),
-            "payer": payer,
-            "regulatory_base_source": regulatory_source,
-            "legal_reference": rule.legal_reference,
-        },
+        "component_factors": factors,
+        "trace": trace,
     }, warnings
 
 
@@ -275,6 +315,7 @@ def same_segment(previous: dict[str, Any], current: dict[str, Any]) -> bool:
         "contribution_treatment",
         "daily_salary_base",
         "daily_regulatory_base",
+        "component_factors",
     )
     return all(previous.get(key) == current.get(key) for key in keys)
 
@@ -312,6 +353,9 @@ def compress_day_records(payroll_id: int, records: list[dict[str, Any]]) -> list
             segment[key] = money(segment[key])
         segment["daily_salary_base"] = four(segment["daily_salary_base"])
         segment["daily_regulatory_base"] = four(segment["daily_regulatory_base"])
+        segment["component_factors"] = {
+            key: four(value) for key, value in segment["component_factors"].items()
+        }
         segment["segment_key"] = (
             f"payroll:{payroll_id}:incident:{segment['incident_id'] or 'normal'}:"
             f"{segment['start_date'].isoformat()}:{segment['end_date'].isoformat()}:"
@@ -351,12 +395,11 @@ def overtime_segments(
         amount = Decimal("0") if compensated else money(hours * unit_price)
         start = max(incident.start_date, period_start)
         end = min(incident.end_date or incident.start_date, period_end)
-        rule = None
         segments.append(
             {
                 "segment_key": f"payroll:{payroll_id}:incident:{incident.id}:{start.isoformat()}:{end.isoformat()}:overtime",
                 "incident_id": incident.id,
-                "rule_id": rule.id if rule else None,
+                "rule_id": None,
                 "segment_type": "overtime_rest" if compensated else "overtime",
                 "start_date": start,
                 "end_date": end,
@@ -374,6 +417,7 @@ def overtime_segments(
                 "benefit_amount": Decimal("0"),
                 "complement_amount": Decimal("0"),
                 "deduction_amount": Decimal("0"),
+                "component_factors": {field: Decimal("1") for field in COMPONENT_FIELDS},
                 "trace": {
                     "kind": "overtime",
                     "hours": str(hours),
@@ -386,6 +430,30 @@ def overtime_segments(
     return segments, warnings
 
 
+def aggregate_component_factors(primary_segments: list[dict[str, Any]]) -> dict[str, Decimal]:
+    total_weight = sum(
+        (Decimal(str(segment["payroll_days"])) for segment in primary_segments),
+        Decimal("0"),
+    )
+    if total_weight <= 0:
+        return {field: Decimal("1.0000") for field in COMPONENT_FIELDS}
+
+    return {
+        field: four(
+            sum(
+                (
+                    Decimal(str(segment["payroll_days"]))
+                    * Decimal(str(segment["component_factors"].get(field, 1)))
+                    for segment in primary_segments
+                ),
+                Decimal("0"),
+            )
+            / total_weight
+        )
+        for field in COMPONENT_FIELDS
+    }
+
+
 def build_incident_segments(
     db: Session,
     payroll_id: int,
@@ -393,6 +461,7 @@ def build_incident_segments(
     period_month: int,
     period_year: int,
     incidents: list[Incident],
+    calculation_policy: IncidentCalculationPolicy = DEFAULT_INCIDENT_CALCULATION_POLICY,
 ) -> dict[str, Any]:
     period_start, period_end = month_bounds(period_month, period_year)
     monthly_salary = contract_monthly_salary(contract)
@@ -417,6 +486,7 @@ def build_incident_segments(
             active[0] if active else None,
             day_weight,
             daily_salary,
+            calculation_policy,
         )
         records.append(record)
         warnings.extend(day_warnings)
@@ -443,6 +513,7 @@ def build_incident_segments(
         "period_end": period_end,
         "segments": segments,
         "warnings": list(dict.fromkeys(warnings)),
+        "component_factors": aggregate_component_factors(primary),
         "worked_base_salary": money(sum((segment["salary_amount"] for segment in primary), Decimal("0"))),
         "temporary_disability_benefit": money(sum((segment["benefit_amount"] for segment in primary), Decimal("0"))),
         "company_disability_complement": money(sum((segment["complement_amount"] for segment in primary), Decimal("0"))),

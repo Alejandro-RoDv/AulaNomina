@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from copy import deepcopy
+from dataclasses import dataclass
 from datetime import date
 from typing import Any
 
@@ -190,6 +191,22 @@ DEFAULT_RULES: list[dict[str, Any]] = [
 PROTECTED_TYPES = {"RIESGO_EMBARAZO", "RIESGO_LACTANCIA", "CUIDADO_MENOR"}
 
 
+@dataclass(frozen=True)
+class ResolvedIncidentCalculationRule:
+    id: int | None
+    code: str
+    name: str
+    incident_type: str
+    process_type: str | None
+    agreement_id: int | None
+    valid_from: date
+    valid_to: date | None
+    priority: int
+    configuration: dict[str, Any]
+    legal_reference: str | None
+    is_active: bool = True
+
+
 def normalized_process_type(incident) -> str | None:
     details = incident.details or {}
     value = details.get("process_type") or details.get("benefit_type")
@@ -203,52 +220,80 @@ def ensure_default_incident_rules(db: Session) -> None:
     for definition in DEFAULT_RULES:
         if definition["code"] in existing_codes:
             continue
-        db.add(
-            IncidentCalculationRule(
-                code=definition["code"],
-                name=definition["name"],
-                incident_type=definition["incident_type"],
-                process_type=definition["process_type"],
-                valid_from=LEGAL_RULE_VALID_FROM,
-                priority=definition["priority"],
-                configuration=deepcopy(definition["configuration"]),
-                legal_reference=definition["legal_reference"],
-                is_active=True,
-            )
-        )
+        db.add(IncidentCalculationRule(
+            code=definition["code"],
+            name=definition["name"],
+            incident_type=definition["incident_type"],
+            process_type=definition["process_type"],
+            valid_from=LEGAL_RULE_VALID_FROM,
+            priority=definition["priority"],
+            configuration=deepcopy(definition["configuration"]),
+            legal_reference=definition["legal_reference"],
+            is_active=True,
+        ))
     db.flush()
 
 
+def resolve_default_calculation_rule(incident_type: str, process_type: str | None, calculation_date: date) -> ResolvedIncidentCalculationRule | None:
+    if calculation_date < LEGAL_RULE_VALID_FROM:
+        return None
+    candidates = [
+        definition for definition in DEFAULT_RULES
+        if definition["incident_type"] == incident_type
+        and definition["process_type"] in {None, process_type}
+    ]
+    if not candidates:
+        return None
+    candidates.sort(
+        key=lambda definition: (
+            1 if definition["process_type"] == process_type and process_type is not None else 0,
+            definition["priority"],
+        ),
+        reverse=True,
+    )
+    definition = candidates[0]
+    return ResolvedIncidentCalculationRule(
+        id=None,
+        code=definition["code"],
+        name=definition["name"],
+        incident_type=definition["incident_type"],
+        process_type=definition["process_type"],
+        agreement_id=None,
+        valid_from=LEGAL_RULE_VALID_FROM,
+        valid_to=None,
+        priority=definition["priority"],
+        configuration=deepcopy(definition["configuration"]),
+        legal_reference=definition["legal_reference"],
+    )
+
+
 def resolve_calculation_rule(db: Session, incident, calculation_date: date):
-    ensure_default_incident_rules(db)
     incident_type = incident.incident_type
     if incident_type in PROTECTED_TYPES:
         incident_type = "NACIMIENTO_CUIDADO"
     process_type = normalized_process_type(incident)
     agreement_id = getattr(incident.contract, "collective_agreement_id", None) if incident.contract else None
 
-    query = db.query(IncidentCalculationRule).filter(
+    candidates = db.query(IncidentCalculationRule).filter(
         IncidentCalculationRule.is_active.is_(True),
         IncidentCalculationRule.incident_type == incident_type,
         IncidentCalculationRule.valid_from <= calculation_date,
         or_(IncidentCalculationRule.valid_to.is_(None), IncidentCalculationRule.valid_to >= calculation_date),
         or_(IncidentCalculationRule.process_type.is_(None), IncidentCalculationRule.process_type == process_type),
         or_(IncidentCalculationRule.agreement_id.is_(None), IncidentCalculationRule.agreement_id == agreement_id),
-    )
-    candidates = query.all()
-    if not candidates:
-        return None
-
-    candidates.sort(
-        key=lambda row: (
-            1 if row.agreement_id == agreement_id and agreement_id is not None else 0,
-            1 if row.process_type == process_type and process_type is not None else 0,
-            row.priority,
-            row.valid_from,
-        ),
-        reverse=True,
-    )
-    return candidates[0]
+    ).all()
+    if candidates:
+        candidates.sort(
+            key=lambda row: (
+                1 if row.agreement_id == agreement_id and agreement_id is not None else 0,
+                1 if row.process_type == process_type and process_type is not None else 0,
+                row.priority,
+                row.valid_from,
+            ),
+            reverse=True,
+        )
+        return candidates[0]
+    return resolve_default_calculation_rule(incident_type, process_type, calculation_date)
 
 
 def resolve_band(configuration: dict[str, Any], process_day: int) -> dict[str, Any]:

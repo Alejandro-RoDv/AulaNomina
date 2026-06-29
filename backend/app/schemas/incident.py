@@ -33,6 +33,10 @@ INCIDENT_STATUSES = {
     "cancelled",
 }
 
+INCIDENT_CREATE_STATUSES = {"draft", "open"}
+INCIDENT_DIRECT_UPDATE_STATUSES = {"draft", "open", "pending", "validated"}
+INCIDENT_ACTION_ONLY_STATUSES = INCIDENT_STATUSES - INCIDENT_DIRECT_UPDATE_STATUSES
+
 
 class IncidentAuditResponse(BaseModel):
     id: int
@@ -134,7 +138,18 @@ class IncidentBase(BaseModel):
 
 
 class IncidentCreate(IncidentBase):
-    pass
+    @model_validator(mode="after")
+    def validate_initial_status(self):
+        if self.status not in INCIDENT_CREATE_STATUSES:
+            raise ValueError(
+                "Una incidencia nueva solo puede crearse en estado draft u open; "
+                "los estados operativos se alcanzan mediante acciones controladas"
+            )
+        if self.processed_payroll_id is not None or self.generated_amount is not None:
+            raise ValueError(
+                "Una incidencia nueva no puede vincularse directamente a una nómina procesada"
+            )
+        return self
 
 
 class IncidentUpdate(BaseModel):

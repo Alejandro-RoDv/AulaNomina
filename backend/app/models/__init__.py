@@ -1,4 +1,5 @@
 import app.incident_payroll_schema_patch  # noqa: F401
+import app.payroll_stability_schema_patch  # noqa: F401
 
 from app.models.user import User
 from app.models.employee import Employee
@@ -14,6 +15,7 @@ from app.models.wage_garnishment import WageGarnishment
 from app.models.wage_garnishment_movement import WageGarnishmentMovement
 from app.models.smi_parameter import SmiParameter
 from app.models.payroll import Payroll
+from app.models.payroll_calculation_snapshot import PayrollCalculationSnapshot
 from app.models.payroll_salary_structure import ContractPayrollConcept, PayrollConcept, PayrollItem
 from app.models.document import Document
 from app.models.employee_assignment_history import EmployeeAssignmentHistory
@@ -42,8 +44,3 @@ from app.models.collective_agreement import (
     VacationRule,
     WorkTimeRule,
 )
-from app.services.advanced_incident_bridge import install_advanced_incident_calculation
-from app.services.payroll_incident_bridge import install_payroll_incident_bridge
-
-install_advanced_incident_calculation()
-install_payroll_incident_bridge()

@@ -4,7 +4,9 @@ on:
   pull_request:
     paths:
       - "backend/app/**incident**"
-      - "backend/tests/test_incident_lifecycle.py"
+      - "backend/app/models/payroll*.py"
+      - "backend/app/payroll_stability_schema_patch.py"
+      - "backend/tests/test_incident_*.py"
       - "frontend/src/**incident**"
       - "frontend/package.json"
       - ".github/workflows/split-32-incidents.yml"
@@ -25,10 +27,10 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install --quiet -r requirements.txt
-      - name: Run incident lifecycle tests
+      - name: Run incident tests
         id: incident-tests
         continue-on-error: true
-        run: python -m unittest -v tests.test_incident_lifecycle > incident-test.log 2>&1
+        run: python -m unittest -v tests.test_incident_lifecycle tests.test_incident_payroll_engine tests.test_advanced_incident_calculation tests.test_incident_structural_contracts tests.test_incident_payroll_calculation_result tests.test_incident_payroll_stability > incident-test.log 2>&1
       - name: Upload incident test log
         if: always()
         uses: actions/upload-artifact@v4

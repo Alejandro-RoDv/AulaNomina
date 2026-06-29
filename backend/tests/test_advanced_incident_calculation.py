@@ -17,6 +17,7 @@ from app.models.incident_detail import IncidentDetail
 from app.models.payroll import Payroll
 from app.models.payroll_salary_structure import PayrollConcept, PayrollItem
 from app.services.advanced_incident_calculation import advanced_regulatory_daily_base
+from app.services.incident_calculation_policy import IncidentCalculationPolicy
 from app.services.incident_segmenter import build_incident_segments
 
 
@@ -143,6 +144,43 @@ class AdvancedIncidentCalculationTest(unittest.TestCase):
         self.assertEqual(segment["complement_percentage"], Decimal("0.4"))
         self.assertEqual(segment["complement_amount"], Decimal("280.00"))
         self.assertEqual(segment["trace"]["agreement_rule_code"], "IT-100")
+
+    def test_segmenter_uses_explicit_calculation_policy(self):
+        self.contract.partiality_coefficient = 100
+        self.contract.salary_base = Decimal("3000")
+        payroll = self.payroll(6, "3000", "3000", status="draft")
+        incident = self.incident(date(2026, 6, 1), date(2026, 6, 10))
+        calls = {"regulatory": 0, "agreement": 0}
+
+        def regulatory_base(db, contract, current_incident, configuration, fallback):
+            calls["regulatory"] += 1
+            return Decimal("80"), "test_policy", [], {"method": "test_policy"}
+
+        def agreement_target(db, contract, current_incident, current, process_day, process_type):
+            calls["agreement"] += 1
+            return Decimal("1"), {"agreement_rule_code": "TEST-POLICY"}
+
+        policy = IncidentCalculationPolicy(
+            regulatory_daily_base=regulatory_base,
+            agreement_it_target=agreement_target,
+        )
+        result = build_incident_segments(
+            self.db,
+            payroll.id,
+            self.contract,
+            6,
+            2026,
+            [incident],
+            calculation_policy=policy,
+        )
+
+        segment = next(item for item in result["segments"] if item["segment_type"] == "it_common_60_company")
+        self.assertGreater(calls["regulatory"], 0)
+        self.assertGreater(calls["agreement"], 0)
+        self.assertEqual(segment["daily_regulatory_base"], Decimal("80.0000"))
+        self.assertEqual(segment["complement_percentage"], Decimal("0.4"))
+        self.assertEqual(segment["trace"]["advanced_regulatory_base"]["method"], "test_policy")
+        self.assertEqual(segment["trace"]["agreement_rule_code"], "TEST-POLICY")
 
 
 if __name__ == "__main__":

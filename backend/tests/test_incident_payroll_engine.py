@@ -16,7 +16,7 @@ from app.models.incident_calculation import PayrollSegment
 from app.models.incident_detail import IncidentDetail
 from app.models.payroll import Payroll
 from app.models.payroll_salary_structure import PayrollItem
-from app.services.incident_payroll_processor import process_payroll_incidents
+from app.services.incident_payroll_service import process_payroll_incidents
 from app.services.incident_segmenter import build_incident_segments
 
 
