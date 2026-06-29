@@ -184,20 +184,8 @@ class IncidentUpdate(BaseModel):
     @field_validator("status")
     @classmethod
     def validate_status(cls, value: str | None):
-        if value is not None and value not in INCIDENT_DIRECT_UPDATE_STATUSES:
-            raise ValueError(
-                "Este estado solo puede alcanzarse mediante una acción controlada "
-                "de procesado, cierre, regularización o anulación"
-            )
-        return value
-
-    @field_validator("processed_payroll_id", "generated_amount")
-    @classmethod
-    def validate_processing_fields(cls, value):
-        if value is not None:
-            raise ValueError(
-                "Los datos de procesamiento de nómina no pueden modificarse mediante la edición general"
-            )
+        if value is not None and value not in INCIDENT_STATUSES:
+            raise ValueError("Estado de incidencia no válido")
         return value
 
     @field_validator("hours")
@@ -207,7 +195,7 @@ class IncidentUpdate(BaseModel):
             raise ValueError("Las horas deben estar entre 0 y 24")
         return value
 
-    @field_validator("days")
+    @field_validator("days", "generated_amount")
     @classmethod
     def validate_non_negative(cls, value: Decimal | None):
         if value is not None and value < 0:
