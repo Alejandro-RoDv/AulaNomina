@@ -139,6 +139,31 @@ class IncidentStructuralContractsTests(unittest.TestCase):
         self.assertNotIn("process_payroll_incidents", legacy_route_imports)
         self.assertNotIn("process_payroll_incidents", legacy_bridge_imports)
 
+    def test_segmenter_uses_explicit_policy_instead_of_runtime_patch(self):
+        removed_bridge = BACKEND_ROOT / "app" / "services" / "advanced_incident_bridge.py"
+        models_init = BACKEND_ROOT / "app" / "models" / "__init__.py"
+        segmenter = BACKEND_ROOT / "app" / "services" / "incident_segmenter.py"
+
+        self.assertFalse(removed_bridge.exists())
+        self.assertNotIn("install_advanced_incident_calculation", models_init.read_text(encoding="utf-8"))
+
+        tree = ast.parse(segmenter.read_text(encoding="utf-8"))
+        build_function = next(
+            node
+            for node in tree.body
+            if isinstance(node, ast.FunctionDef) and node.name == "build_incident_segments"
+        )
+        argument_names = [argument.arg for argument in build_function.args.args]
+        self.assertIn("calculation_policy", argument_names)
+
+        runtime_attribute_assignments = [
+            node
+            for node in ast.walk(tree)
+            if isinstance(node, ast.Assign)
+            and any(isinstance(target, ast.Attribute) for target in node.targets)
+        ]
+        self.assertEqual(runtime_attribute_assignments, [])
+
 
 if __name__ == "__main__":
     unittest.main()
