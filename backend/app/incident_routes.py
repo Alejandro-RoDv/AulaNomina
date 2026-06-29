@@ -30,7 +30,7 @@ from app.services.incident_actions import (
     request_incident_recalculation,
     update_confirmation,
 )
-from app.services.incident_payroll_processor import period_incidents, process_payroll_incidents
+from app.services.incident_payroll_service import period_incidents, process_payroll_incidents
 from app.services.incident_segmenter import build_incident_segments
 
 
