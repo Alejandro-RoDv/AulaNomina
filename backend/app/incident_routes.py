@@ -16,6 +16,7 @@ from app.schemas.incident_actions import (
     IncidentRecalculationRequest,
 )
 from app.schemas.incident_payroll_engine import (
+    ContributionBaseOverridesRequest,
     IncidentPayrollPreviewResponse,
     IncidentPayrollProcessRequest,
     IncidentPayrollProcessResponse,
@@ -33,6 +34,7 @@ from app.services.incident_actions import (
 from app.services.incident_payroll_service import (
     preview_payroll_incidents,
     process_payroll_incidents,
+    update_contribution_base_overrides,
 )
 
 
@@ -92,7 +94,26 @@ def monthly_summary_endpoint(employee_id: int, year: int, month: int, contract_i
 
 @router.post("/payrolls/{payroll_id}/process", response_model=IncidentPayrollProcessResponse)
 def process_payroll_incidents_endpoint(payroll_id: int, request: IncidentPayrollProcessRequest, db: Session = Depends(get_db)):
-    return process_payroll_incidents(db, payroll_id, actor=request.actor)
+    return process_payroll_incidents(
+        db,
+        payroll_id,
+        actor=request.actor,
+        expected_version=request.expected_version,
+    )
+
+
+@router.put("/payrolls/{payroll_id}/contribution-base-overrides", response_model=IncidentPayrollProcessResponse)
+def contribution_base_overrides_endpoint(payroll_id: int, request: ContributionBaseOverridesRequest, db: Session = Depends(get_db)):
+    payload = request.model_dump(exclude_unset=True)
+    actor = payload.pop("actor", None)
+    expected_version = payload.pop("expected_version", None)
+    return update_contribution_base_overrides(
+        db,
+        payroll_id,
+        payload,
+        actor=actor,
+        expected_version=expected_version,
+    )
 
 
 @router.get("/payrolls/{payroll_id}/segments", response_model=list[PayrollSegmentResponse])
