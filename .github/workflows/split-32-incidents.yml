@@ -53,7 +53,9 @@ jobs:
         with:
           node-version: "22"
       - run: npm install --silent
-      - run: npm run test:incidencias
-      - run: npm run build
-      - name: Lint incident module
-        run: npx eslint src/pages/IncidentsPage.jsx src/components/incidents/IncidentForm.jsx src/components/incidents/IncidentTable.jsx src/hooks/useIncidentsModule.js src/utils/incidentPayloads.js src/tests/incidentPayloads.test.js
+      - name: Run incident interface tests
+        run: npm run test:incidencias
+      - name: Build frontend
+        run: npm run build
+      - name: Lint complete incident workspace
+        run: npx eslint src/pages/IncidentsPage.jsx src/components/incidents src/hooks/useIncidentsModule.js src/services/incidentApi.js src/services/httpClient.js src/utils/incidentCategories.js src/utils/incidentWorkspace.js src/utils/incidentPayloads.js src/tests/incidentPayloads.test.js src/tests/incidentWorkspace.test.js src/tests/incidentApiErrors.test.js

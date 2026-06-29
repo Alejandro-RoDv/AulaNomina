@@ -1,8 +1,9 @@
 export const INCIDENT_CATEGORY_TABS = [
-  { value: "all", label: "Resumen mensual", kind: "dashboard", types: null },
+  { value: "all", label: "Resumen", shortLabel: "Resumen", kind: "dashboard", types: null },
   {
     value: "medical",
     label: "Incapacidad y prestaciones",
+    shortLabel: "IT y prestaciones",
     kind: "form",
     types: ["IT", "RECAIDA", "NACIMIENTO_CUIDADO", "RIESGO_EMBARAZO", "RIESGO_LACTANCIA", "CUIDADO_MENOR"],
     defaultType: "IT",
@@ -15,6 +16,7 @@ export const INCIDENT_CATEGORY_TABS = [
   {
     value: "absence",
     label: "Absentismo",
+    shortLabel: "Absentismo",
     kind: "form",
     types: ["AUSENCIA", "PERMISO_RETRIBUIDO", "PERMISO_NO_RETRIBUIDO", "SUSPENSION", "SANCION"],
     defaultType: "AUSENCIA",
@@ -27,6 +29,7 @@ export const INCIDENT_CATEGORY_TABS = [
   {
     value: "vacation",
     label: "Vacaciones",
+    shortLabel: "Vacaciones",
     kind: "form",
     types: ["VACACIONES"],
     defaultType: "VACACIONES",
@@ -38,6 +41,7 @@ export const INCIDENT_CATEGORY_TABS = [
   {
     value: "overtime",
     label: "Horas extraordinarias",
+    shortLabel: "Horas extra",
     kind: "form",
     types: ["HORAS_EXTRA"],
     defaultType: "HORAS_EXTRA",
@@ -49,6 +53,7 @@ export const INCIDENT_CATEGORY_TABS = [
   {
     value: "movement",
     label: "Cambios del trabajador",
+    shortLabel: "Cambios",
     kind: "form",
     types: ["MOVIMIENTO"],
     defaultType: "MOVIMIENTO",
@@ -57,7 +62,14 @@ export const INCIDENT_CATEGORY_TABS = [
     submitLabel: "Registrar cambio",
     defaults: { unit_type: "informative", payroll_effect: "pending" },
   },
-  { value: "history", label: "Historial de incidencias", kind: "history", types: null },
+  {
+    value: "payroll",
+    label: "Control de nómina",
+    shortLabel: "Control nómina",
+    kind: "payroll",
+    types: null,
+  },
+  { value: "history", label: "Historial", shortLabel: "Historial", kind: "history", types: null },
 ];
 
 export function getIncidentCategory(value) {
