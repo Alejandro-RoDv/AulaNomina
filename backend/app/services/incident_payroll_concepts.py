@@ -2,26 +2,19 @@ from __future__ import annotations
 
 from datetime import datetime
 from decimal import Decimal
-from typing import Any
+from typing import Any, Iterable
 
 from sqlalchemy.orm import Session
 
 from app.models.incident_calculation import PayrollSegment
 from app.models.payroll import Payroll
 from app.models.payroll_salary_structure import PayrollConcept, PayrollItem
+from app.services.incident_payroll_result import PayrollComponentAdjustment
 from app.services.incident_payroll_segments import AUTOMATIC_SOURCE
 from app.services.incident_segmenter import money
 
 
-def _concept_spec(
-    name: str,
-    category: str,
-    concept_type: str,
-    *,
-    taxable: bool,
-    contribution_base: bool,
-    display_order: int,
-) -> dict[str, Any]:
+def _concept_spec(name: str, category: str, concept_type: str, *, taxable: bool, contribution_base: bool, display_order: int) -> dict[str, Any]:
     return {
         "name": name,
         "category": category,
@@ -62,6 +55,30 @@ CONCEPT_SPECS = {
         "Horas extra compensadas con descanso", "HORAS_EXTRA", "BASE_INFORMATIVA",
         taxable=False, contribution_base=False, display_order=742,
     ),
+    "INC_SUPPLEMENTS_REDUCTION_INFO": _concept_spec(
+        "Reducción de complementos salariales", "INCIDENCIA", "BASE_INFORMATIVA",
+        taxable=False, contribution_base=False, display_order=750,
+    ),
+    "INC_SENIORITY_REDUCTION_INFO": _concept_spec(
+        "Reducción de antigüedad", "INCIDENCIA", "BASE_INFORMATIVA",
+        taxable=False, contribution_base=False, display_order=751,
+    ),
+    "INC_INCENTIVES_REDUCTION_INFO": _concept_spec(
+        "Reducción de incentivos", "INCIDENCIA", "BASE_INFORMATIVA",
+        taxable=False, contribution_base=False, display_order=752,
+    ),
+    "INC_EXTRA_PRORATION_REDUCTION_INFO": _concept_spec(
+        "Reducción de prorrata de pagas extra", "INCIDENCIA", "BASE_INFORMATIVA",
+        taxable=False, contribution_base=False, display_order=753,
+    ),
+}
+
+
+COMPONENT_REDUCTION_CONCEPTS = {
+    "salary_supplements": ("INC_SUPPLEMENTS_REDUCTION_INFO", "Complementos salariales"),
+    "seniority_amount": ("INC_SENIORITY_REDUCTION_INFO", "Antigüedad"),
+    "variable_incentives": ("INC_INCENTIVES_REDUCTION_INFO", "Incentivos"),
+    "extra_pay_proration": ("INC_EXTRA_PRORATION_REDUCTION_INFO", "Prorrata de pagas extra"),
 }
 
 
@@ -94,7 +111,6 @@ def ensure_incident_concepts(db: Session) -> dict[str, PayrollConcept]:
 def segment_item_specs(segment: PayrollSegment) -> list[dict[str, Any]]:
     specs: list[dict[str, Any]] = []
     trace = segment.calculation_trace or {}
-
     if Decimal(str(segment.deduction_amount or 0)) > 0:
         specs.append({
             "code": "INC_SALARY_REDUCTION_INFO",
@@ -127,18 +143,14 @@ def segment_item_specs(segment: PayrollSegment) -> list[dict[str, Any]]:
         })
     if segment.segment_type == "vacation":
         specs.append({
-            "code": "INC_VACATION_INFO",
-            "quantity": segment.calendar_days,
-            "unit_price": 0,
-            "amount": 0,
+            "code": "INC_VACATION_INFO", "quantity": segment.calendar_days,
+            "unit_price": 0, "amount": 0,
             "description": f"Vacaciones {segment.start_date:%d/%m/%Y}-{segment.end_date:%d/%m/%Y}",
         })
     if segment.segment_type == "paid_leave":
         specs.append({
-            "code": "INC_PAID_LEAVE_INFO",
-            "quantity": segment.calendar_days,
-            "unit_price": 0,
-            "amount": 0,
+            "code": "INC_PAID_LEAVE_INFO", "quantity": segment.calendar_days,
+            "unit_price": 0, "amount": 0,
             "description": f"Permiso retribuido {segment.start_date:%d/%m/%Y}-{segment.end_date:%d/%m/%Y}",
         })
     if segment.segment_type == "overtime":
@@ -153,19 +165,62 @@ def segment_item_specs(segment: PayrollSegment) -> list[dict[str, Any]]:
         specs.append({
             "code": "INC_OVERTIME_REST_INFO",
             "quantity": Decimal(str(trace.get("hours") or 0)),
-            "unit_price": 0,
-            "amount": 0,
+            "unit_price": 0, "amount": 0,
             "description": f"Horas extra compensadas con descanso {segment.start_date:%d/%m/%Y}",
         })
     return specs
 
 
-def sync_payroll_items(
-    db: Session,
-    payroll: Payroll,
-    segments: dict[str, PayrollSegment],
-    concepts: dict[str, PayrollConcept],
-) -> tuple[int, int, int]:
+def component_adjustment_specs(adjustments: Iterable[PayrollComponentAdjustment]) -> list[dict[str, Any]]:
+    specs = []
+    for adjustment in adjustments:
+        if adjustment.reduction_amount <= 0:
+            continue
+        code, label = COMPONENT_REDUCTION_CONCEPTS[adjustment.field]
+        specs.append({
+            "field": adjustment.field,
+            "code": code,
+            "quantity": Decimal("1"),
+            "unit_price": adjustment.reduction_amount,
+            "amount": adjustment.reduction_amount,
+            "description": f"{label}: reducción por incidencias",
+            "trace": adjustment.to_dict(),
+        })
+    return specs
+
+
+def _upsert_automatic_item(db: Session, payroll: Payroll, existing: dict[str, PayrollItem], desired_keys: set[str], concepts: dict[str, PayrollConcept], source_key: str, spec: dict[str, Any], *, source_id: int | None, segment_id: int | None, trace: dict[str, Any]) -> tuple[int, int]:
+    desired_keys.add(source_key)
+    item = existing.get(source_key)
+    concept = concepts[spec["code"]]
+    values = {
+        "concept_id": concept.id,
+        "description": spec["description"],
+        "quantity": spec["quantity"],
+        "unit_price": spec["unit_price"],
+        "amount": spec["amount"],
+        "display_order": concept.display_order,
+        "notes": "Línea automática; no editar manualmente.",
+        "source_id": source_id,
+        "segment_id": segment_id,
+        "is_automatic": True,
+        "calculation_trace": trace,
+    }
+    if item is None:
+        db.add(PayrollItem(
+            payroll_id=payroll.id,
+            source_type=AUTOMATIC_SOURCE,
+            source_key=source_key,
+            **values,
+        ))
+        return 1, 0
+    for field, value in values.items():
+        setattr(item, field, value)
+    item.updated_at = datetime.utcnow()
+    return 0, 1
+
+
+def sync_payroll_items(db: Session, payroll: Payroll, segments: dict[str, PayrollSegment], concepts: dict[str, PayrollConcept], component_adjustments: Iterable[PayrollComponentAdjustment] = ()) -> tuple[int, int, int]:
     existing = {
         item.source_key: item
         for item in db.query(PayrollItem).filter(
@@ -180,37 +235,26 @@ def sync_payroll_items(
 
     for segment in segments.values():
         for spec in segment_item_specs(segment):
-            source_key = f"{segment.segment_key}:{spec['code']}"
-            desired_keys.add(source_key)
-            item = existing.get(source_key)
-            concept = concepts[spec["code"]]
-            values = {
-                "concept_id": concept.id,
-                "description": spec["description"],
-                "quantity": spec["quantity"],
-                "unit_price": spec["unit_price"],
-                "amount": spec["amount"],
-                "display_order": concept.display_order,
-                "notes": "Línea automática; no editar manualmente.",
-                "source_id": segment.incident_id,
-                "segment_id": segment.id,
-                "is_automatic": True,
-                "calculation_trace": segment.calculation_trace or {},
-            }
-            if item is None:
-                item = PayrollItem(
-                    payroll_id=payroll.id,
-                    source_type=AUTOMATIC_SOURCE,
-                    source_key=source_key,
-                    **values,
-                )
-                db.add(item)
-                created += 1
-            else:
-                for field, value in values.items():
-                    setattr(item, field, value)
-                item.updated_at = datetime.utcnow()
-                updated += 1
+            added, changed = _upsert_automatic_item(
+                db, payroll, existing, desired_keys, concepts,
+                f"{segment.segment_key}:{spec['code']}", spec,
+                source_id=segment.incident_id,
+                segment_id=segment.id,
+                trace=segment.calculation_trace or {},
+            )
+            created += added
+            updated += changed
+
+    for spec in component_adjustment_specs(component_adjustments):
+        added, changed = _upsert_automatic_item(
+            db, payroll, existing, desired_keys, concepts,
+            f"payroll:{payroll.id}:component:{spec['field']}:reduction", spec,
+            source_id=None,
+            segment_id=None,
+            trace=spec["trace"],
+        )
+        created += added
+        updated += changed
 
     stale = [item for key, item in existing.items() if key not in desired_keys]
     for item in stale:
@@ -220,7 +264,9 @@ def sync_payroll_items(
 
 
 __all__ = [
+    "COMPONENT_REDUCTION_CONCEPTS",
     "CONCEPT_SPECS",
+    "component_adjustment_specs",
     "ensure_incident_concepts",
     "segment_item_specs",
     "sync_payroll_items",
