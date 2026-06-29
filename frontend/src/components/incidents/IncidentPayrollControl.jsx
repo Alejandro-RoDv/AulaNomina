@@ -19,6 +19,7 @@ import {
   payrollEmployee,
   payrollPeriod,
 } from "./incidentPayrollUi";
+import "./incidentPayrollControl.css";
 
 export default function IncidentPayrollControl({
   payrolls = [],
