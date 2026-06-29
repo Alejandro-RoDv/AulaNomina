@@ -13,20 +13,14 @@ Consolidar el backend del módulo de incidencias antes de continuar con el front
 El antiguo `incident_payroll_processor.py` se ha eliminado. Sus responsabilidades quedan separadas en:
 
 - `incident_payroll_segments.py`: consulta y persistencia idempotente de segmentos;
-- `incident_payroll_concepts.py`: catálogo y sincronización de conceptos automáticos;
+- `incident_payroll_concepts.py`: catálogo, líneas informativas y sincronización de conceptos automáticos;
 - `incident_payroll_calculator.py`: cálculo puro del resultado mensual;
 - `incident_payroll_result.py`: resultado inmutable y serialización controlada;
 - `incident_payroll_orchestrator.py`: validación, persistencia, auditoría y límite transaccional.
 
 ### Resultado inmutable
 
-`IncidentPayrollCalculationResult` contiene:
-
-- segmentos y advertencias;
-- ajustes de complementos, antigüedad, incentivos y prorrata;
-- importes finales de nómina;
-- importes generados por incidencia;
-- identificadores de incidencias calculadas.
+`IncidentPayrollCalculationResult` contiene segmentos, advertencias, ajustes de componentes, importes finales de nómina, importes por incidencia e identificadores de incidencias calculadas.
 
 Las estructuras internas se congelan antes de devolver el resultado. La persistencia recibe una copia descongelada, por lo que no puede alterar accidentalmente el cálculo ya producido.
 
@@ -34,12 +28,7 @@ Las estructuras internas se congelan antes de devolver el resultado. La persiste
 
 La fase `calculate_payroll_incidents` solo consulta datos y produce el resultado inmutable.
 
-La fase `persist_payroll_incident_calculation` se limita a:
-
-- sincronizar segmentos;
-- sincronizar conceptos automáticos;
-- aplicar totales calculados;
-- actualizar estados y auditoría.
+La fase `persist_payroll_incident_calculation` se limita a sincronizar segmentos y conceptos, aplicar totales y actualizar estados y auditoría.
 
 `process_payroll_incidents` es el único límite que confirma o revierte la transacción.
 
@@ -70,7 +59,7 @@ Modos soportados:
 
 Las ausencias no retribuidas, permisos no retribuidos, suspensiones y sanciones reducen los cuatro componentes de forma proporcional por defecto. Las situaciones médicas y retribuidas mantienen el comportamiento anterior salvo configuración legal o de convenio.
 
-Los campos fuente de la nómina no se sobrescriben. El motor utiliza el importe ajustado para bruto, IRPF, neto y coste, y genera líneas informativas automáticas con importe original, factor y reducción. Esto evita reducciones acumulativas al recalcular.
+Los campos fuente no se sobrescriben. El motor utiliza el importe ajustado para bruto, IRPF, neto y coste, y genera líneas informativas automáticas con importe original, factor aplicado, importe ajustado y reducción. Esto evita reducciones acumulativas al recalcular.
 
 ### Dependencias explícitas del segmentador
 
@@ -101,7 +90,7 @@ Las pruebas cubren:
 - separación entre cálculo y persistencia;
 - sensibilidad por defecto y configurable;
 - ausencia de reducciones acumulativas;
-- trazabilidad mediante conceptos automáticos;
+- persistencia idempotente de cuatro líneas informativas de reducción;
 - estados iniciales y transiciones;
 - política de cálculo inyectable;
 - ausencia de monkey patches;
