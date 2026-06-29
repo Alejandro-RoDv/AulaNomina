@@ -18,7 +18,6 @@ from app.services.incident_payroll_snapshot import persist_calculation_snapshot
 from app.services.incident_segmenter import money
 from app.services.incident_service import incident_snapshot, register_incident_audit
 
-
 BASE_OVERRIDE_FIELDS = {
     "common_contingencies_base_override",
     "professional_contingencies_base_override",
@@ -26,18 +25,12 @@ BASE_OVERRIDE_FIELDS = {
 }
 
 
-def load_payroll_for_incident_engine(
-    db: Session,
-    payroll_id: int,
-    *,
-    lock: bool = False,
-) -> Payroll:
-    query = db.query(Payroll).options(
-        joinedload(Payroll.contract),
-        joinedload(Payroll.segments),
-    ).filter(Payroll.id == payroll_id)
+def load_payroll_for_incident_engine(db: Session, payroll_id: int, *, lock: bool = False) -> Payroll:
+    query = db.query(Payroll).filter(Payroll.id == payroll_id)
     if lock:
-        query = query.with_for_update()
+        query = query.with_for_update(of=Payroll)
+    else:
+        query = query.options(joinedload(Payroll.contract), joinedload(Payroll.segments))
     payroll = query.first()
     if not payroll:
         raise HTTPException(status_code=404, detail="Nómina no encontrada")
@@ -49,32 +42,22 @@ def load_payroll_for_incident_engine(
 
 
 def validate_expected_version(payroll: Payroll, expected_version: int | None) -> None:
-    current_version = int(payroll.calculation_version or 0)
-    if expected_version is not None and expected_version != current_version:
-        raise HTTPException(
-            status_code=409,
-            detail={
-                "code": "payroll_calculation_version_conflict",
-                "message": "La nómina ha sido recalculada por otro proceso.",
-                "expected_version": expected_version,
-                "current_version": current_version,
-            },
-        )
+    current = int(payroll.calculation_version or 0)
+    if expected_version is not None and expected_version != current:
+        raise HTTPException(status_code=409, detail={
+            "code": "payroll_calculation_version_conflict",
+            "message": "La nómina ha sido recalculada por otro proceso.",
+            "expected_version": expected_version,
+            "current_version": current,
+        })
 
 
 def validate_processable_payroll(payroll: Payroll) -> None:
     if payroll.status == "closed":
-        raise HTTPException(
-            status_code=409,
-            detail="La nómina está cerrada. Debe generarse una regularización, no reescribir el resultado.",
-        )
+        raise HTTPException(status_code=409, detail="La nómina está cerrada. Debe generarse una regularización, no reescribir el resultado.")
 
 
-def calculate_payroll_incidents(
-    db: Session,
-    payroll: Payroll,
-    incidents: list[Incident] | None = None,
-) -> IncidentPayrollCalculationResult:
+def calculate_payroll_incidents(db: Session, payroll: Payroll, incidents: list[Incident] | None = None) -> IncidentPayrollCalculationResult:
     selected = incidents if incidents is not None else period_incidents(db, payroll)
     try:
         return calculate_incident_payroll(db, payroll, selected)
@@ -82,21 +65,12 @@ def calculate_payroll_incidents(
         raise HTTPException(status_code=409, detail=error.detail()) from error
 
 
-def apply_payroll_amounts(
-    payroll: Payroll,
-    calculation: IncidentPayrollCalculationResult,
-) -> None:
+def apply_payroll_amounts(payroll: Payroll, calculation: IncidentPayrollCalculationResult) -> None:
     for field, value in calculation.payroll_amount_payload().items():
         setattr(payroll, field, value)
 
 
-def mark_changed_incidents_processed(
-    db: Session,
-    payroll: Payroll,
-    incidents: list[Incident],
-    calculation: IncidentPayrollCalculationResult,
-    actor: str | None,
-) -> int:
+def mark_changed_incidents_processed(db: Session, payroll: Payroll, incidents: list[Incident], calculation: IncidentPayrollCalculationResult, actor: str | None) -> int:
     amounts = calculation.incident_amount_map()
     changed = 0
     for incident in incidents:
@@ -127,66 +101,33 @@ def mark_changed_incidents_processed(
         incident.detail.updated_at = datetime.utcnow()
         db.flush()
         register_incident_audit(
-            db,
-            incident,
-            action="payroll_engine_processed",
-            actor=actor,
+            db, incident, action="payroll_engine_processed", actor=actor,
             reason=f"Procesada automáticamente en nómina {payroll.id}",
-            previous_values=previous,
-            new_values=incident_snapshot(incident),
+            previous_values=previous, new_values=incident_snapshot(incident),
         )
         changed += 1
     return changed
 
 
-def persist_payroll_incident_calculation(
-    db: Session,
-    payroll: Payroll,
-    incidents: list[Incident],
-    calculation: IncidentPayrollCalculationResult,
-    actor: str | None,
-) -> dict[str, int]:
+def persist_payroll_incident_calculation(db: Session, payroll: Payroll, incidents: list[Incident], calculation: IncidentPayrollCalculationResult, actor: str | None) -> dict[str, int]:
     concepts = ensure_incident_concepts(db)
     segments = upsert_segments(db, payroll, calculation.segment_payload())
-    created, updated, deleted = sync_payroll_items(
-        db,
-        payroll,
-        segments,
-        concepts,
-        calculation.component_adjustments,
-    )
+    created, updated, deleted = sync_payroll_items(db, payroll, segments, concepts, calculation.component_adjustments)
     apply_payroll_amounts(payroll, calculation)
-    next_version = int(payroll.calculation_version or 0) + 1
     persist_calculation_snapshot(
-        db,
-        payroll,
-        incidents,
-        calculation,
-        actor=actor,
-        calculation_version=next_version,
+        db, payroll, incidents, calculation, actor=actor,
+        calculation_version=int(payroll.calculation_version or 0) + 1,
     )
-    changed = mark_changed_incidents_processed(
-        db,
-        payroll,
-        incidents,
-        calculation,
-        actor,
-    )
+    changed = mark_changed_incidents_processed(db, payroll, incidents, calculation, actor)
     payroll.status = "calculated"
     return {
-        "segments": len(segments),
-        "created_items": created,
-        "updated_items": updated,
-        "deleted_items": deleted,
+        "segments": len(segments), "created_items": created,
+        "updated_items": updated, "deleted_items": deleted,
         "changed_incidents": changed,
     }
 
 
-def calculation_response(
-    payroll: Payroll,
-    calculation: IncidentPayrollCalculationResult,
-    persisted: dict[str, int],
-) -> dict[str, Any]:
+def calculation_response(payroll: Payroll, calculation: IncidentPayrollCalculationResult, persisted: dict[str, int]) -> dict[str, Any]:
     result = calculation.segment_result
     return {
         "payroll_id": calculation.payroll_id,
@@ -203,13 +144,9 @@ def calculation_response(
         "it_days": result["it_days"],
         "contribution_days": result["contribution_days"],
         "warnings": list(result["warnings"]),
-        "component_adjustments": [
-            item.to_dict() for item in calculation.component_adjustments
-        ],
+        "component_adjustments": [item.to_dict() for item in calculation.component_adjustments],
         "adjusted_components": calculation.adjusted_component_map(),
-        "contribution_base_resolution": dict(
-            result.get("contribution_base_resolution") or {}
-        ),
+        "contribution_base_resolution": dict(result.get("contribution_base_resolution") or {}),
     }
 
 
@@ -220,30 +157,14 @@ def preview_payroll_incidents(db: Session, payroll_id: int) -> dict[str, Any]:
     return payload
 
 
-def execute_locked_calculation(
-    db: Session,
-    payroll: Payroll,
-    *,
-    actor: str | None,
-) -> dict[str, Any]:
+def execute_locked_calculation(db: Session, payroll: Payroll, *, actor: str | None) -> dict[str, Any]:
     incidents = period_incidents(db, payroll)
     calculation = calculate_payroll_incidents(db, payroll, incidents)
-    persisted = persist_payroll_incident_calculation(
-        db,
-        payroll,
-        incidents,
-        calculation,
-        actor,
-    )
+    persisted = persist_payroll_incident_calculation(db, payroll, incidents, calculation, actor)
     return calculation_response(payroll, calculation, persisted)
 
 
-def process_payroll_incidents(
-    db: Session,
-    payroll_id: int,
-    actor: str | None = None,
-    expected_version: int | None = None,
-) -> dict[str, Any]:
+def process_payroll_incidents(db: Session, payroll_id: int, actor: str | None = None, expected_version: int | None = None) -> dict[str, Any]:
     try:
         payroll = load_payroll_for_incident_engine(db, payroll_id, lock=True)
         validate_processable_payroll(payroll)
@@ -256,20 +177,10 @@ def process_payroll_incidents(
         raise
 
 
-def update_contribution_base_overrides(
-    db: Session,
-    payroll_id: int,
-    overrides: dict[str, Any],
-    *,
-    actor: str | None = None,
-    expected_version: int | None = None,
-) -> dict[str, Any]:
-    unknown_fields = set(overrides) - BASE_OVERRIDE_FIELDS
-    if unknown_fields:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Overrides de cotización no soportados: {sorted(unknown_fields)}",
-        )
+def update_contribution_base_overrides(db: Session, payroll_id: int, overrides: dict[str, Any], *, actor: str | None = None, expected_version: int | None = None) -> dict[str, Any]:
+    unknown = set(overrides) - BASE_OVERRIDE_FIELDS
+    if unknown:
+        raise HTTPException(status_code=400, detail=f"Overrides de cotización no soportados: {sorted(unknown)}")
     try:
         payroll = load_payroll_for_incident_engine(db, payroll_id, lock=True)
         validate_processable_payroll(payroll)
@@ -285,13 +196,8 @@ def update_contribution_base_overrides(
 
 
 __all__ = [
-    "apply_payroll_amounts",
-    "calculate_payroll_incidents",
-    "execute_locked_calculation",
-    "load_payroll_for_incident_engine",
-    "persist_payroll_incident_calculation",
-    "preview_payroll_incidents",
-    "process_payroll_incidents",
-    "update_contribution_base_overrides",
-    "validate_expected_version",
+    "apply_payroll_amounts", "calculate_payroll_incidents", "execute_locked_calculation",
+    "load_payroll_for_incident_engine", "persist_payroll_incident_calculation",
+    "preview_payroll_incidents", "process_payroll_incidents",
+    "update_contribution_base_overrides", "validate_expected_version",
 ]
