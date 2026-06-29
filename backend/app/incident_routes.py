@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session
 
 from app.crud.incident import get_incident
 from app.db import SessionLocal
@@ -30,8 +30,10 @@ from app.services.incident_actions import (
     request_incident_recalculation,
     update_confirmation,
 )
-from app.services.incident_payroll_service import period_incidents, process_payroll_incidents
-from app.services.incident_segmenter import build_incident_segments
+from app.services.incident_payroll_service import (
+    preview_payroll_incidents,
+    process_payroll_incidents,
+)
 
 
 router = APIRouter(prefix="/incidents", tags=["incidents"])
@@ -54,91 +56,46 @@ def incident_history(incident_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/{incident_id}/cancel", response_model=IncidentResponse)
-def cancel_incident_endpoint(
-    incident_id: int,
-    request: IncidentCancelRequest,
-    db: Session = Depends(get_db),
-):
+def cancel_incident_endpoint(incident_id: int, request: IncidentCancelRequest, db: Session = Depends(get_db)):
     return cancel_incident(db, incident_id, request)
 
 
 @router.post("/{incident_id}/process", response_model=IncidentResponse)
-def process_incident_endpoint(
-    incident_id: int,
-    request: IncidentProcessRequest,
-    db: Session = Depends(get_db),
-):
+def process_incident_endpoint(incident_id: int, request: IncidentProcessRequest, db: Session = Depends(get_db)):
     return process_incident(db, incident_id, request)
 
 
 @router.post("/{incident_id}/request-recalculation", response_model=IncidentResponse)
-def request_recalculation_endpoint(
-    incident_id: int,
-    request: IncidentRecalculationRequest,
-    db: Session = Depends(get_db),
-):
+def request_recalculation_endpoint(incident_id: int, request: IncidentRecalculationRequest, db: Session = Depends(get_db)):
     return request_incident_recalculation(db, incident_id, request)
 
 
 @router.post("/{incident_id}/confirmations", response_model=IncidentResponse)
-def create_confirmation_endpoint(
-    incident_id: int,
-    confirmation: IncidentConfirmationCreate,
-    db: Session = Depends(get_db),
-):
+def create_confirmation_endpoint(incident_id: int, confirmation: IncidentConfirmationCreate, db: Session = Depends(get_db)):
     return create_confirmation(db, incident_id, confirmation)
 
 
 @router.put("/{incident_id}/confirmations/{confirmation_id}", response_model=IncidentResponse)
-def update_confirmation_endpoint(
-    incident_id: int,
-    confirmation_id: int,
-    confirmation: IncidentConfirmationUpdate,
-    db: Session = Depends(get_db),
-):
+def update_confirmation_endpoint(incident_id: int, confirmation_id: int, confirmation: IncidentConfirmationUpdate, db: Session = Depends(get_db)):
     return update_confirmation(db, incident_id, confirmation_id, confirmation)
 
 
 @router.post("/{incident_id}/confirmations/{confirmation_id}/cancel", response_model=IncidentResponse)
-def cancel_confirmation_endpoint(
-    incident_id: int,
-    confirmation_id: int,
-    request: IncidentConfirmationCancelRequest,
-    db: Session = Depends(get_db),
-):
+def cancel_confirmation_endpoint(incident_id: int, confirmation_id: int, request: IncidentConfirmationCancelRequest, db: Session = Depends(get_db)):
     return cancel_confirmation(db, incident_id, confirmation_id, request)
 
 
-@router.get(
-    "/employee/{employee_id}/monthly-summary",
-    response_model=IncidentMonthlySummaryResponse,
-)
-def monthly_summary_endpoint(
-    employee_id: int,
-    year: int,
-    month: int,
-    contract_id: int | None = None,
-    db: Session = Depends(get_db),
-):
+@router.get("/employee/{employee_id}/monthly-summary", response_model=IncidentMonthlySummaryResponse)
+def monthly_summary_endpoint(employee_id: int, year: int, month: int, contract_id: int | None = None, db: Session = Depends(get_db)):
     return build_monthly_incident_summary(db, employee_id, year, month, contract_id)
 
 
-@router.post(
-    "/payrolls/{payroll_id}/process",
-    response_model=IncidentPayrollProcessResponse,
-)
-def process_payroll_incidents_endpoint(
-    payroll_id: int,
-    request: IncidentPayrollProcessRequest,
-    db: Session = Depends(get_db),
-):
+@router.post("/payrolls/{payroll_id}/process", response_model=IncidentPayrollProcessResponse)
+def process_payroll_incidents_endpoint(payroll_id: int, request: IncidentPayrollProcessRequest, db: Session = Depends(get_db)):
     return process_payroll_incidents(db, payroll_id, actor=request.actor)
 
 
-@router.get(
-    "/payrolls/{payroll_id}/segments",
-    response_model=list[PayrollSegmentResponse],
-)
+@router.get("/payrolls/{payroll_id}/segments", response_model=list[PayrollSegmentResponse])
 def payroll_segments_endpoint(payroll_id: int, db: Session = Depends(get_db)):
     payroll = db.query(Payroll).filter(Payroll.id == payroll_id).first()
     if not payroll:
@@ -151,28 +108,6 @@ def payroll_segments_endpoint(payroll_id: int, db: Session = Depends(get_db)):
     )
 
 
-@router.get(
-    "/payrolls/{payroll_id}/preview",
-    response_model=IncidentPayrollPreviewResponse,
-)
+@router.get("/payrolls/{payroll_id}/preview", response_model=IncidentPayrollPreviewResponse)
 def preview_payroll_incidents_endpoint(payroll_id: int, db: Session = Depends(get_db)):
-    payroll = (
-        db.query(Payroll)
-        .options(joinedload(Payroll.contract))
-        .filter(Payroll.id == payroll_id)
-        .first()
-    )
-    if not payroll:
-        raise HTTPException(status_code=404, detail="Nómina no encontrada")
-    if payroll.period_month not in range(1, 13):
-        raise HTTPException(status_code=400, detail="La segmentación solo se aplica a nóminas mensuales")
-    incidents = period_incidents(db, payroll)
-    result = build_incident_segments(
-        db,
-        payroll.id,
-        payroll.contract,
-        payroll.period_month,
-        payroll.period_year,
-        incidents,
-    )
-    return {"payroll_id": payroll.id, **result}
+    return preview_payroll_incidents(db, payroll_id)
