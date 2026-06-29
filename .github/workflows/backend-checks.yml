@@ -40,7 +40,7 @@ jobs:
       - name: Incident payroll engine tests
         id: incident_engine
         continue-on-error: true
-        run: python -m unittest -v tests.test_incident_payroll_engine tests.test_payroll_incident_bridge tests.test_advanced_incident_calculation tests.test_incident_structural_contracts tests.test_incident_payroll_calculation_result >> backend-test-output.txt 2>&1
+        run: python -m unittest -v tests.test_incident_payroll_engine tests.test_payroll_incident_bridge tests.test_advanced_incident_calculation tests.test_incident_structural_contracts tests.test_incident_payroll_calculation_result tests.test_incident_payroll_stability >> backend-test-output.txt 2>&1
       - name: Import application
         id: import_app
         continue-on-error: true
@@ -54,3 +54,41 @@ jobs:
       - name: Fail when checks fail
         if: steps.schema.outcome == 'failure' || steps.tests.outcome == 'failure' || steps.incident_engine.outcome == 'failure' || steps.import_app.outcome == 'failure'
         run: exit 1
+
+  postgres-integration:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: aulanomina_test
+          POSTGRES_USER: aulanomina
+          POSTGRES_PASSWORD: aulanomina
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U aulanomina -d aulanomina_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      DATABASE_URL: postgresql+psycopg2://aulanomina:aulanomina@localhost:5432/aulanomina_test
+      PYTHONPATH: .
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Compile backend
+        run: python -m compileall app
+      - name: Run PostgreSQL stability tests
+        run: python -m unittest -v tests.test_incident_payroll_postgres
