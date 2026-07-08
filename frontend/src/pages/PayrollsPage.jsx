@@ -48,12 +48,12 @@ export default function PayrollsPage({
     };
   }, []);
 
-  const refreshPayrollList = async () => {
+  const refreshPayrollList = async (message = "Listado de nóminas actualizado") => {
     try {
       setRefreshingPayrolls(true);
       const data = await fetchPayrolls();
       setLocalPayrolls(data);
-      setRefreshMessage("Listado de nóminas actualizado");
+      setRefreshMessage(message);
     } catch {
       setRefreshMessage("No se pudo refrescar el listado automáticamente");
     } finally {
@@ -120,6 +120,7 @@ export default function PayrollsPage({
           employees={employees}
           onUpdatePayroll={onUpdatePayroll}
           onDeletePayroll={onDeletePayroll}
+          onPayrollsChanged={() => refreshPayrollList("Regularización aplicada y listado actualizado")}
           submitting={payrollSubmitting}
         />
       </PageCard>
