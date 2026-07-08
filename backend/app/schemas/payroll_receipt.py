@@ -78,6 +78,16 @@ class PayrollReceiptBases(BaseModel):
     daily_professional_base: Decimal = Decimal("0.00")
 
 
+class PayrollReceiptBaseExplanation(BaseModel):
+    code: str
+    title: str
+    amount: Decimal = Decimal("0.00")
+    formula: str
+    affected_by_incident: bool = False
+    explanation: str
+    learning_points: list[str] = Field(default_factory=list)
+
+
 class PayrollReceiptDeductions(BaseModel):
     employee_common_contingencies: Decimal = Decimal("0.00")
     employee_unemployment: Decimal = Decimal("0.00")
@@ -181,6 +191,7 @@ class PayrollReceiptResponse(BaseModel):
     deductions: list[PayrollReceiptLine] = Field(default_factory=list)
     bases: PayrollReceiptBases
     base_lines: list[PayrollReceiptLine] = Field(default_factory=list)
+    base_explanations: list[PayrollReceiptBaseExplanation] = Field(default_factory=list)
     company_cost: PayrollReceiptCompanyCost
     company_cost_lines: list[PayrollReceiptLine] = Field(default_factory=list)
     informative_lines: list[PayrollReceiptLine] = Field(default_factory=list)
