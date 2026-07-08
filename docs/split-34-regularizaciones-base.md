@@ -199,12 +199,53 @@ El panel permite:
 
 Si la nómina destino está `closed` o `cancelled`, el panel permite previsualizar pero desactiva la aplicación.
 
+## Trazabilidad en recibo y desglose
+
+Se añade el servicio:
+
+```text
+backend/app/services/payroll_regularization_trace.py
+```
+
+Este servicio enriquece el recibo sin modificar el motor base:
+
+- detecta líneas `REGULARIZACION_*`
+- detecta `source_key` con prefijo `REGULARIZACION:{payroll_id}:...`
+- añade líneas de regularización al recibo aunque existan líneas `ENGINE:*`
+- recalcula las secciones visibles del recibo
+- añade resumen de regularizaciones
+- añade explicación didáctica por línea de regularización
+- mantiene visible la nómina origen, el motivo y el impacto
+
+El endpoint de recibo usa ahora la versión enriquecida:
+
+```http
+GET /payrolls/{payroll_id}/receipt
+GET /payrolls/{payroll_id}/receipt/print
+```
+
+El schema del recibo expone:
+
+- `regularization_summary`
+- `regularization_explanations`
+- `is_regularization` en líneas del recibo
+- `regularization_reason`
+- `origin_payroll_id`
+
+El desglose de conceptos clasifica como regularización:
+
+- conceptos `REGULARIZACION_*`
+- categoría `REGULARIZACION`
+- `source_type = regularization`
+- `source_key` con prefijo `REGULARIZACION:{payroll_id}:...`
+
 ## Tests añadidos
 
-Archivo:
+Archivos:
 
 ```text
 backend/tests/test_payroll_regularization.py
+backend/tests/test_payroll_regularization_trace.py
 ```
 
 Cobertura:
@@ -218,6 +259,10 @@ Cobertura:
 - deducciones negativas como devolución
 - actualización de importes agregados
 - bloqueo de nóminas destino cerradas o canceladas
+- detección de líneas de regularización por código, categoría, origen o traza
+- resumen de bruto, deducciones, neto y coste empresa regularizados
+- explicación con motivo y nómina origen
+- clasificación de regularizaciones en el desglose
 
 ## Alcance deliberadamente fuera
 
@@ -232,9 +277,9 @@ No se implementa todavía:
 
 ## Siguiente bloque recomendado
 
-Mejorar la trazabilidad post-aplicación:
+Mejorar la reversión controlada:
 
-1. mostrar regularizaciones existentes dentro del desglose de conceptos
-2. marcar líneas de regularización en el recibo
-3. añadir bloque didáctico específico de regularizaciones
-4. preparar reversión controlada de una regularización
+1. listar regularizaciones aplicadas por nómina
+2. agrupar líneas de una misma regularización por `source_key`
+3. crear preview de reversión
+4. aplicar reversión como contra-regularización trazable
