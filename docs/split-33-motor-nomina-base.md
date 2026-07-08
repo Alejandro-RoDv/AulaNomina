@@ -90,6 +90,7 @@ Convertir la nómina en un motor central de cálculo, no en una pantalla aislada
 5. Mantener snapshots y control de versión.
 6. Mostrar explicación didáctica de incidencias dentro del recibo.
 7. Crear casos demo cerrados para validar la explicación en contexto comercial.
+8. Explicar por qué cambian las bases de cotización e IRPF cuando hay incidencias.
 
 ### Implementado
 
@@ -98,7 +99,10 @@ Convertir la nómina en un motor central de cálculo, no en una pantalla aislada
 - El recibo expone:
   - `incident_summary`
   - `incident_explanations`
-- La modal de recibo muestra un bloque de lectura didáctica antes del desglose económico.
+  - `base_explanations`
+- La modal de recibo muestra:
+  - bloque de lectura didáctica de incidencias
+  - bloque de bases y cotización
 
 ## Subfase Split 33 — Recibo didáctico de incidencias
 
@@ -191,6 +195,41 @@ Disponer de datos demo realistas para que la pantalla de recibo no se enseñe va
 - El seed sincroniza líneas automáticas del motor para las nóminas afectadas.
 - Los recibos demo quedan listos para abrirse desde el histórico sin intervención manual.
 
+## Subfase Split 33 — Explicación didáctica de bases
+
+### Objetivo
+
+Explicar al alumno que una nómina no termina en bruto/neto. Las incidencias también pueden afectar días cotizados, bases de Seguridad Social, base de IRPF y coste empresarial.
+
+### Implementado
+
+- El recibo expone `base_explanations` con explicación de:
+  - `BASE_CC`
+  - `BASE_CP`
+  - `BASE_DESEMPLEO_FORMACION_FOGASA`
+  - `BASE_IRPF`
+- Cada explicación incluye:
+  - código
+  - título
+  - importe
+  - fórmula descriptiva
+  - marca de si está afectada por incidencia
+  - explicación textual
+  - puntos de aprendizaje
+- La modal de recibo incluye panel `BASES Y COTIZACIÓN`.
+- El panel explica:
+  - diferencia entre días trabajados y días cotizados
+  - efecto de IT con prestación/complemento
+  - efecto de ausencia no retribuida con días no cotizados
+  - diferencia entre base de cotización y base IRPF
+
+### Archivos tocados
+
+- `backend/app/services/payroll_receipt.py`
+- `backend/app/schemas/payroll_receipt.py`
+- `frontend/src/components/payrolls/PayrollReceiptModal.jsx`
+- `backend/tests/test_payroll_receipt.py`
+
 ## Fase 5 — Regularizaciones
 
 ### Pasos previstos
@@ -221,10 +260,12 @@ Cobertura principal:
 - explicación didáctica de segmentos de incidencia
 - resumen económico de incidencias
 - importes de casos demo IT/recaída/ausencia
+- explicación didáctica de bases ordinarias
+- explicación de bases con IT
+- explicación de bases con ausencia y días no cotizados
 
 ## Pendiente inmediato recomendado
 
-1. Añadir explicación didáctica de bases de cotización afectadas por incidencia.
-2. Añadir explicación línea por línea para alumnos.
-3. Exportación PDF real.
-4. Regularizaciones como módulo separado, no antes de cerrar recibo e integración visual con incidencias.
+1. Añadir explicación línea por línea para alumnos.
+2. Exportación PDF real.
+3. Regularizaciones como módulo separado, no antes de cerrar recibo e integración visual con incidencias.
