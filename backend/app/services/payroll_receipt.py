@@ -383,6 +383,125 @@ def company_cost_payload(payroll: Payroll) -> dict:
     }
 
 
+def source_type_label(value: str | None) -> str:
+    normalized = str(value or "").upper()
+    labels = {
+        "SYSTEM": "sistema",
+        "CONTRACT": "contrato",
+        "AGREEMENT": "convenio",
+        "INCIDENT": "incidencia",
+        "MANUAL": "manual",
+        "CUSTOM": "personalizado",
+    }
+    return labels.get(normalized, str(value or "origen no informado").lower())
+
+
+def section_for_line(line: dict) -> str:
+    code = str(line.get("code") or "").upper()
+    category = str(line.get("category") or "").upper()
+    concept_type = str(line.get("concept_type") or "").upper()
+    if concept_type == "DEVENGO" and line.get("affects_gross"):
+        return "Devengo"
+    if concept_type == "DEDUCCION" and line.get("affects_net"):
+        return "Deducción"
+    if category == "COSTE_EMPRESA" or code.startswith("COSTE_EMPRESA"):
+        return "Coste empresa"
+    if concept_type in INFORMATIVE_TYPES and (category == "BASE_INFORMATIVA" or code.startswith("BASE_")):
+        return "Base informativa"
+    return "Informativo"
+
+
+def effect_summary_for_line(line: dict) -> str:
+    section = section_for_line(line)
+    amount = decimal_text(line.get("amount"))
+    if section == "Devengo":
+        return f"Suma {amount} al total devengado."
+    if section == "Deducción":
+        return f"Resta {amount} del líquido a percibir."
+    if section == "Base informativa":
+        return f"Informa una base de {amount}; no se paga ni se descuenta directamente."
+    if section == "Coste empresa":
+        return f"Informa un coste empresarial de {amount}; no modifica el líquido del trabajador."
+    return f"Línea informativa de {amount}."
+
+
+def flags_for_line(line: dict) -> list[str]:
+    flags = []
+    flags.append("afecta al bruto" if line.get("affects_gross") else "no afecta al bruto")
+    flags.append("afecta al neto" if line.get("affects_net") else "no afecta al neto")
+    flags.append("cotiza" if line.get("contribution_base") else "no cotiza")
+    flags.append("tributa" if line.get("taxable") else "no tributa")
+    return flags
+
+
+def learning_points_for_line(line: dict) -> list[str]:
+    points = []
+    section = section_for_line(line)
+    category = str(line.get("category") or "").upper()
+    source_type = str(line.get("source_type") or "").upper()
+
+    if section == "Devengo":
+        points.append("Los devengos explican qué importes se reconocen antes de aplicar deducciones.")
+    elif section == "Deducción":
+        points.append("Las deducciones explican por qué el líquido es inferior al total devengado.")
+    elif section == "Base informativa":
+        points.append("Las bases informativas sirven para calcular cuotas o retenciones, aunque no sean importes a cobrar.")
+    elif section == "Coste empresa":
+        points.append("El coste de empresa ayuda a separar salario del trabajador y coste total de contratación.")
+
+    if line.get("contribution_base"):
+        points.append("Este concepto entra en la base de cotización según la parametrización actual.")
+    elif section == "Devengo":
+        points.append("Este devengo no entra en base de cotización según la parametrización actual.")
+
+    if line.get("taxable"):
+        points.append("Este concepto forma parte de la base sujeta a IRPF.")
+    elif section == "Devengo":
+        points.append("Este devengo no tributa en la simulación actual.")
+
+    if category in INCIDENT_CATEGORIES or source_type == "INCIDENT":
+        points.append("Aparece por una incidencia procesada en la nómina.")
+    if line.get("formula"):
+        points.append("La fórmula permite auditar de dónde sale el importe.")
+    return points
+
+
+def line_explanation_text(line: dict) -> str:
+    source = source_type_label(line.get("source_type"))
+    section = section_for_line(line)
+    effect = effect_summary_for_line(line)
+    flags = ", ".join(flags_for_line(line))
+    description = line.get("description") or "sin descripción adicional"
+    return (
+        f"{line.get('name') or line.get('code')} es una línea de tipo {section.lower()} con origen {source}. "
+        f"{effect} En esta simulación {flags}. Descripción: {description}."
+    )
+
+
+def line_explanations_payload(lines: list[dict]) -> list[dict]:
+    explanations = []
+    sorted_lines = sorted(lines, key=lambda item: (int(item.get("display_order") or 0), item.get("code") or ""))
+    for index, line in enumerate(sorted_lines, start=1):
+        explanations.append({
+            "line_id": line.get("id"),
+            "code": line.get("code") or f"LINEA_{index}",
+            "name": line.get("name") or "Concepto",
+            "section": section_for_line(line),
+            "amount": as_decimal(line.get("amount")),
+            "concept_type": line.get("concept_type") or "INFORMATIVO",
+            "category": line.get("category") or "OTRO",
+            "source_type": line.get("source_type") or "system",
+            "affects_gross": bool(line.get("affects_gross")),
+            "affects_net": bool(line.get("affects_net")),
+            "taxable": bool(line.get("taxable")),
+            "contribution_base": bool(line.get("contribution_base")),
+            "formula": line.get("formula"),
+            "explanation": line_explanation_text(line),
+            "learning_points": learning_points_for_line(line),
+        })
+    return explanations
+
+
 def segment_type_label(segment_type: str | None) -> str:
     value = str(segment_type or "").upper()
     labels = {
@@ -632,6 +751,7 @@ def get_payroll_receipt(db: Session, payroll_id: int) -> dict:
         "bases": bases_payload(payroll),
         "base_lines": base_lines,
         "base_explanations": base_explanations_payload(payroll),
+        "line_explanations": line_explanations_payload(lines),
         "company_cost": company_cost_payload(payroll),
         "company_cost_lines": company_cost_lines,
         "informative_lines": informative_lines,
