@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 
-import { fetchPayrollReceipt } from "../../services/payrollApi";
+import { buildPayrollReceiptPrintUrl, fetchPayrollReceipt } from "../../services/payrollApi";
 import { formatCurrency } from "./PayrollForm";
 
 function formatDate(value) {
@@ -279,6 +279,11 @@ export default function PayrollReceiptModal({ payrollId, onClose }) {
     return `${receipt.period.label} · ${formatDate(receipt.period.period_start)} - ${formatDate(receipt.period.period_end)}`;
   }, [receipt]);
 
+  function openPrintableReceipt() {
+    if (!payrollId) return;
+    window.open(buildPayrollReceiptPrintUrl(payrollId), "_blank", "noopener,noreferrer");
+  }
+
   if (!payrollId) return null;
 
   return (
@@ -291,7 +296,8 @@ export default function PayrollReceiptModal({ payrollId, onClose }) {
             <p style={styles.subtitle}>{receipt ? `${receipt.payroll_code} · ${periodLabel}` : "Cargando recibo..."}</p>
           </div>
           <div style={styles.headerActions}>
-            <button type="button" onClick={() => window.print()} style={styles.secondaryButton}>Imprimir</button>
+            <button type="button" onClick={openPrintableReceipt} style={styles.secondaryButton}>Exportar PDF</button>
+            <button type="button" onClick={() => window.print()} style={styles.secondaryButton}>Imprimir modal</button>
             <button type="button" onClick={onClose} style={styles.closeButton}>Cerrar</button>
           </div>
         </div>

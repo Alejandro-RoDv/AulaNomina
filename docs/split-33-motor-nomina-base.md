@@ -65,19 +65,23 @@ Convertir la nómina en un motor central de cálculo, no en una pantalla aislada
    - coste empresa
    - pie legal/simulado
 3. Crear una vista frontend densa tipo ERP.
-4. Dejar PDF para una fase posterior.
+4. Añadir exportación imprimible a PDF desde navegador sin dependencias pesadas.
 
 ### Implementado
 
-- Endpoint:
+- Endpoint de datos:
   - `GET /payrolls/{payroll_id}/receipt`
+- Endpoint imprimible:
+  - `GET /payrolls/{payroll_id}/receipt/print`
 - Schema:
   - `backend/app/schemas/payroll_receipt.py`
 - Servicio:
   - `backend/app/services/payroll_receipt.py`
+  - `backend/app/services/payroll_receipt_print.py`
 - Frontend:
   - `frontend/src/components/payrolls/PayrollReceiptModal.jsx`
   - acción `Recibo` en `PayrollTable.jsx`
+  - botón `Exportar PDF` en la modal del recibo
 
 ## Fase 4 — Integración total con incidencias
 
@@ -268,6 +272,51 @@ Convertir el recibo en una herramienta de aprendizaje, no solo en una reproducci
 - `frontend/src/components/payrolls/PayrollReceiptModal.jsx`
 - `backend/tests/test_payroll_receipt.py`
 
+## Subfase Split 33 — Exportación imprimible del recibo
+
+### Objetivo
+
+Permitir que el recibo simulado pueda entregarse, imprimirse o guardarse como PDF desde el navegador sin introducir dependencias pesadas de generación PDF en backend.
+
+### Decisión técnica
+
+No se añade todavía un motor PDF binario como WeasyPrint, Playwright, ReportLab o Chromium. La fase implementa una vista HTML autónoma, con CSS de impresión A4 y botón `Imprimir / Guardar como PDF`. Esto mantiene la demo ligera, portable y compatible con el enfoque open source/Fedora.
+
+### Implementado
+
+- Nuevo endpoint:
+  - `GET /payrolls/{payroll_id}/receipt/print`
+- Nuevo servicio:
+  - `backend/app/services/payroll_receipt_print.py`
+- La vista imprimible incluye:
+  - cabecera del recibo
+  - empresa, centro y trabajador
+  - periodo y métricas principales
+  - devengos
+  - deducciones
+  - bases
+  - coste empresa
+  - explicaciones didácticas de bases
+  - explicaciones de incidencias
+  - explicación línea por línea
+  - pie legal de simulación
+- Frontend:
+  - `frontend/src/services/payrollApi.js` añade `buildPayrollReceiptPrintUrl()`
+  - `PayrollReceiptModal.jsx` añade botón `Exportar PDF`
+- El botón abre una nueva pestaña con la vista preparada para imprimir o guardar como PDF.
+
+### Limitación asumida
+
+La exportación PDF depende del diálogo de impresión del navegador. No se genera todavía un fichero PDF binario desde el servidor.
+
+### Archivos tocados
+
+- `backend/app/services/payroll_receipt_print.py`
+- `backend/app/payroll_salary_structure_routes.py`
+- `frontend/src/services/payrollApi.js`
+- `frontend/src/components/payrolls/PayrollReceiptModal.jsx`
+- `backend/tests/test_payroll_receipt_print.py`
+
 ## Fase 5 — Regularizaciones
 
 ### Pasos previstos
@@ -287,6 +336,7 @@ La estructura por conceptos ya incluye origen, fórmula, afectación a bruto/net
 - `backend/tests/test_payroll_concept_engine.py`
 - `backend/tests/test_payroll_receipt.py`
 - `backend/tests/test_seed_demo_payroll_incident_cases.py`
+- `backend/tests/test_payroll_receipt_print.py`
 
 Cobertura principal:
 
@@ -304,8 +354,11 @@ Cobertura principal:
 - explicación línea por línea de devengos, deducciones y bases
 - explicación de origen por incidencia
 - explicación de conceptos no cotizables/no tributables
+- render HTML imprimible del recibo
+- escapado de contenido en la vista imprimible
+- nombre de archivo seguro para exportación
 
 ## Pendiente inmediato recomendado
 
-1. Exportación PDF real.
-2. Regularizaciones como módulo separado, no antes de cerrar recibo e integración visual con incidencias.
+1. Regularizaciones como módulo separado, no antes de cerrar recibo e integración visual con incidencias.
+2. Generación PDF binaria en servidor si un piloto lo exige.

@@ -1,4 +1,4 @@
-import { apiRequest } from "./httpClient";
+import { API_BASE_URL, apiRequest } from "./httpClient";
 
 function getFormVariableIncentives() {
   if (typeof document === "undefined") return 0;
@@ -180,6 +180,10 @@ export async function fetchPayrollBreakdown(payrollId) {
 
 export async function fetchPayrollReceipt(payrollId) {
   return apiRequest(`/payrolls/${payrollId}/receipt`, {}, "Error al cargar recibo de nómina");
+}
+
+export function buildPayrollReceiptPrintUrl(payrollId) {
+  return `${API_BASE_URL}/payrolls/${encodeURIComponent(payrollId)}/receipt/print`;
 }
 
 export async function createPayrollItem(payrollId, payload) {
