@@ -67,6 +67,9 @@ class PayrollReceiptLine(BaseModel):
     affects_net: bool = False
     formula: Optional[str] = None
     trace: dict = Field(default_factory=dict)
+    is_regularization: bool = False
+    regularization_reason: Optional[str] = None
+    origin_payroll_id: Optional[int] = None
 
 
 class PayrollReceiptLineExplanation(BaseModel):
@@ -85,6 +88,7 @@ class PayrollReceiptLineExplanation(BaseModel):
     formula: Optional[str] = None
     explanation: str
     learning_points: list[str] = Field(default_factory=list)
+    is_regularization: bool = False
 
 
 class PayrollReceiptBases(BaseModel):
@@ -194,6 +198,32 @@ class PayrollReceiptIncidentSummary(BaseModel):
     explanation: str
 
 
+class PayrollReceiptRegularizationExplanation(BaseModel):
+    line_id: Optional[int] = None
+    code: str
+    name: str
+    amount: Decimal = Decimal("0.00")
+    concept_type: str
+    reason: str
+    origin_payroll_id: Optional[int] = None
+    source_type: str = "regularization"
+    explanation: str
+    learning_points: list[str] = Field(default_factory=list)
+
+
+class PayrollReceiptRegularizationSummary(BaseModel):
+    has_regularizations: bool = False
+    regularization_count: int = 0
+    gross_delta: Decimal = Decimal("0.00")
+    deduction_delta: Decimal = Decimal("0.00")
+    net_delta: Decimal = Decimal("0.00")
+    company_cost_delta: Decimal = Decimal("0.00")
+    base_delta: Decimal = Decimal("0.00")
+    reasons: list[str] = Field(default_factory=list)
+    origin_payroll_ids: list[int] = Field(default_factory=list)
+    explanation: str = "La nómina no contiene líneas de regularización."
+
+
 class PayrollReceiptResponse(BaseModel):
     payroll_id: int
     payroll_code: str
@@ -217,6 +247,8 @@ class PayrollReceiptResponse(BaseModel):
     incident_segments: list[PayrollReceiptIncidentSegment] = Field(default_factory=list)
     incident_summary: PayrollReceiptIncidentSummary
     incident_explanations: list[PayrollReceiptIncidentExplanation] = Field(default_factory=list)
+    regularization_summary: PayrollReceiptRegularizationSummary = Field(default_factory=PayrollReceiptRegularizationSummary)
+    regularization_explanations: list[PayrollReceiptRegularizationExplanation] = Field(default_factory=list)
     deduction_summary: PayrollReceiptDeductions
     totals: PayrollReceiptTotals
     legal_footer: str
