@@ -2,6 +2,7 @@ import { Fragment, useState } from "react";
 import { PAYROLL_STATUS_OPTIONS, formatCurrency } from "./PayrollForm";
 import PayrollDetailsModal from "./PayrollDetailsModal";
 import PayrollConceptBreakdown from "./PayrollConceptBreakdown";
+import PayrollReceiptModal from "./PayrollReceiptModal";
 import { getPayrollVisibleCode } from "../../utils/visibleCodes";
 
 function formatPeriod(payroll) {
@@ -46,6 +47,7 @@ export default function PayrollTable({
   submitting,
 }) {
   const [selectedPayroll, setSelectedPayroll] = useState(null);
+  const [receiptPayrollId, setReceiptPayrollId] = useState(null);
   const [expandedPayrollId, setExpandedPayrollId] = useState(null);
   const [editForm, setEditForm] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -62,6 +64,14 @@ export default function PayrollTable({
     setShowDeleteConfirm(false);
     setEditError("");
     setDeleteError("");
+  };
+
+  const openReceiptModal = (payroll) => {
+    setReceiptPayrollId(payroll.id);
+  };
+
+  const closeReceiptModal = () => {
+    setReceiptPayrollId(null);
   };
 
   const toggleBreakdown = (payroll) => {
@@ -168,6 +178,9 @@ export default function PayrollTable({
                       <span style={getStatusStyle(payroll.status)}>{getStatusLabel(payroll.status)}</span>
                     </td>
                     <td style={styles.tdActions}>
+                      <button type="button" onClick={() => openReceiptModal(payroll)} style={styles.receiptButton}>
+                        Recibo
+                      </button>
                       <button type="button" onClick={() => openDetailsModal(payroll)} style={styles.detailsButton}>
                         Detalles
                       </button>
@@ -217,19 +230,20 @@ export default function PayrollTable({
         onConfirmDelete={handleConfirmDelete}
         onCancelDelete={cancelDelete}
       />
+      <PayrollReceiptModal payrollId={receiptPayrollId} onClose={closeReceiptModal} />
     </>
   );
 }
 
 const styles = {
   tableWrapper: { overflowX: "auto", width: "100%" },
-  table: { width: "100%", minWidth: "1220px", borderCollapse: "collapse", tableLayout: "fixed" },
+  table: { width: "100%", minWidth: "1320px", borderCollapse: "collapse", tableLayout: "fixed" },
   th: { textAlign: "left", padding: "12px 10px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" },
   thCode: { width: "150px", textAlign: "left", padding: "12px 10px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb" },
   thPeriod: { width: "96px", textAlign: "left", padding: "12px 10px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb" },
   thAmount: { width: "118px", textAlign: "right", padding: "12px 10px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb" },
   thStatus: { width: "96px", textAlign: "left", padding: "12px 10px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb" },
-  thActions: { width: "180px", textAlign: "left", padding: "12px 10px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb" },
+  thActions: { width: "250px", textAlign: "left", padding: "12px 10px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb" },
   td: { padding: "12px 10px", borderBottom: "1px solid #eee", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" },
   tdActions: { padding: "12px 10px", borderBottom: "1px solid #eee", display: "flex", gap: "8px", alignItems: "center" },
   tdCode: { padding: "12px 10px", borderBottom: "1px solid #eee", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", fontWeight: 900 },
@@ -240,7 +254,8 @@ const styles = {
   reviewedBadge: { backgroundColor: "#fef3c7", color: "#92400e", padding: "4px 8px", borderRadius: "999px", fontSize: "12px", fontWeight: 800 },
   closedBadge: { backgroundColor: "#dcfce7", color: "#166534", padding: "4px 8px", borderRadius: "999px", fontSize: "12px", fontWeight: 800 },
   cancelledBadge: { backgroundColor: "#fee2e2", color: "#991b1b", padding: "4px 8px", borderRadius: "999px", fontSize: "12px", fontWeight: 800 },
-  detailsButton: { backgroundColor: "#111827", color: "#ffffff", border: "1px solid #111827", borderRadius: "8px", padding: "7px 10px", cursor: "pointer", fontWeight: 700 },
+  receiptButton: { backgroundColor: "#111827", color: "#ffffff", border: "1px solid #111827", borderRadius: "8px", padding: "7px 10px", cursor: "pointer", fontWeight: 800 },
+  detailsButton: { backgroundColor: "#ffffff", color: "#111827", border: "1px solid #111827", borderRadius: "8px", padding: "7px 10px", cursor: "pointer", fontWeight: 800 },
   breakdownButton: { backgroundColor: "#e6d85c", color: "#111827", border: "1px solid #111827", borderRadius: "8px", padding: "7px 10px", cursor: "pointer", fontWeight: 800 },
   breakdownButtonActive: { backgroundColor: "#ffffff", color: "#111827", border: "1px solid #111827", borderRadius: "8px", padding: "7px 10px", cursor: "pointer", fontWeight: 800 },
   expandedCell: { padding: "16px", borderBottom: "2px solid #111827", backgroundColor: "#fffdf0" },
