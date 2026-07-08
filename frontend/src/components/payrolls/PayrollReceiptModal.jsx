@@ -140,6 +140,35 @@ function IncidentTeachingPanel({ summary, explanations }) {
   );
 }
 
+function BaseTeachingPanel({ explanations }) {
+  if (!explanations?.length) return null;
+  return (
+    <section style={styles.basePanel}>
+      <div>
+        <p style={styles.baseEyebrow}>BASES Y COTIZACIÓN</p>
+        <h4 style={styles.baseTitle}>Por qué cambian las bases cuando hay incidencias</h4>
+      </div>
+      <div style={styles.baseGrid}>
+        {explanations.map((item) => (
+          <article key={item.code} style={item.affected_by_incident ? styles.baseCardAffected : styles.baseCard}>
+            <div style={styles.baseCardHeader}>
+              <strong>{item.title}</strong>
+              <span>{formatCurrency(item.amount)}</span>
+            </div>
+            <p style={styles.formula}>{item.formula}</p>
+            <p style={styles.explanationText}>{item.explanation}</p>
+            {item.learning_points?.length > 0 && (
+              <ul style={styles.learningList}>
+                {item.learning_points.map((point) => <li key={`${item.code}-${point}`}>{point}</li>)}
+              </ul>
+            )}
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function IncidentSegments({ segments }) {
   if (!segments?.length) return null;
   return (
@@ -261,6 +290,8 @@ export default function PayrollReceiptModal({ payrollId, onClose }) {
               explanations={receipt.incident_explanations || []}
             />
 
+            <BaseTeachingPanel explanations={receipt.base_explanations || []} />
+
             <div style={styles.twoColumns}>
               <ReceiptTable title="Devengos" lines={receipt.earnings || []} />
               <ReceiptTable title="Deducciones" lines={receipt.deductions || []} />
@@ -323,6 +354,13 @@ const styles = {
   affectedConcepts: { borderTop: "1px solid #d1d5db", paddingTop: "10px", display: "flex", flexDirection: "column", gap: "8px", fontSize: "12px", color: "#374151" },
   conceptChips: { display: "flex", flexWrap: "wrap", gap: "6px" },
   conceptChip: { backgroundColor: "#fffdf0", border: "1px solid #111827", borderRadius: "999px", padding: "4px 8px", fontSize: "11px", fontWeight: 900, color: "#111827" },
+  basePanel: { backgroundColor: "#ecfdf5", border: "2px solid #111827", borderRadius: "14px", padding: "14px", display: "flex", flexDirection: "column", gap: "12px", boxShadow: "3px 3px 0 #bbf7d0" },
+  baseEyebrow: { margin: "0 0 4px", fontSize: "11px", fontWeight: 950, letterSpacing: "0.08em", color: "#166534" },
+  baseTitle: { margin: 0, fontSize: "18px", fontWeight: 950, color: "#111827" },
+  baseGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: "10px" },
+  baseCard: { backgroundColor: "#ffffff", border: "2px solid #111827", borderRadius: "12px", padding: "12px", display: "flex", flexDirection: "column", gap: "8px" },
+  baseCardAffected: { backgroundColor: "#fffdf0", border: "2px solid #111827", borderRadius: "12px", padding: "12px", display: "flex", flexDirection: "column", gap: "8px" },
+  baseCardHeader: { display: "flex", justifyContent: "space-between", gap: "12px", color: "#111827", fontSize: "14px", fontWeight: 950 },
   twoColumns: { display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "12px", alignItems: "start" },
   tableWrapper: { overflowX: "auto" },
   table: { width: "100%", borderCollapse: "collapse", tableLayout: "fixed" },
@@ -335,7 +373,7 @@ const styles = {
   tdMeta: { padding: "9px", borderBottom: "1px solid #e5e7eb", verticalAlign: "top", fontSize: "12px", color: "#6b7280", fontWeight: 800, wordBreak: "break-word" },
   tdAmount: { padding: "9px", borderBottom: "1px solid #e5e7eb", verticalAlign: "top", textAlign: "right", whiteSpace: "nowrap", fontWeight: 900 },
   description: { display: "block", marginTop: "3px", color: "#6b7280", fontSize: "12px", fontWeight: 700 },
-  formula: { display: "block", marginTop: "3px", color: "#92400e", fontSize: "11px", fontWeight: 800 },
+  formula: { display: "block", margin: 0, color: "#92400e", fontSize: "11px", fontWeight: 800, lineHeight: 1.35 },
   emptyCell: { padding: "14px", textAlign: "center", color: "#6b7280", fontWeight: 800 },
   legalFooter: { backgroundColor: "#ffffff", border: "2px solid #d1d5db", borderRadius: "10px", padding: "10px 12px", color: "#6b7280", fontSize: "12px", fontWeight: 700 },
 };

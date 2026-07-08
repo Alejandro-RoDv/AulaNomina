@@ -237,6 +237,126 @@ def bases_payload(payroll: Payroll) -> dict:
     }
 
 
+def ordinary_reference_amount(payroll: Payroll) -> Decimal:
+    return money(
+        as_decimal(getattr(payroll, "base_salary", 0))
+        + as_decimal(getattr(payroll, "salary_supplements", 0))
+        + as_decimal(getattr(payroll, "seniority_amount", 0))
+        + as_decimal(getattr(payroll, "variable_incentives", 0))
+        + as_decimal(getattr(payroll, "extra_pay_proration", 0))
+    )
+
+
+def base_explanation_context(payroll: Payroll) -> dict:
+    ordinary_reference = ordinary_reference_amount(payroll)
+    gross_salary = as_decimal(getattr(payroll, "gross_salary", 0))
+    base_difference = money(gross_salary - ordinary_reference)
+    incident_days = int(getattr(payroll, "incident_days", 0) or 0)
+    it_days = int(getattr(payroll, "it_days", 0) or 0)
+    non_contribution_days = int(getattr(payroll, "non_contribution_days", 0) or 0)
+    contribution_days = int(getattr(payroll, "contribution_days", 0) or 0)
+    period_days = 30
+
+    if incident_days:
+        summary = (
+            f"Referencia ordinaria estimada: {decimal_text(ordinary_reference)}. "
+            f"Base/devengo usado en el recibo: {decimal_text(gross_salary)}. "
+            f"Diferencia explicativa por incidencias o ajustes: {decimal_text(base_difference)}."
+        )
+    else:
+        summary = "No hay incidencias aplicadas; las bases se explican desde los devengos ordinarios del periodo."
+
+    return {
+        "ordinary_reference": ordinary_reference,
+        "gross_salary": gross_salary,
+        "base_difference": base_difference,
+        "incident_days": incident_days,
+        "it_days": it_days,
+        "non_contribution_days": non_contribution_days,
+        "contribution_days": contribution_days,
+        "period_days": period_days,
+        "summary": summary,
+    }
+
+
+def base_learning_points(payroll: Payroll, *, base_code: str) -> list[str]:
+    points = []
+    incident_days = int(getattr(payroll, "incident_days", 0) or 0)
+    it_days = int(getattr(payroll, "it_days", 0) or 0)
+    non_contribution_days = int(getattr(payroll, "non_contribution_days", 0) or 0)
+    contribution_days = int(getattr(payroll, "contribution_days", 0) or 0)
+
+    if incident_days:
+        points.append("Las incidencias obligan a comprobar si los días afectados siguen cotizando, reducen salario o generan prestación.")
+    if it_days:
+        points.append("En una IT puede haber prestación y complemento, pero la base puede mantenerse según el tratamiento aplicado al segmento.")
+    if non_contribution_days:
+        points.append("Los días no cotizados reducen los días de cotización y pueden disminuir las bases frente a una nómina ordinaria.")
+    if contribution_days and contribution_days != 30:
+        points.append(f"La nómina utiliza {contribution_days} día(s) de cotización en vez de 30.")
+    if base_code == "BASE_IRPF":
+        points.append("La base de IRPF no siempre coincide con la base de cotización: depende de qué conceptos tributen.")
+    elif base_code in {"BASE_CC", "BASE_CP", "BASE_DESEMPLEO_FORMACION_FOGASA"}:
+        points.append("Esta base se usa para calcular cuotas de Seguridad Social, no el líquido directamente.")
+    return points or ["Base calculada sin incidencias relevantes en el periodo."]
+
+
+def build_base_explanation_item(payroll: Payroll, code: str, title: str, amount: Decimal, formula: str) -> dict:
+    context = base_explanation_context(payroll)
+    affected = bool(context["incident_days"] or context["non_contribution_days"] or context["base_difference"])
+    if affected:
+        explanation = (
+            f"{title}: {decimal_text(amount)}. "
+            f"Se calcula sobre {context['contribution_days']} día(s) de cotización y {context['incident_days']} día(s) de incidencia. "
+            f"{context['summary']}"
+        )
+    else:
+        explanation = f"{title}: {decimal_text(amount)}. Se calcula sobre la nómina ordinaria del periodo sin incidencias aplicadas."
+
+    return {
+        "code": code,
+        "title": title,
+        "amount": money(amount),
+        "formula": formula,
+        "affected_by_incident": affected,
+        "explanation": explanation,
+        "learning_points": base_learning_points(payroll, base_code=code),
+    }
+
+
+def base_explanations_payload(payroll: Payroll) -> list[dict]:
+    return [
+        build_base_explanation_item(
+            payroll,
+            "BASE_CC",
+            "Base de contingencias comunes",
+            as_decimal(payroll.common_contingencies_base),
+            "Devengos cotizables comunes del periodo, ajustados por días y tratamiento de incidencia.",
+        ),
+        build_base_explanation_item(
+            payroll,
+            "BASE_CP",
+            "Base de contingencias profesionales",
+            as_decimal(payroll.professional_contingencies_base),
+            "Devengos cotizables para AT/EP y contingencias profesionales.",
+        ),
+        build_base_explanation_item(
+            payroll,
+            "BASE_DESEMPLEO_FORMACION_FOGASA",
+            "Base de desempleo, formación y FOGASA",
+            as_decimal(payroll.unemployment_training_fogasa_base),
+            "Base usada para desempleo, formación profesional y FOGASA.",
+        ),
+        build_base_explanation_item(
+            payroll,
+            "BASE_IRPF",
+            "Base sujeta a IRPF",
+            as_decimal(payroll.irpf_base),
+            "Importes tributables del periodo antes de aplicar el porcentaje de retención.",
+        ),
+    ]
+
+
 def deduction_payload(payroll: Payroll) -> dict:
     return {
         "employee_common_contingencies": as_decimal(payroll.employee_common_contingencies),
@@ -267,10 +387,12 @@ def segment_type_label(segment_type: str | None) -> str:
     value = str(segment_type or "").upper()
     labels = {
         "IT": "Incapacidad temporal",
+        "RECAIDA_IT": "Recaída de IT",
         "SICK_LEAVE": "Incapacidad temporal",
         "COMMON_SICKNESS": "IT por enfermedad común",
         "WORK_ACCIDENT": "IT por accidente de trabajo",
         "ABSENCE": "Ausencia",
+        "AUSENCIA_NO_RETRIBUIDA": "Ausencia no retribuida",
         "UNPAID_ABSENCE": "Ausencia no retribuida",
         "VACATION": "Vacaciones",
         "MATERNITY": "Nacimiento y cuidado de menor",
@@ -509,6 +631,7 @@ def get_payroll_receipt(db: Session, payroll_id: int) -> dict:
         "deductions": deductions,
         "bases": bases_payload(payroll),
         "base_lines": base_lines,
+        "base_explanations": base_explanations_payload(payroll),
         "company_cost": company_cost_payload(payroll),
         "company_cost_lines": company_cost_lines,
         "informative_lines": informative_lines,
