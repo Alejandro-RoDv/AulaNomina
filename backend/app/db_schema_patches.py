@@ -255,25 +255,22 @@ def add_missing_payroll_concept_engine_columns(connection, table_names: list[str
         return
 
     existing_columns = {column["name"] for column in inspect(connection).get_columns("payroll_concepts")}
+    created_columns = set()
     for column_name, column_definition in PAYROLL_CONCEPT_ENGINE_COLUMNS.items():
         if column_name not in existing_columns:
             connection.execute(text("ALTER TABLE payroll_concepts ADD COLUMN " + column_name + " " + column_definition))
+            created_columns.add(column_name)
 
-    connection.execute(
-        text(
-            """
-            UPDATE payroll_concepts
-            SET affects_gross = COALESCE(
-                    affects_gross,
-                    CASE WHEN concept_type = 'DEVENGO' THEN TRUE ELSE FALSE END
-                ),
-                affects_net = COALESCE(
-                    affects_net,
-                    CASE WHEN concept_type IN ('DEVENGO', 'DEDUCCION') THEN TRUE ELSE FALSE END
-                )
-            """
+    if {"affects_gross", "affects_net"} & created_columns:
+        connection.execute(
+            text(
+                """
+                UPDATE payroll_concepts
+                SET affects_gross = CASE WHEN concept_type = 'DEVENGO' THEN TRUE ELSE FALSE END,
+                    affects_net = CASE WHEN concept_type IN ('DEVENGO', 'DEDUCCION') THEN TRUE ELSE FALSE END
+                """
+            )
         )
-    )
 
 
 def add_missing_payroll_contribution_columns() -> None:
