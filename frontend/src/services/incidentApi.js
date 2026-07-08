@@ -117,3 +117,43 @@ export async function fetchIncidentMonthlySummary(employeeId, year, month, contr
     "Error al cargar resumen mensual de incidencias"
   );
 }
+
+export async function fetchPayrollIncidentPreview(payrollId) {
+  return apiRequest(
+    `/incidents/payrolls/${payrollId}/preview`,
+    {},
+    "Error al calcular la vista previa de incidencias"
+  );
+}
+
+export async function fetchPayrollIncidentSegments(payrollId) {
+  return apiRequest(
+    `/incidents/payrolls/${payrollId}/segments`,
+    {},
+    "Error al cargar los segmentos de nómina"
+  );
+}
+
+export async function processPayrollIncidents(payrollId, payload) {
+  return apiRequest(
+    `/incidents/payrolls/${payrollId}/process`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    },
+    "Error al procesar las incidencias de la nómina"
+  );
+}
+
+export async function updatePayrollContributionBaseOverrides(payrollId, payload) {
+  return apiRequest(
+    `/incidents/payrolls/${payrollId}/contribution-base-overrides`,
+    {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    },
+    "Error al actualizar las bases de cotización forzadas"
+  );
+}
