@@ -7,6 +7,7 @@ from typing import Any
 from fastapi import HTTPException
 from sqlalchemy.orm import Session, joinedload, selectinload
 
+from app.models.contract import Contract
 from app.models.payroll import Payroll
 from app.models.payroll_salary_structure import PayrollItem
 from app.services.payroll_amounts import money
@@ -22,13 +23,6 @@ SIMULATED_LEGAL_FOOTER = (
 
 def as_decimal(value: Any, default: str = "0.00") -> Decimal:
     return money(value if value is not None else Decimal(default))
-
-
-def safe_string(value: Any) -> str | None:
-    if value is None:
-        return None
-    text = str(value).strip()
-    return text or None
 
 
 def full_employee_name(employee) -> str | None:
@@ -107,13 +101,14 @@ def contract_payload(contract) -> dict:
 
 def period_payload(payroll: Payroll) -> dict:
     period_start, period_end = get_effective_period_dates(payroll.period_month, payroll.period_year)
+    calculated_period_days = (period_end - period_start).days + 1 if period_start and period_end else 30
     return {
         "month": payroll.period_month,
         "year": payroll.period_year,
         "label": payroll.period_label,
         "period_start": period_start,
         "period_end": period_end,
-        "period_days": int(getattr(payroll, "period_days", None) or 30),
+        "period_days": calculated_period_days,
         "contribution_days": int(payroll.contribution_days or 0),
         "worked_days": int(payroll.worked_days or 0),
         "incident_days": int(payroll.incident_days or 0),
@@ -315,7 +310,7 @@ def get_payroll_receipt(db: Session, payroll_id: int) -> dict:
             joinedload(Payroll.company),
             joinedload(Payroll.work_center),
             joinedload(Payroll.employee),
-            joinedload(Payroll.contract).joinedload("collective_agreement"),
+            joinedload(Payroll.contract).joinedload(Contract.collective_agreement),
             selectinload(Payroll.items).joinedload(PayrollItem.concept),
             selectinload(Payroll.segments),
         )
