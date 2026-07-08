@@ -3,6 +3,7 @@ from decimal import Decimal
 from types import SimpleNamespace
 
 from app.services.payroll_receipt import (
+    base_explanations_payload,
     build_incident_explanations,
     incident_summary_payload,
     split_lines,
@@ -122,3 +123,78 @@ def test_incident_summary_payload_aggregates_explanations():
     assert summary["total_absence_deductions"] == Decimal("30.00")
     assert summary["total_net_incident_effect"] == Decimal("330.00")
     assert "El recibo separa salario" in summary["explanation"]
+
+
+def payroll_for_bases(**overrides):
+    values = {
+        "base_salary": Decimal("1450.00"),
+        "salary_supplements": Decimal("0.00"),
+        "seniority_amount": Decimal("0.00"),
+        "variable_incentives": Decimal("0.00"),
+        "extra_pay_proration": Decimal("0.00"),
+        "gross_salary": Decimal("1450.00"),
+        "common_contingencies_base": Decimal("1450.00"),
+        "professional_contingencies_base": Decimal("1450.00"),
+        "unemployment_training_fogasa_base": Decimal("1450.00"),
+        "irpf_base": Decimal("1450.00"),
+        "incident_days": 0,
+        "it_days": 0,
+        "non_contribution_days": 0,
+        "contribution_days": 30,
+    }
+    values.update(overrides)
+    return SimpleNamespace(**values)
+
+
+def test_base_explanations_for_ordinary_payroll_are_not_marked_as_incident_affected():
+    explanations = base_explanations_payload(payroll_for_bases())
+
+    assert [item["code"] for item in explanations] == [
+        "BASE_CC",
+        "BASE_CP",
+        "BASE_DESEMPLEO_FORMACION_FOGASA",
+        "BASE_IRPF",
+    ]
+    assert all(item["affected_by_incident"] is False for item in explanations)
+    assert "sin incidencias" in explanations[0]["explanation"]
+
+
+def test_base_explanations_for_it_keep_contribution_context_visible():
+    explanations = base_explanations_payload(
+        payroll_for_bases(
+            worked_base_salary=Decimal("1063.33"),
+            temporary_disability_benefit=Decimal("232.00"),
+            company_disability_complement=Decimal("154.67"),
+            incident_days=8,
+            it_days=8,
+            contribution_days=30,
+        )
+    )
+
+    base_cc = explanations[0]
+    assert base_cc["affected_by_incident"] is True
+    assert "30 día(s) de cotización" in base_cc["explanation"]
+    assert any("IT puede haber prestación" in point for point in base_cc["learning_points"])
+
+
+def test_base_explanations_for_absence_explain_non_contribution_days():
+    explanations = base_explanations_payload(
+        payroll_for_bases(
+            base_salary=Decimal("1510.00"),
+            salary_supplements=Decimal("40.00"),
+            gross_salary=Decimal("1499.67"),
+            common_contingencies_base=Decimal("1499.67"),
+            professional_contingencies_base=Decimal("1499.67"),
+            unemployment_training_fogasa_base=Decimal("1499.67"),
+            irpf_base=Decimal("1499.67"),
+            incident_days=1,
+            non_contribution_days=1,
+            contribution_days=29,
+        )
+    )
+
+    base_cc = explanations[0]
+    assert base_cc["affected_by_incident"] is True
+    assert "29 día(s) de cotización" in base_cc["explanation"]
+    assert any("días no cotizados" in point for point in base_cc["learning_points"])
+    assert any("29 día(s)" in point for point in base_cc["learning_points"])
