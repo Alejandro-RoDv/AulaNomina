@@ -2,7 +2,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class PayrollReceiptParty(BaseModel):
@@ -66,7 +66,7 @@ class PayrollReceiptLine(BaseModel):
     affects_gross: bool = False
     affects_net: bool = False
     formula: Optional[str] = None
-    trace: dict = {}
+    trace: dict = Field(default_factory=dict)
 
 
 class PayrollReceiptBases(BaseModel):
@@ -139,15 +139,15 @@ class PayrollReceiptResponse(BaseModel):
     employee: PayrollReceiptParty
     contract: PayrollReceiptContract
     period: PayrollReceiptPeriod
-    earnings: list[PayrollReceiptLine]
-    deductions: list[PayrollReceiptLine]
+    earnings: list[PayrollReceiptLine] = Field(default_factory=list)
+    deductions: list[PayrollReceiptLine] = Field(default_factory=list)
     bases: PayrollReceiptBases
-    base_lines: list[PayrollReceiptLine]
+    base_lines: list[PayrollReceiptLine] = Field(default_factory=list)
     company_cost: PayrollReceiptCompanyCost
-    company_cost_lines: list[PayrollReceiptLine]
-    informative_lines: list[PayrollReceiptLine]
-    incident_segments: list[PayrollReceiptIncidentSegment] = []
+    company_cost_lines: list[PayrollReceiptLine] = Field(default_factory=list)
+    informative_lines: list[PayrollReceiptLine] = Field(default_factory=list)
+    incident_segments: list[PayrollReceiptIncidentSegment] = Field(default_factory=list)
     deduction_summary: PayrollReceiptDeductions
     totals: PayrollReceiptTotals
     legal_footer: str
-    warnings: list[str] = []
+    warnings: list[str] = Field(default_factory=list)
