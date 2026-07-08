@@ -24,6 +24,9 @@ class PayrollConcept(Base):
     is_system = Column(Boolean, default=False, nullable=False)
     is_taxable = Column(Boolean, default=True, nullable=False)
     is_contribution_base = Column(Boolean, default=True, nullable=False)
+    affects_gross = Column(Boolean, default=True, nullable=False)
+    affects_net = Column(Boolean, default=True, nullable=False)
+    formula = Column(Text, nullable=True)
     is_active = Column(Boolean, default=True, nullable=False)
     display_order = Column(Integer, default=0, nullable=False)
     notes = Column(Text, nullable=True)
@@ -121,3 +124,19 @@ class PayrollItem(Base):
     @property
     def salary_nature(self):
         return self.concept.salary_nature if self.concept else None
+
+    @property
+    def is_taxable(self):
+        return self.concept.is_taxable if self.concept else None
+
+    @property
+    def is_contribution_base(self):
+        return self.concept.is_contribution_base if self.concept else None
+
+    @property
+    def affects_gross(self):
+        return self.concept.affects_gross if self.concept else None
+
+    @property
+    def affects_net(self):
+        return self.concept.affects_net if self.concept else None
