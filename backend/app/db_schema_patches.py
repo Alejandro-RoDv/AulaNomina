@@ -18,6 +18,12 @@ PAYROLL_CONTRIBUTION_COLUMNS = {
     "daily_professional_base": "NUMERIC(10, 2) DEFAULT 0 NOT NULL",
 }
 
+PAYROLL_CONCEPT_ENGINE_COLUMNS = {
+    "affects_gross": "BOOLEAN DEFAULT TRUE NOT NULL",
+    "affects_net": "BOOLEAN DEFAULT TRUE NOT NULL",
+    "formula": "TEXT",
+}
+
 EMPLOYEE_SPLIT_25_COLUMNS = {
     "document_type": "VARCHAR DEFAULT 'DNI' NOT NULL",
     "nie_prefix": "VARCHAR",
@@ -244,6 +250,29 @@ def add_missing_contract_labor_columns() -> None:
             )
 
 
+def add_missing_payroll_concept_engine_columns(connection, table_names: list[str]) -> None:
+    if "payroll_concepts" not in table_names:
+        return
+
+    existing_columns = {column["name"] for column in inspect(connection).get_columns("payroll_concepts")}
+    created_columns = set()
+    for column_name, column_definition in PAYROLL_CONCEPT_ENGINE_COLUMNS.items():
+        if column_name not in existing_columns:
+            connection.execute(text("ALTER TABLE payroll_concepts ADD COLUMN " + column_name + " " + column_definition))
+            created_columns.add(column_name)
+
+    if {"affects_gross", "affects_net"} & created_columns:
+        connection.execute(
+            text(
+                """
+                UPDATE payroll_concepts
+                SET affects_gross = CASE WHEN concept_type = 'DEVENGO' THEN TRUE ELSE FALSE END,
+                    affects_net = CASE WHEN concept_type IN ('DEVENGO', 'DEDUCCION') THEN TRUE ELSE FALSE END
+                """
+            )
+        )
+
+
 def add_missing_payroll_contribution_columns() -> None:
     """Add Split 18 payroll contribution columns and later MVP bridge columns."""
 
@@ -253,7 +282,12 @@ def add_missing_payroll_contribution_columns() -> None:
     add_missing_contract_labor_columns()
 
     inspector = inspect(engine)
-    if "payrolls" not in inspector.get_table_names():
+    table_names = inspector.get_table_names()
+
+    with engine.begin() as connection:
+        add_missing_payroll_concept_engine_columns(connection, table_names)
+
+    if "payrolls" not in table_names:
         return
 
     existing_columns = {column["name"] for column in inspector.get_columns("payrolls")}

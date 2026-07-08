@@ -10,6 +10,7 @@ from app.services.seniority_payroll_items import SENIORITY_CONCEPT_PREFIX
 
 AUTOMATIC_EXTRA_PREFIXES = (PRORATION_CONCEPT_PREFIX, "EXTRA_")
 RETROACTIVE_PREFIX = "RETRO_TABLE_"
+INFORMATIVE_TYPES = {"BASE_INFORMATIVA", "INFORMATIVO"}
 
 
 def build_payroll_breakdown(db: Session, payroll_id: int):
@@ -44,41 +45,49 @@ def build_payroll_breakdown(db: Session, payroll_id: int):
         salary_nature = concept.salary_nature if concept else "SALARIAL"
         concept_code = concept.code if concept else ""
         is_taxable = bool(concept.is_taxable) if concept else True
+        affects_gross = bool(getattr(concept, "affects_gross", True)) if concept else True
+        affects_net = bool(getattr(concept, "affects_net", True)) if concept else True
         item_amount = money(item.amount)
 
         if concept_code.startswith(RETROACTIVE_PREFIX):
             breakdown["regularizaciones_automaticas"].append(item)
             breakdown["prorratas_automaticas"].append(item)
             breakdown["total_regularizacion_automatica"] += item_amount
-            breakdown["total_devengos"] += item_amount
+            if affects_gross:
+                breakdown["total_devengos"] += item_amount
             continue
 
         if concept_code.startswith(SENIORITY_CONCEPT_PREFIX):
             breakdown["antiguedad_automatica"].append(item)
             breakdown["prorratas_automaticas"].append(item)
             breakdown["total_antiguedad_automatica"] += item_amount
-            breakdown["total_devengos"] += item_amount
+            if affects_gross:
+                breakdown["total_devengos"] += item_amount
             continue
 
         if concept_code.startswith(AUTOMATIC_EXTRA_PREFIXES):
             breakdown["prorratas_automaticas"].append(item)
             breakdown["total_prorrata_automatica"] += item_amount
-            breakdown["total_devengos"] += item_amount
+            if affects_gross:
+                breakdown["total_devengos"] += item_amount
             continue
 
         if concept_type == "DEDUCCION":
             breakdown["deducciones"].append(item)
-            breakdown["total_deducciones"] += item_amount
-        elif concept_type == "BASE_INFORMATIVA":
+            if affects_net:
+                breakdown["total_deducciones"] += item_amount
+        elif concept_type in INFORMATIVE_TYPES:
             breakdown["bases_informativas"].append(item)
         elif salary_nature == "EXTRASALARIAL":
             breakdown["devengos_extrasalariales"].append(item)
-            breakdown["total_devengos"] += item_amount
+            if affects_gross:
+                breakdown["total_devengos"] += item_amount
             if is_taxable:
                 breakdown["base_irpf_manual"] += item_amount
         else:
             breakdown["devengos_salariales"].append(item)
-            breakdown["total_devengos"] += item_amount
+            if affects_gross:
+                breakdown["total_devengos"] += item_amount
             if is_taxable:
                 breakdown["base_irpf_manual"] += item_amount
 

@@ -14,6 +14,7 @@ from app.services.contribution_base_calculator import calculate_contribution_bas
 from app.services.contract_salary_summary import get_partiality
 from app.services.monthly_extra_pay_proration import resolve_monthly_extra_pay_proration
 from app.services.payroll_amounts import calculate_social_security_amounts_from_bases, money
+from app.services.payroll_concept_engine import build_payroll_concept_lines, summarize_concept_lines
 from app.services.payroll_days_calculator import calculate_payroll_days
 
 MONTHLY_PERIODS = set(range(1, 12 + 1))
@@ -399,6 +400,9 @@ def calculate_payroll_engine_result(
     else:
         raise UnsupportedPayrollPeriodError("Periodo de nómina no soportado")
 
+    concept_lines = build_payroll_concept_lines(result)
+    concept_totals = summarize_concept_lines(concept_lines)
+
     return {
         "employee_id": employee.id,
         "contract_id": contract.id,
@@ -406,5 +410,7 @@ def calculate_payroll_engine_result(
         "period_year": period_year,
         "irpf_percentage": money(irpf_percentage),
         "suggested_irpf_percentage": money(suggested_irpf_percentage),
+        "concept_lines": concept_lines,
+        "concept_totals": concept_totals,
         **result,
     }
