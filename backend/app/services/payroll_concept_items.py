@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+from datetime import date, datetime
 from decimal import Decimal
+from typing import Any
 
 from sqlalchemy.orm import Session
 
@@ -8,6 +10,20 @@ from app.models.payroll_salary_structure import PayrollConcept, PayrollItem
 from app.services.payroll_amounts import money
 
 ENGINE_SOURCE_KEY_PREFIX = "ENGINE"
+
+
+def json_safe(value: Any) -> Any:
+    """Convert trace payloads to values accepted by SQLAlchemy JSON columns."""
+
+    if isinstance(value, Decimal):
+        return str(money(value))
+    if isinstance(value, (date, datetime)):
+        return value.isoformat()
+    if isinstance(value, dict):
+        return {str(key): json_safe(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple, set)):
+        return [json_safe(item) for item in value]
+    return value
 
 
 def concept_values_from_line(line: dict) -> dict:
@@ -84,7 +100,7 @@ def sync_engine_concept_items(db: Session, payroll_id: int, lines: list[dict]) -
                 source_type=str(line.get("source_type") or "SYSTEM").lower(),
                 source_key=source_key,
                 is_automatic=True,
-                calculation_trace=line.get("trace") or {},
+                calculation_trace=json_safe(line.get("trace") or {}),
             )
         )
         created += 1
