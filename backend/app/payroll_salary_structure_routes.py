@@ -69,9 +69,9 @@ from app.services.contract_salary_summary_v2 import (
     simulate_contract_workday_change,
 )
 from app.services.payroll_breakdown import build_payroll_breakdown
-from app.services.payroll_receipt import get_payroll_receipt
-from app.services.payroll_receipt_print import get_payroll_receipt_print_html
+from app.services.payroll_receipt_print import build_payroll_receipt_print_html, payroll_receipt_filename
 from app.services.payroll_regularization import apply_payroll_regularization, preview_payroll_regularization
+from app.services.payroll_regularization_trace import get_payroll_receipt_with_regularization_trace
 
 router = APIRouter(tags=["payroll-salary-structure"])
 router.include_router(agreement_header_router)
@@ -283,12 +283,14 @@ def read_payroll_breakdown(payroll_id: int, db: Session = Depends(get_db)):
 
 @router.get("/payrolls/{payroll_id}/receipt", response_model=PayrollReceiptResponse)
 def read_payroll_receipt(payroll_id: int, db: Session = Depends(get_db)):
-    return get_payroll_receipt(db, payroll_id)
+    return get_payroll_receipt_with_regularization_trace(db, payroll_id)
 
 
 @router.get("/payrolls/{payroll_id}/receipt/print", response_class=HTMLResponse)
 def read_payroll_receipt_print(payroll_id: int, db: Session = Depends(get_db)):
-    html, filename = get_payroll_receipt_print_html(db, payroll_id)
+    receipt = get_payroll_receipt_with_regularization_trace(db, payroll_id)
+    html = build_payroll_receipt_print_html(receipt)
+    filename = payroll_receipt_filename(receipt)
     return HTMLResponse(
         content=html,
         headers={"Content-Disposition": f'inline; filename="{filename}"'},

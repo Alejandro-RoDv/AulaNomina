@@ -10,7 +10,24 @@ from app.services.seniority_payroll_items import SENIORITY_CONCEPT_PREFIX
 
 AUTOMATIC_EXTRA_PREFIXES = (PRORATION_CONCEPT_PREFIX, "EXTRA_")
 RETROACTIVE_PREFIX = "RETRO_TABLE_"
+REGULARIZATION_PREFIX = "REGULARIZACION_"
+REGULARIZATION_CATEGORY = "REGULARIZACION"
+REGULARIZATION_SOURCE_TYPE = "regularization"
 INFORMATIVE_TYPES = {"BASE_INFORMATIVA", "INFORMATIVO"}
+
+
+def is_regularization_item(item, concept) -> bool:
+    concept_code = concept.code if concept else ""
+    category = concept.category if concept else ""
+    source_type = str(item.source_type or "").lower()
+    source_key = str(item.source_key or "")
+    return bool(
+        concept_code.startswith(RETROACTIVE_PREFIX)
+        or concept_code.startswith(REGULARIZATION_PREFIX)
+        or category == REGULARIZATION_CATEGORY
+        or source_type == REGULARIZATION_SOURCE_TYPE
+        or source_key.startswith(f"REGULARIZACION:{item.payroll_id}:")
+    )
 
 
 def build_payroll_breakdown(db: Session, payroll_id: int):
@@ -49,12 +66,17 @@ def build_payroll_breakdown(db: Session, payroll_id: int):
         affects_net = bool(getattr(concept, "affects_net", True)) if concept else True
         item_amount = money(item.amount)
 
-        if concept_code.startswith(RETROACTIVE_PREFIX):
+        if is_regularization_item(item, concept):
             breakdown["regularizaciones_automaticas"].append(item)
-            breakdown["prorratas_automaticas"].append(item)
             breakdown["total_regularizacion_automatica"] += item_amount
-            if affects_gross:
+            if concept_code.startswith(RETROACTIVE_PREFIX):
+                breakdown["prorratas_automaticas"].append(item)
+            if concept_type == "DEDUCCION" and affects_net:
+                breakdown["total_deducciones"] += item_amount
+            elif affects_gross:
                 breakdown["total_devengos"] += item_amount
+                if is_taxable:
+                    breakdown["base_irpf_manual"] += item_amount
             continue
 
         if concept_code.startswith(SENIORITY_CONCEPT_PREFIX):
