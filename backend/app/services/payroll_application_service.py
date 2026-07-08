@@ -37,9 +37,11 @@ def _process_and_reload(
     *,
     actor: str,
 ) -> Payroll | None:
-    if _supports_incident_processing(payroll):
-        process_payroll_incidents(db, payroll.id, actor=actor)
-        payroll = payroll_crud.get_payroll(db, payroll.id)
+    if not _supports_incident_processing(payroll):
+        return payroll
+
+    process_payroll_incidents(db, payroll.id, actor=actor)
+    payroll = payroll_crud.get_payroll(db, payroll.id)
     return _sync_engine_items_and_reload(db, payroll)
 
 
