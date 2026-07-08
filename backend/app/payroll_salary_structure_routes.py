@@ -46,8 +46,12 @@ from app.schemas.payroll_breakdown import PayrollBreakdownResponse
 from app.schemas.payroll_receipt import PayrollReceiptResponse
 from app.schemas.payroll_regularization import (
     PayrollRegularizationApplyResponse,
+    PayrollRegularizationGroupResponse,
     PayrollRegularizationPreviewResponse,
     PayrollRegularizationRequest,
+    PayrollRegularizationReversalApplyResponse,
+    PayrollRegularizationReversalPreviewResponse,
+    PayrollRegularizationReversalRequest,
 )
 from app.schemas.payroll_salary_structure import (
     ContractPayrollConceptCreate,
@@ -71,6 +75,11 @@ from app.services.contract_salary_summary_v2 import (
 from app.services.payroll_breakdown import build_payroll_breakdown
 from app.services.payroll_receipt_print import build_payroll_receipt_print_html, payroll_receipt_filename
 from app.services.payroll_regularization import apply_payroll_regularization, preview_payroll_regularization
+from app.services.payroll_regularization_reversal import (
+    apply_regularization_reversal,
+    build_reversal_preview,
+    list_payroll_regularization_groups,
+)
 from app.services.payroll_regularization_trace import get_payroll_receipt_with_regularization_trace
 
 router = APIRouter(tags=["payroll-salary-structure"])
@@ -297,6 +306,11 @@ def read_payroll_receipt_print(payroll_id: int, db: Session = Depends(get_db)):
     )
 
 
+@router.get("/payrolls/{payroll_id}/regularizations", response_model=list[PayrollRegularizationGroupResponse])
+def list_payroll_regularizations_endpoint(payroll_id: int, db: Session = Depends(get_db)):
+    return list_payroll_regularization_groups(db, payroll_id)
+
+
 @router.post("/payrolls/{payroll_id}/regularizations/preview", response_model=PayrollRegularizationPreviewResponse)
 def preview_payroll_regularization_endpoint(
     payroll_id: int,
@@ -313,3 +327,27 @@ def apply_payroll_regularization_endpoint(
     db: Session = Depends(get_db),
 ):
     return apply_payroll_regularization(db, payroll_id, request)
+
+
+@router.post(
+    "/payrolls/{payroll_id}/regularizations/reversal/preview",
+    response_model=PayrollRegularizationReversalPreviewResponse,
+)
+def preview_payroll_regularization_reversal_endpoint(
+    payroll_id: int,
+    request: PayrollRegularizationReversalRequest,
+    db: Session = Depends(get_db),
+):
+    return build_reversal_preview(db, payroll_id, request)
+
+
+@router.post(
+    "/payrolls/{payroll_id}/regularizations/reversal/apply",
+    response_model=PayrollRegularizationReversalApplyResponse,
+)
+def apply_payroll_regularization_reversal_endpoint(
+    payroll_id: int,
+    request: PayrollRegularizationReversalRequest,
+    db: Session = Depends(get_db),
+):
+    return apply_regularization_reversal(db, payroll_id, request)

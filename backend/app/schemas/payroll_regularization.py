@@ -13,6 +13,7 @@ REGULARIZATION_REASON_VALUES = {
     "IRPF",
     "SEGURIDAD_SOCIAL",
     "MANUAL",
+    "REVERSION",
 }
 
 
@@ -80,6 +81,55 @@ class PayrollRegularizationPreviewResponse(BaseModel):
 
 
 class PayrollRegularizationApplyResponse(PayrollRegularizationPreviewResponse):
+    applied: bool = True
+    created_item_ids: list[int] = []
+    regularization_key_prefix: str
+    resulting_gross_salary: Decimal = Decimal("0.00")
+    resulting_total_deductions: Decimal = Decimal("0.00")
+    resulting_net_salary: Decimal = Decimal("0.00")
+    resulting_company_total_cost: Decimal = Decimal("0.00")
+
+
+class PayrollRegularizationGroupResponse(BaseModel):
+    regularization_group_key: str
+    sequence: int
+    item_ids: list[int]
+    line_count: int = 0
+    reason: Optional[str] = None
+    description: Optional[str] = None
+    origin_payroll_id: Optional[int] = None
+    gross_delta: Decimal = Decimal("0.00")
+    deduction_delta: Decimal = Decimal("0.00")
+    net_delta: Decimal = Decimal("0.00")
+    company_cost_delta: Decimal = Decimal("0.00")
+    is_reversal: bool = False
+    reversal_of: Optional[str] = None
+    has_reversal: bool = False
+
+
+class PayrollRegularizationReversalRequest(BaseModel):
+    regularization_group_key: str
+    description: Optional[str] = None
+    actor: str = "regularization_reversal"
+
+    @field_validator("regularization_group_key")
+    @classmethod
+    def validate_group_key(cls, value):
+        value = value.strip()
+        if not value.startswith("REGULARIZACION:"):
+            raise ValueError("La clave de grupo de regularización no es válida")
+        return value
+
+
+class PayrollRegularizationReversalPreviewResponse(PayrollRegularizationPreviewResponse):
+    regularization_group_key: str
+    source_item_ids: list[int]
+    source_line_count: int = 0
+    reversal_of: str
+    already_reversed: bool = False
+
+
+class PayrollRegularizationReversalApplyResponse(PayrollRegularizationReversalPreviewResponse):
     applied: bool = True
     created_item_ids: list[int] = []
     regularization_key_prefix: str
