@@ -6,6 +6,8 @@ import app.crud.payroll as payroll_crud
 from app.models.payroll import Payroll
 from app.schemas.payroll import PayrollCreate, PayrollPrepareRequest, PayrollUpdate
 from app.services.incident_payroll_service import process_payroll_incidents
+from app.services.payroll_concept_engine import build_concept_lines_from_payroll
+from app.services.payroll_concept_items import sync_engine_concept_items
 
 
 def _supports_incident_processing(payroll: Payroll | None) -> bool:
@@ -16,17 +18,29 @@ def _supports_incident_processing(payroll: Payroll | None) -> bool:
     )
 
 
+def _sync_engine_items_and_reload(db: Session, payroll: Payroll | None) -> Payroll | None:
+    if not payroll:
+        return payroll
+    try:
+        lines = build_concept_lines_from_payroll(payroll)
+        sync_engine_concept_items(db, payroll.id, lines)
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+    return payroll_crud.get_payroll(db, payroll.id)
+
+
 def _process_and_reload(
     db: Session,
     payroll: Payroll | None,
     *,
     actor: str,
 ) -> Payroll | None:
-    if not _supports_incident_processing(payroll):
-        return payroll
-
-    process_payroll_incidents(db, payroll.id, actor=actor)
-    return payroll_crud.get_payroll(db, payroll.id)
+    if _supports_incident_processing(payroll):
+        process_payroll_incidents(db, payroll.id, actor=actor)
+        payroll = payroll_crud.get_payroll(db, payroll.id)
+    return _sync_engine_items_and_reload(db, payroll)
 
 
 def create_payroll(
@@ -57,8 +71,8 @@ def prepare_monthly_payrolls(
     """Prepare payrolls and explicitly process incidents for new records.
 
     The CRUD preparation operation remains responsible for persistence. This
-    application service coordinates the incident engine without replacing CRUD
-    functions at import time.
+    application service coordinates the incident engine and central concept
+    synchronization without replacing CRUD functions at import time.
     """
 
     result = payroll_crud.prepare_monthly_payrolls(db, request)
