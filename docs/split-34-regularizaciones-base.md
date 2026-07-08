@@ -155,12 +155,49 @@ split-34-regularization
 
 ## Frontend
 
-Se añaden helpers de API:
+### Helpers API
 
 - `previewPayrollRegularization(payrollId, payload)`
 - `applyPayrollRegularization(payrollId, payload)`
 
-No se crea todavía pantalla visual completa. Esta fase deja la API lista para construir el panel posteriormente.
+### Panel visual
+
+Se añade el componente:
+
+```text
+frontend/src/components/payrolls/PayrollRegularizationModal.jsx
+```
+
+Se integra en:
+
+```text
+frontend/src/components/payrolls/PayrollTable.jsx
+frontend/src/pages/PayrollsPage.jsx
+```
+
+La tabla de nóminas incorpora el botón:
+
+```text
+Regularizar
+```
+
+El panel permite:
+
+1. seleccionar nómina origen opcional
+2. elegir motivo de regularización
+3. describir el ajuste
+4. introducir bruto, deducción trabajador, IRPF y coste empresa
+5. indicar si cotiza y si tributa
+6. sobrescribir base de cotización o base IRPF si procede
+7. previsualizar antes de aplicar
+8. ver advertencias funcionales
+9. confirmar explícitamente la aplicación
+10. refrescar el listado de nóminas
+11. abrir el recibo actualizado tras aplicar
+
+### Restricciones visuales
+
+Si la nómina destino está `closed` o `cancelled`, el panel permite previsualizar pero desactiva la aplicación.
 
 ## Tests añadidos
 
@@ -189,17 +226,15 @@ No se implementa todavía:
 - tabla persistente específica de regularizaciones
 - comparación automática contra snapshots anteriores
 - regularización automática por incidencia tardía
-- UI completa de regularizaciones
 - asistente docente paso a paso
 - reversión de regularizaciones
+- listado histórico específico de regularizaciones
 
 ## Siguiente bloque recomendado
 
-Crear el panel frontend de regularizaciones:
+Mejorar la trazabilidad post-aplicación:
 
-1. selector de nómina origen
-2. formulario de motivo e importes
-3. preview antes de aplicar
-4. confirmación explícita
-5. listado de líneas generadas
-6. enlace directo al recibo actualizado
+1. mostrar regularizaciones existentes dentro del desglose de conceptos
+2. marcar líneas de regularización en el recibo
+3. añadir bloque didáctico específico de regularizaciones
+4. preparar reversión controlada de una regularización
