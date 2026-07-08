@@ -43,7 +43,27 @@ Una regularización:
 5. actualiza importes agregados de la nómina destino
 6. no reabre ni modifica la nómina origen
 
+Una reversión:
+
+1. toma una regularización ya aplicada
+2. calcula importes inversos
+3. no borra las líneas originales
+4. genera una contra-regularización trazable
+5. deja referencia `reversal_of` al grupo original
+
 ## Endpoints añadidos
+
+### Listar grupos de regularización
+
+```http
+GET /payrolls/{payroll_id}/regularizations
+```
+
+Agrupa líneas por clave:
+
+```text
+REGULARIZACION:{payroll_id}:{sequence}
+```
 
 ### Previsualizar regularización
 
@@ -60,6 +80,20 @@ POST /payrolls/{payroll_id}/regularizations/apply
 ```
 
 Aplica la regularización sobre la nómina destino.
+
+### Previsualizar reversión
+
+```http
+POST /payrolls/{payroll_id}/regularizations/reversal/preview
+```
+
+### Aplicar reversión
+
+```http
+POST /payrolls/{payroll_id}/regularizations/reversal/apply
+```
+
+La reversión genera una nueva regularización con importes inversos.
 
 Bloquea nóminas destino con estado:
 
@@ -85,6 +119,16 @@ Bloquea nóminas destino con estado:
 }
 ```
 
+## Request de reversión
+
+```json
+{
+  "regularization_group_key": "REGULARIZACION:25:1",
+  "description": "Reversión controlada de regularización aplicada por error",
+  "actor": "regularization_reversal"
+}
+```
+
 ## Motivos soportados
 
 - `INCIDENCIA_TARDIA`
@@ -95,6 +139,7 @@ Bloquea nóminas destino con estado:
 - `IRPF`
 - `SEGURIDAD_SOCIAL`
 - `MANUAL`
+- `REVERSION`
 
 ## Conceptos automáticos
 
@@ -131,7 +176,7 @@ La previsualización devuelve:
 
 ## Actualización agregada de la nómina destino
 
-Al aplicar una regularización se actualizan:
+Al aplicar una regularización o reversión se actualizan:
 
 - `gross_salary`
 - `common_contingencies_base`
@@ -147,18 +192,21 @@ Al aplicar una regularización se actualizan:
 - `calculation_version`
 - `calculation_engine_version`
 
-La nómina destino queda marcada con:
+La reversión deja la nómina destino marcada con:
 
 ```text
-split-34-regularization
+split-34-regularization-reversal
 ```
 
 ## Frontend
 
 ### Helpers API
 
+- `fetchPayrollRegularizations(payrollId)`
 - `previewPayrollRegularization(payrollId, payload)`
 - `applyPayrollRegularization(payrollId, payload)`
+- `previewPayrollRegularizationReversal(payrollId, payload)`
+- `applyPayrollRegularizationReversal(payrollId, payload)`
 
 ### Panel visual
 
@@ -239,6 +287,31 @@ El desglose de conceptos clasifica como regularización:
 - `source_type = regularization`
 - `source_key` con prefijo `REGULARIZACION:{payroll_id}:...`
 
+## Reversión controlada
+
+Se añade el servicio:
+
+```text
+backend/app/services/payroll_regularization_reversal.py
+```
+
+Principios:
+
+- no elimina líneas originales
+- no modifica la nómina histórica origen
+- no permite revertir directamente una reversión
+- si detecta reversión previa, lo muestra como advertencia
+- aplica importes inversos mediante una nueva regularización
+- marca las nuevas líneas con:
+
+```json
+{
+  "is_reversal": true,
+  "reversal_of": "REGULARIZACION:25:1",
+  "reversal_source_item_ids": [1, 2, 3, 4]
+}
+```
+
 ## Tests añadidos
 
 Archivos:
@@ -246,6 +319,7 @@ Archivos:
 ```text
 backend/tests/test_payroll_regularization.py
 backend/tests/test_payroll_regularization_trace.py
+backend/tests/test_payroll_regularization_reversal.py
 ```
 
 Cobertura:
@@ -263,6 +337,10 @@ Cobertura:
 - resumen de bruto, deducciones, neto y coste empresa regularizados
 - explicación con motivo y nómina origen
 - clasificación de regularizaciones en el desglose
+- parseo de claves `REGULARIZACION:{payroll_id}:{sequence}:{line_index}:{concept_code}`
+- validación de grupo contra nómina destino
+- cálculo inverso de reversión
+- detección de reversión por `reversal_of`, `is_reversal` o motivo `REVERSION`
 
 ## Alcance deliberadamente fuera
 
@@ -272,14 +350,14 @@ No se implementa todavía:
 - comparación automática contra snapshots anteriores
 - regularización automática por incidencia tardía
 - asistente docente paso a paso
-- reversión de regularizaciones
-- listado histórico específico de regularizaciones
+- UI completa para listar y revertir regularizaciones
 
 ## Siguiente bloque recomendado
 
-Mejorar la reversión controlada:
+Crear UI de reversión:
 
-1. listar regularizaciones aplicadas por nómina
-2. agrupar líneas de una misma regularización por `source_key`
-3. crear preview de reversión
-4. aplicar reversión como contra-regularización trazable
+1. listar grupos aplicados dentro del panel de regularizaciones
+2. mostrar si un grupo ya fue revertido
+3. previsualizar la contra-regularización
+4. confirmar aplicación
+5. abrir recibo actualizado
