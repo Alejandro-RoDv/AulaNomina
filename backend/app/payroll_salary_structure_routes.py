@@ -42,6 +42,7 @@ from app.schemas.contract_salary_summary_v2 import (
     ContractWorkdaySimulationResponse,
 )
 from app.schemas.payroll_breakdown import PayrollBreakdownResponse
+from app.schemas.payroll_receipt import PayrollReceiptResponse
 from app.schemas.payroll_salary_structure import (
     ContractPayrollConceptCreate,
     ContractPayrollConceptResponse,
@@ -62,6 +63,7 @@ from app.services.contract_salary_summary_v2 import (
     simulate_contract_workday_change,
 )
 from app.services.payroll_breakdown import build_payroll_breakdown
+from app.services.payroll_receipt import get_payroll_receipt
 
 router = APIRouter(tags=["payroll-salary-structure"])
 router.include_router(agreement_header_router)
@@ -269,3 +271,8 @@ def delete_payroll_item_endpoint(item_id: int, db: Session = Depends(get_db)):
 @router.get("/payrolls/{payroll_id}/breakdown", response_model=PayrollBreakdownResponse)
 def read_payroll_breakdown(payroll_id: int, db: Session = Depends(get_db)):
     return build_payroll_breakdown(db, payroll_id)
+
+
+@router.get("/payrolls/{payroll_id}/receipt", response_model=PayrollReceiptResponse)
+def read_payroll_receipt(payroll_id: int, db: Session = Depends(get_db)):
+    return get_payroll_receipt(db, payroll_id)
