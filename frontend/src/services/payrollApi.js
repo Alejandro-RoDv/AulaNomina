@@ -186,6 +186,14 @@ export function buildPayrollReceiptPrintUrl(payrollId) {
   return `${API_BASE_URL}/payrolls/${encodeURIComponent(payrollId)}/receipt/print`;
 }
 
+export async function fetchPayrollRegularizations(payrollId) {
+  return apiRequest(
+    `/payrolls/${payrollId}/regularizations`,
+    {},
+    "Error al cargar regularizaciones"
+  );
+}
+
 export async function previewPayrollRegularization(payrollId, payload) {
   return apiRequest(
     `/payrolls/${payrollId}/regularizations/preview`,
@@ -207,6 +215,30 @@ export async function applyPayrollRegularization(payrollId, payload) {
       body: JSON.stringify(payload),
     },
     "Error al aplicar regularización"
+  );
+}
+
+export async function previewPayrollRegularizationReversal(payrollId, payload) {
+  return apiRequest(
+    `/payrolls/${payrollId}/regularizations/reversal/preview`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    },
+    "Error al previsualizar reversión de regularización"
+  );
+}
+
+export async function applyPayrollRegularizationReversal(payrollId, payload) {
+  return apiRequest(
+    `/payrolls/${payrollId}/regularizations/reversal/apply`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    },
+    "Error al aplicar reversión de regularización"
   );
 }
 
