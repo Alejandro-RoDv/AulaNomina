@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session
 
 from app.agreement_extra_pay_routes import router as agreement_extra_pay_router
@@ -64,6 +65,7 @@ from app.services.contract_salary_summary_v2 import (
 )
 from app.services.payroll_breakdown import build_payroll_breakdown
 from app.services.payroll_receipt import get_payroll_receipt
+from app.services.payroll_receipt_print import get_payroll_receipt_print_html
 
 router = APIRouter(tags=["payroll-salary-structure"])
 router.include_router(agreement_header_router)
@@ -276,3 +278,12 @@ def read_payroll_breakdown(payroll_id: int, db: Session = Depends(get_db)):
 @router.get("/payrolls/{payroll_id}/receipt", response_model=PayrollReceiptResponse)
 def read_payroll_receipt(payroll_id: int, db: Session = Depends(get_db)):
     return get_payroll_receipt(db, payroll_id)
+
+
+@router.get("/payrolls/{payroll_id}/receipt/print", response_class=HTMLResponse)
+def read_payroll_receipt_print(payroll_id: int, db: Session = Depends(get_db)):
+    html, filename = get_payroll_receipt_print_html(db, payroll_id)
+    return HTMLResponse(
+        content=html,
+        headers={"Content-Disposition": f'inline; filename="{filename}"'},
+    )
