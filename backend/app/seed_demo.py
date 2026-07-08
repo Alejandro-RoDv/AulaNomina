@@ -4,6 +4,7 @@ from decimal import Decimal
 
 from app.db import Base, SessionLocal, engine
 from app.models import Company, Contract, Employee, Incident, Payroll, WorkCenter
+from app.seed_demo_payroll_incident_cases import seed_demo_payroll_incident_cases
 from app.seed_demo_payroll_salary_structure import seed_demo_payroll_items
 
 
@@ -439,6 +440,18 @@ def seed_demo_data(reset=False):
             db,
             employees["carmen"],
             contracts["carmen"],
+            "Recaída IT",
+            date(2026, 5, 12),
+            company_id=company.id,
+            center_id=trinidad.id,
+            end_date=date(2026, 5, 18),
+            description="Recaída de IT comunicada dentro del mes. Caso demo para explicar continuidad y complemento.",
+            status="closed",
+        )
+        get_or_create_incident(
+            db,
+            employees["carmen"],
+            contracts["carmen"],
             "Vacaciones",
             date(2026, 5, 20),
             company_id=company.id,
@@ -456,8 +469,8 @@ def seed_demo_data(reset=False):
             company_id=company.id,
             center_id=trinidad.id,
             end_date=date(2026, 5, 27),
-            description="Ausencia justificada por cita médica.",
-            status="open",
+            description="Ausencia justificada por cita médica. Caso demo como ausencia no retribuida de un día.",
+            status="closed",
         )
 
         get_or_create_payroll(db, employees["laura"], contracts["laura"], company, san_rafael, Decimal("85.00"), Decimal("0.13"))
@@ -466,6 +479,7 @@ def seed_demo_data(reset=False):
         get_or_create_payroll(db, employees["ana"], contracts["ana"], company, trinidad, Decimal("40.00"), Decimal("0.11"))
 
         payroll_seed_result = seed_demo_payroll_items(db)
+        incident_case_result = seed_demo_payroll_incident_cases(db)
 
         db.commit()
 
@@ -476,9 +490,12 @@ def seed_demo_data(reset=False):
         print("Centros: Colegio San Rafael, Colegio Trinidad")
         print("Trabajadores demo: 5")
         print("Contratos demo: 6")
-        print("Incidencias demo: 3")
+        print("Incidencias demo: 4")
         print("Nóminas demo mayo 2026: 4")
         print(f"Conceptos salariales demo: {payroll_seed_result['concepts']}")
+        print(f"Casos demo de nómina con incidencia: {incident_case_result['cases']}")
+        print(f"Segmentos demo generados: {incident_case_result['segments']}")
+        print(f"Líneas automáticas de motor sincronizadas: {incident_case_result['engine_items']}")
     except Exception:
         db.rollback()
         raise

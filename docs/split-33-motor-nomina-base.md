@@ -89,6 +89,7 @@ Convertir la nómina en un motor central de cálculo, no en una pantalla aislada
 4. Regenerar líneas canónicas de concepto tras el procesamiento de incidencias.
 5. Mantener snapshots y control de versión.
 6. Mostrar explicación didáctica de incidencias dentro del recibo.
+7. Crear casos demo cerrados para validar la explicación en contexto comercial.
 
 ### Implementado
 
@@ -139,6 +140,57 @@ Evitar que la integración con incidencias sea solo una suma de importes. El alu
 - `frontend/src/components/payrolls/PayrollReceiptModal.jsx`
 - `backend/tests/test_payroll_receipt.py`
 
+## Subfase Split 33 — Casos demo de nómina con incidencias
+
+### Objetivo
+
+Disponer de datos demo realistas para que la pantalla de recibo no se enseñe vacía ni con importes abstractos. La demo debe permitir abrir el histórico de nóminas, pulsar `Recibo` y explicar casos docentes sin preparar datos manualmente.
+
+### Casos incorporados
+
+1. **Javier Romero Sánchez — IT común de 8 días**
+   - Periodo: 06/05/2026 a 13/05/2026.
+   - Días trabajados: 22.
+   - Días IT: 8.
+   - Salario base ordinario: 1.450,00 €.
+   - Salario trabajado: 1.063,33 €.
+   - Prestación IT: 232,00 €.
+   - Complemento empresa IT: 154,67 €.
+   - Bruto resultante: 1.450,00 €.
+   - Uso docente: sustitución de salario por prestación y complemento.
+
+2. **Carmen López Torres — Recaída IT de 7 días**
+   - Periodo: 12/05/2026 a 18/05/2026.
+   - Días trabajados: 23.
+   - Días IT: 7.
+   - Salario base ordinario: 1.825,00 €.
+   - Complemento salarial: 120,00 €.
+   - Salario trabajado: 1.399,17 €.
+   - Prestación IT: 255,50 €.
+   - Complemento empresa IT: 170,33 €.
+   - Bruto resultante: 1.945,00 €.
+   - Uso docente: continuidad/recaída y trazabilidad del tramo.
+
+3. **Ana Pérez Navarro — Ausencia no retribuida de 1 día**
+   - Fecha: 27/05/2026.
+   - Días trabajados: 29.
+   - Días no cotizados: 1.
+   - Salario base ordinario: 1.510,00 €.
+   - Complemento salarial: 40,00 €.
+   - Salario trabajado: 1.459,67 €.
+   - Descuento didáctico del segmento: 50,33 €.
+   - Bruto resultante: 1.499,67 €.
+   - Uso docente: diferencia entre ausencia sin prestación y situaciones protegidas.
+
+### Implementado
+
+- Nuevo helper:
+  - `backend/app/seed_demo_payroll_incident_cases.py`
+- Integración en seed principal:
+  - `backend/app/seed_demo.py`
+- El seed sincroniza líneas automáticas del motor para las nóminas afectadas.
+- Los recibos demo quedan listos para abrirse desde el histórico sin intervención manual.
+
 ## Fase 5 — Regularizaciones
 
 ### Pasos previstos
@@ -157,6 +209,7 @@ La estructura por conceptos ya incluye origen, fórmula, afectación a bruto/net
 
 - `backend/tests/test_payroll_concept_engine.py`
 - `backend/tests/test_payroll_receipt.py`
+- `backend/tests/test_seed_demo_payroll_incident_cases.py`
 
 Cobertura principal:
 
@@ -167,11 +220,11 @@ Cobertura principal:
 - totales agregados frente a totales por conceptos
 - explicación didáctica de segmentos de incidencia
 - resumen económico de incidencias
+- importes de casos demo IT/recaída/ausencia
 
 ## Pendiente inmediato recomendado
 
-1. Endurecer casos reales de demo con IT, recaída y ausencia no retribuida.
-2. Añadir explicación didáctica de bases de cotización afectadas por incidencia.
-3. Añadir explicación línea por línea para alumnos.
-4. Exportación PDF real.
-5. Regularizaciones como módulo separado, no antes de cerrar recibo e integración visual con incidencias.
+1. Añadir explicación didáctica de bases de cotización afectadas por incidencia.
+2. Añadir explicación línea por línea para alumnos.
+3. Exportación PDF real.
+4. Regularizaciones como módulo separado, no antes de cerrar recibo e integración visual con incidencias.
