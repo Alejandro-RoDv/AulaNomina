@@ -178,6 +178,10 @@ export async function fetchPayrollBreakdown(payrollId) {
   return apiRequest(`/payrolls/${payrollId}/breakdown`, {}, "Error al cargar desglose de nómina");
 }
 
+export async function fetchPayrollReceipt(payrollId) {
+  return apiRequest(`/payrolls/${payrollId}/receipt`, {}, "Error al cargar recibo de nómina");
+}
+
 export async function createPayrollItem(payrollId, payload) {
   return apiRequest(
     `/payrolls/${payrollId}/items`,
