@@ -44,6 +44,11 @@ from app.schemas.contract_salary_summary_v2 import (
 )
 from app.schemas.payroll_breakdown import PayrollBreakdownResponse
 from app.schemas.payroll_receipt import PayrollReceiptResponse
+from app.schemas.payroll_regularization import (
+    PayrollRegularizationApplyResponse,
+    PayrollRegularizationPreviewResponse,
+    PayrollRegularizationRequest,
+)
 from app.schemas.payroll_salary_structure import (
     ContractPayrollConceptCreate,
     ContractPayrollConceptResponse,
@@ -66,6 +71,7 @@ from app.services.contract_salary_summary_v2 import (
 from app.services.payroll_breakdown import build_payroll_breakdown
 from app.services.payroll_receipt import get_payroll_receipt
 from app.services.payroll_receipt_print import get_payroll_receipt_print_html
+from app.services.payroll_regularization import apply_payroll_regularization, preview_payroll_regularization
 
 router = APIRouter(tags=["payroll-salary-structure"])
 router.include_router(agreement_header_router)
@@ -287,3 +293,21 @@ def read_payroll_receipt_print(payroll_id: int, db: Session = Depends(get_db)):
         content=html,
         headers={"Content-Disposition": f'inline; filename="{filename}"'},
     )
+
+
+@router.post("/payrolls/{payroll_id}/regularizations/preview", response_model=PayrollRegularizationPreviewResponse)
+def preview_payroll_regularization_endpoint(
+    payroll_id: int,
+    request: PayrollRegularizationRequest,
+    db: Session = Depends(get_db),
+):
+    return preview_payroll_regularization(db, payroll_id, request)
+
+
+@router.post("/payrolls/{payroll_id}/regularizations/apply", response_model=PayrollRegularizationApplyResponse)
+def apply_payroll_regularization_endpoint(
+    payroll_id: int,
+    request: PayrollRegularizationRequest,
+    db: Session = Depends(get_db),
+):
+    return apply_payroll_regularization(db, payroll_id, request)

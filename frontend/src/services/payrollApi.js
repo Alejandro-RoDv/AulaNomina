@@ -186,6 +186,30 @@ export function buildPayrollReceiptPrintUrl(payrollId) {
   return `${API_BASE_URL}/payrolls/${encodeURIComponent(payrollId)}/receipt/print`;
 }
 
+export async function previewPayrollRegularization(payrollId, payload) {
+  return apiRequest(
+    `/payrolls/${payrollId}/regularizations/preview`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    },
+    "Error al previsualizar regularización"
+  );
+}
+
+export async function applyPayrollRegularization(payrollId, payload) {
+  return apiRequest(
+    `/payrolls/${payrollId}/regularizations/apply`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    },
+    "Error al aplicar regularización"
+  );
+}
+
 export async function createPayrollItem(payrollId, payload) {
   return apiRequest(
     `/payrolls/${payrollId}/items`,
