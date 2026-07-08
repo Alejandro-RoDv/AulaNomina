@@ -169,6 +169,50 @@ function BaseTeachingPanel({ explanations }) {
   );
 }
 
+function flagLabel(enabled, activeText, inactiveText) {
+  return enabled ? activeText : inactiveText;
+}
+
+function ConceptTeachingPanel({ explanations }) {
+  if (!explanations?.length) return null;
+  return (
+    <section style={styles.conceptPanel}>
+      <div>
+        <p style={styles.conceptEyebrow}>LECTURA LÍNEA POR LÍNEA</p>
+        <h4 style={styles.conceptTitle}>Qué significa cada concepto del recibo</h4>
+      </div>
+      <div style={styles.conceptExplanationGrid}>
+        {explanations.map((item) => (
+          <article key={`${item.code}-${item.section}`} style={styles.conceptExplanationCard}>
+            <div style={styles.conceptHeader}>
+              <div>
+                <strong>{item.code}</strong>
+                <span>{item.name}</span>
+              </div>
+              <span>{formatCurrency(item.amount)}</span>
+            </div>
+            <div style={styles.conceptChips}>
+              <span style={styles.conceptChip}>{item.section}</span>
+              <span style={styles.conceptChip}>{item.source_type}</span>
+              <span style={styles.conceptChip}>{flagLabel(item.affects_gross, "bruto", "no bruto")}</span>
+              <span style={styles.conceptChip}>{flagLabel(item.affects_net, "neto", "no neto")}</span>
+              <span style={styles.conceptChip}>{flagLabel(item.contribution_base, "cotiza", "no cotiza")}</span>
+              <span style={styles.conceptChip}>{flagLabel(item.taxable, "tributa", "no tributa")}</span>
+            </div>
+            {item.formula && <p style={styles.formula}>{item.formula}</p>}
+            <p style={styles.explanationText}>{item.explanation}</p>
+            {item.learning_points?.length > 0 && (
+              <ul style={styles.learningList}>
+                {item.learning_points.map((point) => <li key={`${item.code}-${point}`}>{point}</li>)}
+              </ul>
+            )}
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function IncidentSegments({ segments }) {
   if (!segments?.length) return null;
   return (
@@ -292,6 +336,8 @@ export default function PayrollReceiptModal({ payrollId, onClose }) {
 
             <BaseTeachingPanel explanations={receipt.base_explanations || []} />
 
+            <ConceptTeachingPanel explanations={receipt.line_explanations || []} />
+
             <div style={styles.twoColumns}>
               <ReceiptTable title="Devengos" lines={receipt.earnings || []} />
               <ReceiptTable title="Deducciones" lines={receipt.deductions || []} />
@@ -361,6 +407,12 @@ const styles = {
   baseCard: { backgroundColor: "#ffffff", border: "2px solid #111827", borderRadius: "12px", padding: "12px", display: "flex", flexDirection: "column", gap: "8px" },
   baseCardAffected: { backgroundColor: "#fffdf0", border: "2px solid #111827", borderRadius: "12px", padding: "12px", display: "flex", flexDirection: "column", gap: "8px" },
   baseCardHeader: { display: "flex", justifyContent: "space-between", gap: "12px", color: "#111827", fontSize: "14px", fontWeight: 950 },
+  conceptPanel: { backgroundColor: "#f5f3ff", border: "2px solid #111827", borderRadius: "14px", padding: "14px", display: "flex", flexDirection: "column", gap: "12px", boxShadow: "3px 3px 0 #ddd6fe" },
+  conceptEyebrow: { margin: "0 0 4px", fontSize: "11px", fontWeight: 950, letterSpacing: "0.08em", color: "#6d28d9" },
+  conceptTitle: { margin: 0, fontSize: "18px", fontWeight: 950, color: "#111827" },
+  conceptExplanationGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "10px" },
+  conceptExplanationCard: { backgroundColor: "#ffffff", border: "2px solid #111827", borderRadius: "12px", padding: "12px", display: "flex", flexDirection: "column", gap: "8px" },
+  conceptHeader: { display: "flex", justifyContent: "space-between", gap: "12px", color: "#111827", fontSize: "14px", fontWeight: 950 },
   twoColumns: { display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "12px", alignItems: "start" },
   tableWrapper: { overflowX: "auto" },
   table: { width: "100%", borderCollapse: "collapse", tableLayout: "fixed" },

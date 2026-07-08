@@ -6,12 +6,24 @@ from app.services.payroll_receipt import (
     base_explanations_payload,
     build_incident_explanations,
     incident_summary_payload,
+    line_explanations_payload,
     split_lines,
     totals_payload,
 )
 
 
-def line(code, amount, concept_type="DEVENGO", category="OTRO", affects_gross=True, affects_net=True):
+def line(
+    code,
+    amount,
+    concept_type="DEVENGO",
+    category="OTRO",
+    affects_gross=True,
+    affects_net=True,
+    source_type="system",
+    taxable=None,
+    contribution_base=None,
+    formula=None,
+):
     return {
         "code": code,
         "name": code,
@@ -19,12 +31,14 @@ def line(code, amount, concept_type="DEVENGO", category="OTRO", affects_gross=Tr
         "concept_type": concept_type,
         "salary_nature": "SALARIAL" if concept_type == "DEVENGO" else "INFORMATIVA",
         "category": category,
-        "source_type": "system",
+        "source_type": source_type,
         "display_order": 1,
-        "taxable": concept_type == "DEVENGO",
-        "contribution_base": concept_type == "DEVENGO",
+        "taxable": concept_type == "DEVENGO" if taxable is None else taxable,
+        "contribution_base": concept_type == "DEVENGO" if contribution_base is None else contribution_base,
         "affects_gross": affects_gross,
         "affects_net": affects_net,
+        "formula": formula,
+        "description": "Descripción de prueba",
     }
 
 
@@ -198,3 +212,45 @@ def test_base_explanations_for_absence_explain_non_contribution_days():
     assert "29 día(s) de cotización" in base_cc["explanation"]
     assert any("días no cotizados" in point for point in base_cc["learning_points"])
     assert any("29 día(s)" in point for point in base_cc["learning_points"])
+
+
+def test_line_explanations_describe_earnings_deductions_and_bases():
+    lines = [
+        line("SALARIO_BASE", "1200.00", source_type="contract", formula="salario_base"),
+        line("IRPF", "120.00", concept_type="DEDUCCION", affects_gross=False, source_type="system"),
+        line("BASE_CC", "1200.00", concept_type="BASE_INFORMATIVA", category="BASE_INFORMATIVA", affects_gross=False, affects_net=False),
+    ]
+
+    explanations = line_explanations_payload(lines)
+
+    assert [item["section"] for item in explanations] == ["Devengo", "Deducción", "Base informativa"]
+    assert explanations[0]["affects_gross"] is True
+    assert explanations[0]["contribution_base"] is True
+    assert "Suma 1200.00 €" in explanations[0]["explanation"]
+    assert "Resta 120.00 €" in explanations[1]["explanation"]
+    assert "no se paga ni se descuenta" in explanations[2]["explanation"]
+    assert any("fórmula".lower() in point.lower() for point in explanations[0]["learning_points"])
+
+
+def test_line_explanations_mark_incident_origin_and_non_taxable_extra_salary():
+    lines = [
+        line("PRESTACION_IT", "232.00", category="IT", source_type="incident"),
+        line(
+            "DIETAS",
+            "35.00",
+            category="DIETA",
+            taxable=False,
+            contribution_base=False,
+        ),
+    ]
+
+    explanations = line_explanations_payload(lines)
+
+    it_line = explanations[0]
+    diet_line = explanations[1]
+    assert "origen incidencia" in it_line["explanation"]
+    assert any("incidencia" in point for point in it_line["learning_points"])
+    assert diet_line["contribution_base"] is False
+    assert diet_line["taxable"] is False
+    assert any("no entra en base de cotización" in point for point in diet_line["learning_points"])
+    assert any("no tributa" in point for point in diet_line["learning_points"])

@@ -91,6 +91,7 @@ Convertir la nómina en un motor central de cálculo, no en una pantalla aislada
 6. Mostrar explicación didáctica de incidencias dentro del recibo.
 7. Crear casos demo cerrados para validar la explicación en contexto comercial.
 8. Explicar por qué cambian las bases de cotización e IRPF cuando hay incidencias.
+9. Explicar cada línea del recibo para uso docente.
 
 ### Implementado
 
@@ -100,9 +101,11 @@ Convertir la nómina en un motor central de cálculo, no en una pantalla aislada
   - `incident_summary`
   - `incident_explanations`
   - `base_explanations`
+  - `line_explanations`
 - La modal de recibo muestra:
   - bloque de lectura didáctica de incidencias
   - bloque de bases y cotización
+  - bloque de explicación línea por línea
 
 ## Subfase Split 33 — Recibo didáctico de incidencias
 
@@ -230,6 +233,41 @@ Explicar al alumno que una nómina no termina en bruto/neto. Las incidencias tam
 - `frontend/src/components/payrolls/PayrollReceiptModal.jsx`
 - `backend/tests/test_payroll_receipt.py`
 
+## Subfase Split 33 — Explicación línea por línea
+
+### Objetivo
+
+Convertir el recibo en una herramienta de aprendizaje, no solo en una reproducción visual. Cada concepto debe poder explicarse a un alumno sin salir de la pantalla.
+
+### Implementado
+
+- El recibo expone `line_explanations`.
+- Cada línea explica:
+  - código
+  - nombre
+  - sección del recibo: devengo, deducción, base informativa, coste empresa o informativo
+  - importe
+  - tipo de concepto
+  - categoría
+  - origen
+  - si afecta al bruto
+  - si afecta al neto
+  - si cotiza
+  - si tributa
+  - fórmula, si existe
+  - explicación textual
+  - puntos de aprendizaje
+- La modal añade panel `LECTURA LÍNEA POR LÍNEA`.
+- El panel permite enseñar por qué una línea suma, resta, informa una base o representa coste empresa.
+- El panel marca visualmente conceptos que cotizan, tributan, afectan a bruto/neto o proceden de incidencias.
+
+### Archivos tocados
+
+- `backend/app/services/payroll_receipt.py`
+- `backend/app/schemas/payroll_receipt.py`
+- `frontend/src/components/payrolls/PayrollReceiptModal.jsx`
+- `backend/tests/test_payroll_receipt.py`
+
 ## Fase 5 — Regularizaciones
 
 ### Pasos previstos
@@ -263,9 +301,11 @@ Cobertura principal:
 - explicación didáctica de bases ordinarias
 - explicación de bases con IT
 - explicación de bases con ausencia y días no cotizados
+- explicación línea por línea de devengos, deducciones y bases
+- explicación de origen por incidencia
+- explicación de conceptos no cotizables/no tributables
 
 ## Pendiente inmediato recomendado
 
-1. Añadir explicación línea por línea para alumnos.
-2. Exportación PDF real.
-3. Regularizaciones como módulo separado, no antes de cerrar recibo e integración visual con incidencias.
+1. Exportación PDF real.
+2. Regularizaciones como módulo separado, no antes de cerrar recibo e integración visual con incidencias.

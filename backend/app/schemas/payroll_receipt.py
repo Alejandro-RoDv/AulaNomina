@@ -69,6 +69,24 @@ class PayrollReceiptLine(BaseModel):
     trace: dict = Field(default_factory=dict)
 
 
+class PayrollReceiptLineExplanation(BaseModel):
+    line_id: Optional[int] = None
+    code: str
+    name: str
+    section: str
+    amount: Decimal = Decimal("0.00")
+    concept_type: str
+    category: str = "OTRO"
+    source_type: str = "system"
+    affects_gross: bool = False
+    affects_net: bool = False
+    taxable: bool = False
+    contribution_base: bool = False
+    formula: Optional[str] = None
+    explanation: str
+    learning_points: list[str] = Field(default_factory=list)
+
+
 class PayrollReceiptBases(BaseModel):
     common_contingencies: Decimal = Decimal("0.00")
     professional_contingencies: Decimal = Decimal("0.00")
@@ -192,6 +210,7 @@ class PayrollReceiptResponse(BaseModel):
     bases: PayrollReceiptBases
     base_lines: list[PayrollReceiptLine] = Field(default_factory=list)
     base_explanations: list[PayrollReceiptBaseExplanation] = Field(default_factory=list)
+    line_explanations: list[PayrollReceiptLineExplanation] = Field(default_factory=list)
     company_cost: PayrollReceiptCompanyCost
     company_cost_lines: list[PayrollReceiptLine] = Field(default_factory=list)
     informative_lines: list[PayrollReceiptLine] = Field(default_factory=list)
