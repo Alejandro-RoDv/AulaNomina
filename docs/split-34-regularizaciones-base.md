@@ -210,7 +210,7 @@ split-34-regularization-reversal
 
 ### Panel visual
 
-Se añade el componente:
+Componente principal:
 
 ```text
 frontend/src/components/payrolls/PayrollRegularizationModal.jsx
@@ -229,7 +229,7 @@ La tabla de nóminas incorpora el botón:
 Regularizar
 ```
 
-El panel permite:
+El panel permite crear regularizaciones:
 
 1. seleccionar nómina origen opcional
 2. elegir motivo de regularización
@@ -243,9 +243,31 @@ El panel permite:
 10. refrescar el listado de nóminas
 11. abrir el recibo actualizado tras aplicar
 
+### UI de reversión
+
+El mismo panel incluye ahora un bloque de reversión controlada:
+
+- carga los grupos aplicados mediante `fetchPayrollRegularizations(payrollId)`
+- muestra grupo, motivo, descripción, neto, número de líneas y estado
+- distingue grupos activos, ya revertidos y grupos que son reversión
+- permite escribir una descripción para la reversión
+- previsualiza la contra-regularización antes de aplicar
+- muestra bruto inverso, deducciones inversas, neto inverso y coste empresa inverso
+- lista las líneas inversas que se generarían
+- exige confirmación explícita
+- aplica la reversión con `applyPayrollRegularizationReversal`
+- refresca grupos y listado de nóminas
+- permite abrir el recibo actualizado
+
 ### Restricciones visuales
 
 Si la nómina destino está `closed` o `cancelled`, el panel permite previsualizar pero desactiva la aplicación.
+
+Además, en la UI no se permite solicitar reversión para:
+
+- grupos que ya son una reversión
+- grupos que ya tienen reversión registrada
+- nóminas cerradas o canceladas
 
 ## Trazabilidad en recibo y desglose
 
@@ -350,14 +372,11 @@ No se implementa todavía:
 - comparación automática contra snapshots anteriores
 - regularización automática por incidencia tardía
 - asistente docente paso a paso
-- UI completa para listar y revertir regularizaciones
 
 ## Siguiente bloque recomendado
 
-Crear UI de reversión:
+Cerrar Split 34 con revisión de UX y robustez:
 
-1. listar grupos aplicados dentro del panel de regularizaciones
-2. mostrar si un grupo ya fue revertido
-3. previsualizar la contra-regularización
-4. confirmar aplicación
-5. abrir recibo actualizado
+1. revisar estados visuales en recibo tras reversión
+2. añadir casos demo de regularización/reversión si interesa para venta
+3. preparar regularizaciones automáticas por incidencia tardía como Split separado
