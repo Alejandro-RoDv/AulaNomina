@@ -3,6 +3,7 @@ import { PAYROLL_STATUS_OPTIONS, formatCurrency } from "./PayrollForm";
 import PayrollDetailsModal from "./PayrollDetailsModal";
 import PayrollConceptBreakdown from "./PayrollConceptBreakdown";
 import PayrollReceiptModal from "./PayrollReceiptModal";
+import PayrollRegularizationModal from "./PayrollRegularizationModal";
 import { getPayrollVisibleCode } from "../../utils/visibleCodes";
 
 function formatPeriod(payroll) {
@@ -44,9 +45,11 @@ export default function PayrollTable({
   employees = [],
   onUpdatePayroll,
   onDeletePayroll,
+  onPayrollsChanged,
   submitting,
 }) {
   const [selectedPayroll, setSelectedPayroll] = useState(null);
+  const [regularizationPayroll, setRegularizationPayroll] = useState(null);
   const [receiptPayrollId, setReceiptPayrollId] = useState(null);
   const [expandedPayrollId, setExpandedPayrollId] = useState(null);
   const [editForm, setEditForm] = useState(null);
@@ -66,12 +69,20 @@ export default function PayrollTable({
     setDeleteError("");
   };
 
-  const openReceiptModal = (payroll) => {
-    setReceiptPayrollId(payroll.id);
+  const openReceiptModal = (payrollOrId) => {
+    setReceiptPayrollId(typeof payrollOrId === "object" ? payrollOrId.id : payrollOrId);
   };
 
   const closeReceiptModal = () => {
     setReceiptPayrollId(null);
+  };
+
+  const openRegularizationModal = (payroll) => {
+    setRegularizationPayroll(payroll);
+  };
+
+  const closeRegularizationModal = () => {
+    setRegularizationPayroll(null);
   };
 
   const toggleBreakdown = (payroll) => {
@@ -181,6 +192,9 @@ export default function PayrollTable({
                       <button type="button" onClick={() => openReceiptModal(payroll)} style={styles.receiptButton}>
                         Recibo
                       </button>
+                      <button type="button" onClick={() => openRegularizationModal(payroll)} style={styles.regularizationButton}>
+                        Regularizar
+                      </button>
                       <button type="button" onClick={() => openDetailsModal(payroll)} style={styles.detailsButton}>
                         Detalles
                       </button>
@@ -230,6 +244,14 @@ export default function PayrollTable({
         onConfirmDelete={handleConfirmDelete}
         onCancelDelete={cancelDelete}
       />
+      <PayrollRegularizationModal
+        payroll={regularizationPayroll}
+        payrolls={payrolls}
+        payrollCode={regularizationPayroll ? getPayrollCode(regularizationPayroll) : ""}
+        onClose={closeRegularizationModal}
+        onApplied={onPayrollsChanged}
+        onOpenReceipt={openReceiptModal}
+      />
       <PayrollReceiptModal payrollId={receiptPayrollId} onClose={closeReceiptModal} />
     </>
   );
@@ -237,13 +259,13 @@ export default function PayrollTable({
 
 const styles = {
   tableWrapper: { overflowX: "auto", width: "100%" },
-  table: { width: "100%", minWidth: "1320px", borderCollapse: "collapse", tableLayout: "fixed" },
+  table: { width: "100%", minWidth: "1420px", borderCollapse: "collapse", tableLayout: "fixed" },
   th: { textAlign: "left", padding: "12px 10px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" },
   thCode: { width: "150px", textAlign: "left", padding: "12px 10px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb" },
   thPeriod: { width: "96px", textAlign: "left", padding: "12px 10px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb" },
   thAmount: { width: "118px", textAlign: "right", padding: "12px 10px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb" },
   thStatus: { width: "96px", textAlign: "left", padding: "12px 10px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb" },
-  thActions: { width: "250px", textAlign: "left", padding: "12px 10px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb" },
+  thActions: { width: "350px", textAlign: "left", padding: "12px 10px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb" },
   td: { padding: "12px 10px", borderBottom: "1px solid #eee", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" },
   tdActions: { padding: "12px 10px", borderBottom: "1px solid #eee", display: "flex", gap: "8px", alignItems: "center" },
   tdCode: { padding: "12px 10px", borderBottom: "1px solid #eee", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", fontWeight: 900 },
@@ -255,6 +277,7 @@ const styles = {
   closedBadge: { backgroundColor: "#dcfce7", color: "#166534", padding: "4px 8px", borderRadius: "999px", fontSize: "12px", fontWeight: 800 },
   cancelledBadge: { backgroundColor: "#fee2e2", color: "#991b1b", padding: "4px 8px", borderRadius: "999px", fontSize: "12px", fontWeight: 800 },
   receiptButton: { backgroundColor: "#111827", color: "#ffffff", border: "1px solid #111827", borderRadius: "8px", padding: "7px 10px", cursor: "pointer", fontWeight: 800 },
+  regularizationButton: { backgroundColor: "#7c3aed", color: "#ffffff", border: "1px solid #7c3aed", borderRadius: "8px", padding: "7px 10px", cursor: "pointer", fontWeight: 800 },
   detailsButton: { backgroundColor: "#ffffff", color: "#111827", border: "1px solid #111827", borderRadius: "8px", padding: "7px 10px", cursor: "pointer", fontWeight: 800 },
   breakdownButton: { backgroundColor: "#e6d85c", color: "#111827", border: "1px solid #111827", borderRadius: "8px", padding: "7px 10px", cursor: "pointer", fontWeight: 800 },
   breakdownButtonActive: { backgroundColor: "#ffffff", color: "#111827", border: "1px solid #111827", borderRadius: "8px", padding: "7px 10px", cursor: "pointer", fontWeight: 800 },
