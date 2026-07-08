@@ -17,6 +17,8 @@ from app.services.incident_payroll_segments import period_incidents, upsert_segm
 from app.services.incident_payroll_snapshot import persist_calculation_snapshot
 from app.services.incident_segmenter import money
 from app.services.incident_service import incident_snapshot, register_incident_audit
+from app.services.payroll_concept_engine import build_concept_lines_from_payroll
+from app.services.payroll_concept_items import sync_engine_concept_items
 
 BASE_OVERRIDE_FIELDS = {
     "common_contingencies_base_override",
@@ -114,6 +116,7 @@ def persist_payroll_incident_calculation(db: Session, payroll: Payroll, incident
     segments = upsert_segments(db, payroll, calculation.segment_payload())
     created, updated, deleted = sync_payroll_items(db, payroll, segments, concepts, calculation.component_adjustments)
     apply_payroll_amounts(payroll, calculation)
+    engine_sync = sync_engine_concept_items(db, payroll.id, build_concept_lines_from_payroll(payroll))
     persist_calculation_snapshot(
         db, payroll, incidents, calculation, actor=actor,
         calculation_version=int(payroll.calculation_version or 0) + 1,
@@ -123,6 +126,8 @@ def persist_payroll_incident_calculation(db: Session, payroll: Payroll, incident
     return {
         "segments": len(segments), "created_items": created,
         "updated_items": updated, "deleted_items": deleted,
+        "engine_created_items": engine_sync["created_items"],
+        "engine_deleted_items": engine_sync["deleted_items"],
         "changed_incidents": changed,
     }
 
