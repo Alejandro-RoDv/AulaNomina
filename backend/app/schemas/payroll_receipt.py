@@ -128,6 +128,44 @@ class PayrollReceiptIncidentSegment(BaseModel):
     deduction_amount: Decimal = Decimal("0.00")
 
 
+class PayrollReceiptAffectedConcept(BaseModel):
+    code: str
+    name: str
+    amount: Decimal = Decimal("0.00")
+    concept_type: str
+
+
+class PayrollReceiptIncidentExplanation(BaseModel):
+    id: int
+    incident_id: Optional[int] = None
+    segment_type: str
+    title: str
+    period: str
+    calendar_days: int = 0
+    payroll_days: Decimal = Decimal("0.00")
+    salary_amount: Decimal = Decimal("0.00")
+    benefit_amount: Decimal = Decimal("0.00")
+    complement_amount: Decimal = Decimal("0.00")
+    deduction_amount: Decimal = Decimal("0.00")
+    net_effect: Decimal = Decimal("0.00")
+    contribution_treatment: Optional[str] = None
+    explanation: str
+    learning_points: list[str] = Field(default_factory=list)
+    affected_concepts: list[PayrollReceiptAffectedConcept] = Field(default_factory=list)
+
+
+class PayrollReceiptIncidentSummary(BaseModel):
+    has_incidents: bool = False
+    incident_days: int = 0
+    it_days: int = 0
+    non_contribution_days: int = 0
+    total_benefits: Decimal = Decimal("0.00")
+    total_company_complements: Decimal = Decimal("0.00")
+    total_absence_deductions: Decimal = Decimal("0.00")
+    total_net_incident_effect: Decimal = Decimal("0.00")
+    explanation: str
+
+
 class PayrollReceiptResponse(BaseModel):
     payroll_id: int
     payroll_code: str
@@ -147,6 +185,8 @@ class PayrollReceiptResponse(BaseModel):
     company_cost_lines: list[PayrollReceiptLine] = Field(default_factory=list)
     informative_lines: list[PayrollReceiptLine] = Field(default_factory=list)
     incident_segments: list[PayrollReceiptIncidentSegment] = Field(default_factory=list)
+    incident_summary: PayrollReceiptIncidentSummary
+    incident_explanations: list[PayrollReceiptIncidentExplanation] = Field(default_factory=list)
     deduction_summary: PayrollReceiptDeductions
     totals: PayrollReceiptTotals
     legal_footer: str
