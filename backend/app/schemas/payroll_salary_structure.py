@@ -5,10 +5,10 @@ from typing import Optional
 from pydantic import BaseModel, field_validator
 
 
-CONCEPT_TYPE_VALUES = {"DEVENGO", "DEDUCCION", "BASE_INFORMATIVA"}
+CONCEPT_TYPE_VALUES = {"DEVENGO", "DEDUCCION", "BASE_INFORMATIVA", "INFORMATIVO"}
 SALARY_NATURE_VALUES = {"SALARIAL", "EXTRASALARIAL", "INFORMATIVA"}
-CONCEPT_SOURCE_VALUES = {"SYSTEM", "CUSTOM", "AGREEMENT"}
-CALCULATION_TYPE_VALUES = {"FIXED_AMOUNT", "UNIT_PRICE"}
+CONCEPT_SOURCE_VALUES = {"SYSTEM", "CONTRACT", "AGREEMENT", "INCIDENT", "MANUAL", "CUSTOM"}
+CALCULATION_TYPE_VALUES = {"FIXED_AMOUNT", "UNIT_PRICE", "FORMULA"}
 CONCEPT_CATEGORY_VALUES = {
     "BASE",
     "COMPLEMENTO",
@@ -21,6 +21,14 @@ CONCEPT_CATEGORY_VALUES = {
     "EMBARGO",
     "ANTICIPO",
     "BASE_INFORMATIVA",
+    "ANTIGUEDAD",
+    "IT",
+    "AUSENCIA",
+    "SEGURIDAD_SOCIAL",
+    "COSTE_EMPRESA",
+    "REGULARIZACION",
+    "AJUSTE",
+    "INFORMATIVO",
     "OTRO",
 }
 
@@ -40,6 +48,9 @@ class PayrollConceptBase(BaseModel):
     is_system: bool = False
     is_taxable: bool = True
     is_contribution_base: bool = True
+    affects_gross: bool = True
+    affects_net: bool = True
+    formula: Optional[str] = None
     is_active: bool = True
     display_order: int = 0
     notes: Optional[str] = None
@@ -124,6 +135,9 @@ class PayrollConceptUpdate(BaseModel):
     is_system: Optional[bool] = None
     is_taxable: Optional[bool] = None
     is_contribution_base: Optional[bool] = None
+    affects_gross: Optional[bool] = None
+    affects_net: Optional[bool] = None
+    formula: Optional[str] = None
     is_active: Optional[bool] = None
     display_order: Optional[int] = None
     notes: Optional[str] = None
@@ -335,6 +349,10 @@ class PayrollItemResponse(BaseModel):
     concept_type: Optional[str] = None
     category: Optional[str] = None
     salary_nature: Optional[str] = None
+    is_taxable: Optional[bool] = None
+    is_contribution_base: Optional[bool] = None
+    affects_gross: Optional[bool] = None
+    affects_net: Optional[bool] = None
     description: Optional[str] = None
     quantity: Decimal
     unit_price: Decimal
