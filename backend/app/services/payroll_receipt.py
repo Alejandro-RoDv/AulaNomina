@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 from typing import Any
 
@@ -15,6 +15,14 @@ from app.services.payroll_concept_engine import build_concept_lines_from_payroll
 from app.services.payroll_engine import get_effective_period_dates
 
 INFORMATIVE_TYPES = {"BASE_INFORMATIVA", "INFORMATIVO"}
+INCIDENT_CATEGORIES = {"IT", "AUSENCIA", "INCIDENCIA"}
+INCIDENT_CODE_PREFIXES = (
+    "PRESTACION_IT",
+    "COMPLEMENTO_EMPRESA_IT",
+    "DESCUENTO_AUSENCIA",
+    "AUSENCIA",
+    "IT_",
+)
 SIMULATED_LEGAL_FOOTER = (
     "Recibo de salarios simulado generado por AulaNomina con finalidad docente. "
     "No sustituye a un recibo oficial emitido por un sistema laboral certificado."
@@ -23,6 +31,16 @@ SIMULATED_LEGAL_FOOTER = (
 
 def as_decimal(value: Any, default: str = "0.00") -> Decimal:
     return money(value if value is not None else Decimal(default))
+
+
+def decimal_text(value: Any) -> str:
+    return f"{as_decimal(value):.2f} €"
+
+
+def format_date(value: date | None) -> str:
+    if not value:
+        return "fecha no informada"
+    return value.strftime("%d/%m/%Y")
 
 
 def full_employee_name(employee) -> str | None:
@@ -245,6 +263,74 @@ def company_cost_payload(payroll: Payroll) -> dict:
     }
 
 
+def segment_type_label(segment_type: str | None) -> str:
+    value = str(segment_type or "").upper()
+    labels = {
+        "IT": "Incapacidad temporal",
+        "SICK_LEAVE": "Incapacidad temporal",
+        "COMMON_SICKNESS": "IT por enfermedad común",
+        "WORK_ACCIDENT": "IT por accidente de trabajo",
+        "ABSENCE": "Ausencia",
+        "UNPAID_ABSENCE": "Ausencia no retribuida",
+        "VACATION": "Vacaciones",
+        "MATERNITY": "Nacimiento y cuidado de menor",
+        "PATERNITY": "Nacimiento y cuidado de menor",
+    }
+    return labels.get(value, segment_type or "Incidencia")
+
+
+def contribution_treatment_label(value: str | None) -> str:
+    normalized = str(value or "").upper()
+    if normalized in {"CONTRIBUTION", "CONTRIBUTES", "COTIZA", "FULL"}:
+        return "Mantiene cotización durante el segmento."
+    if normalized in {"NO_CONTRIBUTION", "NO_COTIZA", "EXCLUDED"}:
+        return "No cotiza por los días indicados en este segmento."
+    if normalized in {"PARTIAL", "PARTIAL_CONTRIBUTION"}:
+        return "Cotización parcial según el tratamiento de la incidencia."
+    return "Tratamiento de cotización pendiente de parametrización específica."
+
+
+def incident_related_lines(lines: list[dict]) -> list[dict]:
+    related = []
+    for line in lines:
+        category = str(line.get("category") or "").upper()
+        code = str(line.get("code") or "").upper()
+        if category in INCIDENT_CATEGORIES or code.startswith(INCIDENT_CODE_PREFIXES):
+            related.append(line)
+    return related
+
+
+def affected_concepts_payload(lines: list[dict]) -> list[dict]:
+    concepts = []
+    seen_codes = set()
+    for line in incident_related_lines(lines):
+        code = line.get("code") or "CONCEPTO"
+        if code in seen_codes:
+            continue
+        seen_codes.add(code)
+        concepts.append({
+            "code": code,
+            "name": line.get("name") or code,
+            "amount": as_decimal(line.get("amount")),
+            "concept_type": line.get("concept_type") or "INFORMATIVO",
+        })
+    return concepts
+
+
+def learning_points_for_segment(segment, payroll: Payroll) -> list[str]:
+    points = []
+    if as_decimal(getattr(segment, "benefit_amount", 0)):
+        points.append("La prestación aparece como devengo específico y permite diferenciar salario ordinario de prestación de Seguridad Social o pago delegado.")
+    if as_decimal(getattr(segment, "complement_amount", 0)):
+        points.append("El complemento de empresa se muestra separado para explicar qué parte mejora la prestación legal o convencional.")
+    if as_decimal(getattr(segment, "deduction_amount", 0)):
+        points.append("El descuento reduce el líquido y permite identificar ausencias o tramos no retribuidos.")
+    if int(getattr(payroll, "incident_days", 0) or 0):
+        points.append("Los días de incidencia modifican el reparto entre días trabajados, días cotizados y días afectados por la situación comunicada.")
+    points.append(contribution_treatment_label(getattr(segment, "contribution_treatment", None)))
+    return points
+
+
 def segment_payload(payroll: Payroll) -> list[dict]:
     segments = []
     for segment in sorted(payroll.segments or [], key=lambda item: (item.start_date, item.end_date, item.id)):
@@ -266,6 +352,84 @@ def segment_payload(payroll: Payroll) -> list[dict]:
             "deduction_amount": as_decimal(segment.deduction_amount),
         })
     return segments
+
+
+def incident_summary_payload(payroll: Payroll, explanations: list[dict]) -> dict:
+    total_benefits = sum((item["benefit_amount"] for item in explanations), Decimal("0.00"))
+    total_complements = sum((item["complement_amount"] for item in explanations), Decimal("0.00"))
+    total_deductions = sum((item["deduction_amount"] for item in explanations), Decimal("0.00"))
+    total_net_effect = sum((item["net_effect"] for item in explanations), Decimal("0.00"))
+    incident_days = int(getattr(payroll, "incident_days", 0) or 0)
+    it_days = int(getattr(payroll, "it_days", 0) or 0)
+    non_contribution_days = int(getattr(payroll, "non_contribution_days", 0) or 0)
+    has_incidents = bool(explanations or incident_days or it_days or non_contribution_days)
+
+    if has_incidents:
+        explanation = (
+            f"La nómina contiene {incident_days} día(s) de incidencia, "
+            f"{it_days} día(s) de IT y {non_contribution_days} día(s) no cotizados. "
+            "El recibo separa salario, prestaciones, complementos, descuentos y bases para que el alumno pueda seguir el efecto completo."
+        )
+    else:
+        explanation = "Nómina ordinaria sin segmentos de incidencia aplicados."
+
+    return {
+        "has_incidents": has_incidents,
+        "incident_days": incident_days,
+        "it_days": it_days,
+        "non_contribution_days": non_contribution_days,
+        "total_benefits": money(total_benefits),
+        "total_company_complements": money(total_complements),
+        "total_absence_deductions": money(total_deductions),
+        "total_net_incident_effect": money(total_net_effect),
+        "explanation": explanation,
+    }
+
+
+def build_incident_explanations(payroll: Payroll, lines: list[dict]) -> list[dict]:
+    explanations = []
+    affected_concepts = affected_concepts_payload(lines)
+    for segment in sorted(payroll.segments or [], key=lambda item: (item.start_date, item.end_date, item.id)):
+        salary_amount = as_decimal(getattr(segment, "salary_amount", 0))
+        benefit_amount = as_decimal(getattr(segment, "benefit_amount", 0))
+        complement_amount = as_decimal(getattr(segment, "complement_amount", 0))
+        deduction_amount = as_decimal(getattr(segment, "deduction_amount", 0))
+        net_effect = money(salary_amount + benefit_amount + complement_amount - deduction_amount)
+        title = segment_type_label(getattr(segment, "segment_type", None))
+        period = f"{format_date(getattr(segment, 'start_date', None))} - {format_date(getattr(segment, 'end_date', None))}"
+        explanation_parts = [
+            f"{title} del {period}.",
+            f"Afecta a {getattr(segment, 'calendar_days', 0) or 0} día(s) naturales y {as_decimal(getattr(segment, 'payroll_days', 0))} día(s) de nómina.",
+        ]
+        if salary_amount:
+            explanation_parts.append(f"El salario ordinario reconocido en el tramo asciende a {decimal_text(salary_amount)}.")
+        if benefit_amount:
+            explanation_parts.append(f"Se incorpora prestación por {decimal_text(benefit_amount)}.")
+        if complement_amount:
+            explanation_parts.append(f"La empresa complementa la situación con {decimal_text(complement_amount)}.")
+        if deduction_amount:
+            explanation_parts.append(f"Existe descuento asociado por {decimal_text(deduction_amount)}.")
+        explanation_parts.append(contribution_treatment_label(getattr(segment, "contribution_treatment", None)))
+
+        explanations.append({
+            "id": segment.id,
+            "incident_id": getattr(segment, "incident_id", None),
+            "segment_type": getattr(segment, "segment_type", None) or "INCIDENCIA",
+            "title": title,
+            "period": period,
+            "calendar_days": int(getattr(segment, "calendar_days", 0) or 0),
+            "payroll_days": as_decimal(getattr(segment, "payroll_days", 0)),
+            "salary_amount": salary_amount,
+            "benefit_amount": benefit_amount,
+            "complement_amount": complement_amount,
+            "deduction_amount": deduction_amount,
+            "net_effect": net_effect,
+            "contribution_treatment": getattr(segment, "contribution_treatment", None),
+            "explanation": " ".join(explanation_parts),
+            "learning_points": learning_points_for_segment(segment, payroll),
+            "affected_concepts": affected_concepts,
+        })
+    return explanations
 
 
 def totals_payload(payroll: Payroll, lines: list[dict]) -> dict:
@@ -328,6 +492,7 @@ def get_payroll_receipt(db: Session, payroll_id: int) -> dict:
 
     lines = receipt_lines(payroll)
     earnings, deductions, base_lines, company_cost_lines, informative_lines = split_lines(lines)
+    incident_explanations = build_incident_explanations(payroll, lines)
 
     return {
         "payroll_id": payroll.id,
@@ -348,6 +513,8 @@ def get_payroll_receipt(db: Session, payroll_id: int) -> dict:
         "company_cost_lines": company_cost_lines,
         "informative_lines": informative_lines,
         "incident_segments": segment_payload(payroll),
+        "incident_summary": incident_summary_payload(payroll, incident_explanations),
+        "incident_explanations": incident_explanations,
         "deduction_summary": deduction_payload(payroll),
         "totals": totals_payload(payroll, lines),
         "legal_footer": SIMULATED_LEGAL_FOOTER,
