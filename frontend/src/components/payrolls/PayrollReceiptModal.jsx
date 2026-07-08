@@ -84,6 +84,62 @@ function Metric({ label, value, highlight = false }) {
   );
 }
 
+function IncidentTeachingPanel({ summary, explanations }) {
+  if (!summary?.has_incidents && !explanations?.length) return null;
+  return (
+    <section style={styles.teachingPanel}>
+      <div style={styles.teachingHeader}>
+        <div>
+          <p style={styles.teachingEyebrow}>LECTURA DIDÁCTICA</p>
+          <h4 style={styles.teachingTitle}>Cómo afectan las incidencias a esta nómina</h4>
+        </div>
+        <div style={styles.teachingKpis}>
+          <Metric label="Prestaciones" value={formatCurrency(summary?.total_benefits)} />
+          <Metric label="Complementos" value={formatCurrency(summary?.total_company_complements)} />
+          <Metric label="Descuentos" value={formatCurrency(summary?.total_absence_deductions)} />
+        </div>
+      </div>
+      <p style={styles.teachingSummary}>{summary?.explanation}</p>
+      <div style={styles.explanationGrid}>
+        {explanations.map((item) => (
+          <article key={item.id} style={styles.explanationCard}>
+            <div style={styles.explanationCardHeader}>
+              <strong>{item.title}</strong>
+              <span>{item.period}</span>
+            </div>
+            <p style={styles.explanationText}>{item.explanation}</p>
+            <div style={styles.impactGrid}>
+              <Metric label="Días nómina" value={formatNumber(item.payroll_days, 2)} />
+              <Metric label="Salario tramo" value={formatCurrency(item.salary_amount)} />
+              <Metric label="Prestación" value={formatCurrency(item.benefit_amount)} />
+              <Metric label="Complemento" value={formatCurrency(item.complement_amount)} />
+              <Metric label="Descuento" value={formatCurrency(item.deduction_amount)} />
+              <Metric label="Efecto mostrado" value={formatCurrency(item.net_effect)} highlight />
+            </div>
+            {item.learning_points?.length > 0 && (
+              <ul style={styles.learningList}>
+                {item.learning_points.map((point) => <li key={point}>{point}</li>)}
+              </ul>
+            )}
+            {item.affected_concepts?.length > 0 && (
+              <div style={styles.affectedConcepts}>
+                <strong>Conceptos relacionados:</strong>
+                <div style={styles.conceptChips}>
+                  {item.affected_concepts.map((concept) => (
+                    <span key={`${item.id}-${concept.code}`} style={styles.conceptChip}>
+                      {concept.code} · {formatCurrency(concept.amount)}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function IncidentSegments({ segments }) {
   if (!segments?.length) return null;
   return (
@@ -200,6 +256,11 @@ export default function PayrollReceiptModal({ payrollId, onClose }) {
               <Metric label="Coste empresa" value={formatCurrency(receipt.totals.company_total_cost)} />
             </div>
 
+            <IncidentTeachingPanel
+              summary={receipt.incident_summary}
+              explanations={receipt.incident_explanations || []}
+            />
+
             <div style={styles.twoColumns}>
               <ReceiptTable title="Devengos" lines={receipt.earnings || []} />
               <ReceiptTable title="Deducciones" lines={receipt.deductions || []} />
@@ -247,6 +308,21 @@ const styles = {
   totalsGrid: { display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: "10px" },
   metric: { backgroundColor: "#ffffff", border: "2px solid #111827", borderRadius: "10px", padding: "10px", display: "flex", flexDirection: "column", gap: "5px" },
   metricHighlight: { backgroundColor: "#e6d85c", border: "2px solid #111827", borderRadius: "10px", padding: "10px", display: "flex", flexDirection: "column", gap: "5px" },
+  teachingPanel: { backgroundColor: "#eef2ff", border: "2px solid #111827", borderRadius: "14px", padding: "14px", display: "flex", flexDirection: "column", gap: "12px", boxShadow: "3px 3px 0 #c7d2fe" },
+  teachingHeader: { display: "grid", gridTemplateColumns: "1fr 1.4fr", gap: "14px", alignItems: "start" },
+  teachingEyebrow: { margin: "0 0 4px", fontSize: "11px", fontWeight: 950, letterSpacing: "0.08em", color: "#3730a3" },
+  teachingTitle: { margin: 0, fontSize: "18px", fontWeight: 950, color: "#111827" },
+  teachingKpis: { display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: "8px" },
+  teachingSummary: { margin: 0, color: "#1f2937", fontSize: "14px", fontWeight: 800, lineHeight: 1.45 },
+  explanationGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "12px" },
+  explanationCard: { backgroundColor: "#ffffff", border: "2px solid #111827", borderRadius: "12px", padding: "12px", display: "flex", flexDirection: "column", gap: "10px" },
+  explanationCardHeader: { display: "flex", justifyContent: "space-between", gap: "12px", color: "#111827", fontSize: "14px", fontWeight: 900 },
+  explanationText: { margin: 0, color: "#374151", fontSize: "13px", fontWeight: 700, lineHeight: 1.45 },
+  impactGrid: { display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: "8px" },
+  learningList: { margin: 0, paddingLeft: "18px", color: "#374151", fontSize: "13px", fontWeight: 700, display: "grid", gap: "5px" },
+  affectedConcepts: { borderTop: "1px solid #d1d5db", paddingTop: "10px", display: "flex", flexDirection: "column", gap: "8px", fontSize: "12px", color: "#374151" },
+  conceptChips: { display: "flex", flexWrap: "wrap", gap: "6px" },
+  conceptChip: { backgroundColor: "#fffdf0", border: "1px solid #111827", borderRadius: "999px", padding: "4px 8px", fontSize: "11px", fontWeight: 900, color: "#111827" },
   twoColumns: { display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "12px", alignItems: "start" },
   tableWrapper: { overflowX: "auto" },
   table: { width: "100%", borderCollapse: "collapse", tableLayout: "fixed" },
