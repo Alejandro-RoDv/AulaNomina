@@ -6,6 +6,7 @@ from app.services.payroll_regularization_trace import (
     is_regularization_line,
     regularization_explanations_payload,
     regularization_summary_payload,
+    safe_trace,
 )
 
 
@@ -32,12 +33,21 @@ def regularization_line(**overrides):
     return values
 
 
+def test_safe_trace_accepts_dict_json_string_and_invalid_text():
+    assert safe_trace({"reason": "MANUAL"}) == {"reason": "MANUAL"}
+    assert safe_trace('{"reason": "MANUAL", "origin_payroll_id": 10}') == {"reason": "MANUAL", "origin_payroll_id": 10}
+    assert safe_trace("texto no json") == {}
+    assert safe_trace(None) == {}
+
+
 def test_is_regularization_line_detects_code_category_source_and_trace():
     assert is_regularization_line(regularization_line()) is True
     assert is_regularization_line({"code": "REGULARIZACION_IRPF"}) is True
     assert is_regularization_line({"category": "REGULARIZACION"}) is True
     assert is_regularization_line({"source_type": "regularization"}) is True
     assert is_regularization_line({"trace": {"reason": "MANUAL"}}) is True
+    assert is_regularization_line({"trace": '{"reason": "MANUAL"}'}) is True
+    assert is_regularization_line({"trace": "texto no json"}) is False
     assert is_regularization_line({"code": "SALARIO_BASE", "category": "BASE"}) is False
 
 
@@ -86,6 +96,15 @@ def test_regularization_summary_aggregates_gross_deductions_net_and_company_cost
     assert "no contiene" not in summary["explanation"]
 
 
+def test_regularization_summary_accepts_serialized_trace():
+    summary = regularization_summary_payload([
+        regularization_line(trace='{"reason": "MANUAL", "origin_payroll_id": 22}')
+    ])
+
+    assert summary["reasons"] == ["MANUAL"]
+    assert summary["origin_payroll_ids"] == [22]
+
+
 def test_regularization_summary_for_ordinary_lines_is_empty():
     summary = regularization_summary_payload([
         {"code": "SALARIO_BASE", "amount": Decimal("1200.00"), "concept_type": "DEVENGO", "affects_gross": True}
@@ -104,6 +123,15 @@ def test_regularization_explanations_keep_reason_and_origin_visible():
     assert explanations[0]["origin_payroll_id"] == 10
     assert "No reabre la nómina histórica" in explanations[0]["explanation"]
     assert any("regularización" in point.lower() for point in explanations[0]["learning_points"])
+
+
+def test_regularization_explanations_accept_serialized_trace():
+    explanations = regularization_explanations_payload([
+        regularization_line(trace='{"reason": "MANUAL", "origin_payroll_id": 22}')
+    ])
+
+    assert explanations[0]["reason"] == "MANUAL"
+    assert explanations[0]["origin_payroll_id"] == 22
 
 
 def test_breakdown_regularization_detection_supports_new_prefix_and_source_key():
