@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from decimal import Decimal
-from typing import Iterable
+from typing import Any
 
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
@@ -313,13 +313,22 @@ def extract_regularization_sequence(source_key: str | None, payroll_id: int) -> 
     return sequence
 
 
+def source_key_from_row(row: Any) -> str | None:
+    if isinstance(row, str):
+        return row
+    try:
+        return row[0]
+    except (TypeError, KeyError, IndexError):
+        return getattr(row, "source_key", None)
+
+
 def next_regularization_sequence(db: Session, payroll_id: int) -> int:
     prefix = f"REGULARIZACION:{payroll_id}:"
     rows = db.query(PayrollItem.source_key).filter(PayrollItem.source_key.like(f"{prefix}%")).all()
     sequences = [
         sequence
         for row in rows
-        for sequence in [extract_regularization_sequence(row[0] if isinstance(row, tuple) else row, payroll_id)]
+        for sequence in [extract_regularization_sequence(source_key_from_row(row), payroll_id)]
         if sequence is not None
     ]
     return max(sequences, default=0) + 1
