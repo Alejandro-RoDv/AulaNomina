@@ -17,6 +17,7 @@ from app.services.payroll_regularization import (
     get_payroll_or_404,
     validate_target_payroll,
 )
+from app.services.payroll_trace_utils import safe_trace, trace_bool
 
 REGULARIZATION_PREFIX = "REGULARIZACION"
 REVERSAL_REASON = "REVERSION"
@@ -89,7 +90,7 @@ def regularization_group_items(db: Session, payroll_id: int, group_key: str) -> 
 
 
 def item_trace(item: PayrollItem) -> dict:
-    return item.calculation_trace or {}
+    return safe_trace(getattr(item, "calculation_trace", None))
 
 
 def item_reason(item: PayrollItem) -> str | None:
@@ -117,6 +118,12 @@ def group_key_for_item(item: PayrollItem) -> str | None:
     return parsed["group_key"] if parsed else None
 
 
+def item_flag(item: PayrollItem, concept, key: str, concept_attr: str, fallback: bool = False) -> bool:
+    trace = item_trace(item)
+    concept_value = bool(getattr(concept, concept_attr, fallback)) if concept else fallback
+    return trace_bool(trace, key, concept_value)
+
+
 def compute_item_group_deltas(items: list[PayrollItem]) -> dict:
     gross_delta = Decimal("0.00")
     deduction_delta = Decimal("0.00")
@@ -131,8 +138,8 @@ def compute_item_group_deltas(items: list[PayrollItem]) -> dict:
         amount = as_money(item.amount)
         affects_gross = bool(getattr(concept, "affects_gross", True)) if concept else True
         affects_net = bool(getattr(concept, "affects_net", True)) if concept else True
-        is_taxable = bool(getattr(concept, "is_taxable", False)) if concept else False
-        is_contribution_base = bool(getattr(concept, "is_contribution_base", False)) if concept else False
+        is_taxable = item_flag(item, concept, "taxable", "is_taxable")
+        is_contribution_base = item_flag(item, concept, "contribution_base", "is_contribution_base")
 
         if concept_type == "DEVENGO" and affects_gross:
             gross_delta += amount
@@ -174,7 +181,6 @@ def list_payroll_regularization_groups(db: Session, payroll_id: int) -> list[dic
     for group_key, group_items in sorted(grouped.items(), key=lambda entry: entry[0]):
         sequence = int(group_key.split(":")[2])
         deltas = compute_item_group_deltas(group_items)
-        first = group_items[0]
         traces = [item_trace(item) for item in group_items]
         is_reversal = any(is_reversal_item(item) for item in group_items)
         reversal_of = first_non_empty(trace.get("reversal_of") for trace in traces)
@@ -217,8 +223,8 @@ def build_reversal_request_from_items(
         amount = as_money(item.amount)
         affects_gross = bool(getattr(concept, "affects_gross", True)) if concept else True
         affects_net = bool(getattr(concept, "affects_net", True)) if concept else True
-        is_taxable = bool(getattr(concept, "is_taxable", False)) if concept else False
-        is_contribution_base = bool(getattr(concept, "is_contribution_base", False)) if concept else False
+        is_taxable = item_flag(item, concept, "taxable", "is_taxable")
+        is_contribution_base = item_flag(item, concept, "contribution_base", "is_contribution_base")
 
         if concept_type == "DEVENGO" and affects_gross:
             gross_delta -= amount
@@ -260,7 +266,7 @@ def has_existing_reversal(db: Session, payroll_id: int, group_key: str) -> bool:
         .all()
     )
     for item in items:
-        if (item.calculation_trace or {}).get("reversal_of") == group_key:
+        if item_trace(item).get("reversal_of") == group_key:
             return True
     return False
 
@@ -313,7 +319,7 @@ def apply_regularization_reversal(
     try:
         created_ids = create_regularization_items(db, payroll, preview, reversal_request)
         for item in db.query(PayrollItem).filter(PayrollItem.id.in_(created_ids)).all():
-            trace = dict(item.calculation_trace or {})
+            trace = dict(item_trace(item))
             trace.update({
                 "is_reversal": True,
                 "reversal_of": group_key,
@@ -344,6 +350,7 @@ __all__ = [
     "apply_regularization_reversal",
     "build_reversal_preview",
     "compute_item_group_deltas",
+    "item_trace",
     "list_payroll_regularization_groups",
     "parse_regularization_source_key",
 ]

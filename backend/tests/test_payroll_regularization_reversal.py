@@ -9,6 +9,7 @@ from app.services.payroll_regularization_reversal import (
     build_reversal_request_from_items,
     compute_item_group_deltas,
     is_reversal_item,
+    item_trace,
     parse_regularization_source_key,
     validate_group_key_for_payroll,
 )
@@ -16,7 +17,7 @@ from app.services.payroll_regularization_reversal import (
 
 def concept(**overrides):
     values = {
-        "code": "REGULARIZACION_DEVENGO",
+        "code": "REGULARIZACION_DEVENGO_COTIZA_TRIBUTA",
         "concept_type": "DEVENGO",
         "affects_gross": True,
         "affects_net": True,
@@ -31,7 +32,7 @@ def item(**overrides):
     values = {
         "id": 1,
         "payroll_id": 25,
-        "source_key": "REGULARIZACION:25:1:1:REGULARIZACION_DEVENGO",
+        "source_key": "REGULARIZACION:25:1:1:REGULARIZACION_DEVENGO_COTIZA_TRIBUTA",
         "source_type": "regularization",
         "source_id": 10,
         "description": "Regularización original",
@@ -39,6 +40,8 @@ def item(**overrides):
         "calculation_trace": {
             "reason": "INCIDENCIA_TARDIA",
             "origin_payroll_id": 10,
+            "taxable": True,
+            "contribution_base": True,
         },
         "concept": concept(),
     }
@@ -118,6 +121,13 @@ def test_validate_group_key_requires_same_payroll():
         validate_group_key_for_payroll(25, "REGULARIZACION:25")
 
 
+def test_item_trace_accepts_dict_json_string_and_invalid_text():
+    assert item_trace(item(calculation_trace={"reason": "MANUAL"})) == {"reason": "MANUAL"}
+    assert item_trace(item(calculation_trace='{"reason": "MANUAL", "origin_payroll_id": 10}')) == {"reason": "MANUAL", "origin_payroll_id": 10}
+    assert item_trace(item(calculation_trace="texto no json")) == {}
+    assert item_trace(item(calculation_trace=None)) == {}
+
+
 def test_compute_item_group_deltas_separates_gross_deductions_and_company_cost():
     deltas = compute_item_group_deltas(source_items())
 
@@ -127,6 +137,23 @@ def test_compute_item_group_deltas_separates_gross_deductions_and_company_cost()
     assert deltas["company_cost_delta"] == Decimal("47.85")
     assert deltas["contribution_base_delta"] == Decimal("150.00")
     assert deltas["irpf_base_delta"] == Decimal("150.00")
+
+
+def test_compute_item_group_deltas_prefers_trace_flags_over_mutable_concept_flags():
+    source = item(
+        calculation_trace={
+            "reason": "MANUAL",
+            "taxable": False,
+            "contribution_base": False,
+        },
+        concept=concept(is_taxable=True, is_contribution_base=True),
+    )
+
+    deltas = compute_item_group_deltas([source])
+
+    assert deltas["gross_delta"] == Decimal("150.00")
+    assert deltas["contribution_base_delta"] == Decimal("0.00")
+    assert deltas["irpf_base_delta"] == Decimal("0.00")
 
 
 def test_build_reversal_request_uses_inverse_amounts_without_deleting_source_lines():
@@ -150,8 +177,33 @@ def test_build_reversal_request_uses_inverse_amounts_without_deleting_source_lin
     assert reversal.contribution_base is True
 
 
+def test_build_reversal_request_respects_original_line_trace_flags():
+    request = PayrollRegularizationReversalRequest(
+        regularization_group_key="REGULARIZACION:25:1",
+        description="Anular regularización no cotizable/no tributable",
+    )
+    source = item(
+        source_key="REGULARIZACION:25:1:1:REGULARIZACION_DEVENGO_NO_COTIZA_NO_TRIBUTA",
+        calculation_trace='{"reason": "MANUAL", "taxable": false, "contribution_base": false}',
+        concept=concept(
+            code="REGULARIZACION_DEVENGO_NO_COTIZA_NO_TRIBUTA",
+            is_taxable=True,
+            is_contribution_base=True,
+        ),
+    )
+
+    reversal = build_reversal_request_from_items(25, "REGULARIZACION:25:1", [source], request)
+
+    assert reversal.gross_delta == Decimal("-150.00")
+    assert reversal.contribution_base_delta == Decimal("0.00")
+    assert reversal.irpf_base_delta == Decimal("0.00")
+    assert reversal.taxable is False
+    assert reversal.contribution_base is False
+
+
 def test_is_reversal_item_detects_trace_and_reason():
     assert is_reversal_item(item(calculation_trace={"reversal_of": "REGULARIZACION:25:1"})) is True
+    assert is_reversal_item(item(calculation_trace='{"reversal_of": "REGULARIZACION:25:1"}')) is True
     assert is_reversal_item(item(calculation_trace={"is_reversal": True})) is True
     assert is_reversal_item(item(calculation_trace={"reason": "REVERSION"})) is True
     assert is_reversal_item(item()) is False

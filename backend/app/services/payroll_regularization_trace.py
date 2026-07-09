@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 from decimal import Decimal
 from typing import Any
 
@@ -17,6 +16,7 @@ from app.services.payroll_receipt import (
     split_lines,
     totals_payload,
 )
+from app.services.payroll_trace_utils import safe_trace
 
 REGULARIZATION_CATEGORY = "REGULARIZACION"
 REGULARIZATION_CODE_PREFIX = "REGULARIZACION_"
@@ -26,21 +26,6 @@ REGULARIZATION_COST_CODE = "REGULARIZACION_COSTE_EMPRESA"
 
 def as_decimal(value: Any) -> Decimal:
     return money(value or Decimal("0.00"))
-
-
-def safe_trace(value: Any) -> dict:
-    if isinstance(value, dict):
-        return value
-    if isinstance(value, str):
-        raw = value.strip()
-        if not raw:
-            return {}
-        try:
-            parsed = json.loads(raw)
-        except (TypeError, ValueError, json.JSONDecodeError):
-            return {}
-        return parsed if isinstance(parsed, dict) else {}
-    return {}
 
 
 def is_regularization_line(line: dict) -> bool:
@@ -272,5 +257,4 @@ __all__ = [
     "is_regularization_line",
     "regularization_summary_payload",
     "regularization_explanations_payload",
-    "safe_trace",
 ]
