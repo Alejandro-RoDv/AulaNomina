@@ -274,13 +274,21 @@ def summarize_concept_lines(lines: list[dict[str, Any]]) -> dict[str, Decimal]:
 
     total_devengos = money(total_devengos)
     total_deducciones = money(total_deducciones)
+    total_informativo = money(total_informativo)
+    contribution_base = money(contribution_base)
+    taxable_base = money(taxable_base)
+    neto_por_conceptos = money(total_devengos - total_deducciones)
     return {
         "total_devengos": total_devengos,
+        "total_earnings": total_devengos,
         "total_deducciones": total_deducciones,
-        "total_informativo": money(total_informativo),
-        "contribution_concepts_total": money(contribution_base),
-        "taxable_concepts_total": money(taxable_base),
-        "neto_por_conceptos": money(total_devengos - total_deducciones),
+        "total_deductions": total_deducciones,
+        "total_informativo": total_informativo,
+        "total_informative": total_informativo,
+        "contribution_concepts_total": contribution_base,
+        "taxable_concepts_total": taxable_base,
+        "neto_por_conceptos": neto_por_conceptos,
+        "concept_net_salary": neto_por_conceptos,
     }
 
 
