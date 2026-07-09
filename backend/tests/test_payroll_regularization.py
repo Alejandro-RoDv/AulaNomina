@@ -9,6 +9,8 @@ from app.services.payroll_regularization import (
     apply_payroll_amount_deltas,
     build_regularization_lines,
     build_regularization_preview,
+    extract_regularization_sequence,
+    regularization_earning_concept_code,
     validate_target_payroll,
 )
 
@@ -36,6 +38,21 @@ def test_regularization_request_normalizes_reason():
     )
 
     assert request.reason == "INCIDENCIA_TARDIA"
+
+
+def test_regularization_earning_concept_code_uses_dedicated_flag_variants():
+    assert regularization_earning_concept_code(taxable=True, contribution_base=True) == "REGULARIZACION_DEVENGO_COTIZA_TRIBUTA"
+    assert regularization_earning_concept_code(taxable=False, contribution_base=True) == "REGULARIZACION_DEVENGO_COTIZA_NO_TRIBUTA"
+    assert regularization_earning_concept_code(taxable=True, contribution_base=False) == "REGULARIZACION_DEVENGO_NO_COTIZA_TRIBUTA"
+    assert regularization_earning_concept_code(taxable=False, contribution_base=False) == "REGULARIZACION_DEVENGO_NO_COTIZA_NO_TRIBUTA"
+
+
+def test_extract_regularization_sequence_reads_group_sequence_not_line_count():
+    assert extract_regularization_sequence("REGULARIZACION:25:3:2:REGULARIZACION_IRPF", 25) == 3
+    assert extract_regularization_sequence("REGULARIZACION:25:4:1:REGULARIZACION_DEVENGO_COTIZA_TRIBUTA", 25) == 4
+    assert extract_regularization_sequence("REGULARIZACION:26:4:1:REGULARIZACION_DEVENGO_COTIZA_TRIBUTA", 25) is None
+    assert extract_regularization_sequence("ENGINE:25:1", 25) is None
+    assert extract_regularization_sequence("REGULARIZACION:x:1:1:CODIGO", 25) is None
 
 
 def test_regularization_preview_calculates_core_deltas():
@@ -82,15 +99,28 @@ def test_regularization_lines_include_traceable_concepts():
     lines = build_regularization_lines(request)
 
     assert [line["code"] for line in lines] == [
-        "REGULARIZACION_DEVENGO",
+        "REGULARIZACION_DEVENGO_COTIZA_TRIBUTA",
         "REGULARIZACION_DEDUCCION",
         "REGULARIZACION_IRPF",
         "REGULARIZACION_COSTE_EMPRESA",
     ]
     assert lines[0]["affects_gross"] is True
     assert lines[0]["taxable"] is True
+    assert lines[0]["is_taxable"] is True
+    assert lines[0]["contribution_base"] is True
+    assert lines[0]["is_contribution_base"] is True
     assert lines[1]["concept_type"] == "DEDUCCION"
     assert lines[3]["affects_net"] is False
+
+
+def test_regularization_lines_use_non_taxable_non_contribution_concept_when_required():
+    request = regularization_request(taxable=False, contribution_base=False)
+
+    lines = build_regularization_lines(request)
+
+    assert lines[0]["code"] == "REGULARIZACION_DEVENGO_NO_COTIZA_NO_TRIBUTA"
+    assert lines[0]["taxable"] is False
+    assert lines[0]["contribution_base"] is False
 
 
 def test_regularization_preview_warns_when_target_and_origin_match():
