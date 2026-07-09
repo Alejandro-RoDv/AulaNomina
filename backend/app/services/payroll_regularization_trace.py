@@ -28,6 +28,16 @@ def as_decimal(value: Any) -> Decimal:
     return money(value or Decimal("0.00"))
 
 
+def normalize_line_trace(line: dict) -> dict:
+    normalized = dict(line)
+    normalized["trace"] = safe_trace(line.get("trace"))
+    return normalized
+
+
+def normalize_receipt_line_traces(lines: list[dict]) -> list[dict]:
+    return [normalize_line_trace(line) for line in lines]
+
+
 def is_regularization_line(line: dict) -> bool:
     code = str(line.get("code") or "").upper()
     category = str(line.get("category") or "").upper()
@@ -67,9 +77,8 @@ def regularization_items(db: Session, payroll_id: int) -> list[PayrollItem]:
 
 
 def enrich_regularization_line(line: dict) -> dict:
-    trace = safe_trace(line.get("trace"))
-    enriched = dict(line)
-    enriched["trace"] = trace
+    enriched = normalize_line_trace(line)
+    trace = enriched["trace"]
     enriched["is_regularization"] = True
     enriched["regularization_reason"] = trace.get("reason")
     enriched["origin_payroll_id"] = trace.get("origin_payroll_id")
@@ -84,7 +93,10 @@ def append_missing_regularization_lines(receipt: dict, regularization_lines: lis
 
     existing_ids = {line.get("id") for line in current_lines if line.get("id") is not None}
     existing_codes = {line.get("code") for line in current_lines if line.get("id") is None}
-    combined = [enrich_regularization_line(line) if is_regularization_line(line) else line for line in current_lines]
+    combined = [
+        enrich_regularization_line(line) if is_regularization_line(line) else normalize_line_trace(line)
+        for line in current_lines
+    ]
 
     for line in regularization_lines:
         if line.get("id") in existing_ids:
@@ -92,11 +104,12 @@ def append_missing_regularization_lines(receipt: dict, regularization_lines: lis
         if line.get("id") is None and line.get("code") in existing_codes:
             continue
         combined.append(enrich_regularization_line(line))
-    return combined
+    return normalize_receipt_line_traces(combined)
 
 
 def split_receipt_lines_with_regularizations(lines: list[dict]):
-    earnings, deductions, base_lines, company_cost_lines, informative_lines = split_lines(lines)
+    normalized_lines = normalize_receipt_line_traces(lines)
+    earnings, deductions, base_lines, company_cost_lines, informative_lines = split_lines(normalized_lines)
     cost_ids = {line.get("id") for line in company_cost_lines if line.get("id") is not None}
     remaining_informative = []
     for line in informative_lines:
@@ -118,7 +131,7 @@ def split_receipt_lines_with_regularizations(lines: list[dict]):
 
 def regularization_explanations_payload(lines: list[dict]) -> list[dict]:
     explanations = []
-    for line in [item for item in lines if is_regularization_line(item)]:
+    for line in [item for item in normalize_receipt_line_traces(lines) if is_regularization_line(item)]:
         trace = safe_trace(line.get("trace"))
         amount = as_decimal(line.get("amount"))
         reason = trace.get("reason") or line.get("regularization_reason") or "MANUAL"
@@ -156,7 +169,8 @@ def regularization_explanations_payload(lines: list[dict]) -> list[dict]:
 
 
 def regularization_summary_payload(lines: list[dict]) -> dict:
-    regularization_lines = [line for line in lines if is_regularization_line(line)]
+    normalized_lines = normalize_receipt_line_traces(lines)
+    regularization_lines = [line for line in normalized_lines if is_regularization_line(line)]
     gross_delta = Decimal("0.00")
     deduction_delta = Decimal("0.00")
     company_cost_delta = Decimal("0.00")
@@ -236,13 +250,14 @@ def get_payroll_receipt_with_regularization_trace(db: Session, payroll_id: int) 
     regularization_lines = [line_from_item(item) for item in regularization_items(db, payroll_id)]
     combined_lines = append_missing_regularization_lines(receipt, regularization_lines)
     earnings, deductions, base_lines, company_cost_lines, informative_lines = split_receipt_lines_with_regularizations(combined_lines)
+    combined_lines = normalize_receipt_line_traces(combined_lines)
 
     receipt.update({
-        "earnings": earnings,
-        "deductions": deductions,
-        "base_lines": base_lines,
-        "company_cost_lines": company_cost_lines,
-        "informative_lines": informative_lines,
+        "earnings": normalize_receipt_line_traces(earnings),
+        "deductions": normalize_receipt_line_traces(deductions),
+        "base_lines": normalize_receipt_line_traces(base_lines),
+        "company_cost_lines": normalize_receipt_line_traces(company_cost_lines),
+        "informative_lines": normalize_receipt_line_traces(informative_lines),
         "line_explanations": enrich_line_explanations_with_regularization_flags(line_explanations_payload(combined_lines)),
         "regularization_summary": regularization_summary_payload(combined_lines),
         "regularization_explanations": regularization_explanations_payload(combined_lines),
@@ -255,6 +270,8 @@ def get_payroll_receipt_with_regularization_trace(db: Session, payroll_id: int) 
 __all__ = [
     "get_payroll_receipt_with_regularization_trace",
     "is_regularization_line",
+    "normalize_line_trace",
+    "normalize_receipt_line_traces",
     "regularization_summary_payload",
     "regularization_explanations_payload",
 ]
