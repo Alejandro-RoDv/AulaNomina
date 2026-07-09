@@ -3,7 +3,7 @@ from decimal import Decimal
 from app.schemas.payroll_salary_structure import PayrollConceptResponse
 
 
-def test_payroll_concept_response_accepts_regularization_source_type():
+def concept_payload(**overrides):
     payload = {
         "id": 1,
         "name": "Regularización de devengos",
@@ -29,8 +29,28 @@ def test_payroll_concept_response_accepts_regularization_source_type():
         "created_at": "2026-05-01T10:00:00",
         "updated_at": None,
     }
+    payload.update(overrides)
+    return payload
 
-    concept = PayrollConceptResponse(**payload)
+
+def test_payroll_concept_response_accepts_regularization_source_type():
+    concept = PayrollConceptResponse(**concept_payload())
 
     assert concept.source_type == "REGULARIZATION"
     assert concept.category == "REGULARIZACION"
+
+
+def test_payroll_concept_response_accepts_incident_engine_values_from_seeded_database():
+    for category in ["INCIDENCIA", "PRESTACION_IT", "COMPLEMENTO_IT", "HORAS_EXTRA", "VACACIONES", "PERMISO"]:
+        concept = PayrollConceptResponse(**concept_payload(
+            id=100,
+            name=f"Concepto {category}",
+            code=f"AUTO_{category}",
+            category=category,
+            source_type="INCIDENT",
+            calculation_type="INCIDENT_ENGINE",
+        ))
+
+        assert concept.category == category
+        assert concept.calculation_type == "INCIDENT_ENGINE"
+        assert concept.source_type == "INCIDENT"
