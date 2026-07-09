@@ -45,8 +45,11 @@ def test_payroll_concept_lines_explain_ordinary_month():
     assert "IRPF" in codes
     assert "BASE_CC" in codes
     assert totals["total_devengos"] == Decimal("1625.00")
+    assert totals["total_earnings"] == Decimal("1625.00")
     assert totals["total_deducciones"] == Decimal("267.81")
+    assert totals["total_deductions"] == Decimal("267.81")
     assert totals["neto_por_conceptos"] == Decimal("1357.19")
+    assert totals["concept_net_salary"] == Decimal("1357.19")
 
 
 def test_payroll_concept_lines_use_worked_base_when_incidents_reduce_salary():
@@ -103,4 +106,5 @@ def test_build_concept_lines_from_payroll_object():
 
     assert totals["total_devengos"] == Decimal("1166.67")
     assert totals["total_deducciones"] == Decimal("133.93")
+    assert totals["total_deductions"] == Decimal("133.93")
     assert totals["neto_por_conceptos"] == Decimal("1032.74")
