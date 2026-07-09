@@ -4,10 +4,12 @@ from types import SimpleNamespace
 from app.services.payroll_breakdown import is_regularization_item
 from app.services.payroll_regularization_trace import (
     is_regularization_line,
+    normalize_line_trace,
+    normalize_receipt_line_traces,
     regularization_explanations_payload,
     regularization_summary_payload,
-    safe_trace,
 )
+from app.services.payroll_trace_utils import safe_trace
 
 
 def regularization_line(**overrides):
@@ -38,6 +40,32 @@ def test_safe_trace_accepts_dict_json_string_and_invalid_text():
     assert safe_trace('{"reason": "MANUAL", "origin_payroll_id": 10}') == {"reason": "MANUAL", "origin_payroll_id": 10}
     assert safe_trace("texto no json") == {}
     assert safe_trace(None) == {}
+
+
+def test_normalize_line_trace_converts_string_trace_to_dict_for_any_receipt_line():
+    line = {
+        "code": "SALARIO_BASE",
+        "amount": Decimal("1200.00"),
+        "concept_type": "DEVENGO",
+        "trace": "{}",
+    }
+
+    normalized = normalize_line_trace(line)
+
+    assert normalized["trace"] == {}
+    assert isinstance(normalized["trace"], dict)
+
+
+def test_normalize_receipt_line_traces_handles_regular_and_non_regular_lines():
+    lines = [
+        {"code": "SALARIO_BASE", "trace": "{}"},
+        regularization_line(trace='{"reason": "MANUAL", "origin_payroll_id": 22}'),
+    ]
+
+    normalized = normalize_receipt_line_traces(lines)
+
+    assert normalized[0]["trace"] == {}
+    assert normalized[1]["trace"] == {"reason": "MANUAL", "origin_payroll_id": 22}
 
 
 def test_is_regularization_line_detects_code_category_source_and_trace():
@@ -107,7 +135,7 @@ def test_regularization_summary_accepts_serialized_trace():
 
 def test_regularization_summary_for_ordinary_lines_is_empty():
     summary = regularization_summary_payload([
-        {"code": "SALARIO_BASE", "amount": Decimal("1200.00"), "concept_type": "DEVENGO", "affects_gross": True}
+        {"code": "SALARIO_BASE", "amount": Decimal("1200.00"), "concept_type": "DEVENGO", "affects_gross": True, "trace": "{}"}
     ])
 
     assert summary["has_regularizations"] is False
