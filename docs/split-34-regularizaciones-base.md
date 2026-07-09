@@ -143,20 +143,36 @@ Bloquea nóminas destino con estado:
 
 ## Conceptos automáticos
 
-El servicio crea o reutiliza estos conceptos de sistema:
-
-| Código | Tipo | Uso |
-|---|---|---|
-| `REGULARIZACION_DEVENGO` | `DEVENGO` | Ajuste de bruto |
-| `REGULARIZACION_DEDUCCION` | `DEDUCCION` | Ajuste de deducciones de trabajador |
-| `REGULARIZACION_IRPF` | `DEDUCCION` | Ajuste específico de IRPF |
-| `REGULARIZACION_COSTE_EMPRESA` | `BASE_INFORMATIVA` | Ajuste informativo de coste empresa |
-
-Todos quedan en categoría:
+El servicio crea o reutiliza conceptos de sistema con categoría:
 
 ```text
 REGULARIZACION
 ```
+
+Para evitar que una regularización posterior cambie los flags de cotización/tributación de una anterior, los devengos se separan por combinación funcional:
+
+| Código | Tipo | Cotiza | Tributa | Uso |
+|---|---|---:|---:|---|
+| `REGULARIZACION_DEVENGO_COTIZA_TRIBUTA` | `DEVENGO` | Sí | Sí | Ajuste de bruto cotizable y tributable |
+| `REGULARIZACION_DEVENGO_COTIZA_NO_TRIBUTA` | `DEVENGO` | Sí | No | Ajuste de bruto cotizable no tributable |
+| `REGULARIZACION_DEVENGO_NO_COTIZA_TRIBUTA` | `DEVENGO` | No | Sí | Ajuste de bruto no cotizable tributable |
+| `REGULARIZACION_DEVENGO_NO_COTIZA_NO_TRIBUTA` | `DEVENGO` | No | No | Ajuste de bruto no cotizable no tributable |
+| `REGULARIZACION_DEDUCCION` | `DEDUCCION` | No | No | Ajuste de deducciones de trabajador |
+| `REGULARIZACION_IRPF` | `DEDUCCION` | No | No | Ajuste específico de IRPF |
+| `REGULARIZACION_COSTE_EMPRESA` | `BASE_INFORMATIVA` | No | No | Ajuste informativo de coste empresa |
+
+El código histórico `REGULARIZACION_DEVENGO` se mantiene como compatibilidad para líneas ya existentes, pero las nuevas regularizaciones usan los conceptos separados.
+
+Además, cada línea guarda en `calculation_trace` sus flags originales:
+
+```json
+{
+  "taxable": true,
+  "contribution_base": true
+}
+```
+
+Esto permite que la reversión y la lectura didáctica respeten la configuración original aunque el concepto global cambie en el futuro.
 
 ## Impacto calculado
 
@@ -197,6 +213,33 @@ La reversión deja la nómina destino marcada con:
 ```text
 split-34-regularization-reversal
 ```
+
+## Hardening aplicado
+
+### Normalización de trazas
+
+Se añade un helper común:
+
+```text
+backend/app/services/payroll_trace_utils.py
+```
+
+Funciones principales:
+
+- `safe_trace(value)`
+- `trace_bool(trace, key, fallback)`
+
+Esto permite leer `calculation_trace` tanto si llega como:
+
+- `dict`
+- JSON serializado como texto
+- valor vacío o texto no JSON
+
+### Secuencia de grupos
+
+La secuencia de regularización ya no se calcula contando líneas. Ahora se obtiene con la máxima secuencia real encontrada en `source_key` + 1.
+
+Esto evita saltos artificiales cuando una regularización genera varias líneas.
 
 ## Frontend
 
@@ -324,6 +367,8 @@ Principios:
 - no permite revertir directamente una reversión
 - si detecta reversión previa, lo muestra como advertencia
 - aplica importes inversos mediante una nueva regularización
+- usa `safe_trace()` para leer trazas serializadas sin romper
+- respeta los flags originales de cada línea guardados en `calculation_trace`
 - marca las nuevas líneas con:
 
 ```json
@@ -350,6 +395,8 @@ Cobertura:
 - cálculo de deltas principales
 - exclusión de bases si no cotiza/no tributa
 - override explícito de bases
+- conceptos separados por cotiza/tributa
+- secuencia de grupo por `source_key`, no por número de líneas
 - líneas automáticas esperadas
 - advertencia si nómina origen y destino coinciden
 - deducciones negativas como devolución
@@ -363,6 +410,8 @@ Cobertura:
 - validación de grupo contra nómina destino
 - cálculo inverso de reversión
 - detección de reversión por `reversal_of`, `is_reversal` o motivo `REVERSION`
+- lectura segura de `calculation_trace` como dict o string JSON
+- prioridad de flags de línea frente a flags mutables del concepto
 
 ## Alcance deliberadamente fuera
 
