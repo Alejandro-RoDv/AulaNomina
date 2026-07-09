@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from decimal import Decimal
 from typing import Any
 
@@ -27,11 +28,26 @@ def as_decimal(value: Any) -> Decimal:
     return money(value or Decimal("0.00"))
 
 
+def safe_trace(value: Any) -> dict:
+    if isinstance(value, dict):
+        return value
+    if isinstance(value, str):
+        raw = value.strip()
+        if not raw:
+            return {}
+        try:
+            parsed = json.loads(raw)
+        except (TypeError, ValueError, json.JSONDecodeError):
+            return {}
+        return parsed if isinstance(parsed, dict) else {}
+    return {}
+
+
 def is_regularization_line(line: dict) -> bool:
     code = str(line.get("code") or "").upper()
     category = str(line.get("category") or "").upper()
     source_type = str(line.get("source_type") or "").lower()
-    trace = line.get("trace") or {}
+    trace = safe_trace(line.get("trace"))
     return bool(
         code.startswith(REGULARIZATION_CODE_PREFIX)
         or category == REGULARIZATION_CATEGORY
@@ -66,8 +82,9 @@ def regularization_items(db: Session, payroll_id: int) -> list[PayrollItem]:
 
 
 def enrich_regularization_line(line: dict) -> dict:
-    trace = line.get("trace") or {}
+    trace = safe_trace(line.get("trace"))
     enriched = dict(line)
+    enriched["trace"] = trace
     enriched["is_regularization"] = True
     enriched["regularization_reason"] = trace.get("reason")
     enriched["origin_payroll_id"] = trace.get("origin_payroll_id")
@@ -117,7 +134,7 @@ def split_receipt_lines_with_regularizations(lines: list[dict]):
 def regularization_explanations_payload(lines: list[dict]) -> list[dict]:
     explanations = []
     for line in [item for item in lines if is_regularization_line(item)]:
-        trace = line.get("trace") or {}
+        trace = safe_trace(line.get("trace"))
         amount = as_decimal(line.get("amount"))
         reason = trace.get("reason") or line.get("regularization_reason") or "MANUAL"
         origin_payroll_id = trace.get("origin_payroll_id") or line.get("origin_payroll_id")
@@ -166,7 +183,7 @@ def regularization_summary_payload(lines: list[dict]) -> dict:
         amount = as_decimal(line.get("amount"))
         concept_type = str(line.get("concept_type") or "").upper()
         code = str(line.get("code") or "").upper()
-        trace = line.get("trace") or {}
+        trace = safe_trace(line.get("trace"))
         if concept_type == "DEVENGO" and line.get("affects_gross"):
             gross_delta += amount
         elif concept_type == "DEDUCCION" and line.get("affects_net"):
@@ -255,4 +272,5 @@ __all__ = [
     "is_regularization_line",
     "regularization_summary_payload",
     "regularization_explanations_payload",
+    "safe_trace",
 ]
