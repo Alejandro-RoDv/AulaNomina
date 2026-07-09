@@ -14,16 +14,70 @@ from app.services.payroll_amounts import money
 REGULARIZATION_SOURCE = "REGULARIZATION"
 REGULARIZATION_CATEGORY = "REGULARIZACION"
 TARGET_BLOCKED_STATUSES = {"closed", "cancelled"}
+LEGACY_EARNING_CONCEPT_CODE = "REGULARIZACION_DEVENGO"
+
+EARNING_CONCEPT_BY_FLAGS = {
+    (True, True): "REGULARIZACION_DEVENGO_COTIZA_TRIBUTA",
+    (True, False): "REGULARIZACION_DEVENGO_COTIZA_NO_TRIBUTA",
+    (False, True): "REGULARIZACION_DEVENGO_NO_COTIZA_TRIBUTA",
+    (False, False): "REGULARIZACION_DEVENGO_NO_COTIZA_NO_TRIBUTA",
+}
 
 CONCEPT_DEFINITIONS = {
-    "REGULARIZACION_DEVENGO": {
+    LEGACY_EARNING_CONCEPT_CODE: {
         "name": "Regularización de devengos",
         "concept_type": "DEVENGO",
         "salary_nature": "SALARIAL",
         "affects_gross": True,
         "affects_net": True,
+        "is_taxable": True,
+        "is_contribution_base": True,
         "formula": "Importe bruto regularizado por diferencia detectada.",
         "display_order": 9100,
+    },
+    "REGULARIZACION_DEVENGO_COTIZA_TRIBUTA": {
+        "name": "Regularización de devengos cotizable y tributable",
+        "concept_type": "DEVENGO",
+        "salary_nature": "SALARIAL",
+        "affects_gross": True,
+        "affects_net": True,
+        "is_taxable": True,
+        "is_contribution_base": True,
+        "formula": "Importe bruto regularizado que cotiza y tributa.",
+        "display_order": 9100,
+    },
+    "REGULARIZACION_DEVENGO_COTIZA_NO_TRIBUTA": {
+        "name": "Regularización de devengos cotizable no tributable",
+        "concept_type": "DEVENGO",
+        "salary_nature": "SALARIAL",
+        "affects_gross": True,
+        "affects_net": True,
+        "is_taxable": False,
+        "is_contribution_base": True,
+        "formula": "Importe bruto regularizado que cotiza y no tributa.",
+        "display_order": 9101,
+    },
+    "REGULARIZACION_DEVENGO_NO_COTIZA_TRIBUTA": {
+        "name": "Regularización de devengos no cotizable tributable",
+        "concept_type": "DEVENGO",
+        "salary_nature": "SALARIAL",
+        "affects_gross": True,
+        "affects_net": True,
+        "is_taxable": True,
+        "is_contribution_base": False,
+        "formula": "Importe bruto regularizado que no cotiza y tributa.",
+        "display_order": 9102,
+    },
+    "REGULARIZACION_DEVENGO_NO_COTIZA_NO_TRIBUTA": {
+        "name": "Regularización de devengos no cotizable no tributable",
+        "concept_type": "DEVENGO",
+        "salary_nature": "SALARIAL",
+        "affects_gross": True,
+        "affects_net": True,
+        "is_taxable": False,
+        "is_contribution_base": False,
+        "formula": "Importe bruto regularizado que no cotiza y no tributa.",
+        "display_order": 9103,
     },
     "REGULARIZACION_DEDUCCION": {
         "name": "Regularización de deducciones",
@@ -31,6 +85,8 @@ CONCEPT_DEFINITIONS = {
         "salary_nature": "INFORMATIVA",
         "affects_gross": False,
         "affects_net": True,
+        "is_taxable": False,
+        "is_contribution_base": False,
         "formula": "Ajuste de deducciones de trabajador por regularización.",
         "display_order": 9110,
     },
@@ -40,6 +96,8 @@ CONCEPT_DEFINITIONS = {
         "salary_nature": "INFORMATIVA",
         "affects_gross": False,
         "affects_net": True,
+        "is_taxable": False,
+        "is_contribution_base": False,
         "formula": "Ajuste de retención IRPF por regularización.",
         "display_order": 9120,
     },
@@ -49,6 +107,8 @@ CONCEPT_DEFINITIONS = {
         "salary_nature": "INFORMATIVA",
         "affects_gross": False,
         "affects_net": False,
+        "is_taxable": False,
+        "is_contribution_base": False,
         "formula": "Ajuste informativo del coste empresarial asociado a la regularización.",
         "display_order": 9130,
     },
@@ -65,51 +125,35 @@ def resolve_delta(value: Decimal | None, fallback: Decimal, enabled: bool) -> De
     return fallback if enabled else Decimal("0.00")
 
 
-def ensure_regularization_concept(db: Session, code: str, *, taxable: bool, contribution_base: bool) -> PayrollConcept:
+def regularization_earning_concept_code(*, taxable: bool, contribution_base: bool) -> str:
+    return EARNING_CONCEPT_BY_FLAGS[(bool(contribution_base), bool(taxable))]
+
+
+def ensure_regularization_concept(db: Session, code: str) -> PayrollConcept:
     definition = CONCEPT_DEFINITIONS[code]
     concept = db.query(PayrollConcept).filter(PayrollConcept.code == code).first()
+    expected_fields = {
+        **definition,
+        "category": REGULARIZATION_CATEGORY,
+        "source_type": REGULARIZATION_SOURCE,
+        "calculation_type": "FIXED_AMOUNT",
+        "default_amount": Decimal("0.00"),
+        "default_unit_price": Decimal("0.00"),
+        "applies_workday_percentage": False,
+        "is_system": True,
+        "is_active": True,
+    }
     if concept:
         changed = False
-        for field, value in definition.items():
+        for field, value in expected_fields.items():
             if getattr(concept, field) != value:
                 setattr(concept, field, value)
                 changed = True
-        if concept.category != REGULARIZATION_CATEGORY:
-            concept.category = REGULARIZATION_CATEGORY
-            changed = True
-        if concept.source_type != REGULARIZATION_SOURCE:
-            concept.source_type = REGULARIZATION_SOURCE
-            changed = True
-        if concept.is_system is not True:
-            concept.is_system = True
-            changed = True
-        if concept.is_active is not True:
-            concept.is_active = True
-            changed = True
-        if concept.is_taxable != taxable:
-            concept.is_taxable = taxable
-            changed = True
-        if concept.is_contribution_base != contribution_base:
-            concept.is_contribution_base = contribution_base
-            changed = True
         if changed:
             db.flush()
         return concept
 
-    concept = PayrollConcept(
-        code=code,
-        category=REGULARIZATION_CATEGORY,
-        source_type=REGULARIZATION_SOURCE,
-        calculation_type="FIXED_AMOUNT",
-        default_amount=Decimal("0.00"),
-        default_unit_price=Decimal("0.00"),
-        applies_workday_percentage=False,
-        is_system=True,
-        is_active=True,
-        is_taxable=taxable,
-        is_contribution_base=contribution_base,
-        **definition,
-    )
+    concept = PayrollConcept(code=code, **expected_fields)
     db.add(concept)
     db.flush()
     return concept
@@ -132,8 +176,10 @@ def line_payload(
         "amount": as_money(amount),
         "affects_gross": bool(definition["affects_gross"]),
         "affects_net": bool(definition["affects_net"]),
-        "taxable": taxable,
-        "contribution_base": contribution_base,
+        "taxable": bool(taxable),
+        "contribution_base": bool(contribution_base),
+        "is_taxable": bool(taxable),
+        "is_contribution_base": bool(contribution_base),
         "explanation": explanation,
     }
 
@@ -148,7 +194,10 @@ def build_regularization_lines(request: PayrollRegularizationRequest) -> list[di
     if gross_delta:
         lines.append(
             line_payload(
-                code="REGULARIZACION_DEVENGO",
+                code=regularization_earning_concept_code(
+                    taxable=request.taxable,
+                    contribution_base=request.contribution_base,
+                ),
                 amount=gross_delta,
                 taxable=request.taxable,
                 contribution_base=request.contribution_base,
@@ -250,10 +299,30 @@ def validate_target_payroll(payroll: Payroll):
         )
 
 
+def extract_regularization_sequence(source_key: str | None, payroll_id: int) -> int | None:
+    parts = str(source_key or "").split(":")
+    if len(parts) < 3 or parts[0] != "REGULARIZACION":
+        return None
+    try:
+        key_payroll_id = int(parts[1])
+        sequence = int(parts[2])
+    except (TypeError, ValueError):
+        return None
+    if key_payroll_id != payroll_id:
+        return None
+    return sequence
+
+
 def next_regularization_sequence(db: Session, payroll_id: int) -> int:
     prefix = f"REGULARIZACION:{payroll_id}:"
-    count = db.query(PayrollItem).filter(PayrollItem.source_key.like(f"{prefix}%")).count()
-    return int(count) + 1
+    rows = db.query(PayrollItem.source_key).filter(PayrollItem.source_key.like(f"{prefix}%")).all()
+    sequences = [
+        sequence
+        for row in rows
+        for sequence in [extract_regularization_sequence(row[0] if isinstance(row, tuple) else row, payroll_id)]
+        if sequence is not None
+    ]
+    return max(sequences, default=0) + 1
 
 
 def apply_payroll_amount_deltas(payroll: Payroll, preview: dict):
@@ -276,12 +345,7 @@ def create_regularization_items(db: Session, payroll: Payroll, preview: dict, re
     sequence = next_regularization_sequence(db, payroll.id)
     created_ids = []
     for index, line in enumerate(preview["lines"], start=1):
-        concept = ensure_regularization_concept(
-            db,
-            line["code"],
-            taxable=line["taxable"],
-            contribution_base=line["contribution_base"],
-        )
+        concept = ensure_regularization_concept(db, line["code"])
         item = PayrollItem(
             payroll_id=payroll.id,
             concept_id=concept.id,
@@ -299,6 +363,9 @@ def create_regularization_items(db: Session, payroll: Payroll, preview: dict, re
                 "reason": request.reason,
                 "origin_payroll_id": request.origin_payroll_id,
                 "actor": request.actor,
+                "concept_code": line["code"],
+                "taxable": bool(line["taxable"]),
+                "contribution_base": bool(line["contribution_base"]),
                 "gross_delta": str(preview["gross_delta"]),
                 "total_deduction_delta": str(preview["total_deduction_delta"]),
                 "net_delta": str(preview["net_delta"]),
@@ -350,5 +417,8 @@ def apply_payroll_regularization(db: Session, payroll_id: int, request: PayrollR
 __all__ = [
     "apply_payroll_regularization",
     "build_regularization_preview",
+    "extract_regularization_sequence",
+    "next_regularization_sequence",
     "preview_payroll_regularization",
+    "regularization_earning_concept_code",
 ]
