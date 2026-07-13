@@ -8,12 +8,12 @@ from app.schemas.social_security_settlement import (
     SocialSecuritySettlementPrepareRequest,
     SocialSecuritySettlementStatus,
 )
-from app.services.social_security_settlement_application import recalculate_settlement_totals
 from app.services.social_security_settlement_service import (
     SocialSecuritySettlementDomainError,
     build_line_values,
     build_simulated_settlement_content,
     confirm_social_security_settlement,
+    recalculate_settlement_totals,
     resolve_payroll_ccc,
 )
 
@@ -52,6 +52,23 @@ def item(code: str, amount: str):
         description=None,
         concept=SimpleNamespace(code=code, category="OTRO"),
     )
+
+
+def quota_fields():
+    return {
+        "employee_common_contingencies": Decimal("47.00"),
+        "employee_unemployment": Decimal("15.50"),
+        "employee_training": Decimal("1.00"),
+        "employee_mei": Decimal("1.30"),
+        "employee_total": Decimal("64.80"),
+        "company_common_contingencies": Decimal("236.00"),
+        "company_unemployment": Decimal("55.00"),
+        "company_fogasa": Decimal("2.00"),
+        "company_training": Decimal("6.00"),
+        "company_at_ep": Decimal("15.00"),
+        "company_mei": Decimal("6.70"),
+        "company_total": Decimal("320.70"),
+    }
 
 
 def test_prepare_request_normalizes_ccc():
@@ -96,30 +113,31 @@ def test_build_line_values_includes_overtime_bonuses_and_reductions():
     assert values["total_due"] == Decimal("355.50")
 
 
-def test_recalculate_totals_uses_persisted_lines_once():
+def test_recalculate_totals_uses_each_line_once():
+    total_fields = (
+        "common_contingencies_base",
+        "professional_contingencies_base",
+        "unemployment_training_fogasa_base",
+        "overtime_base",
+        "employee_common_contingencies",
+        "employee_unemployment",
+        "employee_training",
+        "employee_mei",
+        "employee_total",
+        "company_common_contingencies",
+        "company_unemployment",
+        "company_fogasa",
+        "company_training",
+        "company_at_ep",
+        "company_mei",
+        "company_total",
+        "bonuses",
+        "reductions",
+        "total_due",
+    )
     line_a = SimpleNamespace(
         contribution_days=30,
-        **{field: Decimal("1.00") for field in (
-            "common_contingencies_base",
-            "professional_contingencies_base",
-            "unemployment_training_fogasa_base",
-            "overtime_base",
-            "employee_common_contingencies",
-            "employee_unemployment",
-            "employee_training",
-            "employee_mei",
-            "employee_total",
-            "company_common_contingencies",
-            "company_unemployment",
-            "company_fogasa",
-            "company_training",
-            "company_at_ep",
-            "company_mei",
-            "company_total",
-            "bonuses",
-            "reductions",
-            "total_due",
-        )},
+        **{field: Decimal("1.00") for field in total_fields},
     )
     line_b = SimpleNamespace(**line_a.__dict__)
     settlement = SimpleNamespace(lines=[line_a, line_b])
@@ -135,16 +153,20 @@ def test_confirm_rejects_blocking_line_errors():
     settlement = SimpleNamespace(
         status=SocialSecuritySettlementStatus.READY.value,
         validation_errors="[]",
-        lines=[SimpleNamespace(validation_errors=json.dumps([
-            {"severity": "ERROR", "code": "NAF_REQUIRED"}
-        ]))],
+        lines=[
+            SimpleNamespace(
+                validation_errors=json.dumps(
+                    [{"severity": "ERROR", "code": "NAF_REQUIRED"}]
+                )
+            )
+        ],
     )
 
     with pytest.raises(SocialSecuritySettlementDomainError):
         confirm_social_security_settlement(SimpleNamespace(), settlement)
 
 
-def test_simulated_file_contains_period_workers_and_totals():
+def test_simulated_file_contains_period_workers_and_detailed_totals():
     line = SimpleNamespace(
         payroll_id=10,
         employee_id=2,
@@ -158,11 +180,10 @@ def test_simulated_file_contains_period_workers_and_totals():
         professional_contingencies_base=Decimal("1100.00"),
         unemployment_training_fogasa_base=Decimal("1100.00"),
         overtime_base=Decimal("100.00"),
-        employee_total=Decimal("64.80"),
-        company_total=Decimal("320.70"),
         bonuses=Decimal("20.00"),
         reductions=Decimal("10.00"),
         total_due=Decimal("355.50"),
+        **quota_fields(),
     )
     settlement = SimpleNamespace(
         id=5,
@@ -176,16 +197,16 @@ def test_simulated_file_contains_period_workers_and_totals():
         professional_contingencies_base=Decimal("1100.00"),
         unemployment_training_fogasa_base=Decimal("1100.00"),
         overtime_base=Decimal("100.00"),
-        employee_total=Decimal("64.80"),
-        company_total=Decimal("320.70"),
         bonuses=Decimal("20.00"),
         reductions=Decimal("10.00"),
         total_due=Decimal("355.50"),
         lines=[line],
+        **quota_fields(),
     )
 
     payload = json.loads(build_simulated_settlement_content(settlement))
 
     assert payload["period"] == "2026-08"
     assert payload["totals"]["total_due"] == "355.50"
+    assert payload["totals"]["company_quotas"]["fogasa"] == "2.00"
     assert payload["workers"][0]["naf"] == "281234567890"
