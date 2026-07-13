@@ -78,6 +78,15 @@ const groups = [
       { id: "payroll-history", label: "Histórico nóminas", enabled: true },
       { id: "irpf", label: "IRPF", enabled: true },
       {
+        id: "payrolls",
+        label: "Seguros sociales",
+        enabled: true,
+        children: [
+          { id: "payrolls", label: "Liquidaciones", enabled: true, hash: "#social-security-settlements" },
+          { id: "payrolls", label: "Ficheros generados", enabled: true, hash: "#social-security-files" },
+        ],
+      },
+      {
         id: "payroll-concepts",
         label: "Conceptos salariales",
         enabled: true,
@@ -145,6 +154,9 @@ function getInitialActiveKey(activePage) {
     const mode = window.sessionStorage.getItem(modeStorageKeys.incidents) || "list";
     return `incidents:incidents:${mode}`;
   }
+  if (activePage === "payrolls" && ["#social-security-settlements", "#social-security-files"].includes(window.location.hash)) {
+    return `payrolls:${window.location.hash}`;
+  }
   return activePage;
 }
 
@@ -200,7 +212,10 @@ function itemMatchesPage(item, activePage, activeNavKey) {
 }
 
 function groupContainsActiveItem(group, activePage, activeNavKey) {
-  return group.items.some((item) => itemMatchesPage(item, activePage, activeNavKey) || item.children?.some((child) => itemMatchesPage(child, activePage, activeNavKey)));
+  return group.items.some(
+    (item) => itemMatchesPage(item, activePage, activeNavKey)
+      || item.children?.some((child) => itemMatchesPage(child, activePage, activeNavKey))
+  );
 }
 
 function findGroupIdForPage(activePage, activeNavKey) {
@@ -217,8 +232,8 @@ export default function Sidebar({ activePage, setActivePage }) {
   }, [activePage]);
 
   const toggleGroup = (groupId) => {
-    setExpandedGroups((prev) => {
-      const next = { ...prev, [groupId]: !prev[groupId] };
+    setExpandedGroups((previous) => {
+      const next = { ...previous, [groupId]: !previous[groupId] };
       storeExpandedGroups(next);
       return next;
     });
@@ -233,8 +248,8 @@ export default function Sidebar({ activePage, setActivePage }) {
 
     const groupId = findGroupIdForPage(item.id, itemKey);
     if (groupId) {
-      setExpandedGroups((prev) => {
-        const next = { ...prev, [groupId]: true };
+      setExpandedGroups((previous) => {
+        const next = { ...previous, [groupId]: true };
         storeExpandedGroups(next);
         return next;
       });
@@ -259,7 +274,11 @@ export default function Sidebar({ activePage, setActivePage }) {
         <img src={logo} alt="AulaNomina" style={styles.logo} />
       </div>
       <div style={styles.menuPanel}>
-        <button type="button" style={activePage === panelItem.id ? styles.panelButtonActive : styles.panelButton} onClick={() => handleNavClick(panelItem)}>
+        <button
+          type="button"
+          style={activePage === panelItem.id ? styles.panelButtonActive : styles.panelButton}
+          onClick={() => handleNavClick(panelItem)}
+        >
           {panelItem.label}
         </button>
 
@@ -268,7 +287,12 @@ export default function Sidebar({ activePage, setActivePage }) {
           const isGroupActive = groupContainsActiveItem(group, activePage, activeNavKey);
           return (
             <section key={group.id} style={styles.group}>
-              <button type="button" style={{ ...styles.groupToggle, ...(isGroupActive ? styles.groupToggleActive : {}) }} onClick={() => toggleGroup(group.id)} aria-expanded={isExpanded}>
+              <button
+                type="button"
+                style={{ ...styles.groupToggle, ...(isGroupActive ? styles.groupToggleActive : {}) }}
+                onClick={() => toggleGroup(group.id)}
+                aria-expanded={isExpanded}
+              >
                 <span>{group.title}</span>
                 <strong>{isExpanded ? "−" : "+"}</strong>
               </button>
@@ -276,13 +300,32 @@ export default function Sidebar({ activePage, setActivePage }) {
                 <div style={styles.groupItems}>
                   {group.items.map((item) => (
                     <div key={`${item.id}-${item.label}`} style={styles.itemBlock}>
-                      <button type="button" disabled={!item.enabled} onClick={() => handleNavClick(item)} style={{ ...styles.navItem, ...(isParentActive(item) ? styles.navItemActive : {}), ...(!item.enabled ? styles.navItemDisabled : {}) }}>
+                      <button
+                        type="button"
+                        disabled={!item.enabled}
+                        onClick={() => handleNavClick(item)}
+                        style={{
+                          ...styles.navItem,
+                          ...(isParentActive(item) ? styles.navItemActive : {}),
+                          ...(!item.enabled ? styles.navItemDisabled : {}),
+                        }}
+                      >
                         {item.label}
                       </button>
                       {item.children && (
                         <div style={styles.submenu}>
                           {item.children.map((child) => (
-                            <button key={`${child.id}-${child.label}`} type="button" disabled={!child.enabled} onClick={() => handleNavClick(child)} style={{ ...styles.subNavItem, ...(isItemActive(child) ? styles.subNavItemActive : {}), ...(!child.enabled ? styles.navItemDisabled : {}) }}>
+                            <button
+                              key={`${child.id}-${child.label}`}
+                              type="button"
+                              disabled={!child.enabled}
+                              onClick={() => handleNavClick(child)}
+                              style={{
+                                ...styles.subNavItem,
+                                ...(isItemActive(child) ? styles.subNavItemActive : {}),
+                                ...(!child.enabled ? styles.navItemDisabled : {}),
+                              }}
+                            >
                               {child.label}
                             </button>
                           ))}
