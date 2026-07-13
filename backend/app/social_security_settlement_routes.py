@@ -9,7 +9,6 @@ from app.schemas.social_security_settlement import (
     SocialSecuritySettlementResponse,
     SocialSecuritySettlementStatus,
 )
-from app.services.social_security_settlement_application import prepare_social_security_settlement
 from app.services.social_security_settlement_service import (
     SocialSecuritySettlementDomainError,
     confirm_social_security_settlement,
@@ -17,6 +16,7 @@ from app.services.social_security_settlement_service import (
     get_social_security_settlement,
     list_company_ccc_options,
     list_social_security_settlements,
+    prepare_social_security_settlement,
     serialize_social_security_settlement,
 )
 
@@ -99,9 +99,11 @@ def confirm_settlement(
     if not settlement:
         raise HTTPException(status_code=404, detail="Liquidación de Seguridad Social no encontrada")
     try:
-        if payload.created_by is not None and settlement.created_by is None:
-            settlement.created_by = payload.created_by
-        confirmed = confirm_social_security_settlement(db, settlement)
+        confirmed = confirm_social_security_settlement(
+            db,
+            settlement,
+            created_by=payload.created_by,
+        )
         return serialize_social_security_settlement(confirmed)
     except SocialSecuritySettlementDomainError as error:
         raise _domain_error(error) from error
