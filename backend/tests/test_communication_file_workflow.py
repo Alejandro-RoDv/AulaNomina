@@ -1,5 +1,7 @@
 import pytest
+from pydantic import ValidationError
 
+from app.schemas.communication_file import CommunicationFileUpdate
 from app.services.communication_file_workflow import (
     CommunicationFileStatus,
     CommunicationFileType,
@@ -43,3 +45,13 @@ def test_invalid_transition_is_rejected():
 
     with pytest.raises(InvalidCommunicationTransition):
         validate_transition(CommunicationFileStatus.ACCEPTED, CommunicationFileStatus.DRAFT)
+
+
+def test_update_omission_is_allowed_but_explicit_null_identity_is_rejected():
+    assert CommunicationFileUpdate().model_dump(exclude_unset=True) == {}
+
+    with pytest.raises(ValidationError):
+        CommunicationFileUpdate(period=None)
+
+    with pytest.raises(ValidationError):
+        CommunicationFileUpdate(file_type=None)
