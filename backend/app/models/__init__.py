@@ -3,6 +3,10 @@ import app.payroll_stability_schema_patch  # noqa: F401
 
 from app.models.user import User
 from app.models.communication_file import CommunicationFile, CommunicationFileEvent
+from app.models.social_security_settlement import (
+    SocialSecuritySettlement,
+    SocialSecuritySettlementLine,
+)
 from app.models.employee import Employee
 from app.models.contract import Contract
 from app.models.social_security_registration import SocialSecurityRegistration
