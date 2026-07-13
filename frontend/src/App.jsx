@@ -23,6 +23,8 @@ import PayrollMonthlyPreparationPage from "./pages/PayrollMonthlyPreparationPage
 import PayrollsPage from "./pages/PayrollsPage";
 import PayrollSimulationPage from "./pages/PayrollSimulationPage";
 import PermanentPayrollConceptsPage from "./pages/PermanentPayrollConceptsPage";
+import SocialSecurityDashboardPage from "./pages/SocialSecurityDashboardPage";
+import SocialSecuritySettlementsPage from "./pages/SocialSecuritySettlementsPage";
 
 import { useAppData } from "./hooks/useAppData";
 import { useCompaniesModule } from "./hooks/useCompaniesModule";
@@ -183,6 +185,9 @@ export default function App() {
     if (activePage === "payroll-history") return "Histórico de nóminas";
     if (activePage === "irpf") return "IRPF";
     if (activePage === "payrolls") return "Nóminas";
+    if (activePage === "social-security-dashboard") return "Seguros sociales";
+    if (activePage === "social-security-settlements") return "Liquidaciones de Seguridad Social";
+    if (activePage === "social-security-files") return "Ficheros de Seguridad Social";
     if (activePage === "incidents") return "Incidencias laborales";
     if (activePage === "documents") return "Documentos";
     if (activePage === "alerts") return "Alertas laborales";
@@ -210,6 +215,9 @@ export default function App() {
     if (activePage === "payroll-history") return "Consulta, revisión y desglose de nóminas generadas";
     if (activePage === "irpf") return "Cálculo anual del trabajador, previsión mensual, IRPF voluntario y recálculo";
     if (activePage === "payrolls") return "Generación y consulta de nóminas simuladas";
+    if (activePage === "social-security-dashboard") return "Resumen de liquidaciones, estados y ficheros generados";
+    if (activePage === "social-security-settlements") return "Preparación, validación, confirmación y generación por empresa, CCC y periodo";
+    if (activePage === "social-security-files") return "Consulta y descarga de los ficheros generados";
     if (activePage === "incidents") return "Gestión de IT, recaídas, vacaciones, ausencias y permisos";
     if (activePage === "documents") return "Gestión documental del expediente laboral";
     if (activePage === "alerts") return "Vencimientos, pendientes y revisiones laborales";
@@ -286,6 +294,33 @@ export default function App() {
     if (activePage === "companies-dashboard") return renderModuleDashboard("companies");
     if (activePage === "workers-dashboard") return renderModuleDashboard("workers");
     if (activePage === "contracts-dashboard") return renderModuleDashboard("contracts");
+
+    if (activePage === "social-security-dashboard") {
+      return (
+        <SocialSecurityDashboardPage
+          companies={companies.filter((company) => company.is_active)}
+          onNavigate={setActivePage}
+        />
+      );
+    }
+
+    if (activePage === "social-security-settlements") {
+      return (
+        <SocialSecuritySettlementsPage
+          companies={companies.filter((company) => company.is_active)}
+          initialSection="settlements"
+        />
+      );
+    }
+
+    if (activePage === "social-security-files") {
+      return (
+        <SocialSecuritySettlementsPage
+          companies={companies.filter((company) => company.is_active)}
+          initialSection="communications"
+        />
+      );
+    }
 
     if (activePage === "collective-agreements") {
       return (
