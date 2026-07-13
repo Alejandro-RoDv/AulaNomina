@@ -78,12 +78,12 @@ const groups = [
       { id: "payroll-history", label: "Histórico nóminas", enabled: true },
       { id: "irpf", label: "IRPF", enabled: true },
       {
-        id: "payrolls",
+        id: "social-security-dashboard",
         label: "Seguros sociales",
         enabled: true,
         children: [
-          { id: "payrolls", label: "Liquidaciones", enabled: true, hash: "#social-security-settlements" },
-          { id: "payrolls", label: "Ficheros generados", enabled: true, hash: "#social-security-files" },
+          { id: "social-security-settlements", label: "Liquidaciones", enabled: true },
+          { id: "social-security-files", label: "Ficheros generados", enabled: true },
         ],
       },
       {
@@ -141,6 +141,12 @@ function getItemKey(item) {
   return item.id;
 }
 
+function getCompanyModeFromHash() {
+  if (window.location.hash === "#company-centers") return "centers";
+  if (window.location.hash === "#company-list") return "list";
+  return "new";
+}
+
 function getInitialActiveKey(activePage) {
   if (activePage === "contracts") {
     const mode = window.sessionStorage.getItem(modeStorageKeys.contracts) || "new";
@@ -153,9 +159,6 @@ function getInitialActiveKey(activePage) {
   if (activePage === "incidents") {
     const mode = window.sessionStorage.getItem(modeStorageKeys.incidents) || "list";
     return `incidents:incidents:${mode}`;
-  }
-  if (activePage === "payrolls" && ["#social-security-settlements", "#social-security-files"].includes(window.location.hash)) {
-    return `payrolls:${window.location.hash}`;
   }
   return activePage;
 }
@@ -174,16 +177,8 @@ function storeExpandedGroups(value) {
   window.localStorage.setItem(SIDEBAR_STORAGE_KEY, JSON.stringify(value));
 }
 
-function getCompanyModeFromHash() {
-  if (window.location.hash === "#company-centers") return "centers";
-  if (window.location.hash === "#company-list") return "list";
-  return "new";
-}
-
 function clearHashIfNeeded(item) {
-  if (item.hash) return false;
-  if (!window.location.hash) return false;
-
+  if (item.hash || !window.location.hash) return false;
   window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
   return true;
 }
@@ -241,6 +236,7 @@ export default function Sidebar({ activePage, setActivePage }) {
 
   const handleNavClick = (item) => {
     if (!item.enabled) return;
+
     applyItemNavigation(item);
     const itemKey = getItemKey(item);
     setActiveNavKey(itemKey);
@@ -296,6 +292,7 @@ export default function Sidebar({ activePage, setActivePage }) {
                 <span>{group.title}</span>
                 <strong>{isExpanded ? "−" : "+"}</strong>
               </button>
+
               {isExpanded && (
                 <div style={styles.groupItems}>
                   {group.items.map((item) => (
@@ -312,6 +309,7 @@ export default function Sidebar({ activePage, setActivePage }) {
                       >
                         {item.label}
                       </button>
+
                       {item.children && (
                         <div style={styles.submenu}>
                           {item.children.map((child) => (
