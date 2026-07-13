@@ -6,10 +6,14 @@ import PayrollTable from "../components/payrolls/PayrollTable";
 import MonthlyPayrollPreparation from "../components/payrolls/MonthlyPayrollPreparation";
 import FuturePayrollSimulator from "../components/payrolls/FuturePayrollSimulator";
 import IrpfModulePanel from "../components/payrolls/IrpfModulePanel";
+import SocialSecuritySettlementsPage from "./SocialSecuritySettlementsPage";
 import { fetchPayrolls } from "../services/payrollApi";
 
-function isIrpfRoute() {
-  return window.location.hash === "#irpf-module";
+function getWorkspaceRoute() {
+  if (window.location.hash === "#irpf-module") return "irpf";
+  if (window.location.hash === "#social-security-files") return "social-security-files";
+  if (window.location.hash === "#social-security-settlements") return "social-security-settlements";
+  return "payrolls";
 }
 
 export default function PayrollsPage({
@@ -31,14 +35,14 @@ export default function PayrollsPage({
   const [localPayrolls, setLocalPayrolls] = useState(payrolls);
   const [refreshingPayrolls, setRefreshingPayrolls] = useState(false);
   const [refreshMessage, setRefreshMessage] = useState("");
-  const [irpfRoute, setIrpfRoute] = useState(isIrpfRoute());
+  const [workspaceRoute, setWorkspaceRoute] = useState(getWorkspaceRoute);
 
   useEffect(() => {
     setLocalPayrolls(payrolls);
   }, [payrolls]);
 
   useEffect(() => {
-    const syncRoute = () => setIrpfRoute(isIrpfRoute());
+    const syncRoute = () => setWorkspaceRoute(getWorkspaceRoute());
     window.addEventListener("hashchange", syncRoute);
     window.addEventListener("aulanomina-route-change", syncRoute);
     syncRoute();
@@ -61,7 +65,7 @@ export default function PayrollsPage({
     }
   };
 
-  if (irpfRoute) {
+  if (workspaceRoute === "irpf") {
     return (
       <div style={styles.wrapper}>
         <PageCard
@@ -77,6 +81,15 @@ export default function PayrollsPage({
           />
         </PageCard>
       </div>
+    );
+  }
+
+  if (workspaceRoute === "social-security-settlements" || workspaceRoute === "social-security-files") {
+    return (
+      <SocialSecuritySettlementsPage
+        companies={companies}
+        initialSection={workspaceRoute === "social-security-files" ? "communications" : "settlements"}
+      />
     );
   }
 
