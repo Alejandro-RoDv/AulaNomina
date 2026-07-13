@@ -2,9 +2,14 @@ import PageCard from "../components/layout/PageCard";
 import MonthlyPayrollPreparation from "../components/payrolls/MonthlyPayrollPreparation";
 
 function openSocialSecuritySettlements() {
-  window.location.hash = "#social-security-settlements";
-  window.dispatchEvent(new CustomEvent("aulanomina-open-page", { detail: { page: "payrolls" } }));
-  window.dispatchEvent(new Event("aulanomina-route-change"));
+  if (window.location.hash) {
+    window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
+  }
+  window.dispatchEvent(
+    new CustomEvent("aulanomina-open-page", {
+      detail: { page: "social-security-settlements" },
+    })
+  );
 }
 
 export default function PayrollMonthlyPreparationPage({ companies = [], workCenters = [], onPrepared }) {
