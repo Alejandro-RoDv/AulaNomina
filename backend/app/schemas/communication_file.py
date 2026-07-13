@@ -38,7 +38,18 @@ class CommunicationFileUpdate(BaseModel):
     @field_validator("period")
     @classmethod
     def normalize_period(cls, value: str | None) -> str | None:
-        return value.strip().upper() if value is not None else None
+        if value is None:
+            raise ValueError("El periodo no puede ser nulo cuando se actualiza.")
+        return value.strip().upper()
+
+    @field_validator("file_type")
+    @classmethod
+    def reject_null_file_type(
+        cls, value: CommunicationFileType | None
+    ) -> CommunicationFileType | None:
+        if value is None:
+            raise ValueError("El tipo de fichero no puede ser nulo cuando se actualiza.")
+        return value
 
 
 class CommunicationFileGenerateRequest(BaseModel):
