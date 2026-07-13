@@ -1,4 +1,4 @@
-import { apiRequest } from "./httpClient";
+import { apiRequest } from "./httpClient.js";
 
 function buildQuery(params = {}) {
   const query = new URLSearchParams();
