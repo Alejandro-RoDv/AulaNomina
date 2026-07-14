@@ -86,6 +86,53 @@ export async function fetchCommunicationFile(communicationId) {
   );
 }
 
+export async function createCommunicationFile(payload) {
+  return apiRequest(
+    "/communications",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    },
+    "Error al incorporar el fichero de comunicación"
+  );
+}
+
+export async function validateCommunicationFile(communicationId, createdBy = null) {
+  return apiRequest(
+    `/communications/${encodeURIComponent(communicationId)}/validate${buildQuery({ created_by: createdBy })}`,
+    { method: "POST" },
+    "Error al validar el fichero de comunicación"
+  );
+}
+
+export async function generateCommunicationFile(communicationId, payload) {
+  return apiRequest(
+    `/communications/${encodeURIComponent(communicationId)}/generate`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    },
+    "Error al adaptar el fichero de comunicación"
+  );
+}
+
+export async function importCommunicationFile(payload) {
+  const created = await createCommunicationFile(payload);
+  const validated = await validateCommunicationFile(created.id, payload.created_by ?? null);
+  if (validated.status !== "READY") return validated;
+  return generateCommunicationFile(created.id, {
+    content: payload.content,
+    original_filename: payload.original_filename,
+    metadata: {
+      ...(payload.metadata || {}),
+      imported_at: new Date().toISOString(),
+    },
+    created_by: payload.created_by ?? null,
+  });
+}
+
 export async function fetchCommunicationSubmissions(filters = {}) {
   return apiRequest(
     `/communication-submissions${buildQuery(filters)}`,
