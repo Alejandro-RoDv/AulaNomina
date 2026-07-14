@@ -48,7 +48,7 @@ jobs:
           src/main.jsx src/services/socialSecurityApi.js
           src/utils/siltraSimulation.js src/tests/siltraSimulation.test.js
           --rule 'react-hooks/set-state-in-effect: off'
-          --max-warnings -1
+          --max-warnings=-1
           > lint-output.txt 2>&1
       - name: Frontend regression tests
         id: tests
