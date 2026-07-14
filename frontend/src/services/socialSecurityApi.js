@@ -86,4 +86,88 @@ export async function fetchCommunicationFile(communicationId) {
   );
 }
 
+export async function fetchCommunicationSubmissions(filters = {}) {
+  return apiRequest(
+    `/communication-submissions${buildQuery(filters)}`,
+    {},
+    "Error al cargar el historial de envíos SILTRA"
+  );
+}
+
+export async function fetchCommunicationSubmission(submissionId) {
+  return apiRequest(
+    `/communication-submissions/${encodeURIComponent(submissionId)}`,
+    {},
+    "Error al cargar el detalle del envío SILTRA"
+  );
+}
+
+export async function createCommunicationSubmission(communicationFileId, createdBy = null) {
+  return apiRequest(
+    "/communication-submissions",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ communication_file_id: communicationFileId, created_by: createdBy }),
+    },
+    "Error al crear el intento de envío"
+  );
+}
+
+export async function sendCommunicationSubmission(submissionId, createdBy = null) {
+  return apiRequest(
+    `/communication-submissions/${encodeURIComponent(submissionId)}/send`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ created_by: createdBy }),
+    },
+    "Error al transmitir el fichero"
+  );
+}
+
+export async function processCommunicationSubmission(submissionId, createdBy = null) {
+  return apiRequest(
+    `/communication-submissions/${encodeURIComponent(submissionId)}/process`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ created_by: createdBy }),
+    },
+    "Error al procesar la respuesta simulada"
+  );
+}
+
+export async function submitCommunicationFile(communicationFileId, createdBy = null) {
+  return apiRequest(
+    `/communications/${encodeURIComponent(communicationFileId)}/submit`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ created_by: createdBy }),
+    },
+    "Error al enviar el fichero a SILTRA simulado"
+  );
+}
+
+export async function fetchCommunicationSubmissionResponse(submissionId) {
+  return apiRequest(
+    `/communication-submissions/${encodeURIComponent(submissionId)}/response`,
+    {},
+    "Error al cargar la respuesta SILTRA"
+  );
+}
+
+export async function cancelCommunicationSubmission(submissionId, createdBy = null) {
+  return apiRequest(
+    `/communication-submissions/${encodeURIComponent(submissionId)}/cancel`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ created_by: createdBy }),
+    },
+    "Error al cancelar el intento de envío"
+  );
+}
+
 export { buildQuery };
