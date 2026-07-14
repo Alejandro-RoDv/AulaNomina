@@ -1,0 +1,211 @@
+.siltra-education-strip {
+  min-height: 27px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 4px 10px;
+  border-bottom: 1px solid #b8a423;
+  background: #fff5a6;
+  color: #2f2b0e;
+  font-size: 11px;
+}
+
+.siltra-window {
+  grid-template-rows: 30px 29px 27px minmax(0, 1fr) 42px;
+}
+
+.siltra-window--maximized {
+  width: calc(100vw - 12px);
+  height: calc(100vh - 12px);
+  min-height: 0;
+}
+
+.siltra-window-controls button {
+  width: 44px;
+  border: 0;
+  background: transparent;
+  color: #1d232a;
+  cursor: pointer;
+}
+
+.siltra-window-controls button:hover {
+  background: #d8dee5;
+  color: #111;
+}
+
+.siltra-window-controls button:last-child:hover {
+  background: #d94b43;
+  color: #fff;
+}
+
+.siltra-modal-overlay--minimized {
+  align-items: flex-end;
+  justify-content: flex-end;
+  padding: 16px;
+  background: rgba(14, 18, 24, .18);
+  pointer-events: none;
+}
+
+.siltra-minimized-window {
+  min-width: 360px;
+  max-width: calc(100vw - 32px);
+  min-height: 42px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 7px;
+  border: 1px solid #69737d;
+  background: linear-gradient(#fff, #dfe4ea);
+  box-shadow: 0 12px 35px rgba(0, 0, 0, .35);
+  pointer-events: auto;
+  font: 12px Arial, Helvetica, sans-serif;
+}
+
+.siltra-minimized-window > div {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.siltra-minimized-window img {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+}
+
+.siltra-minimized-window span {
+  color: #5d6570;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.siltra-minimized-window button {
+  min-height: 28px;
+  border: 1px solid #8a949e;
+  background: linear-gradient(#fff, #d8dee5);
+  cursor: pointer;
+}
+
+.siltra-file-facts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  margin-top: 9px;
+  padding: 8px;
+  border: 1px solid #b7c0ca;
+  background: #f8fafc;
+}
+
+.siltra-file-facts > div {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 5px 7px;
+  border: 1px solid #d3d8de;
+  background: #fff;
+}
+
+.siltra-file-facts span {
+  color: #5c6570;
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+.siltra-file-facts strong {
+  overflow: hidden;
+  color: #111;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.siltra-message--warning {
+  border: 1px solid #b88d18;
+  background: #fff4cc;
+  color: #6f5100;
+}
+
+.siltra-subdialog-layer {
+  position: relative;
+  z-index: 20;
+  margin-top: 10px;
+  padding: 8px;
+  border: 2px solid #7e8994;
+  background: #edf3fa;
+  box-shadow: 7px 7px 0 rgba(0, 0, 0, .15);
+}
+
+@media (max-width: 1366px), (max-height: 768px) {
+  .siltra-modal-overlay {
+    padding: 6px;
+  }
+
+  .siltra-window {
+    width: calc(100vw - 12px);
+    height: calc(100vh - 12px);
+    min-height: 0;
+  }
+
+  .siltra-window-content {
+    padding: 7px 9px;
+  }
+
+  .siltra-home-grid {
+    gap: 14px;
+  }
+
+  .siltra-home-action {
+    min-height: 67px;
+  }
+
+  .siltra-icon-slot {
+    width: 58px;
+    height: 58px;
+  }
+
+  .siltra-home-action,
+  .siltra-print-block,
+  .siltra-inbox-block {
+    grid-template-columns: 66px minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 900px) {
+  .siltra-education-strip {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .siltra-window {
+    grid-template-rows: 30px 29px auto minmax(0, 1fr) 42px;
+  }
+
+  .siltra-home-grid,
+  .siltra-config-columns {
+    grid-template-columns: 1fr;
+  }
+
+  .siltra-form-grid--three,
+  .siltra-form-grid--two,
+  .siltra-file-facts {
+    grid-template-columns: 1fr;
+  }
+
+  .siltra-form-grid__wide {
+    grid-column: auto;
+  }
+
+  .siltra-file-picker {
+    grid-template-columns: 1fr;
+  }
+
+  .siltra-main-menu button {
+    min-width: 105px;
+  }
+}

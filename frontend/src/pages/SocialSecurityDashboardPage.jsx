@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import PageCard from "../components/layout/PageCard";
 import {
   fetchCommunicationFiles,
+  fetchCommunicationSubmissions,
   fetchSocialSecuritySettlements,
 } from "../services/socialSecurityApi";
 import {
@@ -11,11 +12,17 @@ import {
   formatPeriod,
   settlementStatusLabel,
 } from "../utils/socialSecuritySettlement";
+import {
+  latestSubmission,
+  submissionCounts,
+  submissionStatusLabel,
+  submissionStatusTone,
+} from "../utils/siltraSimulation";
 
 const STATUS_ORDER = ["VALIDATION_ERROR", "READY", "CONFIRMED", "GENERATED"];
 
-function StatusBadge({ status }) {
-  const palette = {
+function StatusBadge({ status, submission = false }) {
+  const settlementPalette = {
     DRAFT: ["#f3f4f6", "#374151"],
     VALIDATION_ERROR: ["#fee2e2", "#991b1b"],
     READY: ["#fef3c7", "#92400e"],
@@ -23,12 +30,18 @@ function StatusBadge({ status }) {
     GENERATED: ["#dcfce7", "#166534"],
     CANCELLED: ["#e5e7eb", "#4b5563"],
   };
-  const [backgroundColor, color] = palette[status] || palette.DRAFT;
-  return (
-    <span style={{ ...styles.badge, backgroundColor, color }}>
-      {settlementStatusLabel(status)}
-    </span>
-  );
+  const submissionPalette = {
+    success: ["#dcfce7", "#166534"],
+    warning: ["#fef3c7", "#92400e"],
+    danger: ["#fee2e2", "#991b1b"],
+    info: ["#dbeafe", "#1e40af"],
+    neutral: ["#e5e7eb", "#374151"],
+  };
+  const [backgroundColor, color] = submission
+    ? submissionPalette[submissionStatusTone(status)] || submissionPalette.neutral
+    : settlementPalette[status] || settlementPalette.DRAFT;
+  const label = submission ? submissionStatusLabel(status) : settlementStatusLabel(status);
+  return <span style={{ ...styles.badge, backgroundColor, color }}>{label}</span>;
 }
 
 function SummaryCard({ label, value, hint, emphasis = false }) {
@@ -42,41 +55,37 @@ function SummaryCard({ label, value, hint, emphasis = false }) {
 }
 
 export default function SocialSecurityDashboardPage({ companies = [], onNavigate }) {
-  const activeCompanies = useMemo(
-    () => companies.filter((company) => company.is_active !== false),
-    [companies]
-  );
+  const activeCompanies = useMemo(() => companies.filter((company) => company.is_active !== false), [companies]);
   const [companyId, setCompanyId] = useState("");
   const [settlements, setSettlements] = useState([]);
   const [communications, setCommunications] = useState([]);
+  const [submissions, setSubmissions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    if (!companyId && activeCompanies.length > 0) {
-      setCompanyId(String(activeCompanies[0].id));
-    }
+    if (!companyId && activeCompanies.length > 0) setCompanyId(String(activeCompanies[0].id));
   }, [activeCompanies, companyId]);
 
   const loadDashboard = useCallback(async () => {
     if (!companyId) {
       setSettlements([]);
       setCommunications([]);
+      setSubmissions([]);
       return;
     }
 
     setLoading(true);
     setError("");
     try {
-      const [settlementData, communicationData] = await Promise.all([
+      const [settlementData, communicationData, submissionData] = await Promise.all([
         fetchSocialSecuritySettlements({ company_id: Number(companyId) }),
-        fetchCommunicationFiles({
-          company_id: Number(companyId),
-          file_type: "SOCIAL_SECURITY_SETTLEMENT",
-        }),
+        fetchCommunicationFiles({ company_id: Number(companyId), file_type: "SOCIAL_SECURITY_SETTLEMENT" }),
+        fetchCommunicationSubmissions({ company_id: Number(companyId), limit: 500 }),
       ]);
       setSettlements(settlementData || []);
       setCommunications(communicationData || []);
+      setSubmissions(submissionData?.items || []);
     } catch (requestError) {
       setError(requestError.message || "No se ha podido cargar el resumen de Seguros Sociales");
     } finally {
@@ -91,12 +100,10 @@ export default function SocialSecurityDashboardPage({ companies = [], onNavigate
   const stats = useMemo(() => {
     const counts = Object.fromEntries(STATUS_ORDER.map((status) => [status, 0]));
     let totalDue = 0;
-    let workerCount = 0;
 
     settlements.forEach((settlement) => {
       counts[settlement.status] = (counts[settlement.status] || 0) + 1;
       totalDue += Number(settlement.total_due || 0);
-      workerCount += Number(settlement.worker_count || 0);
     });
 
     return {
@@ -106,10 +113,11 @@ export default function SocialSecurityDashboardPage({ companies = [], onNavigate
       confirmed: counts.CONFIRMED || 0,
       generated: counts.GENERATED || 0,
       totalDue,
-      workerCount,
       files: communications.length,
+      pendingFiles: communications.filter((file) => file.status === "GENERATED").length,
+      ...submissionCounts(submissions),
     };
-  }, [communications.length, settlements]);
+  }, [communications, settlements, submissions]);
 
   const latestSettlements = useMemo(
     () => [...settlements]
@@ -117,41 +125,23 @@ export default function SocialSecurityDashboardPage({ companies = [], onNavigate
       .slice(0, 6),
     [settlements]
   );
-
-  const selectedCompany = activeCompanies.find(
-    (company) => String(company.id) === String(companyId)
-  );
+  const lastSubmission = useMemo(() => latestSubmission(submissions), [submissions]);
+  const selectedCompany = activeCompanies.find((company) => String(company.id) === String(companyId));
 
   return (
     <div style={styles.page}>
       {error && <div style={styles.errorBanner}>{error}</div>}
 
-      <PageCard
-        title="Resumen de Seguros Sociales"
-        subtitle="Situación general de las liquidaciones y los ficheros generados para la empresa seleccionada."
-      >
+      <PageCard title="Resumen de Seguros Sociales" subtitle="Liquidaciones, estados, ficheros generados y resultados de comunicaciones.">
         <div style={styles.toolbar}>
           <label style={styles.field}>
             <span>Empresa</span>
-            <select
-              value={companyId}
-              onChange={(event) => setCompanyId(event.target.value)}
-              style={styles.input}
-            >
+            <select value={companyId} onChange={(event) => setCompanyId(event.target.value)} style={styles.input}>
               <option value="">Selecciona empresa</option>
-              {activeCompanies.map((company) => (
-                <option key={company.id} value={company.id}>{company.name}</option>
-              ))}
+              {activeCompanies.map((company) => <option key={company.id} value={company.id}>{company.name}</option>)}
             </select>
           </label>
-          <button
-            type="button"
-            style={styles.secondaryButton}
-            disabled={!companyId || loading}
-            onClick={loadDashboard}
-          >
-            {loading ? "Actualizando..." : "Actualizar"}
-          </button>
+          <button type="button" style={styles.secondaryButton} disabled={!companyId || loading} onClick={loadDashboard}>{loading ? "Actualizando..." : "Actualizar"}</button>
         </div>
 
         <div style={styles.summaryGrid}>
@@ -159,55 +149,38 @@ export default function SocialSecurityDashboardPage({ companies = [], onNavigate
           <SummaryCard label="Con errores" value={stats.errors} hint="Requieren corrección" />
           <SummaryCard label="Preparadas" value={stats.ready} hint="Pendientes de confirmar" />
           <SummaryCard label="Confirmadas" value={stats.confirmed} hint="Pendientes de fichero" />
-          <SummaryCard label="Generadas" value={stats.generated} hint={`${stats.files} fichero(s)`} />
-          <SummaryCard label="Trabajadores procesados" value={stats.workerCount} />
+          <SummaryCard label="Ficheros pendientes de envío" value={stats.pendingFiles} hint={`${stats.files} fichero(s) total`} />
+          <SummaryCard label="Envíos aceptados" value={stats.accepted} />
+          <SummaryCard label="Con advertencias" value={stats.warnings} />
+          <SummaryCard label="Rechazados" value={stats.rejected} />
           <SummaryCard label="Total liquidado" value={`${formatMoney(stats.totalDue)} €`} emphasis />
         </div>
 
+        <div style={styles.lastSubmissionPanel}>
+          <span style={styles.summaryLabel}>Último envío registrado</span>
+          {lastSubmission ? (
+            <div style={styles.lastSubmissionData}>
+              <strong>{lastSubmission.submission_number}</strong>
+              <StatusBadge status={lastSubmission.status} submission />
+              <span>{lastSubmission.response_code || "Sin código"}</span>
+              <span>{formatDateTime(lastSubmission.processed_at || lastSubmission.created_at)}</span>
+            </div>
+          ) : <strong>Sin envíos registrados</strong>}
+        </div>
+
         <div style={styles.quickActions}>
-          <button
-            type="button"
-            style={styles.primaryButton}
-            onClick={() => onNavigate?.("social-security-settlements")}
-          >
-            Abrir liquidaciones
-          </button>
-          <button
-            type="button"
-            style={styles.secondaryButton}
-            onClick={() => onNavigate?.("social-security-files")}
-          >
-            Ver ficheros generados
-          </button>
+          <button type="button" style={styles.primaryButton} onClick={() => onNavigate?.("social-security-settlements")}>Abrir liquidaciones</button>
+          <button type="button" style={styles.secondaryButton} onClick={() => onNavigate?.("social-security-files")}>Ver ficheros generados</button>
         </div>
       </PageCard>
 
-      <PageCard
-        title="Últimas liquidaciones"
-        subtitle="Actividad reciente de la empresa seleccionada."
-      >
-        {loading ? (
-          <div style={styles.emptyState}>Cargando información...</div>
-        ) : latestSettlements.length === 0 ? (
-          <div style={styles.emptyState}>
-            {companyId
-              ? "Todavía no hay liquidaciones para esta empresa."
-              : "Selecciona una empresa para consultar sus liquidaciones."}
-          </div>
+      <PageCard title="Últimas liquidaciones" subtitle="Actividad reciente de la empresa seleccionada.">
+        {loading ? <div style={styles.emptyState}>Cargando información...</div> : latestSettlements.length === 0 ? (
+          <div style={styles.emptyState}>{companyId ? "Todavía no hay liquidaciones para esta empresa." : "Selecciona una empresa para consultar sus liquidaciones."}</div>
         ) : (
           <div style={styles.tableWrapper}>
             <table style={styles.table}>
-              <thead>
-                <tr>
-                  <th style={styles.th}>Periodo</th>
-                  <th style={styles.th}>CCC</th>
-                  <th style={styles.th}>Estado</th>
-                  <th style={styles.thRight}>Trabajadores</th>
-                  <th style={styles.thRight}>Total</th>
-                  <th style={styles.th}>Actualización</th>
-                  <th style={styles.th}>Acción</th>
-                </tr>
-              </thead>
+              <thead><tr><th style={styles.th}>Periodo</th><th style={styles.th}>CCC</th><th style={styles.th}>Estado</th><th style={styles.thRight}>Trabajadores</th><th style={styles.thRight}>Total</th><th style={styles.th}>Actualización</th><th style={styles.th}>Acción</th></tr></thead>
               <tbody>
                 {latestSettlements.map((settlement) => (
                   <tr key={settlement.id}>
@@ -217,15 +190,7 @@ export default function SocialSecurityDashboardPage({ companies = [], onNavigate
                     <td style={styles.tdRight}>{settlement.worker_count}</td>
                     <td style={styles.tdRightStrong}>{formatMoney(settlement.total_due)} €</td>
                     <td style={styles.td}>{formatDateTime(settlement.updated_at)}</td>
-                    <td style={styles.td}>
-                      <button
-                        type="button"
-                        style={styles.tableButton}
-                        onClick={() => onNavigate?.("social-security-settlements")}
-                      >
-                        Revisar
-                      </button>
-                    </td>
+                    <td style={styles.td}><button type="button" style={styles.tableButton} onClick={() => onNavigate?.("social-security-settlements")}>Revisar</button></td>
                   </tr>
                 ))}
               </tbody>
@@ -237,13 +202,7 @@ export default function SocialSecurityDashboardPage({ companies = [], onNavigate
   );
 }
 
-const baseButton = {
-  borderRadius: "8px",
-  padding: "10px 14px",
-  cursor: "pointer",
-  fontWeight: 900,
-  fontSize: "13px",
-};
+const baseButton = { borderRadius: "8px", padding: "10px 14px", cursor: "pointer", fontWeight: 900, fontSize: "13px" };
 
 const styles = {
   page: { display: "flex", flexDirection: "column", gap: "20px" },
@@ -257,6 +216,8 @@ const styles = {
   summaryLabel: { color: "#6b7280", fontSize: "12px", fontWeight: 800 },
   summaryValue: { color: "#111827", fontSize: "22px" },
   summaryHint: { color: "#6b7280", fontWeight: 700 },
+  lastSubmissionPanel: { marginTop: "14px", padding: "12px", border: "1px solid #d1d5db", backgroundColor: "#f9fafb" },
+  lastSubmissionData: { display: "flex", alignItems: "center", flexWrap: "wrap", gap: "10px", marginTop: "5px", fontSize: "13px" },
   quickActions: { display: "flex", gap: "10px", flexWrap: "wrap", marginTop: "18px", paddingTop: "16px", borderTop: "1px solid #e5e7eb" },
   primaryButton: { ...baseButton, backgroundColor: "#111827", color: "#ffffff", border: "2px solid #111827" },
   secondaryButton: { ...baseButton, backgroundColor: "#ffffff", color: "#111827", border: "1px solid #9ca3af" },

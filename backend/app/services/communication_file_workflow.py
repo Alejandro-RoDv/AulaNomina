@@ -4,6 +4,7 @@ from enum import Enum
 
 class CommunicationFileType(str, Enum):
     SOCIAL_SECURITY_SETTLEMENT = "SOCIAL_SECURITY_SETTLEMENT"
+    SILTRA_RESPONSE = "SILTRA_RESPONSE"
     CRA = "CRA"
     FIE = "FIE"
     MASS_REGISTRATION = "MASS_REGISTRATION"
@@ -42,6 +43,7 @@ ANNUAL_PERIOD = re.compile(r"^\d{4}$")
 
 CCC_REQUIRED_TYPES = {
     CommunicationFileType.SOCIAL_SECURITY_SETTLEMENT,
+    CommunicationFileType.SILTRA_RESPONSE,
     CommunicationFileType.CRA,
     CommunicationFileType.FIE,
     CommunicationFileType.MASS_REGISTRATION,

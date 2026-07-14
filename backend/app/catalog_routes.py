@@ -13,12 +13,14 @@ from app.catalogs.red_catalogs import (
     WORKING_DAY_TYPES,
 )
 from app.communication_file_routes import router as communication_file_router
+from app.communication_submission_routes import router as communication_submission_router
 from app.social_security_registration_routes import router as social_security_registration_router
 from app.social_security_settlement_routes import router as social_security_settlement_router
 from app.wage_garnishment_routes import router as wage_garnishment_router
 
 router = APIRouter(tags=["catalogs"])
 router.include_router(communication_file_router)
+router.include_router(communication_submission_router)
 router.include_router(social_security_registration_router)
 router.include_router(social_security_settlement_router)
 router.include_router(wage_garnishment_router)

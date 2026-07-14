@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 
+import SiltraGlobalLauncher from "../siltra/SiltraGlobalLauncher";
 import { fetchContracts } from "../../services/api";
 import { fetchCompanies } from "../../services/companyApi";
 import { fetchDocuments } from "../../services/documentApi";
@@ -57,8 +58,7 @@ function getStoredContractMode() {
 }
 
 function clearOverlayHash() {
-  if (typeof window === "undefined") return;
-  if (!overlayHashes.has(window.location.hash)) return;
+  if (typeof window === "undefined" || !overlayHashes.has(window.location.hash)) return;
   window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
   window.dispatchEvent(new Event("aulanomina-route-change"));
 }
@@ -70,10 +70,6 @@ function openAppPage(page) {
 
 function isWorkerTitle(title) {
   return workerTabs.some((tab) => tab.titles.includes(title));
-}
-
-function getWorkerTabActive(title, tab) {
-  return tab.titles.includes(title);
 }
 
 export default function Header({
@@ -102,19 +98,9 @@ export default function Header({
   });
 
   const alerts = useMemo(
-    () =>
-      generateAlerts({
-        documents: alertData.documents,
-        contracts: alertData.contracts,
-        incidents: alertData.incidents,
-        payrolls: alertData.payrolls,
-        employees: alertData.employees,
-        companies: alertData.companies,
-        workCenters: alertData.workCenters,
-      }),
+    () => generateAlerts(alertData),
     [alertData]
   );
-
   const alertStats = useMemo(() => getAlertStats(alerts), [alerts]);
   const previewAlerts = alerts.slice(0, 5);
   const showWorkerTabs = isWorkerTitle(title);
@@ -124,7 +110,6 @@ export default function Header({
     try {
       setAlertsLoading(true);
       setAlertsError("");
-
       const [documents, contracts, incidents, payrolls, employees, companies, workCenters] = await Promise.all([
         fetchDocuments(),
         fetchContracts(),
@@ -134,10 +119,9 @@ export default function Header({
         fetchCompanies(),
         fetchWorkCenters(),
       ]);
-
       setAlertData({ documents, contracts, incidents, payrolls, employees, companies, workCenters });
-    } catch (err) {
-      setAlertsError(err.message || "Error cargando alertas");
+    } catch (error) {
+      setAlertsError(error.message || "Error cargando alertas");
     } finally {
       setAlertsLoading(false);
     }
@@ -145,12 +129,10 @@ export default function Header({
 
   useEffect(() => {
     loadHeaderAlerts();
-
     const handleRefresh = () => loadHeaderAlerts();
     const handleContractMode = () => setContractMode(getStoredContractMode());
     window.addEventListener("aulanomina-alerts-refresh", handleRefresh);
     window.addEventListener("aulanomina-contract-mode", handleContractMode);
-
     return () => {
       window.removeEventListener("aulanomina-alerts-refresh", handleRefresh);
       window.removeEventListener("aulanomina-contract-mode", handleContractMode);
@@ -161,10 +143,6 @@ export default function Header({
     setAlertsOpen(false);
     window.location.hash = "alerts";
     window.dispatchEvent(new Event("aulanomina-route-change"));
-  };
-
-  const changeWorkerTab = (page) => {
-    openAppPage(page);
   };
 
   const changeContractTab = (mode) => {
@@ -180,6 +158,8 @@ export default function Header({
       <div style={styles.topBar}>
         <div style={styles.userBox}>Usuario demo · Docente</div>
         <div style={styles.headerActions}>
+          <SiltraGlobalLauncher />
+
           <div style={styles.alertBellWrapper}>
             <button
               type="button"
@@ -188,7 +168,7 @@ export default function Header({
                 ...(alertStats.critical > 0 ? styles.alertBellCritical : {}),
                 ...(alertStats.critical === 0 && alertStats.high > 0 ? styles.alertBellHigh : {}),
               }}
-              onClick={() => setAlertsOpen((prev) => !prev)}
+              onClick={() => setAlertsOpen((previous) => !previous)}
               title="Alertas"
             >
               <span style={styles.bellIcon}>●</span>
@@ -203,9 +183,7 @@ export default function Header({
                     <p style={styles.alertDropdownKicker}>Centro de avisos</p>
                     <h2 style={styles.alertDropdownTitle}>{alertStats.total} alertas activas</h2>
                   </div>
-                  <button type="button" style={styles.alertCloseButton} onClick={() => setAlertsOpen(false)}>
-                    Cerrar
-                  </button>
+                  <button type="button" style={styles.alertCloseButton} onClick={() => setAlertsOpen(false)}>Cerrar</button>
                 </div>
 
                 <div style={styles.alertStatsRow}>
@@ -216,19 +194,13 @@ export default function Header({
 
                 {alertsError && <div style={styles.alertError}>{alertsError}</div>}
                 {alertsLoading && <div style={styles.alertEmpty}>Actualizando alertas...</div>}
-
-                {!alertsLoading && !alertsError && previewAlerts.length === 0 && (
-                  <div style={styles.alertEmpty}>No hay alertas activas.</div>
-                )}
-
+                {!alertsLoading && !alertsError && previewAlerts.length === 0 && <div style={styles.alertEmpty}>No hay alertas activas.</div>}
                 {!alertsLoading && !alertsError && previewAlerts.length > 0 && (
                   <div style={styles.alertList}>
                     {previewAlerts.map((alert) => (
                       <article key={alert.id} style={styles.alertItem}>
                         <div style={styles.alertItemTop}>
-                          <span style={{ ...styles.alertSeverity, ...getSeverityStyle(alert.severity) }}>
-                            {SEVERITY_LABELS[alert.severity] || alert.severity}
-                          </span>
+                          <span style={{ ...styles.alertSeverity, ...getSeverityStyle(alert.severity) }}>{SEVERITY_LABELS[alert.severity] || alert.severity}</span>
                           <span style={styles.alertSource}>{SOURCE_LABELS[alert.source] || alert.source}</span>
                         </div>
                         <strong style={styles.alertItemTitle}>{alert.title}</strong>
@@ -239,21 +211,15 @@ export default function Header({
                 )}
 
                 <div style={styles.alertDropdownActions}>
-                  <button type="button" style={styles.alertRefreshButton} onClick={loadHeaderAlerts} disabled={alertsLoading}>
-                    Actualizar
-                  </button>
-                  <button type="button" style={styles.alertOpenButton} onClick={openAlertsPage}>
-                    Ver todas
-                  </button>
+                  <button type="button" style={styles.alertRefreshButton} onClick={loadHeaderAlerts} disabled={alertsLoading}>Actualizar</button>
+                  <button type="button" style={styles.alertOpenButton} onClick={openAlertsPage}>Ver todas</button>
                 </div>
               </section>
             )}
           </div>
 
           <div style={styles.statusBox}>Demo MVP</div>
-          <button type="button" style={styles.settingsButton} onClick={onOpenSettings}>
-            Ajustes
-          </button>
+          <button type="button" style={styles.settingsButton} onClick={onOpenSettings}>Ajustes</button>
         </div>
       </div>
 
@@ -265,9 +231,7 @@ export default function Header({
       {showWorkerTabs && (
         <nav style={styles.moduleTabs} aria-label="Navegación trabajador">
           {workerTabs.map((tab) => (
-            <button key={tab.page} type="button" onClick={() => changeWorkerTab(tab.page)} style={getWorkerTabActive(title, tab) ? styles.moduleTabActive : styles.moduleTab}>
-              {tab.label}
-            </button>
+            <button key={tab.page} type="button" onClick={() => openAppPage(tab.page)} style={tab.titles.includes(title) ? styles.moduleTabActive : styles.moduleTab}>{tab.label}</button>
           ))}
         </nav>
       )}
@@ -275,9 +239,7 @@ export default function Header({
       {showContractTabs && (
         <nav style={styles.moduleTabs} aria-label="Navegación contratos">
           {contractTabs.map((tab) => (
-            <button key={tab.mode} type="button" onClick={() => changeContractTab(tab.mode)} style={contractMode === tab.mode ? styles.moduleTabActive : styles.moduleTab}>
-              {tab.label}
-            </button>
+            <button key={tab.mode} type="button" onClick={() => changeContractTab(tab.mode)} style={contractMode === tab.mode ? styles.moduleTabActive : styles.moduleTab}>{tab.label}</button>
           ))}
         </nav>
       )}
@@ -286,35 +248,17 @@ export default function Header({
         <div style={styles.modalOverlay}>
           <section style={styles.modalBox}>
             <div style={styles.modalHeader}>
-              <div>
-                <p style={styles.modalKicker}>Configuración</p>
-                <h2 style={styles.modalTitle}>Ajustes de demo</h2>
-              </div>
-              <button type="button" style={styles.closeButton} onClick={onCloseSettings}>
-                Cerrar
-              </button>
+              <div><p style={styles.modalKicker}>Configuración</p><h2 style={styles.modalTitle}>Ajustes de demo</h2></div>
+              <button type="button" style={styles.closeButton} onClick={onCloseSettings}>Cerrar</button>
             </div>
-
             <div style={styles.warningBox}>
               <strong>Reset demo</strong>
-              <p style={styles.warningText}>
-                Reinicia únicamente los datos controlados de Fundación AulaNomina. No borra empresas,
-                trabajadores ni contratos creados fuera de la demo.
-              </p>
+              <p style={styles.warningText}>Reinicia únicamente los datos controlados de Fundación AulaNomina. No borra empresas, trabajadores ni contratos creados fuera de la demo.</p>
             </div>
-
             {resetDemoError && <p style={styles.errorMessage}>{resetDemoError}</p>}
             {resetDemoMessage && <p style={styles.successMessage}>{resetDemoMessage}</p>}
-
             <div style={styles.modalActions}>
-              <button
-                type="button"
-                style={{ ...styles.resetButton, opacity: resetDemoLoading ? 0.7 : 1 }}
-                onClick={onResetDemo}
-                disabled={resetDemoLoading}
-              >
-                {resetDemoLoading ? "Reiniciando..." : "Reset demo"}
-              </button>
+              <button type="button" style={{ ...styles.resetButton, opacity: resetDemoLoading ? 0.7 : 1 }} onClick={onResetDemo} disabled={resetDemoLoading}>{resetDemoLoading ? "Reiniciando..." : "Reset demo"}</button>
             </div>
           </section>
         </div>
@@ -324,28 +268,8 @@ export default function Header({
 }
 
 const styles = {
-  header: {
-    width: "100%",
-    backgroundColor: "#ffffff",
-    borderBottom: "3px solid #111111",
-    position: "relative",
-    zIndex: 40,
-    isolation: "isolate",
-    flexShrink: 0,
-    overflow: "visible",
-  },
-  topBar: {
-    minHeight: "54px",
-    background: "linear-gradient(90deg, #e6d85c 0%, #f5ef9c 55%, #ffffff 100%)",
-    borderBottom: "3px solid #111111",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    padding: "0 34px",
-    boxSizing: "border-box",
-    position: "relative",
-    zIndex: 42,
-  },
+  header: { width: "100%", backgroundColor: "#ffffff", borderBottom: "3px solid #111111", position: "relative", zIndex: 40, isolation: "isolate", flexShrink: 0, overflow: "visible" },
+  topBar: { minHeight: "54px", background: "linear-gradient(90deg, #e6d85c 0%, #f5ef9c 55%, #ffffff 100%)", borderBottom: "3px solid #111111", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 34px", boxSizing: "border-box", position: "relative", zIndex: 42 },
   userBox: { color: "#111111", fontSize: "15px", fontWeight: 900, letterSpacing: "0.03em", textTransform: "uppercase" },
   headerActions: { display: "flex", alignItems: "center", gap: "10px" },
   alertBellWrapper: { position: "relative" },
@@ -381,13 +305,7 @@ const styles = {
   alertError: { border: "1px solid #fecaca", backgroundColor: "#fee2e2", color: "#991b1b", padding: "12px", fontSize: "13px", fontWeight: 800 },
   statusBox: { color: "#111111", backgroundColor: "rgba(255, 255, 255, 0.65)", border: "1px solid rgba(0, 0, 0, 0.25)", padding: "5px 10px", fontSize: "12px", fontWeight: 800, textTransform: "uppercase" },
   settingsButton: { color: "#111111", backgroundColor: "#ffffff", border: "1px solid #111111", padding: "6px 12px", fontSize: "12px", fontWeight: 900, textTransform: "uppercase", cursor: "pointer" },
-  titleBlock: {
-    padding: "24px 34px 14px",
-    boxSizing: "border-box",
-    backgroundColor: "#ffffff",
-    position: "relative",
-    zIndex: 41,
-  },
+  titleBlock: { padding: "24px 34px 14px", boxSizing: "border-box", backgroundColor: "#ffffff", position: "relative", zIndex: 41 },
   title: { margin: 0, color: "#111111", fontSize: "32px", lineHeight: 1.1, fontWeight: 950 },
   subtitle: { margin: "8px 0 0", color: "#4b5563", fontSize: "15px", fontWeight: 700 },
   moduleTabs: { display: "flex", gap: "8px", padding: "0 34px 16px", backgroundColor: "#ffffff", flexWrap: "wrap", position: "relative", zIndex: 41 },
