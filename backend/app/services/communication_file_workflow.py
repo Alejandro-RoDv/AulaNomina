@@ -75,16 +75,21 @@ ALLOWED_TRANSITIONS = {
     },
     CommunicationFileStatus.SENT: {
         CommunicationFileStatus.PROCESSING,
-        CommunicationFileStatus.CANCELLED,
+        CommunicationFileStatus.ACCEPTED,
+        CommunicationFileStatus.ACCEPTED_WITH_WARNINGS,
+        CommunicationFileStatus.REJECTED,
     },
     CommunicationFileStatus.PROCESSING: {
         CommunicationFileStatus.ACCEPTED,
         CommunicationFileStatus.ACCEPTED_WITH_WARNINGS,
         CommunicationFileStatus.REJECTED,
     },
+    CommunicationFileStatus.REJECTED: {
+        CommunicationFileStatus.DRAFT,
+        CommunicationFileStatus.CANCELLED,
+    },
     CommunicationFileStatus.ACCEPTED: set(),
     CommunicationFileStatus.ACCEPTED_WITH_WARNINGS: set(),
-    CommunicationFileStatus.REJECTED: set(),
     CommunicationFileStatus.CANCELLED: set(),
 }
 
@@ -96,37 +101,35 @@ class InvalidCommunicationTransition(ValueError):
 def normalize_ccc(value: str | None) -> str | None:
     if value is None:
         return None
-    normalized = re.sub(r"[^0-9A-Za-z]", "", value).upper()
+    normalized = "".join(character for character in value.strip().upper() if character.isalnum())
     return normalized or None
 
 
-def period_is_valid(file_type: CommunicationFileType, period: str) -> bool:
-    if file_type in {
-        CommunicationFileType.SOCIAL_SECURITY_SETTLEMENT,
-        CommunicationFileType.SILTRA_RESPONSE,
-        CommunicationFileType.CRA,
-        CommunicationFileType.FIE,
-        CommunicationFileType.MASS_REGISTRATION,
-        CommunicationFileType.MASS_TERMINATION,
-    }:
-        return bool(MONTHLY_PERIOD.fullmatch(period))
-    if file_type == CommunicationFileType.AEAT_111:
-        return bool(MONTHLY_PERIOD.fullmatch(period) or QUARTERLY_PERIOD.fullmatch(period))
-    if file_type == CommunicationFileType.AEAT_190:
-        return bool(ANNUAL_PERIOD.fullmatch(period))
-    return False
+def period_is_valid(file_type: CommunicationFileType | str, period: str) -> bool:
+    normalized_type = CommunicationFileType(file_type)
+    normalized_period = (period or "").strip().upper()
+
+    if normalized_type == CommunicationFileType.AEAT_190:
+        return bool(ANNUAL_PERIOD.fullmatch(normalized_period))
+    if normalized_type == CommunicationFileType.AEAT_111:
+        return bool(
+            MONTHLY_PERIOD.fullmatch(normalized_period)
+            or QUARTERLY_PERIOD.fullmatch(normalized_period)
+        )
+    return bool(MONTHLY_PERIOD.fullmatch(normalized_period))
 
 
-def ccc_is_required(file_type: CommunicationFileType) -> bool:
-    return file_type in CCC_REQUIRED_TYPES
+def ccc_is_required(file_type: CommunicationFileType | str) -> bool:
+    return CommunicationFileType(file_type) in CCC_REQUIRED_TYPES
 
 
 def validate_transition(
-    current_status: CommunicationFileStatus,
-    next_status: CommunicationFileStatus,
+    current_status: CommunicationFileStatus | str,
+    target_status: CommunicationFileStatus | str,
 ) -> None:
-    allowed = ALLOWED_TRANSITIONS[current_status]
-    if next_status not in allowed:
+    current = CommunicationFileStatus(current_status)
+    target = CommunicationFileStatus(target_status)
+    if target not in ALLOWED_TRANSITIONS[current]:
         raise InvalidCommunicationTransition(
-            f"Transición no permitida: {current_status.value} -> {next_status.value}"
+            f"Transición no permitida: {current.value} -> {target.value}"
         )
