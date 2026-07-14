@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+import siltraLogo from "../assets/siltra-logo.svg";
 import PageCard from "../components/layout/PageCard";
 import SiltraSimulatorPage from "./SiltraSimulatorPage";
 import {
@@ -202,6 +203,24 @@ export default function SocialSecurityDashboardPage({ companies = [], onNavigate
           </button>
         </div>
 
+        <button type="button" style={styles.siltraLauncher} onClick={openSiltra}>
+          <span style={styles.siltraLauncherIconFrame}>
+            <img src={siltraLogo} alt="" aria-hidden="true" style={styles.siltraLauncherIcon} />
+          </span>
+          <span style={styles.siltraLauncherCopy}>
+            <span style={styles.siltraLauncherEyebrow}>Simulador educativo</span>
+            <strong style={styles.siltraLauncherTitle}>Abrir SILTRA simulado</strong>
+            <small style={styles.siltraLauncherDescription}>
+              Accede a la bandeja de salida, transmite ficheros, revisa respuestas y prueba reenvíos.
+            </small>
+          </span>
+          <span style={styles.siltraLauncherMeta}>
+            <strong>{stats.pendingFiles}</strong>
+            <small>pendientes</small>
+          </span>
+          <span style={styles.siltraLauncherArrow}>→</span>
+        </button>
+
         <div style={styles.summaryGrid}>
           <SummaryCard label="Liquidaciones" value={stats.total} hint={selectedCompany?.name || "Sin empresa"} />
           <SummaryCard label="Con errores" value={stats.errors} hint="Requieren corrección" />
@@ -246,6 +265,7 @@ export default function SocialSecurityDashboardPage({ companies = [], onNavigate
             Ver ficheros generados
           </button>
           <button type="button" style={styles.siltraButton} onClick={openSiltra}>
+            <img src={siltraLogo} alt="" aria-hidden="true" style={styles.siltraButtonIcon} />
             Abrir SILTRA simulado
           </button>
         </div>
@@ -320,6 +340,15 @@ const styles = {
   toolbar: { display: "flex", alignItems: "end", gap: "12px", flexWrap: "wrap", marginBottom: "18px" },
   field: { minWidth: "300px", display: "flex", flexDirection: "column", gap: "6px", fontSize: "13px", fontWeight: 800 },
   input: { border: "1px solid #9ca3af", borderRadius: "8px", padding: "10px 11px", backgroundColor: "#ffffff", color: "#111827", fontSize: "14px", minHeight: "42px" },
+  siltraLauncher: { width: "100%", marginBottom: "18px", border: "3px solid #111111", backgroundColor: "#ffffff", boxShadow: "5px 5px 0 #111111", padding: "14px 16px", display: "grid", gridTemplateColumns: "72px minmax(220px, 1fr) auto auto", alignItems: "center", gap: "16px", textAlign: "left", cursor: "pointer", color: "#111827" },
+  siltraLauncherIconFrame: { width: "68px", height: "68px", display: "grid", placeItems: "center", border: "2px solid #111111", backgroundColor: "#ffffff" },
+  siltraLauncherIcon: { width: "58px", height: "58px", objectFit: "contain", display: "block" },
+  siltraLauncherCopy: { display: "flex", flexDirection: "column", gap: "3px" },
+  siltraLauncherEyebrow: { color: "#b91c1c", fontSize: "11px", fontWeight: 950, letterSpacing: "0.08em", textTransform: "uppercase" },
+  siltraLauncherTitle: { fontSize: "20px", fontWeight: 950 },
+  siltraLauncherDescription: { color: "#4b5563", fontSize: "13px", fontWeight: 650 },
+  siltraLauncherMeta: { minWidth: "76px", borderLeft: "1px solid #d1d5db", paddingLeft: "16px", display: "flex", flexDirection: "column", alignItems: "center" },
+  siltraLauncherArrow: { fontSize: "28px", fontWeight: 950 },
   summaryGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(155px, 1fr))", gap: "10px" },
   summaryCard: { border: "1px solid #d1d5db", backgroundColor: "#ffffff", padding: "12px", display: "flex", flexDirection: "column", gap: "5px", minHeight: "82px" },
   summaryCardEmphasis: { border: "2px solid #111111", backgroundColor: "#fff8a6", boxShadow: "3px 3px 0 #111111" },
@@ -331,7 +360,8 @@ const styles = {
   quickActions: { display: "flex", gap: "10px", flexWrap: "wrap", marginTop: "18px", paddingTop: "16px", borderTop: "1px solid #e5e7eb" },
   primaryButton: { ...baseButton, backgroundColor: "#111827", color: "#ffffff", border: "2px solid #111827" },
   secondaryButton: { ...baseButton, backgroundColor: "#ffffff", color: "#111827", border: "1px solid #9ca3af" },
-  siltraButton: { ...baseButton, backgroundColor: "#fff8a6", color: "#111827", border: "2px solid #111827", boxShadow: "3px 3px 0 #111827" },
+  siltraButton: { ...baseButton, backgroundColor: "#fff8a6", color: "#111827", border: "2px solid #111827", boxShadow: "3px 3px 0 #111827", display: "inline-flex", alignItems: "center", gap: "8px" },
+  siltraButtonIcon: { width: "24px", height: "24px", objectFit: "contain" },
   emptyState: { border: "1px dashed #9ca3af", padding: "24px", color: "#6b7280", textAlign: "center", fontWeight: 700 },
   tableWrapper: { overflowX: "auto" },
   table: { width: "100%", minWidth: "880px", borderCollapse: "collapse" },
