@@ -13,12 +13,14 @@ from app.catalogs.red_catalogs import (
     WORKING_DAY_TYPES,
 )
 from app.communication_file_routes import router as communication_file_router
+from app.communication_submission_routes import router as communication_submission_router
 from app.social_security_registration_routes import router as social_security_registration_router
 from app.social_security_settlement_routes import router as social_security_settlement_router
 from app.wage_garnishment_routes import router as wage_garnishment_router
 
 router = APIRouter(tags=["catalogs"])
 router.include_router(communication_file_router)
+router.include_router(communication_submission_router)
 router.include_router(social_security_registration_router)
 router.include_router(social_security_settlement_router)
 router.include_router(wage_garnishment_router)
@@ -76,19 +78,3 @@ def get_working_day_types():
 @router.get("/catalogs/monthly-daily-contribution-types")
 def get_monthly_daily_contribution_types():
     return MONTHLY_DAILY_CONTRIBUTION_TYPES
-
-
-@router.get("/catalogs/all")
-def get_all_catalogs():
-    return {
-        "contracts": sort_contract_codes(CONTRACT_CODES),
-        "contribution_groups": CONTRIBUTION_GROUPS,
-        "situations": SITUATION_CODES,
-        "unemployed_conditions": UNEMPLOYED_CONDITIONS,
-        "substitution_causes": SUBSTITUTION_CAUSES,
-        "inactivity_types": INACTIVITY_TYPES,
-        "worker_collectives": WORKER_COLLECTIVES,
-        "social_exclusion_victim_statuses": SOCIAL_EXCLUSION_VICTIM_STATUSES,
-        "working_day_types": WORKING_DAY_TYPES,
-        "monthly_daily_contribution_types": MONTHLY_DAILY_CONTRIBUTION_TYPES,
-    }
