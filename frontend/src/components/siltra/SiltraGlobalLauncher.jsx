@@ -11,11 +11,21 @@ import {
   importCommunicationFile,
   submitCommunicationFile,
 } from "../../services/socialSecurityApi";
+import {
+  FINAL_SUBMISSION_STATUSES,
+  SENDABLE_COMMUNICATION_STATUSES,
+  filePreview,
+  formatFileSize,
+  getFileExtension,
+  validateSiltraUpload,
+} from "../../utils/siltraSimulation";
 import "./siltraWindow.css";
+import "./siltraWindowEnhancements.css";
 
-const SENDABLE_STATUSES = new Set(["GENERATED", "ACCEPTED", "ACCEPTED_WITH_WARNINGS", "REJECTED"]);
-const FINAL_SUBMISSION_STATUSES = new Set(["ACCEPTED", "ACCEPTED_WITH_WARNINGS", "REJECTED", "CANCELLED"]);
 const CONFIG_STORAGE_KEY = "aulanomina:siltraDesktopConfig";
+const LAST_SCREEN_KEY = "aulanomina:siltraLastScreen";
+const COMPANY_KEY = "aulanomina:siltraCompanyId";
+const SELECTED_FILE_KEY = "aulanomina:siltraSelectedFileId";
 
 const DEFAULT_CONFIG = {
   authorizationNumber: "00009999",
@@ -60,24 +70,26 @@ function loadConfig() {
   }
 }
 
-function normalizedButtonText(button) {
-  return String(button?.textContent || "").replace(/\s+/g, " ").trim().toLowerCase();
+function initialScreen() {
+  const stored = window.sessionStorage.getItem(LAST_SCREEN_KEY);
+  return ["home", "cotizacion", "communications", "config", "documents", "affiliation", "inss", "utilities", "about"].includes(stored)
+    ? stored
+    : "home";
 }
 
-function hideLegacySiltraAccess() {
-  document.querySelectorAll("button").forEach((button) => {
-    if (button.dataset.siltraGlobalLauncher === "true") return;
-    const label = normalizedButtonText(button);
-    if (label === "siltra simulado" || label.includes("abrir siltra simulado")) {
-      button.hidden = true;
-      button.setAttribute("aria-hidden", "true");
-    }
-  });
-}
-
-function findHeaderTopBar() {
-  const header = document.querySelector("#root header");
-  return header?.firstElementChild || null;
+function initialRemittanceState() {
+  return {
+    companyId: window.sessionStorage.getItem(COMPANY_KEY) || "",
+    selectedFileId: window.sessionStorage.getItem(SELECTED_FILE_KEY) || "",
+    upload: {
+      ccc_id: "",
+      period: new Date().toISOString().slice(0, 7),
+      file: null,
+      content: "",
+      warning: "",
+      validatedFileId: null,
+    },
+  };
 }
 
 function formatDateTime(value) {
@@ -114,18 +126,14 @@ function StatusPill({ status }) {
   return <span className={`siltra-status siltra-status--${tone}`}>{statusLabel(status)}</span>;
 }
 
-function IconSlot({ label = "" }) {
-  return (
-    <span className="siltra-icon-slot" aria-hidden="true">
-      <span>{label}</span>
-    </span>
-  );
+function IconSlot() {
+  return <span className="siltra-icon-slot" aria-hidden="true"><span /></span>;
 }
 
-function HomeAction({ icon, title, children, onClick, disabled = false }) {
+function HomeAction({ title, children, onClick, disabled = false }) {
   return (
     <button type="button" className="siltra-home-action" onClick={onClick} disabled={disabled}>
-      <IconSlot label={icon} />
+      <IconSlot />
       <span className="siltra-home-action__copy">
         <strong>{title}</strong>
         {children && <small>{children}</small>}
@@ -143,12 +151,38 @@ function VerticalSection({ label, children, compact = false }) {
   );
 }
 
+function ClassicPanel({ title, children, actions }) {
+  return (
+    <section className="siltra-classic-panel">
+      <div className="siltra-classic-panel__title">
+        <span>{title}</span>
+        {actions && <div>{actions}</div>}
+      </div>
+      <div className="siltra-classic-panel__body">{children}</div>
+    </section>
+  );
+}
+
+function FileFacts({ data, title = "Datos del fichero" }) {
+  if (!data) return null;
+  return (
+    <div className="siltra-file-facts" aria-label={title}>
+      <div><span>Nombre</span><strong>{data.name || "-"}</strong></div>
+      <div><span>Tipo</span><strong>{data.type || "-"}</strong></div>
+      <div><span>Tamaño</span><strong>{data.size || "-"}</strong></div>
+      <div><span>Empresa</span><strong>{data.company || "-"}</strong></div>
+      <div><span>CCC</span><strong>{data.ccc || "-"}</strong></div>
+      <div><span>Periodo</span><strong>{data.period || "-"}</strong></div>
+    </div>
+  );
+}
+
 function SiltraHome({ onNavigate, onDocument }) {
   return (
     <div className="siltra-home-grid">
       <div className="siltra-home-column">
         <VerticalSection label="COTIZACIÓN">
-          <HomeAction icon="" title="Procesar remesas Cotización" onClick={() => onNavigate("cotizacion")}>
+          <HomeAction title="Procesar remesas Cotización" onClick={() => onNavigate("cotizacion")}>
             Validación, adaptación y envío de ficheros
           </HomeAction>
           <div className="siltra-print-block">
@@ -163,16 +197,16 @@ function SiltraHome({ onNavigate, onDocument }) {
         </VerticalSection>
 
         <VerticalSection label="AFILIACIÓN - INSS" compact>
-          <HomeAction icon="" title="Procesar remesas Afiliación" onClick={() => onNavigate("affiliation")}>
+          <HomeAction title="Procesar remesas Afiliación" onClick={() => onNavigate("affiliation")}>
             Validación simulada de ficheros AFI
           </HomeAction>
-          <HomeAction icon="" title="Procesar remesas INSS" onClick={() => onNavigate("inss")}>
+          <HomeAction title="Procesar remesas INSS" onClick={() => onNavigate("inss")}>
             Validación simulada de ficheros FDI/FIE
           </HomeAction>
         </VerticalSection>
 
         <VerticalSection label="" compact>
-          <HomeAction icon="" title="Configuración" onClick={() => onNavigate("config")}>
+          <HomeAction title="Configuración" onClick={() => onNavigate("config")}>
             Autorizado, aplicación, comunicaciones y directorios
           </HomeAction>
         </VerticalSection>
@@ -180,7 +214,7 @@ function SiltraHome({ onNavigate, onDocument }) {
 
       <div className="siltra-home-column">
         <VerticalSection label="COMUNICACIONES">
-          <HomeAction icon="" title="Envío/Recepción" onClick={() => onNavigate("communications")}>
+          <HomeAction title="Envío/Recepción" onClick={() => onNavigate("communications")}>
             Conexión con la TGSS simulada
           </HomeAction>
           <div className="siltra-link-list siltra-link-list--spaced">
@@ -199,13 +233,13 @@ function SiltraHome({ onNavigate, onDocument }) {
         </VerticalSection>
 
         <VerticalSection label="UTILIDADES" compact>
-          <HomeAction icon="" title="Reconstrucción de Seguimiento" onClick={() => onNavigate("communications")}>
+          <HomeAction title="Reconstrucción de Seguimiento" onClick={() => onNavigate("communications")}>
             Reconstruye la vista desde el historial conservado
           </HomeAction>
-          <HomeAction icon="" title="Copias de Seguridad" disabled>
+          <HomeAction title="Copias de Seguridad" disabled>
             Función visual sin acceso al sistema de archivos
           </HomeAction>
-          <HomeAction icon="" title="Procesar Mensajes descargados Web" onClick={() => onNavigate("communications")}>
+          <HomeAction title="Procesar Mensajes descargados Web" onClick={() => onNavigate("communications")}>
             Importación educativa de respuestas
           </HomeAction>
         </VerticalSection>
@@ -214,41 +248,43 @@ function SiltraHome({ onNavigate, onDocument }) {
   );
 }
 
-function ClassicPanel({ title, children, actions }) {
-  return (
-    <section className="siltra-classic-panel">
-      <div className="siltra-classic-panel__title">
-        <span>{title}</span>
-        {actions && <div>{actions}</div>}
-      </div>
-      <div className="siltra-classic-panel__body">{children}</div>
-    </section>
-  );
-}
-
-function RemittanceWorkspace({ companies, config, onOpenCommunications }) {
+function RemittanceWorkspace({ companies, config, remittanceState, setRemittanceState, onDirtyChange, onOpenCommunications }) {
   const activeCompanies = useMemo(() => companies.filter((company) => company.is_active !== false), [companies]);
-  const [companyId, setCompanyId] = useState("");
+  const { companyId, selectedFileId, upload } = remittanceState;
   const [cccOptions, setCccOptions] = useState([]);
   const [files, setFiles] = useState([]);
   const [submissions, setSubmissions] = useState([]);
-  const [selectedFileId, setSelectedFileId] = useState("");
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [result, setResult] = useState(null);
-  const [upload, setUpload] = useState({ ccc_id: "", period: new Date().toISOString().slice(0, 7), file: null, content: "" });
   const fileInputRef = useRef(null);
 
+  const updateState = useCallback((patch) => {
+    setRemittanceState((previous) => ({ ...previous, ...patch }));
+  }, [setRemittanceState]);
+
+  const updateUpload = useCallback((patch) => {
+    setRemittanceState((previous) => ({
+      ...previous,
+      upload: { ...previous.upload, ...patch },
+    }));
+  }, [setRemittanceState]);
+
   useEffect(() => {
-    if (!companyId && activeCompanies.length > 0) setCompanyId(String(activeCompanies[0].id));
-  }, [activeCompanies, companyId]);
+    if (!companyId && activeCompanies.length > 0) {
+      const nextCompanyId = String(activeCompanies[0].id);
+      window.sessionStorage.setItem(COMPANY_KEY, nextCompanyId);
+      updateState({ companyId: nextCompanyId });
+    }
+  }, [activeCompanies, companyId, updateState]);
 
   const loadData = useCallback(async () => {
     if (!companyId) {
       setFiles([]);
       setSubmissions([]);
+      setCccOptions([]);
       return;
     }
     setLoading(true);
@@ -262,15 +298,13 @@ function RemittanceWorkspace({ companies, config, onOpenCommunications }) {
       setFiles(communicationFiles || []);
       setSubmissions(submissionData?.items || []);
       setCccOptions(cccData || []);
-      if (!upload.ccc_id && cccData?.length) {
-        setUpload((previous) => ({ ...previous, ccc_id: cccData[0].ccc_id }));
-      }
+      if (!upload.ccc_id && cccData?.length) updateUpload({ ccc_id: cccData[0].ccc_id });
     } catch (requestError) {
       setError(requestError.message || "No se han podido cargar las remesas");
     } finally {
       setLoading(false);
     }
-  }, [companyId, upload.ccc_id]);
+  }, [companyId, updateUpload, upload.ccc_id]);
 
   useEffect(() => {
     loadData();
@@ -278,23 +312,66 @@ function RemittanceWorkspace({ companies, config, onOpenCommunications }) {
 
   const latestSubmissionByFile = useMemo(() => submissions.reduce((lookup, item) => {
     const current = lookup[item.communication_file_id];
-    if (!current || Number(item.attempt_number) > Number(current.attempt_number)) {
-      lookup[item.communication_file_id] = item;
-    }
+    if (!current || Number(item.attempt_number) > Number(current.attempt_number)) lookup[item.communication_file_id] = item;
     return lookup;
   }, {}), [submissions]);
 
   const selectedFile = files.find((file) => String(file.id) === String(selectedFileId));
+  const selectedCompany = activeCompanies.find((company) => String(company.id) === String(companyId));
+  const generatedPreview = selectedFile ? {
+    name: selectedFile.original_filename || `Fichero ${selectedFile.id}`,
+    type: getFileExtension(selectedFile.original_filename || "")?.toUpperCase() || "JSON",
+    size: formatFileSize(new Blob([selectedFile.content || ""]).size),
+    company: selectedCompany?.name || `Empresa ${selectedFile.company_id}`,
+    ccc: selectedFile.ccc_id || "Sin CCC",
+    period: selectedFile.period || "Sin periodo",
+  } : null;
+  const localPreview = filePreview(upload.file, selectedCompany?.name, upload.ccc_id, upload.period);
+
+  const selectGeneratedFile = (fileId) => {
+    const value = String(fileId);
+    window.sessionStorage.setItem(SELECTED_FILE_KEY, value);
+    updateState({ selectedFileId: value });
+    setResult(null);
+    setError("");
+  };
+
+  const handleCompanyChange = (value) => {
+    window.sessionStorage.setItem(COMPANY_KEY, value);
+    window.sessionStorage.removeItem(SELECTED_FILE_KEY);
+    setRemittanceState((previous) => ({
+      ...previous,
+      companyId: value,
+      selectedFileId: "",
+      upload: { ...previous.upload, ccc_id: "", validatedFileId: null },
+    }));
+    setResult(null);
+  };
+
+  const clearUpload = () => {
+    updateUpload({ file: null, content: "", warning: "", validatedFileId: null });
+    onDirtyChange(false);
+    setNotice("");
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
 
   const handleFileSelection = async (event) => {
     const file = event.target.files?.[0] || null;
     if (!file) return;
+    const validation = validateSiltraUpload(file, files);
+    if (!validation.valid) {
+      clearUpload();
+      setError(validation.error);
+      return;
+    }
     try {
       const content = await file.text();
-      setUpload((previous) => ({ ...previous, file, content }));
+      updateUpload({ file, content, warning: validation.warning, validatedFileId: null });
+      onDirtyChange(true);
       setNotice(`Fichero seleccionado: ${file.name}`);
       setError("");
     } catch {
+      clearUpload();
       setError("No se ha podido leer el fichero seleccionado.");
     }
   };
@@ -304,6 +381,13 @@ function RemittanceWorkspace({ companies, config, onOpenCommunications }) {
       setError("Seleccione empresa, CCC, periodo y fichero antes de validar y adaptar.");
       return;
     }
+    const validation = validateSiltraUpload(upload.file, files);
+    if (!validation.valid) {
+      setError(validation.error);
+      return;
+    }
+    if (validation.warning.includes("mismo nombre") && !window.confirm(`${validation.warning}\n\n¿Desea continuar?`)) return;
+
     setBusy(true);
     setError("");
     setNotice("Validando y adaptando el fichero...");
@@ -319,21 +403,28 @@ function RemittanceWorkspace({ companies, config, onOpenCommunications }) {
           source: "SILTRA_SIMULATED_UPLOAD",
           imported_from_local_file: true,
           educational_simulation: true,
+          source_size_bytes: upload.file.size,
+          source_extension: getFileExtension(upload.file.name),
+          source_last_modified: upload.file.lastModified || null,
         },
       });
       if (imported.status === "VALIDATION_ERROR") {
         const details = (imported.validation_errors || []).map((item) => item.message).join(" ");
         setError(details || "El fichero contiene errores de validación.");
-      } else {
-        setNotice(`Fichero ${imported.original_filename} validado y adaptado.`);
-        setSelectedFileId(String(imported.id));
+        return;
+      }
+
+      selectGeneratedFile(imported.id);
+      updateUpload({ validatedFileId: imported.id, warning: validation.warning });
+      onDirtyChange(false);
+      setNotice(`Fichero ${imported.original_filename} validado, adaptado y almacenado.`);
+      await loadData();
+
+      if (config.cotizacionMode === "auto") {
+        const response = await submitCommunicationFile(imported.id);
+        setResult(response);
+        setNotice("Validación, adaptación y envío completados.");
         await loadData();
-        if (config.cotizacionMode === "auto") {
-          const response = await submitCommunicationFile(imported.id);
-          setResult(response);
-          setNotice("Validación, adaptación y envío completados.");
-          await loadData();
-        }
       }
     } catch (requestError) {
       setError(requestError.message || "No se ha podido importar el fichero");
@@ -343,8 +434,8 @@ function RemittanceWorkspace({ companies, config, onOpenCommunications }) {
   };
 
   const handleSend = async () => {
-    if (!selectedFile || !SENDABLE_STATUSES.has(selectedFile.status)) {
-      setError("Seleccione un fichero generado y disponible para envío.");
+    if (!selectedFile || !SENDABLE_COMMUNICATION_STATUSES.has(selectedFile.status) || !selectedFile.content) {
+      setError("Seleccione un fichero validado y generado antes de enviarlo.");
       return;
     }
     setBusy(true);
@@ -365,28 +456,25 @@ function RemittanceWorkspace({ companies, config, onOpenCommunications }) {
   return (
     <div className="siltra-workspace">
       <div className="siltra-workspace-heading">Validación y adaptación de ficheros de cotización</div>
-      <ClassicPanel
-        title="Selección de autorizado y origen del fichero"
-        actions={<button type="button" className="siltra-classic-button" onClick={loadData}>Actualizar</button>}
-      >
+      <ClassicPanel title="Selección de autorizado y origen del fichero" actions={<button type="button" className="siltra-classic-button" onClick={loadData}>Actualizar</button>}>
         <div className="siltra-form-grid siltra-form-grid--three">
           <label>
             <span>Empresa / autorizado:</span>
-            <select value={companyId} onChange={(event) => setCompanyId(event.target.value)}>
+            <select value={companyId} onChange={(event) => handleCompanyChange(event.target.value)}>
               <option value="">Seleccione empresa</option>
               {activeCompanies.map((company) => <option key={company.id} value={company.id}>{company.name}</option>)}
             </select>
           </label>
           <label>
             <span>CCC:</span>
-            <select value={upload.ccc_id} onChange={(event) => setUpload((previous) => ({ ...previous, ccc_id: event.target.value }))}>
+            <select value={upload.ccc_id} onChange={(event) => updateUpload({ ccc_id: event.target.value, validatedFileId: null })}>
               <option value="">Seleccione CCC</option>
               {cccOptions.map((option) => <option key={option.ccc_id} value={option.ccc_id}>{option.ccc_id}{option.label ? ` - ${option.label}` : ""}</option>)}
             </select>
           </label>
           <label>
             <span>Periodo de liquidación:</span>
-            <input type="month" value={upload.period} onChange={(event) => setUpload((previous) => ({ ...previous, period: event.target.value }))} />
+            <input type="month" value={upload.period} onChange={(event) => updateUpload({ period: event.target.value, validatedFileId: null })} />
           </label>
         </div>
       </ClassicPanel>
@@ -394,16 +482,7 @@ function RemittanceWorkspace({ companies, config, onOpenCommunications }) {
       <ClassicPanel title="Ficheros generados en AulaNomina">
         <div className="siltra-table-wrap">
           <table className="siltra-table">
-            <thead>
-              <tr>
-                <th></th>
-                <th>Nombre fichero</th>
-                <th>CCC</th>
-                <th>Periodo</th>
-                <th>Estado</th>
-                <th>Última respuesta</th>
-              </tr>
-            </thead>
+            <thead><tr><th></th><th>Nombre fichero</th><th>CCC</th><th>Periodo</th><th>Estado</th><th>Última respuesta</th></tr></thead>
             <tbody>
               {loading && <tr><td colSpan="6" className="siltra-empty-cell">Cargando ficheros...</td></tr>}
               {!loading && files.length === 0 && <tr><td colSpan="6" className="siltra-empty-cell">No existen ficheros generados para la empresa seleccionada.</td></tr>}
@@ -411,7 +490,7 @@ function RemittanceWorkspace({ companies, config, onOpenCommunications }) {
                 const latest = latestSubmissionByFile[file.id];
                 return (
                   <tr key={file.id} className={String(file.id) === String(selectedFileId) ? "is-selected" : ""}>
-                    <td><input type="radio" name="siltra-file" checked={String(file.id) === String(selectedFileId)} onChange={() => setSelectedFileId(String(file.id))} /></td>
+                    <td><input type="radio" name="siltra-file" checked={String(file.id) === String(selectedFileId)} onChange={() => selectGeneratedFile(file.id)} /></td>
                     <td>{file.original_filename || `Fichero ${file.id}`}</td>
                     <td>{file.ccc_id || "-"}</td>
                     <td>{file.period}</td>
@@ -423,16 +502,20 @@ function RemittanceWorkspace({ companies, config, onOpenCommunications }) {
             </tbody>
           </table>
         </div>
+        <FileFacts data={generatedPreview} title="Fichero generado seleccionado" />
       </ClassicPanel>
 
-      <ClassicPanel title="Incorporar fichero desde el equipo">
+      <ClassicPanel title="Ficheros del equipo">
         <div className="siltra-file-picker">
-          <input ref={fileInputRef} type="file" accept=".json,.xml,.txt" onChange={handleFileSelection} hidden />
-          <input type="text" value={upload.file?.name || ""} readOnly placeholder="Seleccione un fichero generado por AulaNomina" />
+          <input ref={fileInputRef} type="file" accept=".json,.xml,.txt,application/json,text/plain,text/xml,application/xml" onChange={handleFileSelection} hidden />
+          <input type="text" value={upload.file?.name || ""} readOnly placeholder="Seleccione un fichero JSON, XML o TXT" />
           <button type="button" className="siltra-classic-button" onClick={() => fileInputRef.current?.click()}>Examinar...</button>
-          <button type="button" className="siltra-classic-button" onClick={handleImport} disabled={busy}>Validar y Adaptar</button>
+          <button type="button" className="siltra-classic-button" onClick={clearUpload} disabled={!upload.file || busy}>Limpiar</button>
+          <button type="button" className="siltra-classic-button" onClick={handleImport} disabled={busy || !upload.file}>Validar y Adaptar</button>
         </div>
-        <p className="siltra-help-text">Se admiten ficheros JSON, XML o TXT. La simulación conserva el fichero en AulaNomina antes de enviarlo.</p>
+        <p className="siltra-help-text">Límite: 5 MB. JSON es el formato funcional del MVP. XML y TXT se admiten para prácticas y requieren una estructura compatible.</p>
+        <FileFacts data={localPreview} title="Previsualización del fichero local" />
+        {upload.warning && <div className="siltra-message siltra-message--warning">{upload.warning}</div>}
       </ClassicPanel>
 
       {error && <div className="siltra-message siltra-message--error">{error}</div>}
@@ -449,9 +532,7 @@ function RemittanceWorkspace({ companies, config, onOpenCommunications }) {
             <div className="siltra-response-list">
               {result.messages.map((message, index) => (
                 <div key={`${message.code}-${index}`} className={`siltra-response-line siltra-response-line--${String(message.severity || "info").toLowerCase()}`}>
-                  <strong>{message.code}</strong>
-                  <span>{message.message}</span>
-                  {message.employee_name && <small>{message.employee_name}</small>}
+                  <strong>{message.code}</strong><span>{message.message}</span>{message.employee_name && <small>{message.employee_name}</small>}
                 </div>
               ))}
             </div>
@@ -461,7 +542,7 @@ function RemittanceWorkspace({ companies, config, onOpenCommunications }) {
 
       <div className="siltra-workspace-actions">
         <button type="button" className="siltra-classic-button" onClick={onOpenCommunications}>Envío / Recepción</button>
-        <button type="button" className="siltra-classic-button siltra-classic-button--primary" onClick={handleSend} disabled={busy || !selectedFile || !SENDABLE_STATUSES.has(selectedFile.status)}>
+        <button type="button" className="siltra-classic-button siltra-classic-button--primary" onClick={handleSend} disabled={busy || !selectedFile || !SENDABLE_COMMUNICATION_STATUSES.has(selectedFile.status) || !selectedFile.content}>
           {busy ? "Procesando..." : "Enviar fichero seleccionado"}
         </button>
       </div>
@@ -471,7 +552,7 @@ function RemittanceWorkspace({ companies, config, onOpenCommunications }) {
 
 function CommunicationsWorkspace({ companies }) {
   const activeCompanies = useMemo(() => companies.filter((company) => company.is_active !== false), [companies]);
-  const [companyId, setCompanyId] = useState("");
+  const [companyId, setCompanyId] = useState(() => window.sessionStorage.getItem(COMPANY_KEY) || "");
   const [files, setFiles] = useState([]);
   const [submissions, setSubmissions] = useState([]);
   const [detail, setDetail] = useState(null);
@@ -501,14 +582,10 @@ function CommunicationsWorkspace({ companies }) {
     }
   }, [companyId]);
 
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
+  useEffect(() => { loadData(); }, [loadData]);
 
   const filesById = useMemo(() => Object.fromEntries(files.map((file) => [file.id, file])), [files]);
-  const rows = mailbox === "out"
-    ? submissions
-    : submissions.filter((submission) => FINAL_SUBMISSION_STATUSES.has(submission.status));
+  const rows = mailbox === "out" ? submissions : submissions.filter((submission) => FINAL_SUBMISSION_STATUSES.has(submission.status));
 
   const openDetail = async (submissionId) => {
     setError("");
@@ -523,72 +600,40 @@ function CommunicationsWorkspace({ companies }) {
     <div className="siltra-workspace">
       <div className="siltra-workspace-heading">Envío / Recepción de ficheros</div>
       <div className="siltra-communications-toolbar">
-        <label>
-          <span>Autorizado:</span>
-          <select value={companyId} onChange={(event) => setCompanyId(event.target.value)}>
-            <option value="">Seleccione empresa</option>
-            {activeCompanies.map((company) => <option key={company.id} value={company.id}>{company.name}</option>)}
-          </select>
-        </label>
+        <label><span>Autorizado:</span><select value={companyId} onChange={(event) => setCompanyId(event.target.value)}><option value="">Seleccione empresa</option>{activeCompanies.map((company) => <option key={company.id} value={company.id}>{company.name}</option>)}</select></label>
         <button type="button" className="siltra-classic-button" onClick={loadData}>Reconstruir seguimiento</button>
       </div>
-
       <div className="siltra-mailbox-tabs">
         <button type="button" className={mailbox === "out" ? "is-active" : ""} onClick={() => setMailbox("out")}>Buzón de Salida</button>
         <button type="button" className={mailbox === "in" ? "is-active" : ""} onClick={() => setMailbox("in")}>Buzón de Entrada</button>
       </div>
-
       <div className="siltra-table-wrap siltra-table-wrap--mailbox">
         <table className="siltra-table">
-          <thead>
-            <tr>
-              <th>Número envío</th>
-              <th>Fichero</th>
-              <th>Intento</th>
-              <th>Fecha</th>
-              <th>Resultado</th>
-              <th>Código</th>
-              <th></th>
-            </tr>
-          </thead>
+          <thead><tr><th>Número envío</th><th>Fichero</th><th>Intento</th><th>Fecha</th><th>Resultado</th><th>Código</th><th></th></tr></thead>
           <tbody>
             {loading && <tr><td colSpan="7" className="siltra-empty-cell">Conectando...</td></tr>}
             {!loading && rows.length === 0 && <tr><td colSpan="7" className="siltra-empty-cell">El buzón no contiene mensajes.</td></tr>}
             {!loading && rows.map((submission) => (
               <tr key={submission.id}>
-                <td>{submission.submission_number}</td>
-                <td>{filesById[submission.communication_file_id]?.original_filename || submission.communication_file_id}</td>
-                <td>{submission.attempt_number}</td>
-                <td>{formatDateTime(submission.processed_at || submission.submitted_at || submission.created_at)}</td>
-                <td><StatusPill status={submission.status} /></td>
-                <td>{submission.response_code || "-"}</td>
-                <td><button type="button" className="siltra-link-button" onClick={() => openDetail(submission.id)}>Abrir</button></td>
+                <td>{submission.submission_number}</td><td>{filesById[submission.communication_file_id]?.original_filename || submission.communication_file_id}</td><td>{submission.attempt_number}</td><td>{formatDateTime(submission.processed_at || submission.submitted_at || submission.created_at)}</td><td><StatusPill status={submission.status} /></td><td>{submission.response_code || "-"}</td><td><button type="button" className="siltra-link-button" onClick={() => openDetail(submission.id)}>Abrir</button></td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-
       {error && <div className="siltra-message siltra-message--error">{error}</div>}
       {detail && (
-        <ClassicPanel title={`Mensaje ${detail.submission_number}`} actions={<button type="button" className="siltra-classic-button" onClick={() => setDetail(null)}>Cerrar mensaje</button>}>
-          <div className="siltra-detail-grid">
-            <div><span>Fichero:</span><strong>{detail.source_file?.original_filename || "-"}</strong></div>
-            <div><span>CCC:</span><strong>{detail.source_file?.ccc_id || "-"}</strong></div>
-            <div><span>Periodo:</span><strong>{detail.source_file?.period || "-"}</strong></div>
-            <div><span>Estado:</span><StatusPill status={detail.status} /></div>
-          </div>
-          <div className="siltra-response-list">
-            {(detail.messages || []).length === 0 && <div className="siltra-empty-cell">El mensaje no contiene incidencias.</div>}
-            {(detail.messages || []).map((message, index) => (
-              <div key={`${message.code}-${index}`} className={`siltra-response-line siltra-response-line--${String(message.severity || "info").toLowerCase()}`}>
-                <strong>{message.code}</strong>
-                <span>{message.message}</span>
-                {message.recommendation && <small>{message.recommendation}</small>}
-              </div>
-            ))}
-          </div>
-        </ClassicPanel>
+        <div className="siltra-subdialog-layer">
+          <ClassicPanel title={`Mensaje ${detail.submission_number}`} actions={<button type="button" className="siltra-classic-button" onClick={() => setDetail(null)}>Cerrar mensaje</button>}>
+            <div className="siltra-detail-grid">
+              <div><span>Fichero:</span><strong>{detail.source_file?.original_filename || "-"}</strong></div><div><span>CCC:</span><strong>{detail.source_file?.ccc_id || "-"}</strong></div><div><span>Periodo:</span><strong>{detail.source_file?.period || "-"}</strong></div><div><span>Estado:</span><StatusPill status={detail.status} /></div>
+            </div>
+            <div className="siltra-response-list">
+              {(detail.messages || []).length === 0 && <div className="siltra-empty-cell">El mensaje no contiene incidencias.</div>}
+              {(detail.messages || []).map((message, index) => <div key={`${message.code}-${index}`} className={`siltra-response-line siltra-response-line--${String(message.severity || "info").toLowerCase()}`}><strong>{message.code}</strong><span>{message.message}</span>{message.recommendation && <small>{message.recommendation}</small>}</div>)}
+            </div>
+          </ClassicPanel>
+        </div>
       )}
     </div>
   );
@@ -596,194 +641,74 @@ function CommunicationsWorkspace({ companies }) {
 
 function ConfigurationWorkspace({ config, setConfig, onSave }) {
   const [tab, setTab] = useState("authorized");
-
   const update = (field, value) => setConfig((previous) => ({ ...previous, [field]: value }));
 
   return (
     <div className="siltra-workspace siltra-config-workspace">
-      <div className="siltra-workspace-heading siltra-workspace-heading--with-action">
-        <span>Opciones de configuración SILTRA</span>
-        <button type="button" className="siltra-classic-button" onClick={onSave}>Guardar</button>
-      </div>
+      <div className="siltra-workspace-heading siltra-workspace-heading--with-action"><span>Opciones de configuración SILTRA</span><button type="button" className="siltra-classic-button" onClick={onSave}>Guardar</button></div>
       <div className="siltra-config-tabs">
-        {[
-          ["authorized", "Autorizado"],
-          ["application", "Aplicación"],
-          ["communications", "Comunicaciones"],
-          ["directories", "Localización de ficheros"],
-          ["printer", "Impresora"],
-        ].map(([id, label]) => (
-          <button key={id} type="button" className={tab === id ? "is-active" : ""} onClick={() => setTab(id)}>{label}</button>
-        ))}
+        {[["authorized", "Autorizado"], ["application", "Aplicación"], ["communications", "Comunicaciones"], ["directories", "Localización de ficheros"], ["printer", "Impresora"]].map(([id, label]) => <button key={id} type="button" className={tab === id ? "is-active" : ""} onClick={() => setTab(id)}>{label}</button>)}
       </div>
 
-      {tab === "authorized" && (
-        <ClassicPanel title="Claves">
-          <div className="siltra-form-grid siltra-form-grid--two">
-            <label><span>Número de Autorización:</span><input value={config.authorizationNumber} onChange={(event) => update("authorizationNumber", event.target.value)} /></label>
-            <label><span>Despacho o Empresa:</span><input value={config.officeName} onChange={(event) => update("officeName", event.target.value)} /></label>
-            <label><span>Fecha de Autorización (dd-mm-aaaa):</span><input value={config.authorizationDate} onChange={(event) => update("authorizationDate", event.target.value)} /></label>
-            <label><span>Usuario Principal de la Autorización:</span><input value={config.principalUser} onChange={(event) => update("principalUser", event.target.value)} /></label>
-            <label className="siltra-form-grid__wide"><span>Usuario de la Aplicación:</span><input value={config.applicationUser} onChange={(event) => update("applicationUser", event.target.value)} /></label>
-          </div>
-        </ClassicPanel>
-      )}
+      {tab === "authorized" && <ClassicPanel title="Claves"><div className="siltra-form-grid siltra-form-grid--two"><label><span>Número de Autorización:</span><input value={config.authorizationNumber} onChange={(event) => update("authorizationNumber", event.target.value)} /></label><label><span>Despacho o Empresa:</span><input value={config.officeName} onChange={(event) => update("officeName", event.target.value)} /></label><label><span>Fecha de Autorización:</span><input value={config.authorizationDate} onChange={(event) => update("authorizationDate", event.target.value)} /></label><label><span>Usuario Principal:</span><input value={config.principalUser} onChange={(event) => update("principalUser", event.target.value)} /></label><label className="siltra-form-grid__wide"><span>Usuario de la Aplicación:</span><input value={config.applicationUser} onChange={(event) => update("applicationUser", event.target.value)} /></label></div></ClassicPanel>}
 
-      {tab === "application" && (
-        <div className="siltra-config-columns">
-          <ClassicPanel title="Proceso de remesas Cotización">
-            <fieldset className="siltra-fieldset">
-              <legend>Reglas de validación</legend>
-              <label><input type="radio" name="cot-mode" checked={config.cotizacionMode === "validate"} onChange={() => update("cotizacionMode", "validate")} /> Validación y Adaptación</label>
-              <label><input type="radio" name="cot-mode" checked={config.cotizacionMode === "auto"} onChange={() => update("cotizacionMode", "auto")} /> Validación, Adaptación y Envío</label>
-            </fieldset>
-            <fieldset className="siltra-fieldset">
-              <legend>Indicadores</legend>
-              <label><input type="checkbox" checked={config.backupCotizacion} onChange={(event) => update("backupCotizacion", event.target.checked)} /> Copias de seguridad de envíos</label>
-              <label><input type="checkbox" checked={config.practiceEnvironment} onChange={(event) => update("practiceEnvironment", event.target.checked)} /> Entorno Prácticas</label>
-            </fieldset>
-          </ClassicPanel>
-          <ClassicPanel title="Proceso de remesas Afiliación/INSS">
-            <fieldset className="siltra-fieldset">
-              <legend>Reglas de validación</legend>
-              <label><input type="radio" name="afi-mode" checked={config.affiliationMode === "validate"} onChange={() => update("affiliationMode", "validate")} /> Validación</label>
-              <label><input type="radio" name="afi-mode" checked={config.affiliationMode === "validate-adapt"} onChange={() => update("affiliationMode", "validate-adapt")} /> Validación y Adaptación</label>
-              <label><input type="radio" name="afi-mode" checked={config.affiliationMode === "auto"} onChange={() => update("affiliationMode", "auto")} /> Validación, Adaptación y Envío</label>
-            </fieldset>
-            <fieldset className="siltra-fieldset">
-              <legend>Indicadores</legend>
-              <label><input type="checkbox" checked={config.compressFiles} onChange={(event) => update("compressFiles", event.target.checked)} /> Comprimir ficheros a enviar</label>
-              <label><input type="checkbox" checked={config.backupAffiliation} onChange={(event) => update("backupAffiliation", event.target.checked)} /> Copias seguridad Afiliación</label>
-              <label><input type="checkbox" checked={config.backupCra} onChange={(event) => update("backupCra", event.target.checked)} /> Crear copias CRA</label>
-            </fieldset>
-            <label className="siltra-inline-field"><span>Nivel de log:</span><select value={config.logLevel} onChange={(event) => update("logLevel", event.target.value)}><option>Informativos</option><option>Detalle</option><option>Avisos</option><option>Errores</option><option>Errores graves</option></select></label>
-          </ClassicPanel>
-        </div>
-      )}
+      {tab === "application" && <div className="siltra-config-columns"><ClassicPanel title="Proceso de remesas Cotización"><fieldset className="siltra-fieldset"><legend>Reglas de validación</legend><label><input type="radio" name="cot-mode" checked={config.cotizacionMode === "validate"} onChange={() => update("cotizacionMode", "validate")} /> Validación y Adaptación</label><label><input type="radio" name="cot-mode" checked={config.cotizacionMode === "auto"} onChange={() => update("cotizacionMode", "auto")} /> Validación, Adaptación y Envío</label></fieldset><fieldset className="siltra-fieldset"><legend>Indicadores</legend><label><input type="checkbox" checked={config.backupCotizacion} onChange={(event) => update("backupCotizacion", event.target.checked)} /> Copias de seguridad de envíos</label><label><input type="checkbox" checked={config.practiceEnvironment} onChange={(event) => update("practiceEnvironment", event.target.checked)} /> Entorno Prácticas</label></fieldset></ClassicPanel><ClassicPanel title="Proceso de remesas Afiliación/INSS"><fieldset className="siltra-fieldset"><legend>Reglas de validación</legend><label><input type="radio" name="afi-mode" checked={config.affiliationMode === "validate"} onChange={() => update("affiliationMode", "validate")} /> Validación</label><label><input type="radio" name="afi-mode" checked={config.affiliationMode === "validate-adapt"} onChange={() => update("affiliationMode", "validate-adapt")} /> Validación y Adaptación</label><label><input type="radio" name="afi-mode" checked={config.affiliationMode === "auto"} onChange={() => update("affiliationMode", "auto")} /> Validación, Adaptación y Envío</label></fieldset><label className="siltra-inline-field"><span>Nivel de log:</span><select value={config.logLevel} onChange={(event) => update("logLevel", event.target.value)}><option>Informativos</option><option>Detalle</option><option>Avisos</option><option>Errores</option><option>Errores graves</option></select></label></ClassicPanel></div>}
 
-      {tab === "communications" && (
-        <div className="siltra-config-columns">
-          <ClassicPanel title="Tipo conexión Internet">
-            <fieldset className="siltra-fieldset">
-              <label><input type="radio" name="connection" checked={config.directConnection} onChange={() => update("directConnection", true)} /> Conexión directa sin Proxy (ADSL, Cable)</label>
-              <label><input type="radio" name="connection" checked={!config.directConnection} onChange={() => update("directConnection", false)} /> A través de red local mediante Proxy</label>
-            </fieldset>
-            <div className="siltra-form-grid">
-              <label><span>Servidor:</span><input disabled={config.directConnection} value={config.proxyServer} onChange={(event) => update("proxyServer", event.target.value)} /></label>
-              <label><span>Puerto:</span><input disabled={config.directConnection} value={config.proxyPort} onChange={(event) => update("proxyPort", event.target.value)} /></label>
-              <label><span>Usuario:</span><input disabled={config.directConnection} value={config.proxyUser} onChange={(event) => update("proxyUser", event.target.value)} /></label>
-              <label><span>Password:</span><input type="password" disabled={config.directConnection} value={config.proxyPassword} onChange={(event) => update("proxyPassword", event.target.value)} /></label>
-            </div>
-          </ClassicPanel>
-          <ClassicPanel title="Parámetros SSL">
-            <div className="siltra-form-grid">
-              <label><span>Servidor:</span><input disabled value="red.seg-social.es:443" /></label>
-              <label><span>Protocolo:</span><input disabled value="https://" /></label>
-              <label><span>Versión HTTP:</span><input disabled value="HTTP/1.0" /></label>
-              <label><span>Recurso de acceso:</span><input disabled value="/RedAcceso/Login" /></label>
-              <label><span>Tiempo espera SSL (segs):</span><input disabled value="0" /></label>
-            </div>
-            <button type="button" className="siltra-classic-button" disabled>Editar parámetros avanzados</button>
-          </ClassicPanel>
-        </div>
-      )}
+      {tab === "communications" && <div className="siltra-config-columns"><ClassicPanel title="Tipo conexión Internet"><fieldset className="siltra-fieldset"><label><input type="radio" name="connection" checked={config.directConnection} onChange={() => update("directConnection", true)} /> Conexión directa sin Proxy</label><label><input type="radio" name="connection" checked={!config.directConnection} onChange={() => update("directConnection", false)} /> A través de red local mediante Proxy</label></fieldset><div className="siltra-form-grid"><label><span>Servidor:</span><input disabled={config.directConnection} value={config.proxyServer} onChange={(event) => update("proxyServer", event.target.value)} /></label><label><span>Puerto:</span><input disabled={config.directConnection} value={config.proxyPort} onChange={(event) => update("proxyPort", event.target.value)} /></label><label><span>Usuario:</span><input disabled={config.directConnection} value={config.proxyUser} onChange={(event) => update("proxyUser", event.target.value)} /></label><label><span>Password:</span><input type="password" disabled={config.directConnection} value={config.proxyPassword} onChange={(event) => update("proxyPassword", event.target.value)} /></label></div></ClassicPanel><ClassicPanel title="Parámetros SSL"><div className="siltra-form-grid"><label><span>Servidor:</span><input disabled value="red.seg-social.es:443" /></label><label><span>Protocolo:</span><input disabled value="https://" /></label><label><span>Versión HTTP:</span><input disabled value="HTTP/1.0" /></label><label><span>Recurso de acceso:</span><input disabled value="/RedAcceso/Login" /></label></div></ClassicPanel></div>}
 
-      {tab === "directories" && (
-        <ClassicPanel title="Directorios en SILTRA">
-          <div className="siltra-table-wrap siltra-directory-table">
-            <table className="siltra-table">
-              <thead><tr><th>Tipo de fichero</th><th>Ruta asociada</th><th></th></tr></thead>
-              <tbody>{DIRECTORY_ROWS.map(([name, path]) => <tr key={name}><td>{name}</td><td>{path}</td><td><button type="button" className="siltra-folder-button" title="Ruta virtual">▣</button></td></tr>)}</tbody>
-            </table>
-          </div>
-          <button type="button" className="siltra-classic-button">Cargar directorios por defecto</button>
-        </ClassicPanel>
-      )}
+      {tab === "directories" && <ClassicPanel title="Directorios en SILTRA"><div className="siltra-table-wrap siltra-directory-table"><table className="siltra-table"><thead><tr><th>Tipo de fichero</th><th>Ruta asociada</th><th></th></tr></thead><tbody>{DIRECTORY_ROWS.map(([name, path]) => <tr key={name}><td>{name}</td><td>{path}</td><td><button type="button" className="siltra-folder-button" title="Ruta virtual">▣</button></td></tr>)}</tbody></table></div><button type="button" className="siltra-classic-button">Cargar directorios por defecto</button></ClassicPanel>}
 
-      {tab === "printer" && (
-        <ClassicPanel title="Información de impresora predeterminada">
-          <div className="siltra-printer-grid">
-            <pre>{`ORIENTATION = 0\npdf-name = AulaNomina-SILTRA\npaper-size = A4\nprintable-area = 210 x 297 mm`}</pre>
-            <div className="siltra-printer-list">
-              {["PDF Creator", "Microsoft Print to PDF", "Fax", "Enviar a OneNote"].map((printer) => (
-                <label key={printer} className={config.printer === printer ? "is-selected" : ""}>
-                  <input type="radio" name="printer" checked={config.printer === printer} onChange={() => update("printer", printer)} />
-                  {printer}
-                </label>
-              ))}
-            </div>
-          </div>
-        </ClassicPanel>
-      )}
+      {tab === "printer" && <ClassicPanel title="Información de impresora predeterminada"><div className="siltra-printer-grid"><pre>{`ORIENTATION = 0\npdf-name = AulaNomina-SILTRA\npaper-size = A4\nprintable-area = 210 x 297 mm`}</pre><div className="siltra-printer-list">{["PDF Creator", "Microsoft Print to PDF", "Fax", "Enviar a OneNote"].map((printer) => <label key={printer} className={config.printer === printer ? "is-selected" : ""}><input type="radio" name="printer" checked={config.printer === printer} onChange={() => update("printer", printer)} />{printer}</label>)}</div></div></ClassicPanel>}
     </div>
   );
 }
 
 function PlaceholderWorkspace({ title, text }) {
-  return (
-    <div className="siltra-workspace">
-      <div className="siltra-workspace-heading">{title}</div>
-      <ClassicPanel title="Módulo preparado para ampliación">
-        <div className="siltra-placeholder-workspace">
-          <IconSlot />
-          <div>
-            <strong>{title}</strong>
-            <p>{text}</p>
-            <p>La ventana y navegación ya reproducen la estructura de SILTRA. La lógica se conectará con los futuros ficheros de AulaNomina.</p>
-          </div>
-        </div>
-      </ClassicPanel>
-    </div>
-  );
+  return <div className="siltra-workspace"><div className="siltra-workspace-heading">{title}</div><ClassicPanel title="Módulo preparado para ampliación"><div className="siltra-placeholder-workspace"><IconSlot /><div><strong>{title}</strong><p>{text}</p><p>La ventana y navegación ya reproducen la estructura de SILTRA. La lógica se conectará con los futuros ficheros de AulaNomina.</p></div></div></ClassicPanel></div>;
 }
 
 function DocumentsWorkspace({ documentType }) {
-  return (
-    <div className="siltra-workspace">
-      <div className="siltra-workspace-heading">Impresión de documentos {documentType}</div>
-      <ClassicPanel title={`Documentos ${documentType}`}>
-        <div className="siltra-placeholder-workspace">
-          <IconSlot />
-          <div>
-            <strong>Bandeja de impresión simulada</strong>
-            <p>Este espacio queda reservado para los documentos {documentType} que se generen o reciban durante la práctica.</p>
-          </div>
-        </div>
-      </ClassicPanel>
-    </div>
-  );
+  return <div className="siltra-workspace"><div className="siltra-workspace-heading">Impresión de documentos {documentType}</div><ClassicPanel title={`Documentos ${documentType}`}><div className="siltra-placeholder-workspace"><IconSlot /><div><strong>Bandeja de impresión simulada</strong><p>Este espacio queda reservado para los documentos {documentType} que se generen o reciban durante la práctica.</p></div></div></ClassicPanel></div>;
 }
 
 function SiltraDesktopWindow({ onClose }) {
-  const [screen, setScreen] = useState("home");
+  const [screen, setScreen] = useState(initialScreen);
   const [documentType, setDocumentType] = useState("RNT");
   const [companies, setCompanies] = useState([]);
   const [companiesError, setCompaniesError] = useState("");
   const [config, setConfig] = useState(loadConfig);
   const [configSaved, setConfigSaved] = useState(false);
+  const [minimized, setMinimized] = useState(false);
+  const [maximized, setMaximized] = useState(false);
+  const [dirtyUpload, setDirtyUpload] = useState(false);
+  const [remittanceState, setRemittanceState] = useState(initialRemittanceState);
+
+  const requestClose = useCallback(() => {
+    if (dirtyUpload && !window.confirm("Existe un fichero local seleccionado que todavía no se ha validado. ¿Desea cerrar SILTRA y descartarlo?")) return;
+    onClose();
+  }, [dirtyUpload, onClose]);
 
   useEffect(() => {
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     const handleKeyDown = (event) => {
-      if (event.key === "Escape") onClose();
+      if (event.key === "Escape") requestClose();
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => {
       document.body.style.overflow = previousOverflow;
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [onClose]);
+  }, [requestClose]);
 
   useEffect(() => {
-    fetchCompanies()
-      .then((data) => setCompanies(data || []))
-      .catch((error) => setCompaniesError(error.message || "No se han podido cargar las empresas"));
+    fetchCompanies().then((data) => setCompanies(data || [])).catch((error) => setCompaniesError(error.message || "No se han podido cargar las empresas"));
   }, []);
 
   const navigate = (target) => {
     setConfigSaved(false);
     setScreen(target);
+    window.sessionStorage.setItem(LAST_SCREEN_KEY, target);
   };
 
   const openDocument = (type) => {
@@ -797,34 +722,33 @@ function SiltraDesktopWindow({ onClose }) {
     window.setTimeout(() => setConfigSaved(false), 1800);
   };
 
-  const navItems = [
-    ["home", "⌂", "Inicio"],
-    ["cotizacion", "Cotización", "Cotización"],
-    ["affiliation", "Afiliación/INSS", "Afiliación/INSS"],
-    ["communications", "Comunicaciones", "Comunicaciones"],
-    ["utilities", "Utilidades", "Utilidades"],
-    ["config", "Configuración", "Configuración"],
-    ["about", "Acerca de", "Acerca de"],
-  ];
+  const navItems = [["home", "⌂", "Inicio"], ["cotizacion", "Cotización", "Cotización"], ["affiliation", "Afiliación/INSS", "Afiliación/INSS"], ["communications", "Comunicaciones", "Comunicaciones"], ["utilities", "Utilidades", "Utilidades"], ["config", "Configuración", "Configuración"], ["about", "Acerca de", "Acerca de"]];
+
+  if (minimized) {
+    return (
+      <div className="siltra-modal-overlay siltra-modal-overlay--minimized" role="presentation">
+        <section className="siltra-minimized-window" role="dialog" aria-label="SILTRA simulado minimizado">
+          <div><img src={siltraLogo} alt="" /><strong>SILTRA Versión 2.2.0</strong><span>Entorno educativo</span></div>
+          <button type="button" onClick={() => setMinimized(false)}>Restaurar</button>
+          <button type="button" onClick={requestClose}>×</button>
+        </section>
+      </div>
+    );
+  }
 
   return (
     <div className="siltra-modal-overlay" role="presentation">
-      <section className="siltra-window" role="dialog" aria-modal="true" aria-label="SILTRA simulado">
+      <section className={`siltra-window ${maximized ? "siltra-window--maximized" : ""}`} role="dialog" aria-modal="true" aria-label="SILTRA simulado">
         <div className="siltra-window-titlebar">
           <div className="siltra-window-titlebar__title"><img src={siltraLogo} alt="" /> SILTRA Versión 2.2.0 - AulaNomina</div>
-          <div className="siltra-window-controls" aria-hidden="true"><span>—</span><span>□</span><button type="button" onClick={onClose}>×</button></div>
+          <div className="siltra-window-controls"><button type="button" onClick={() => setMinimized(true)} aria-label="Minimizar">—</button><button type="button" onClick={() => setMaximized((value) => !value)} aria-label={maximized ? "Restaurar tamaño" : "Maximizar"}>{maximized ? "❐" : "□"}</button><button type="button" onClick={requestClose} aria-label="Cerrar">×</button></div>
         </div>
-
-        <nav className="siltra-main-menu" aria-label="Menú SILTRA">
-          {navItems.map(([id, label, title]) => (
-            <button key={id} type="button" title={title} className={screen === id || (id === "cotizacion" && screen === "documents") ? "is-active" : ""} onClick={() => navigate(id)}>{label}</button>
-          ))}
-        </nav>
-
+        <nav className="siltra-main-menu" aria-label="Menú SILTRA">{navItems.map(([id, label, title]) => <button key={id} type="button" title={title} className={screen === id || (id === "cotizacion" && screen === "documents") ? "is-active" : ""} onClick={() => navigate(id)}>{label}</button>)}</nav>
+        <div className="siltra-education-strip"><strong>SILTRA SIMULADO · ENTORNO EDUCATIVO</strong><span>Sin conexión con TGSS, Sistema RED ni servicios públicos.</span></div>
         <div className="siltra-window-content">
           {companiesError && <div className="siltra-message siltra-message--error">{companiesError}</div>}
           {screen === "home" && <SiltraHome onNavigate={navigate} onDocument={openDocument} />}
-          {screen === "cotizacion" && <RemittanceWorkspace companies={companies} config={config} onOpenCommunications={() => navigate("communications")} />}
+          {screen === "cotizacion" && <RemittanceWorkspace companies={companies} config={config} remittanceState={remittanceState} setRemittanceState={setRemittanceState} onDirtyChange={setDirtyUpload} onOpenCommunications={() => navigate("communications")} />}
           {screen === "communications" && <CommunicationsWorkspace companies={companies} />}
           {screen === "config" && <ConfigurationWorkspace config={config} setConfig={setConfig} onSave={saveConfig} />}
           {screen === "documents" && <DocumentsWorkspace documentType={documentType} />}
@@ -833,66 +757,19 @@ function SiltraDesktopWindow({ onClose }) {
           {screen === "utilities" && <PlaceholderWorkspace title="Utilidades" text="Reconstrucción de seguimiento, copias de seguridad y procesamiento de mensajes." />}
           {screen === "about" && <PlaceholderWorkspace title="Acerca de SILTRA simulado" text="Reproducción educativa integrada en AulaNomina. No conecta con TGSS ni realiza presentaciones oficiales." />}
         </div>
-
-        <div className="siltra-window-statusbar">
-          <div className="siltra-status-logo"><img src={siltraLogo} alt="" /><span>Entorno de prácticas AulaNomina</span></div>
-          <div className="siltra-status-progress"><span style={{ width: screen === "config" ? "80%" : "100%" }}></span></div>
-          {configSaved && <strong>Configuración guardada</strong>}
-          <button type="button" className="siltra-exit-button" onClick={onClose} title="Cerrar SILTRA">×</button>
-        </div>
+        <div className="siltra-window-statusbar"><div className="siltra-status-logo"><img src={siltraLogo} alt="" /><span>Entorno de prácticas AulaNomina · Sin conexión con TGSS</span></div><div className="siltra-status-progress"><span style={{ width: screen === "config" ? "80%" : "100%" }} /></div>{configSaved && <strong>Configuración guardada</strong>}<button type="button" className="siltra-exit-button" onClick={requestClose} title="Cerrar SILTRA">×</button></div>
       </section>
     </div>
   );
 }
 
 export default function SiltraGlobalLauncher() {
-  const [host, setHost] = useState(null);
   const [open, setOpen] = useState(false);
-
-  useEffect(() => {
-    let launcherHost = null;
-    let attempts = 0;
-    const install = () => {
-      const topBar = findHeaderTopBar();
-      if (!topBar) {
-        attempts += 1;
-        if (attempts < 40) window.setTimeout(install, 50);
-        return;
-      }
-      launcherHost = document.createElement("div");
-      launcherHost.dataset.siltraLauncherHost = "true";
-      launcherHost.className = "siltra-launcher-host";
-      topBar.insertBefore(launcherHost, topBar.lastElementChild);
-      setHost(launcherHost);
-    };
-    install();
-
-    hideLegacySiltraAccess();
-    const observer = new MutationObserver(hideLegacySiltraAccess);
-    observer.observe(document.body, { childList: true, subtree: true });
-
-    return () => {
-      observer.disconnect();
-      launcherHost?.remove();
-    };
-  }, []);
-
   return (
     <>
-      {host && createPortal(
-        <button
-          type="button"
-          className="siltra-global-launcher"
-          data-siltra-global-launcher="true"
-          title="Abrir SILTRA simulado"
-          aria-label="Abrir SILTRA simulado"
-          onClick={() => setOpen(true)}
-        >
-          <img src={siltraLogo} alt="" aria-hidden="true" />
-          <span>SILTRA</span>
-        </button>,
-        host
-      )}
+      <button type="button" className="siltra-global-launcher" title="Abrir SILTRA simulado" aria-label="Abrir SILTRA simulado" onClick={() => setOpen(true)}>
+        <img src={siltraLogo} alt="" aria-hidden="true" /><span>SILTRA</span>
+      </button>
       {open && createPortal(<SiltraDesktopWindow onClose={() => setOpen(false)} />, document.body)}
     </>
   );
