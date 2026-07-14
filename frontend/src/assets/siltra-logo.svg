@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" role="img" aria-labelledby="title desc">
+  <title id="title">Acceso a SILTRA simulado</title>
+  <desc id="desc">Símbolo rojo inspirado en el icono aportado para identificar el simulador educativo.</desc>
+  <rect width="96" height="96" rx="8" fill="#ffffff"/>
+  <path fill="#ef1111" d="M0 4h96v19H0zM0 76h96v16H0z"/>
+  <path fill="#ef1111" d="M29 28h64v18H53c-8 0-14 5-14 13v4H20v-8c0-16 12-27 29-27z"/>
+  <path fill="#ef1111" d="M39 51h45v17H39z"/>
+  <path fill="#ef1111" d="M20 63h46v13H20z"/>
+</svg>
