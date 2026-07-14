@@ -4,7 +4,7 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 from app.schemas.communication_file import CommunicationFileResponse
-from app.services.siltra_simulation_service import CommunicationSubmissionStatus
+from app.services.siltra_response_codes import CommunicationSubmissionStatus
 
 
 class CommunicationSubmissionCreate(BaseModel):
