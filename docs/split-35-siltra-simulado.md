@@ -8,18 +8,29 @@ El diseño toma como referencia la organización clásica de SILTRA y su configu
 
 ## Acceso
 
-SILTRA no funciona como una página del menú lateral. El acceso se muestra en la cabecera principal de AulaNomina mediante el icono rojo de SILTRA.
+SILTRA no funciona como una página del menú lateral. El único acceso se integra directamente en la cabecera principal de AulaNomina mediante el icono rojo de SILTRA, junto a Alertas, Demo MVP y Ajustes.
 
-Al pulsarlo se abre una subventana global con:
+Se han eliminado completamente:
+
+- la entrada SILTRA del menú lateral;
+- la ruta basada en `#social-security-siltra`;
+- la tarjeta de acceso del dashboard de Seguros Sociales;
+- la página `SiltraSimulatorPage.jsx`;
+- el montaje independiente desde `main.jsx`.
+
+Al pulsar el acceso de cabecera se abre una subventana global con:
 
 - barra de título `SILTRA Versión 2.2.0 - AulaNomina`;
-- controles de ventana;
+- controles funcionales de minimizar, maximizar/restaurar y cerrar;
 - menú superior de Cotización, Afiliación/INSS, Comunicaciones, Utilidades, Configuración y Acerca de;
 - pantalla inicial organizada en bloques verticales;
+- aviso permanente de entorno educativo;
 - barra inferior de estado y botón de salida;
-- cierre mediante el botón de la ventana o la tecla Escape.
+- cierre mediante el botón de la ventana o la tecla Escape;
+- bloqueo del desplazamiento de AulaNomina mientras la ventana está abierta;
+- restauración de la última pantalla visitada y del fichero generado seleccionado.
 
-Los antiguos accesos integrados en el menú lateral y en el dashboard se ocultan visualmente.
+Si existe un fichero local seleccionado que todavía no se ha validado, SILTRA solicita confirmación antes de cerrar.
 
 ## Recorrido disponible
 
@@ -74,7 +85,7 @@ Los parámetros no producen conexiones reales ni cambios en el sistema operativo
 
 ## Incorporación de ficheros
 
-La pantalla de Cotización permite dos orígenes:
+La pantalla de Cotización separa claramente dos orígenes.
 
 ### Ficheros generados en AulaNomina
 
@@ -86,17 +97,47 @@ Se consultan directamente mediante la API común de comunicaciones. La tabla mue
 - estado;
 - último resultado de envío.
 
-### Fichero seleccionado desde el equipo
+Al seleccionar un registro se muestra una ficha previa con:
 
-Se pueden seleccionar archivos JSON, XML o TXT. El flujo interno es:
+- nombre;
+- tipo;
+- tamaño calculado;
+- empresa;
+- CCC;
+- periodo.
+
+Solo se habilita el envío cuando el fichero tiene contenido y se encuentra en un estado enviable: `GENERATED`, `ACCEPTED`, `ACCEPTED_WITH_WARNINGS` o `REJECTED`.
+
+### Ficheros del equipo
+
+Se pueden seleccionar archivos JSON, XML o TXT con un límite de 5 MB. Antes de crear una comunicación se comprueba:
+
+- extensión admitida;
+- tamaño máximo;
+- existencia de un fichero con el mismo nombre y tamaño;
+- empresa, CCC y periodo seleccionados.
+
+La interfaz muestra una previsualización con nombre, tipo, tamaño, empresa, CCC y periodo.
+
+Los duplicados requieren confirmación. Los XML y TXT muestran un aviso porque solo se procesarán si contienen una estructura compatible con AulaNomina. JSON es el formato plenamente funcional del MVP.
+
+El flujo interno es:
 
 1. crear la comunicación como borrador;
 2. validar empresa, CCC y periodo;
 3. adaptar y marcar el fichero como generado;
-4. conservar su contenido y metadatos en AulaNomina;
+4. conservar contenido, tamaño, extensión y metadatos en AulaNomina;
 5. permitir su transmisión mediante el simulador.
 
-El formato generado actualmente por las liquidaciones de AulaNomina es JSON. Los ficheros XML o TXT pueden incorporarse para prácticas, pero el motor de procesamiento puede rechazarlos si no cumplen la estructura educativa esperada.
+## Comportamiento de la subventana
+
+- El estado de Cotización permanece al cambiar a Comunicaciones o Configuración.
+- La empresa y el fichero generado seleccionado se guardan en `sessionStorage`.
+- Minimizar conserva todo el estado y muestra una barra restaurable.
+- Maximizar adapta la ventana al área disponible.
+- En resoluciones de 1366×768 se reduce el espaciado y se mantiene scroll interno.
+- En anchuras inferiores a 900 px los paneles pasan a una columna.
+- Los detalles de mensajes se muestran en una capa interna con prioridad visual sobre el contenido principal.
 
 ## Arquitectura backend
 
@@ -195,9 +236,10 @@ Prioridad global: cualquier error produce `REJECTED`; advertencias sin errores p
 3. Pulse el icono SILTRA de la cabecera.
 4. Abra **Procesar remesas Cotización**.
 5. Seleccione el fichero generado.
-6. Pulse **Enviar fichero seleccionado**.
-7. Compruebe `ACCEPTED` y `A0000`.
-8. Abra Comunicaciones y revise ambos buzones.
+6. Compruebe su ficha previa.
+7. Pulse **Enviar fichero seleccionado**.
+8. Compruebe `ACCEPTED` y `A0000`.
+9. Abra Comunicaciones y revise ambos buzones.
 
 ### Caso 2 — Incorporación local
 
@@ -205,18 +247,30 @@ Prioridad global: cualquier error produce `REJECTED`; advertencias sin errores p
 2. Abra Cotización en la subventana SILTRA.
 3. Seleccione empresa, CCC y periodo.
 4. Pulse **Examinar** y elija el fichero.
-5. Pulse **Validar y Adaptar**.
-6. Compruebe que aparece en la tabla de ficheros generados.
-7. Envíelo y revise la respuesta.
+5. Revise tipo, tamaño y datos asociados.
+6. Pulse **Validar y Adaptar**.
+7. Compruebe que aparece en la tabla de ficheros generados.
+8. Envíelo y revise la respuesta.
 
-### Caso 3 — Advertencia
+### Caso 3 — Validaciones de carga
 
-1. Genere un fichero con cero días y bases positivas, o provoque una diferencia de redondeo educativa.
-2. Envíelo.
-3. Compruebe `ACCEPTED_WITH_WARNINGS` y el código `W9603` o `W9602`.
-4. Revise la recomendación en el mensaje recibido.
+1. Intente seleccionar una extensión no admitida.
+2. Intente seleccionar un fichero superior a 5 MB.
+3. Seleccione un fichero con el mismo nombre que otro existente.
+4. Compruebe el rechazo o aviso correspondiente.
+5. Seleccione XML o TXT y compruebe el aviso de compatibilidad.
 
-### Caso 4 — Rechazo y reenvío
+### Caso 4 — Estado de ventana
+
+1. Seleccione un fichero generado.
+2. Cambie a Comunicaciones y vuelva a Cotización.
+3. Compruebe que continúa seleccionado.
+4. Minimice y restaure SILTRA.
+5. Compruebe que el estado no cambia.
+6. Seleccione un fichero local sin validarlo e intente cerrar.
+7. Compruebe la solicitud de confirmación.
+
+### Caso 5 — Rechazo y reenvío
 
 1. Genere un fichero con un trabajador sin NAF.
 2. Envíelo y compruebe `REJECTED` y `R9501`.
@@ -241,4 +295,4 @@ npm run test:siltra
 npm run build
 ```
 
-La suite cubre numeración, reenvíos, estados, códigos, prioridad de errores, creación de respuestas, conservación del historial, cancelación, prevención de doble envío y utilidades de presentación.
+La suite cubre numeración, reenvíos, estados, códigos, prioridad de errores, creación de respuestas, conservación del historial, cancelación, prevención de doble envío, validación de extensiones, límite de tamaño, duplicados, previsualización y utilidades de presentación.
