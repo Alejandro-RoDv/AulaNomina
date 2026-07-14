@@ -11,6 +11,7 @@ import SiltraGlobalLauncher from "./components/siltra/SiltraGlobalLauncher.jsx";
 createRoot(document.getElementById("root")).render(
   <StrictMode>
     <App />
+    {/* Acceso global a la aplicación de escritorio SILTRA simulada. */}
     <SiltraGlobalLauncher />
   </StrictMode>
 );
