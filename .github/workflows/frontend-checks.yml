@@ -44,7 +44,8 @@ jobs:
           src/tests/incidentPayloads.test.js src/tests/incidentWorkspace.test.js
           src/tests/incidentApiErrors.test.js src/tests/embargoCalculator.test.js
           src/pages/SiltraSimulatorPage.jsx src/pages/SocialSecurityDashboardPage.jsx
-          src/components/layout/Sidebar.jsx src/services/socialSecurityApi.js
+          src/components/layout/Sidebar.jsx src/components/siltra/SiltraGlobalLauncher.jsx
+          src/main.jsx src/services/socialSecurityApi.js
           src/utils/siltraSimulation.js src/tests/siltraSimulation.test.js
           --rule 'react-hooks/set-state-in-effect: off'
           --format json --output-file lint-report.json
