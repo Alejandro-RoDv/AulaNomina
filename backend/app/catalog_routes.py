@@ -78,3 +78,19 @@ def get_working_day_types():
 @router.get("/catalogs/monthly-daily-contribution-types")
 def get_monthly_daily_contribution_types():
     return MONTHLY_DAILY_CONTRIBUTION_TYPES
+
+
+@router.get("/catalogs/all")
+def get_all_catalogs():
+    return {
+        "contracts": sort_contract_codes(CONTRACT_CODES),
+        "contribution_groups": CONTRIBUTION_GROUPS,
+        "situations": SITUATION_CODES,
+        "unemployed_conditions": UNEMPLOYED_CONDITIONS,
+        "substitution_causes": SUBSTITUTION_CAUSES,
+        "inactivity_types": INACTIVITY_TYPES,
+        "worker_collectives": WORKER_COLLECTIVES,
+        "social_exclusion_victim_statuses": SOCIAL_EXCLUSION_VICTIM_STATUSES,
+        "working_day_types": WORKING_DAY_TYPES,
+        "monthly_daily_contribution_types": MONTHLY_DAILY_CONTRIBUTION_TYPES,
+    }
