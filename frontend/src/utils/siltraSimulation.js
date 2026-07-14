@@ -21,6 +21,9 @@ export const SENDABLE_COMMUNICATION_STATUSES = new Set([
   "REJECTED",
 ]);
 
+export const SILTRA_UPLOAD_MAX_BYTES = 5 * 1024 * 1024;
+export const SILTRA_UPLOAD_EXTENSIONS = new Set(["json", "xml", "txt"]);
+
 export function submissionStatusLabel(status) {
   return {
     PENDING: "Pendiente",
@@ -108,4 +111,66 @@ export function buildSiltraNavigationPayload(communication) {
 
 export function latestSubmission(submissions = []) {
   return sortSubmissionsNewestFirst(submissions)[0] || null;
+}
+
+export function getFileExtension(filename = "") {
+  const normalized = String(filename).trim().toLowerCase();
+  const separator = normalized.lastIndexOf(".");
+  return separator >= 0 ? normalized.slice(separator + 1) : "";
+}
+
+export function formatFileSize(bytes = 0) {
+  const value = Number(bytes || 0);
+  if (!Number.isFinite(value) || value <= 0) return "0 B";
+  if (value < 1024) return `${value} B`;
+  if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)} KB`;
+  return `${(value / (1024 * 1024)).toFixed(2)} MB`;
+}
+
+export function validateSiltraUpload(file, existingFiles = []) {
+  if (!file) return { valid: false, error: "Seleccione un fichero.", warning: "", extension: "" };
+
+  const extension = getFileExtension(file.name);
+  if (!SILTRA_UPLOAD_EXTENSIONS.has(extension)) {
+    return {
+      valid: false,
+      error: "Formato no admitido. Seleccione un fichero JSON, XML o TXT.",
+      warning: "",
+      extension,
+    };
+  }
+
+  if (Number(file.size || 0) > SILTRA_UPLOAD_MAX_BYTES) {
+    return {
+      valid: false,
+      error: `El fichero supera el límite de ${formatFileSize(SILTRA_UPLOAD_MAX_BYTES)}.`,
+      warning: "",
+      extension,
+    };
+  }
+
+  const duplicate = existingFiles.some((item) => {
+    const sameName = String(item?.original_filename || "").toLowerCase() === String(file.name || "").toLowerCase();
+    const storedSize = Number(item?.metadata?.source_size_bytes || 0);
+    return sameName && (!storedSize || storedSize === Number(file.size || 0));
+  });
+
+  let warning = "";
+  if (duplicate) warning = "Ya existe un fichero con el mismo nombre en AulaNomina. Se creará un nuevo registro si continúa.";
+  else if (extension !== "json") warning = "XML y TXT se almacenan como práctica, pero solo se procesarán si contienen una estructura compatible con AulaNomina.";
+
+  return { valid: true, error: "", warning, extension };
+}
+
+export function filePreview(file, companyName = "", ccc = "", period = "") {
+  if (!file) return null;
+  const extension = getFileExtension(file.name);
+  return {
+    name: file.name,
+    type: extension ? extension.toUpperCase() : "DESCONOCIDO",
+    size: formatFileSize(file.size),
+    company: companyName || "Sin empresa",
+    ccc: ccc || "Sin CCC",
+    period: period || "Sin periodo",
+  };
 }
