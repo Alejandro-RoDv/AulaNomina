@@ -2,20 +2,103 @@
 
 ## Objetivo
 
-Este split incorpora a AulaNomina un simulador educativo del flujo de envío y recepción de ficheros de liquidación de Seguridad Social. No existe ninguna conexión con SILTRA, Sistema RED, TGSS ni otros servicios públicos.
+Este split incorpora a AulaNomina una aplicación de escritorio simulada para practicar el intercambio de ficheros de cotización. No existe conexión con SILTRA real, Sistema RED, TGSS ni otros servicios públicos.
 
-El recorrido disponible es:
+El diseño toma como referencia la organización clásica de SILTRA y su configuración por pestañas: Autorizado, Aplicación, Comunicaciones, Localización de ficheros e Impresora.
 
-1. preparar y confirmar una liquidación;
+## Acceso
+
+SILTRA no funciona como una página del menú lateral. El acceso se muestra en la cabecera principal de AulaNomina mediante el icono rojo de SILTRA.
+
+Al pulsarlo se abre una subventana global con:
+
+- barra de título `SILTRA Versión 2.2.0 - AulaNomina`;
+- controles de ventana;
+- menú superior de Cotización, Afiliación/INSS, Comunicaciones, Utilidades, Configuración y Acerca de;
+- pantalla inicial organizada en bloques verticales;
+- barra inferior de estado y botón de salida;
+- cierre mediante el botón de la ventana o la tecla Escape.
+
+Los antiguos accesos integrados en el menú lateral y en el dashboard se ocultan visualmente.
+
+## Recorrido disponible
+
+1. preparar y confirmar una liquidación en AulaNomina;
 2. generar el fichero `SOCIAL_SECURITY_SETTLEMENT`;
-3. abrir **Seguros sociales > SILTRA simulado**;
-4. seleccionar el fichero en la bandeja de salida;
-5. ejecutar el envío visual;
-6. procesar el contenido en backend;
-7. recibir una respuesta aceptada, aceptada con advertencias o rechazada;
-8. descargar la respuesta educativa y consultar el historial de intentos.
+3. abrir SILTRA desde la cabecera;
+4. entrar en **Procesar remesas Cotización**;
+5. seleccionar un fichero generado en AulaNomina o incorporar uno desde el equipo;
+6. validar y adaptar el fichero;
+7. transmitirlo a la TGSS simulada;
+8. consultar la respuesta en el buzón de entrada o salida;
+9. corregir los datos y realizar nuevos intentos sin borrar el historial anterior.
 
-## Arquitectura
+## Interfaz reproducida
+
+### Pantalla inicial
+
+La ventana conserva la distribución visual de la aplicación de referencia:
+
+- Cotización:
+  - Procesar remesas Cotización;
+  - Documentos RNT;
+  - Documentos RLC;
+  - Documentos DCL.
+- Afiliación/INSS:
+  - Procesar remesas Afiliación;
+  - Procesar remesas INSS.
+- Comunicaciones:
+  - Envío/Recepción;
+  - Consulta de envíos de Cotización;
+  - Consulta de envíos de Afiliación/INSS;
+  - Seguimiento de liquidaciones;
+  - Buzón de entrada y salida.
+- Utilidades:
+  - Reconstrucción de seguimiento;
+  - Copias de seguridad;
+  - Procesamiento de mensajes descargados.
+
+Los espacios de iconos internos quedan preparados para incorporar recursos gráficos definitivos en un split posterior.
+
+### Configuración
+
+La configuración educativa se guarda en `localStorage` y reproduce las pestañas principales de SILTRA:
+
+- **Autorizado**: número y fecha de autorización, despacho y usuarios.
+- **Aplicación**: reglas de validación, entorno de prácticas, copias de seguridad y nivel de log.
+- **Comunicaciones**: conexión directa o proxy y parámetros SSL simulados.
+- **Localización de ficheros**: estructura virtual XECR, XDCR, RED y SVA.
+- **Impresora**: selección de una impresora simulada.
+
+Los parámetros no producen conexiones reales ni cambios en el sistema operativo.
+
+## Incorporación de ficheros
+
+La pantalla de Cotización permite dos orígenes:
+
+### Ficheros generados en AulaNomina
+
+Se consultan directamente mediante la API común de comunicaciones. La tabla muestra:
+
+- nombre del fichero;
+- CCC;
+- periodo;
+- estado;
+- último resultado de envío.
+
+### Fichero seleccionado desde el equipo
+
+Se pueden seleccionar archivos JSON, XML o TXT. El flujo interno es:
+
+1. crear la comunicación como borrador;
+2. validar empresa, CCC y periodo;
+3. adaptar y marcar el fichero como generado;
+4. conservar su contenido y metadatos en AulaNomina;
+5. permitir su transmisión mediante el simulador.
+
+El formato generado actualmente por las liquidaciones de AulaNomina es JSON. Los ficheros XML o TXT pueden incorporarse para prácticas, pero el motor de procesamiento puede rechazarlos si no cumplen la estructura educativa esperada.
+
+## Arquitectura backend
 
 ### Entidad `CommunicationSubmission`
 
@@ -45,7 +128,7 @@ Campos principales:
 - generación del fichero `AULANOMINA_SILTRA_RESPONSE_V1`;
 - enlace entre fichero, intento y respuesta.
 
-La lógica de validación no se implementa en React.
+La decisión del resultado se realiza en backend. React solo representa el flujo y la respuesta.
 
 ## Reglas iniciales
 
@@ -82,6 +165,17 @@ Prioridad global: cualquier error produce `REJECTED`; advertencias sin errores p
 
 ## API
 
+### Comunicaciones
+
+- `POST /communications`
+- `POST /communications/{id}/validate`
+- `POST /communications/{id}/generate`
+- `GET /communications`
+- `GET /communications/{id}`
+- `POST /communications/{communication_file_id}/submit`
+
+### Intentos SILTRA
+
 - `POST /communication-submissions`
 - `GET /communication-submissions`
 - `GET /communication-submissions/{id}`
@@ -89,57 +183,46 @@ Prioridad global: cualquier error produce `REJECTED`; advertencias sin errores p
 - `POST /communication-submissions/{id}/process`
 - `GET /communication-submissions/{id}/response`
 - `POST /communication-submissions/{id}/cancel`
-- `POST /communications/{communication_file_id}/submit`
 
-La última operación ejecuta creación, envío y procesamiento dentro de una única transacción, pero se mantienen los endpoints detallados para prácticas paso a paso.
-
-## Interfaz
-
-La pantalla reproduce la organización visual del programa de referencia sin intentar presentarse como software oficial. Incluye:
-
-- menú principal inspirado en Cotización, Afiliación/INSS, Comunicaciones y Utilidades;
-- aviso permanente de entorno educativo;
-- bandeja de salida;
-- fases visuales de transmisión;
-- resultado y detalle de mensajes;
-- historial completo;
-- descarga de respuestas;
-- navegación a fichero y liquidación.
-
-Las esperas entre fases son solo visuales. El resultado se decide en backend.
+`POST /communications/{communication_file_id}/submit` ejecuta creación, envío y procesamiento dentro de una única transacción. Los endpoints separados se mantienen para prácticas paso a paso.
 
 ## Prueba manual
 
-### Caso 1 — Aceptación
+### Caso 1 — Fichero generado en AulaNomina
 
 1. Prepare nóminas con CCC, NAF, grupo y bases válidas.
 2. Prepare, confirme y genere la liquidación.
-3. Abra SILTRA simulado.
-4. Envíe el fichero.
-5. Compruebe `ACCEPTED` y `A0000`.
-6. Descargue la respuesta y abra el intento desde el historial.
+3. Pulse el icono SILTRA de la cabecera.
+4. Abra **Procesar remesas Cotización**.
+5. Seleccione el fichero generado.
+6. Pulse **Enviar fichero seleccionado**.
+7. Compruebe `ACCEPTED` y `A0000`.
+8. Abra Comunicaciones y revise ambos buzones.
 
-### Caso 2 — Advertencia
+### Caso 2 — Incorporación local
+
+1. Descargue un fichero de liquidación generado en AulaNomina.
+2. Abra Cotización en la subventana SILTRA.
+3. Seleccione empresa, CCC y periodo.
+4. Pulse **Examinar** y elija el fichero.
+5. Pulse **Validar y Adaptar**.
+6. Compruebe que aparece en la tabla de ficheros generados.
+7. Envíelo y revise la respuesta.
+
+### Caso 3 — Advertencia
 
 1. Genere un fichero con cero días y bases positivas, o provoque una diferencia de redondeo educativa.
 2. Envíelo.
 3. Compruebe `ACCEPTED_WITH_WARNINGS` y el código `W9603` o `W9602`.
-4. Revise la recomendación y descargue la respuesta.
+4. Revise la recomendación en el mensaje recibido.
 
-### Caso 3 — Rechazo
+### Caso 4 — Rechazo y reenvío
 
 1. Genere un fichero con un trabajador sin NAF.
-2. Envíelo.
-3. Compruebe `REJECTED` y `R9501`.
-4. Corrija el dato, regenere la liquidación y vuelva a enviarla.
-5. Verifique que el intento rechazado sigue en el historial.
-
-### Caso 4 — Reenvío
-
-1. Seleccione un fichero con un intento finalizado.
-2. Pulse **Reenviar**.
-3. Compruebe que `attempt_number` aumenta.
-4. Verifique que ambos intentos y sus respuestas permanecen disponibles.
+2. Envíelo y compruebe `REJECTED` y `R9501`.
+3. Corrija el dato y regenere la liquidación.
+4. Vuelva a enviarla.
+5. Verifique que ambos intentos permanecen en el historial.
 
 ## Pruebas automatizadas
 
@@ -155,6 +238,7 @@ Frontend:
 ```bash
 cd frontend
 npm run test:siltra
+npm run build
 ```
 
 La suite cubre numeración, reenvíos, estados, códigos, prioridad de errores, creación de respuestas, conservación del historial, cancelación, prevención de doble envío y utilidades de presentación.
