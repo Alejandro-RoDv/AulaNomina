@@ -43,7 +43,7 @@ jobs:
           src/utils/incidentWorkspace.js src/utils/embargoCalculator.js
           src/tests/incidentPayloads.test.js src/tests/incidentWorkspace.test.js
           src/tests/incidentApiErrors.test.js src/tests/embargoCalculator.test.js
-          src/pages/SiltraSimulatorPage.jsx src/pages/SocialSecurityDashboardPage.jsx
+          src/pages/SocialSecurityDashboardPage.jsx src/components/layout/Header.jsx
           src/components/layout/Sidebar.jsx src/components/siltra/SiltraGlobalLauncher.jsx
           src/main.jsx src/services/socialSecurityApi.js
           src/utils/siltraSimulation.js src/tests/siltraSimulation.test.js
