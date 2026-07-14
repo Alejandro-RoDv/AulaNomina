@@ -48,6 +48,7 @@ jobs:
           src/main.jsx src/services/socialSecurityApi.js
           src/utils/siltraSimulation.js src/tests/siltraSimulation.test.js
           --rule 'react-hooks/set-state-in-effect: off'
+          --max-warnings -1
           --format json --output-file lint-report.json
       - name: Frontend regression tests
         id: tests
@@ -56,13 +57,19 @@ jobs:
       - name: Build
         id: build
         continue-on-error: true
-        run: npm run build
+        run: npm run build > build-output.txt 2>&1
       - name: Upload lint report
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: frontend-lint-report
           path: frontend/lint-report.json
+      - name: Upload build output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-build-output
+          path: frontend/build-output.txt
       - name: Fail when checks fail
         if: steps.lint.outcome == 'failure' || steps.tests.outcome == 'failure' || steps.build.outcome == 'failure'
         run: exit 1
