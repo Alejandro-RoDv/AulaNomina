@@ -7,11 +7,12 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "test": "npm run test:convenios && npm run test:embargos && npm run test:incidencias && npm run test:seguridad-social",
+    "test": "npm run test:convenios && npm run test:embargos && npm run test:incidencias && npm run test:seguridad-social && npm run test:siltra",
     "test:convenios": "node scripts/run-convenios-tests.mjs",
     "test:embargos": "node --test src/tests/embargoCalculator.test.js",
     "test:incidencias": "node --test src/tests/incidentPayloads.test.js src/tests/incidentWorkspace.test.js src/tests/incidentApiErrors.test.js",
     "test:seguridad-social": "node --test src/tests/socialSecuritySettlement.test.js",
+    "test:siltra": "node --test src/tests/siltraSimulation.test.js",
     "preview": "vite preview"
   },
   "dependencies": {
