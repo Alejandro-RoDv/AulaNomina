@@ -1,8 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import siltraLogo from "../assets/siltra-logo.svg";
 import PageCard from "../components/layout/PageCard";
-import SiltraSimulatorPage from "./SiltraSimulatorPage";
 import {
   fetchCommunicationFiles,
   fetchCommunicationSubmissions,
@@ -56,16 +54,8 @@ function SummaryCard({ label, value, hint, emphasis = false }) {
   );
 }
 
-function isSiltraRoute() {
-  return typeof window !== "undefined" && window.location.hash === "#social-security-siltra";
-}
-
 export default function SocialSecurityDashboardPage({ companies = [], onNavigate }) {
-  const activeCompanies = useMemo(
-    () => companies.filter((company) => company.is_active !== false),
-    [companies]
-  );
-  const [siltraOpen, setSiltraOpen] = useState(isSiltraRoute);
+  const activeCompanies = useMemo(() => companies.filter((company) => company.is_active !== false), [companies]);
   const [companyId, setCompanyId] = useState("");
   const [settlements, setSettlements] = useState([]);
   const [communications, setCommunications] = useState([]);
@@ -74,21 +64,7 @@ export default function SocialSecurityDashboardPage({ companies = [], onNavigate
   const [error, setError] = useState("");
 
   useEffect(() => {
-    const syncRoute = () => setSiltraOpen(isSiltraRoute());
-    window.addEventListener("hashchange", syncRoute);
-    window.addEventListener("aulanomina-route-change", syncRoute);
-    return () => {
-      window.removeEventListener("hashchange", syncRoute);
-      window.removeEventListener("aulanomina-route-change", syncRoute);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!companyId && activeCompanies.length > 0) {
-      const stored = window.sessionStorage.getItem("aulanomina:siltraCompanyId");
-      const validStored = activeCompanies.some((company) => String(company.id) === stored);
-      setCompanyId(validStored ? stored : String(activeCompanies[0].id));
-    }
+    if (!companyId && activeCompanies.length > 0) setCompanyId(String(activeCompanies[0].id));
   }, [activeCompanies, companyId]);
 
   const loadDashboard = useCallback(async () => {
@@ -104,10 +80,7 @@ export default function SocialSecurityDashboardPage({ companies = [], onNavigate
     try {
       const [settlementData, communicationData, submissionData] = await Promise.all([
         fetchSocialSecuritySettlements({ company_id: Number(companyId) }),
-        fetchCommunicationFiles({
-          company_id: Number(companyId),
-          file_type: "SOCIAL_SECURITY_SETTLEMENT",
-        }),
+        fetchCommunicationFiles({ company_id: Number(companyId), file_type: "SOCIAL_SECURITY_SETTLEMENT" }),
         fetchCommunicationSubmissions({ company_id: Number(companyId), limit: 500 }),
       ]);
       setSettlements(settlementData || []);
@@ -121,27 +94,18 @@ export default function SocialSecurityDashboardPage({ companies = [], onNavigate
   }, [companyId]);
 
   useEffect(() => {
-    if (!siltraOpen) loadDashboard();
-  }, [loadDashboard, siltraOpen]);
-
-  const openSiltra = () => {
-    if (companyId) window.sessionStorage.setItem("aulanomina:siltraCompanyId", companyId);
-    window.location.hash = "#social-security-siltra";
-    setSiltraOpen(true);
-  };
+    loadDashboard();
+  }, [loadDashboard]);
 
   const stats = useMemo(() => {
     const counts = Object.fromEntries(STATUS_ORDER.map((status) => [status, 0]));
     let totalDue = 0;
-    let workerCount = 0;
 
     settlements.forEach((settlement) => {
       counts[settlement.status] = (counts[settlement.status] || 0) + 1;
       totalDue += Number(settlement.total_due || 0);
-      workerCount += Number(settlement.worker_count || 0);
     });
 
-    const submissionStats = submissionCounts(submissions);
     return {
       total: settlements.length,
       errors: counts.VALIDATION_ERROR || 0,
@@ -149,10 +113,9 @@ export default function SocialSecurityDashboardPage({ companies = [], onNavigate
       confirmed: counts.CONFIRMED || 0,
       generated: counts.GENERATED || 0,
       totalDue,
-      workerCount,
       files: communications.length,
       pendingFiles: communications.filter((file) => file.status === "GENERATED").length,
-      ...submissionStats,
+      ...submissionCounts(submissions),
     };
   }, [communications, settlements, submissions]);
 
@@ -163,63 +126,23 @@ export default function SocialSecurityDashboardPage({ companies = [], onNavigate
     [settlements]
   );
   const lastSubmission = useMemo(() => latestSubmission(submissions), [submissions]);
-  const selectedCompany = activeCompanies.find(
-    (company) => String(company.id) === String(companyId)
-  );
-
-  if (siltraOpen) {
-    return <SiltraSimulatorPage companies={activeCompanies} onNavigate={onNavigate} />;
-  }
+  const selectedCompany = activeCompanies.find((company) => String(company.id) === String(companyId));
 
   return (
     <div style={styles.page}>
       {error && <div style={styles.errorBanner}>{error}</div>}
 
-      <PageCard
-        title="Resumen de Seguros Sociales"
-        subtitle="Liquidaciones, ficheros generados y seguimiento de envíos en SILTRA simulado."
-      >
+      <PageCard title="Resumen de Seguros Sociales" subtitle="Liquidaciones, estados, ficheros generados y resultados de comunicaciones.">
         <div style={styles.toolbar}>
           <label style={styles.field}>
             <span>Empresa</span>
-            <select
-              value={companyId}
-              onChange={(event) => setCompanyId(event.target.value)}
-              style={styles.input}
-            >
+            <select value={companyId} onChange={(event) => setCompanyId(event.target.value)} style={styles.input}>
               <option value="">Selecciona empresa</option>
-              {activeCompanies.map((company) => (
-                <option key={company.id} value={company.id}>{company.name}</option>
-              ))}
+              {activeCompanies.map((company) => <option key={company.id} value={company.id}>{company.name}</option>)}
             </select>
           </label>
-          <button
-            type="button"
-            style={styles.secondaryButton}
-            disabled={!companyId || loading}
-            onClick={loadDashboard}
-          >
-            {loading ? "Actualizando..." : "Actualizar"}
-          </button>
+          <button type="button" style={styles.secondaryButton} disabled={!companyId || loading} onClick={loadDashboard}>{loading ? "Actualizando..." : "Actualizar"}</button>
         </div>
-
-        <button type="button" style={styles.siltraLauncher} onClick={openSiltra}>
-          <span style={styles.siltraLauncherIconFrame}>
-            <img src={siltraLogo} alt="" aria-hidden="true" style={styles.siltraLauncherIcon} />
-          </span>
-          <span style={styles.siltraLauncherCopy}>
-            <span style={styles.siltraLauncherEyebrow}>Simulador educativo</span>
-            <strong style={styles.siltraLauncherTitle}>Abrir SILTRA simulado</strong>
-            <small style={styles.siltraLauncherDescription}>
-              Accede a la bandeja de salida, transmite ficheros, revisa respuestas y prueba reenvíos.
-            </small>
-          </span>
-          <span style={styles.siltraLauncherMeta}>
-            <strong>{stats.pendingFiles}</strong>
-            <small>pendientes</small>
-          </span>
-          <span style={styles.siltraLauncherArrow}>→</span>
-        </button>
 
         <div style={styles.summaryGrid}>
           <SummaryCard label="Liquidaciones" value={stats.total} hint={selectedCompany?.name || "Sin empresa"} />
@@ -234,69 +157,30 @@ export default function SocialSecurityDashboardPage({ companies = [], onNavigate
         </div>
 
         <div style={styles.lastSubmissionPanel}>
-          <div>
-            <span style={styles.summaryLabel}>Último envío</span>
-            {lastSubmission ? (
-              <div style={styles.lastSubmissionData}>
-                <strong>{lastSubmission.submission_number}</strong>
-                <StatusBadge status={lastSubmission.status} submission />
-                <span>{lastSubmission.response_code || "Sin código"}</span>
-                <span>{formatDateTime(lastSubmission.processed_at || lastSubmission.created_at)}</span>
-              </div>
-            ) : (
-              <strong>Sin envíos registrados</strong>
-            )}
-          </div>
+          <span style={styles.summaryLabel}>Último envío registrado</span>
+          {lastSubmission ? (
+            <div style={styles.lastSubmissionData}>
+              <strong>{lastSubmission.submission_number}</strong>
+              <StatusBadge status={lastSubmission.status} submission />
+              <span>{lastSubmission.response_code || "Sin código"}</span>
+              <span>{formatDateTime(lastSubmission.processed_at || lastSubmission.created_at)}</span>
+            </div>
+          ) : <strong>Sin envíos registrados</strong>}
         </div>
 
         <div style={styles.quickActions}>
-          <button
-            type="button"
-            style={styles.primaryButton}
-            onClick={() => onNavigate?.("social-security-settlements")}
-          >
-            Abrir liquidaciones
-          </button>
-          <button
-            type="button"
-            style={styles.secondaryButton}
-            onClick={() => onNavigate?.("social-security-files")}
-          >
-            Ver ficheros generados
-          </button>
-          <button type="button" style={styles.siltraButton} onClick={openSiltra}>
-            <img src={siltraLogo} alt="" aria-hidden="true" style={styles.siltraButtonIcon} />
-            Abrir SILTRA simulado
-          </button>
+          <button type="button" style={styles.primaryButton} onClick={() => onNavigate?.("social-security-settlements")}>Abrir liquidaciones</button>
+          <button type="button" style={styles.secondaryButton} onClick={() => onNavigate?.("social-security-files")}>Ver ficheros generados</button>
         </div>
       </PageCard>
 
-      <PageCard
-        title="Últimas liquidaciones"
-        subtitle="Actividad reciente de la empresa seleccionada."
-      >
-        {loading ? (
-          <div style={styles.emptyState}>Cargando información...</div>
-        ) : latestSettlements.length === 0 ? (
-          <div style={styles.emptyState}>
-            {companyId
-              ? "Todavía no hay liquidaciones para esta empresa."
-              : "Selecciona una empresa para consultar sus liquidaciones."}
-          </div>
+      <PageCard title="Últimas liquidaciones" subtitle="Actividad reciente de la empresa seleccionada.">
+        {loading ? <div style={styles.emptyState}>Cargando información...</div> : latestSettlements.length === 0 ? (
+          <div style={styles.emptyState}>{companyId ? "Todavía no hay liquidaciones para esta empresa." : "Selecciona una empresa para consultar sus liquidaciones."}</div>
         ) : (
           <div style={styles.tableWrapper}>
             <table style={styles.table}>
-              <thead>
-                <tr>
-                  <th style={styles.th}>Periodo</th>
-                  <th style={styles.th}>CCC</th>
-                  <th style={styles.th}>Estado</th>
-                  <th style={styles.thRight}>Trabajadores</th>
-                  <th style={styles.thRight}>Total</th>
-                  <th style={styles.th}>Actualización</th>
-                  <th style={styles.th}>Acción</th>
-                </tr>
-              </thead>
+              <thead><tr><th style={styles.th}>Periodo</th><th style={styles.th}>CCC</th><th style={styles.th}>Estado</th><th style={styles.thRight}>Trabajadores</th><th style={styles.thRight}>Total</th><th style={styles.th}>Actualización</th><th style={styles.th}>Acción</th></tr></thead>
               <tbody>
                 {latestSettlements.map((settlement) => (
                   <tr key={settlement.id}>
@@ -306,15 +190,7 @@ export default function SocialSecurityDashboardPage({ companies = [], onNavigate
                     <td style={styles.tdRight}>{settlement.worker_count}</td>
                     <td style={styles.tdRightStrong}>{formatMoney(settlement.total_due)} €</td>
                     <td style={styles.td}>{formatDateTime(settlement.updated_at)}</td>
-                    <td style={styles.td}>
-                      <button
-                        type="button"
-                        style={styles.tableButton}
-                        onClick={() => onNavigate?.("social-security-settlements")}
-                      >
-                        Revisar
-                      </button>
-                    </td>
+                    <td style={styles.td}><button type="button" style={styles.tableButton} onClick={() => onNavigate?.("social-security-settlements")}>Revisar</button></td>
                   </tr>
                 ))}
               </tbody>
@@ -326,13 +202,7 @@ export default function SocialSecurityDashboardPage({ companies = [], onNavigate
   );
 }
 
-const baseButton = {
-  borderRadius: "8px",
-  padding: "10px 14px",
-  cursor: "pointer",
-  fontWeight: 900,
-  fontSize: "13px",
-};
+const baseButton = { borderRadius: "8px", padding: "10px 14px", cursor: "pointer", fontWeight: 900, fontSize: "13px" };
 
 const styles = {
   page: { display: "flex", flexDirection: "column", gap: "20px" },
@@ -340,15 +210,6 @@ const styles = {
   toolbar: { display: "flex", alignItems: "end", gap: "12px", flexWrap: "wrap", marginBottom: "18px" },
   field: { minWidth: "300px", display: "flex", flexDirection: "column", gap: "6px", fontSize: "13px", fontWeight: 800 },
   input: { border: "1px solid #9ca3af", borderRadius: "8px", padding: "10px 11px", backgroundColor: "#ffffff", color: "#111827", fontSize: "14px", minHeight: "42px" },
-  siltraLauncher: { width: "100%", marginBottom: "18px", border: "3px solid #111111", backgroundColor: "#ffffff", boxShadow: "5px 5px 0 #111111", padding: "14px 16px", display: "grid", gridTemplateColumns: "72px minmax(220px, 1fr) auto auto", alignItems: "center", gap: "16px", textAlign: "left", cursor: "pointer", color: "#111827" },
-  siltraLauncherIconFrame: { width: "68px", height: "68px", display: "grid", placeItems: "center", border: "2px solid #111111", backgroundColor: "#ffffff" },
-  siltraLauncherIcon: { width: "58px", height: "58px", objectFit: "contain", display: "block" },
-  siltraLauncherCopy: { display: "flex", flexDirection: "column", gap: "3px" },
-  siltraLauncherEyebrow: { color: "#b91c1c", fontSize: "11px", fontWeight: 950, letterSpacing: "0.08em", textTransform: "uppercase" },
-  siltraLauncherTitle: { fontSize: "20px", fontWeight: 950 },
-  siltraLauncherDescription: { color: "#4b5563", fontSize: "13px", fontWeight: 650 },
-  siltraLauncherMeta: { minWidth: "76px", borderLeft: "1px solid #d1d5db", paddingLeft: "16px", display: "flex", flexDirection: "column", alignItems: "center" },
-  siltraLauncherArrow: { fontSize: "28px", fontWeight: 950 },
   summaryGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(155px, 1fr))", gap: "10px" },
   summaryCard: { border: "1px solid #d1d5db", backgroundColor: "#ffffff", padding: "12px", display: "flex", flexDirection: "column", gap: "5px", minHeight: "82px" },
   summaryCardEmphasis: { border: "2px solid #111111", backgroundColor: "#fff8a6", boxShadow: "3px 3px 0 #111111" },
@@ -360,8 +221,6 @@ const styles = {
   quickActions: { display: "flex", gap: "10px", flexWrap: "wrap", marginTop: "18px", paddingTop: "16px", borderTop: "1px solid #e5e7eb" },
   primaryButton: { ...baseButton, backgroundColor: "#111827", color: "#ffffff", border: "2px solid #111827" },
   secondaryButton: { ...baseButton, backgroundColor: "#ffffff", color: "#111827", border: "1px solid #9ca3af" },
-  siltraButton: { ...baseButton, backgroundColor: "#fff8a6", color: "#111827", border: "2px solid #111827", boxShadow: "3px 3px 0 #111827", display: "inline-flex", alignItems: "center", gap: "8px" },
-  siltraButtonIcon: { width: "24px", height: "24px", objectFit: "contain" },
   emptyState: { border: "1px dashed #9ca3af", padding: "24px", color: "#6b7280", textAlign: "center", fontWeight: 700 },
   tableWrapper: { overflowX: "auto" },
   table: { width: "100%", minWidth: "880px", borderCollapse: "collapse" },
