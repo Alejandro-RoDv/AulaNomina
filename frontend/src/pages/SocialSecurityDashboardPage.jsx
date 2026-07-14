@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import PageCard from "../components/layout/PageCard";
+import SiltraSimulatorPage from "./SiltraSimulatorPage";
 import {
   fetchCommunicationFiles,
+  fetchCommunicationSubmissions,
   fetchSocialSecuritySettlements,
 } from "../services/socialSecurityApi";
 import {
@@ -11,11 +13,17 @@ import {
   formatPeriod,
   settlementStatusLabel,
 } from "../utils/socialSecuritySettlement";
+import {
+  latestSubmission,
+  submissionCounts,
+  submissionStatusLabel,
+  submissionStatusTone,
+} from "../utils/siltraSimulation";
 
 const STATUS_ORDER = ["VALIDATION_ERROR", "READY", "CONFIRMED", "GENERATED"];
 
-function StatusBadge({ status }) {
-  const palette = {
+function StatusBadge({ status, submission = false }) {
+  const settlementPalette = {
     DRAFT: ["#f3f4f6", "#374151"],
     VALIDATION_ERROR: ["#fee2e2", "#991b1b"],
     READY: ["#fef3c7", "#92400e"],
@@ -23,12 +31,18 @@ function StatusBadge({ status }) {
     GENERATED: ["#dcfce7", "#166534"],
     CANCELLED: ["#e5e7eb", "#4b5563"],
   };
-  const [backgroundColor, color] = palette[status] || palette.DRAFT;
-  return (
-    <span style={{ ...styles.badge, backgroundColor, color }}>
-      {settlementStatusLabel(status)}
-    </span>
-  );
+  const submissionPalette = {
+    success: ["#dcfce7", "#166534"],
+    warning: ["#fef3c7", "#92400e"],
+    danger: ["#fee2e2", "#991b1b"],
+    info: ["#dbeafe", "#1e40af"],
+    neutral: ["#e5e7eb", "#374151"],
+  };
+  const [backgroundColor, color] = submission
+    ? submissionPalette[submissionStatusTone(status)] || submissionPalette.neutral
+    : settlementPalette[status] || settlementPalette.DRAFT;
+  const label = submission ? submissionStatusLabel(status) : settlementStatusLabel(status);
+  return <span style={{ ...styles.badge, backgroundColor, color }}>{label}</span>;
 }
 
 function SummaryCard({ label, value, hint, emphasis = false }) {
@@ -41,20 +55,38 @@ function SummaryCard({ label, value, hint, emphasis = false }) {
   );
 }
 
+function isSiltraRoute() {
+  return typeof window !== "undefined" && window.location.hash === "#social-security-siltra";
+}
+
 export default function SocialSecurityDashboardPage({ companies = [], onNavigate }) {
   const activeCompanies = useMemo(
     () => companies.filter((company) => company.is_active !== false),
     [companies]
   );
+  const [siltraOpen, setSiltraOpen] = useState(isSiltraRoute);
   const [companyId, setCompanyId] = useState("");
   const [settlements, setSettlements] = useState([]);
   const [communications, setCommunications] = useState([]);
+  const [submissions, setSubmissions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
+    const syncRoute = () => setSiltraOpen(isSiltraRoute());
+    window.addEventListener("hashchange", syncRoute);
+    window.addEventListener("aulanomina-route-change", syncRoute);
+    return () => {
+      window.removeEventListener("hashchange", syncRoute);
+      window.removeEventListener("aulanomina-route-change", syncRoute);
+    };
+  }, []);
+
+  useEffect(() => {
     if (!companyId && activeCompanies.length > 0) {
-      setCompanyId(String(activeCompanies[0].id));
+      const stored = window.sessionStorage.getItem("aulanomina:siltraCompanyId");
+      const validStored = activeCompanies.some((company) => String(company.id) === stored);
+      setCompanyId(validStored ? stored : String(activeCompanies[0].id));
     }
   }, [activeCompanies, companyId]);
 
@@ -62,21 +94,24 @@ export default function SocialSecurityDashboardPage({ companies = [], onNavigate
     if (!companyId) {
       setSettlements([]);
       setCommunications([]);
+      setSubmissions([]);
       return;
     }
 
     setLoading(true);
     setError("");
     try {
-      const [settlementData, communicationData] = await Promise.all([
+      const [settlementData, communicationData, submissionData] = await Promise.all([
         fetchSocialSecuritySettlements({ company_id: Number(companyId) }),
         fetchCommunicationFiles({
           company_id: Number(companyId),
           file_type: "SOCIAL_SECURITY_SETTLEMENT",
         }),
+        fetchCommunicationSubmissions({ company_id: Number(companyId), limit: 500 }),
       ]);
       setSettlements(settlementData || []);
       setCommunications(communicationData || []);
+      setSubmissions(submissionData?.items || []);
     } catch (requestError) {
       setError(requestError.message || "No se ha podido cargar el resumen de Seguros Sociales");
     } finally {
@@ -85,8 +120,14 @@ export default function SocialSecurityDashboardPage({ companies = [], onNavigate
   }, [companyId]);
 
   useEffect(() => {
-    loadDashboard();
-  }, [loadDashboard]);
+    if (!siltraOpen) loadDashboard();
+  }, [loadDashboard, siltraOpen]);
+
+  const openSiltra = () => {
+    if (companyId) window.sessionStorage.setItem("aulanomina:siltraCompanyId", companyId);
+    window.location.hash = "#social-security-siltra";
+    setSiltraOpen(true);
+  };
 
   const stats = useMemo(() => {
     const counts = Object.fromEntries(STATUS_ORDER.map((status) => [status, 0]));
@@ -99,6 +140,7 @@ export default function SocialSecurityDashboardPage({ companies = [], onNavigate
       workerCount += Number(settlement.worker_count || 0);
     });
 
+    const submissionStats = submissionCounts(submissions);
     return {
       total: settlements.length,
       errors: counts.VALIDATION_ERROR || 0,
@@ -108,8 +150,10 @@ export default function SocialSecurityDashboardPage({ companies = [], onNavigate
       totalDue,
       workerCount,
       files: communications.length,
+      pendingFiles: communications.filter((file) => file.status === "GENERATED").length,
+      ...submissionStats,
     };
-  }, [communications.length, settlements]);
+  }, [communications, settlements, submissions]);
 
   const latestSettlements = useMemo(
     () => [...settlements]
@@ -117,10 +161,14 @@ export default function SocialSecurityDashboardPage({ companies = [], onNavigate
       .slice(0, 6),
     [settlements]
   );
-
+  const lastSubmission = useMemo(() => latestSubmission(submissions), [submissions]);
   const selectedCompany = activeCompanies.find(
     (company) => String(company.id) === String(companyId)
   );
+
+  if (siltraOpen) {
+    return <SiltraSimulatorPage companies={activeCompanies} onNavigate={onNavigate} />;
+  }
 
   return (
     <div style={styles.page}>
@@ -128,7 +176,7 @@ export default function SocialSecurityDashboardPage({ companies = [], onNavigate
 
       <PageCard
         title="Resumen de Seguros Sociales"
-        subtitle="Situación general de las liquidaciones y los ficheros generados para la empresa seleccionada."
+        subtitle="Liquidaciones, ficheros generados y seguimiento de envíos en SILTRA simulado."
       >
         <div style={styles.toolbar}>
           <label style={styles.field}>
@@ -159,9 +207,27 @@ export default function SocialSecurityDashboardPage({ companies = [], onNavigate
           <SummaryCard label="Con errores" value={stats.errors} hint="Requieren corrección" />
           <SummaryCard label="Preparadas" value={stats.ready} hint="Pendientes de confirmar" />
           <SummaryCard label="Confirmadas" value={stats.confirmed} hint="Pendientes de fichero" />
-          <SummaryCard label="Generadas" value={stats.generated} hint={`${stats.files} fichero(s)`} />
-          <SummaryCard label="Trabajadores procesados" value={stats.workerCount} />
+          <SummaryCard label="Ficheros pendientes de envío" value={stats.pendingFiles} hint={`${stats.files} fichero(s) total`} />
+          <SummaryCard label="Envíos aceptados" value={stats.accepted} />
+          <SummaryCard label="Con advertencias" value={stats.warnings} />
+          <SummaryCard label="Rechazados" value={stats.rejected} />
           <SummaryCard label="Total liquidado" value={`${formatMoney(stats.totalDue)} €`} emphasis />
+        </div>
+
+        <div style={styles.lastSubmissionPanel}>
+          <div>
+            <span style={styles.summaryLabel}>Último envío</span>
+            {lastSubmission ? (
+              <div style={styles.lastSubmissionData}>
+                <strong>{lastSubmission.submission_number}</strong>
+                <StatusBadge status={lastSubmission.status} submission />
+                <span>{lastSubmission.response_code || "Sin código"}</span>
+                <span>{formatDateTime(lastSubmission.processed_at || lastSubmission.created_at)}</span>
+              </div>
+            ) : (
+              <strong>Sin envíos registrados</strong>
+            )}
+          </div>
         </div>
 
         <div style={styles.quickActions}>
@@ -178,6 +244,9 @@ export default function SocialSecurityDashboardPage({ companies = [], onNavigate
             onClick={() => onNavigate?.("social-security-files")}
           >
             Ver ficheros generados
+          </button>
+          <button type="button" style={styles.siltraButton} onClick={openSiltra}>
+            Abrir SILTRA simulado
           </button>
         </div>
       </PageCard>
@@ -257,9 +326,12 @@ const styles = {
   summaryLabel: { color: "#6b7280", fontSize: "12px", fontWeight: 800 },
   summaryValue: { color: "#111827", fontSize: "22px" },
   summaryHint: { color: "#6b7280", fontWeight: 700 },
+  lastSubmissionPanel: { marginTop: "14px", padding: "12px", border: "1px solid #d1d5db", backgroundColor: "#f9fafb" },
+  lastSubmissionData: { display: "flex", alignItems: "center", flexWrap: "wrap", gap: "10px", marginTop: "5px", fontSize: "13px" },
   quickActions: { display: "flex", gap: "10px", flexWrap: "wrap", marginTop: "18px", paddingTop: "16px", borderTop: "1px solid #e5e7eb" },
   primaryButton: { ...baseButton, backgroundColor: "#111827", color: "#ffffff", border: "2px solid #111827" },
   secondaryButton: { ...baseButton, backgroundColor: "#ffffff", color: "#111827", border: "1px solid #9ca3af" },
+  siltraButton: { ...baseButton, backgroundColor: "#fff8a6", color: "#111827", border: "2px solid #111827", boxShadow: "3px 3px 0 #111827" },
   emptyState: { border: "1px dashed #9ca3af", padding: "24px", color: "#6b7280", textAlign: "center", fontWeight: 700 },
   tableWrapper: { overflowX: "auto" },
   table: { width: "100%", minWidth: "880px", borderCollapse: "collapse" },
