@@ -84,6 +84,7 @@ const groups = [
         children: [
           { id: "social-security-settlements", label: "Liquidaciones", enabled: true },
           { id: "social-security-files", label: "Ficheros generados", enabled: true },
+          { id: "social-security-dashboard", label: "SILTRA simulado", enabled: true, hash: "#social-security-siltra" },
         ],
       },
       {
@@ -159,6 +160,9 @@ function getInitialActiveKey(activePage) {
   if (activePage === "incidents") {
     const mode = window.sessionStorage.getItem(modeStorageKeys.incidents) || "list";
     return `incidents:incidents:${mode}`;
+  }
+  if (activePage === "social-security-dashboard" && window.location.hash === "#social-security-siltra") {
+    return "social-security-dashboard:#social-security-siltra";
   }
   return activePage;
 }
