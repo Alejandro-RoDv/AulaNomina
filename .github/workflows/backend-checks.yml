@@ -37,6 +37,10 @@ jobs:
         id: tests
         continue-on-error: true
         run: python -m pytest -q --tb=short tests/test_wage_garnishment.py tests/test_wage_garnishment_calculator.py >> backend-test-output.txt 2>&1
+      - name: SILTRA simulation tests
+        id: siltra_tests
+        continue-on-error: true
+        run: python -m pytest -q --tb=short tests/test_siltra_simulation_service.py >> backend-test-output.txt 2>&1
       - name: Incident payroll engine tests
         id: incident_engine
         continue-on-error: true
@@ -52,7 +56,7 @@ jobs:
           name: backend-test-output
           path: backend/backend-test-output.txt
       - name: Fail when checks fail
-        if: steps.schema.outcome == 'failure' || steps.tests.outcome == 'failure' || steps.incident_engine.outcome == 'failure' || steps.import_app.outcome == 'failure'
+        if: steps.schema.outcome == 'failure' || steps.tests.outcome == 'failure' || steps.siltra_tests.outcome == 'failure' || steps.incident_engine.outcome == 'failure' || steps.import_app.outcome == 'failure'
         run: exit 1
 
   postgres-integration:
