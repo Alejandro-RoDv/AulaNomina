@@ -24,9 +24,7 @@ const groups = [
         id: "collective-agreements",
         label: "Convenios",
         enabled: true,
-        children: [
-          { id: "collective-agreements", label: "Convenios colectivos", enabled: true },
-        ],
+        children: [{ id: "collective-agreements", label: "Convenios colectivos", enabled: true }],
       },
     ],
   },
@@ -84,7 +82,6 @@ const groups = [
         children: [
           { id: "social-security-settlements", label: "Liquidaciones", enabled: true },
           { id: "social-security-files", label: "Ficheros generados", enabled: true },
-          { id: "social-security-dashboard", label: "SILTRA simulado", enabled: true, hash: "#social-security-siltra" },
         ],
       },
       {
@@ -161,9 +158,6 @@ function getInitialActiveKey(activePage) {
     const mode = window.sessionStorage.getItem(modeStorageKeys.incidents) || "list";
     return `incidents:incidents:${mode}`;
   }
-  if (activePage === "social-security-dashboard" && window.location.hash === "#social-security-siltra") {
-    return "social-security-dashboard:#social-security-siltra";
-  }
   return activePage;
 }
 
@@ -177,8 +171,7 @@ function getStoredExpandedGroups() {
 }
 
 function storeExpandedGroups(value) {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(SIDEBAR_STORAGE_KEY, JSON.stringify(value));
+  if (typeof window !== "undefined") window.localStorage.setItem(SIDEBAR_STORAGE_KEY, JSON.stringify(value));
 }
 
 function clearHashIfNeeded(item) {
@@ -189,7 +182,6 @@ function clearHashIfNeeded(item) {
 
 function applyItemNavigation(item) {
   let routeChanged = false;
-
   if (item.hash) {
     if (window.location.hash !== item.hash) window.location.hash = item.hash;
     routeChanged = true;
@@ -211,15 +203,11 @@ function itemMatchesPage(item, activePage, activeNavKey) {
 }
 
 function groupContainsActiveItem(group, activePage, activeNavKey) {
-  return group.items.some(
-    (item) => itemMatchesPage(item, activePage, activeNavKey)
-      || item.children?.some((child) => itemMatchesPage(child, activePage, activeNavKey))
-  );
+  return group.items.some((item) => itemMatchesPage(item, activePage, activeNavKey) || item.children?.some((child) => itemMatchesPage(child, activePage, activeNavKey)));
 }
 
 function findGroupIdForPage(activePage, activeNavKey) {
-  const group = groups.find((section) => groupContainsActiveItem(section, activePage, activeNavKey));
-  return group?.id || null;
+  return groups.find((group) => groupContainsActiveItem(group, activePage, activeNavKey))?.id || null;
 }
 
 export default function Sidebar({ activePage, setActivePage }) {
@@ -240,7 +228,6 @@ export default function Sidebar({ activePage, setActivePage }) {
 
   const handleNavClick = (item) => {
     if (!item.enabled) return;
-
     applyItemNavigation(item);
     const itemKey = getItemKey(item);
     setActiveNavKey(itemKey);
@@ -263,74 +250,30 @@ export default function Sidebar({ activePage, setActivePage }) {
     return !item.modeGroup && !item.hash;
   };
 
-  const isParentActive = (item) => {
-    if (activePage === item.id || activeNavKey === getItemKey(item)) return true;
-    return item.children?.some((child) => isItemActive(child));
-  };
+  const isParentActive = (item) => activePage === item.id || activeNavKey === getItemKey(item) || item.children?.some((child) => isItemActive(child));
 
   return (
     <aside style={styles.sidebar}>
-      <div style={styles.logoPanel}>
-        <img src={logo} alt="AulaNomina" style={styles.logo} />
-      </div>
+      <div style={styles.logoPanel}><img src={logo} alt="AulaNomina" style={styles.logo} /></div>
       <div style={styles.menuPanel}>
-        <button
-          type="button"
-          style={activePage === panelItem.id ? styles.panelButtonActive : styles.panelButton}
-          onClick={() => handleNavClick(panelItem)}
-        >
-          {panelItem.label}
-        </button>
+        <button type="button" style={activePage === panelItem.id ? styles.panelButtonActive : styles.panelButton} onClick={() => handleNavClick(panelItem)}>{panelItem.label}</button>
 
         {groups.map((group) => {
           const isExpanded = Boolean(expandedGroups[group.id]);
           const isGroupActive = groupContainsActiveItem(group, activePage, activeNavKey);
           return (
             <section key={group.id} style={styles.group}>
-              <button
-                type="button"
-                style={{ ...styles.groupToggle, ...(isGroupActive ? styles.groupToggleActive : {}) }}
-                onClick={() => toggleGroup(group.id)}
-                aria-expanded={isExpanded}
-              >
-                <span>{group.title}</span>
-                <strong>{isExpanded ? "−" : "+"}</strong>
+              <button type="button" style={{ ...styles.groupToggle, ...(isGroupActive ? styles.groupToggleActive : {}) }} onClick={() => toggleGroup(group.id)} aria-expanded={isExpanded}>
+                <span>{group.title}</span><strong>{isExpanded ? "−" : "+"}</strong>
               </button>
-
               {isExpanded && (
                 <div style={styles.groupItems}>
                   {group.items.map((item) => (
                     <div key={`${item.id}-${item.label}`} style={styles.itemBlock}>
-                      <button
-                        type="button"
-                        disabled={!item.enabled}
-                        onClick={() => handleNavClick(item)}
-                        style={{
-                          ...styles.navItem,
-                          ...(isParentActive(item) ? styles.navItemActive : {}),
-                          ...(!item.enabled ? styles.navItemDisabled : {}),
-                        }}
-                      >
-                        {item.label}
-                      </button>
-
+                      <button type="button" disabled={!item.enabled} onClick={() => handleNavClick(item)} style={{ ...styles.navItem, ...(isParentActive(item) ? styles.navItemActive : {}), ...(!item.enabled ? styles.navItemDisabled : {}) }}>{item.label}</button>
                       {item.children && (
                         <div style={styles.submenu}>
-                          {item.children.map((child) => (
-                            <button
-                              key={`${child.id}-${child.label}`}
-                              type="button"
-                              disabled={!child.enabled}
-                              onClick={() => handleNavClick(child)}
-                              style={{
-                                ...styles.subNavItem,
-                                ...(isItemActive(child) ? styles.subNavItemActive : {}),
-                                ...(!child.enabled ? styles.navItemDisabled : {}),
-                              }}
-                            >
-                              {child.label}
-                            </button>
-                          ))}
+                          {item.children.map((child) => <button key={`${child.id}-${child.label}`} type="button" disabled={!child.enabled} onClick={() => handleNavClick(child)} style={{ ...styles.subNavItem, ...(isItemActive(child) ? styles.subNavItemActive : {}), ...(!child.enabled ? styles.navItemDisabled : {}) }}>{child.label}</button>)}
                         </div>
                       )}
                     </div>
