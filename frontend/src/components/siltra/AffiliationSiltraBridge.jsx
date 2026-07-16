@@ -72,14 +72,14 @@ function AffiliationSiltraWorkspace({ initialDraftId }) {
       const data = await fetchAffiliationDrafts({ limit: 300 });
       const items = data?.items || [];
       setFiles(items);
-      const candidateId = preferredId || selectedId || items.find((item) => item.original_filename && item.content)?.id;
+      const candidateId = preferredId || items.find((item) => item.original_filename && item.content)?.id;
       if (candidateId) setSelectedId(String(candidateId));
     } catch (requestError) {
       setError(requestError.message || "No se han podido cargar los ficheros AFI");
     } finally {
       setLoading(false);
     }
-  }, [selectedId]);
+  }, []);
 
   const loadSelected = useCallback(async (fileId) => {
     if (!fileId) {
@@ -149,7 +149,7 @@ function AffiliationSiltraWorkspace({ initialDraftId }) {
       <section className="siltra-afi-panel">
         <div className="siltra-afi-panel-title">
           <span>Ficheros AFI generados en AulaNomina</span>
-          <button type="button" className="siltra-classic-button" onClick={() => loadFiles()} disabled={loading || busy}>Actualizar</button>
+          <button type="button" className="siltra-classic-button" onClick={() => loadFiles(selectedId || null)} disabled={loading || busy}>Actualizar</button>
         </div>
         <div className="siltra-table-wrap siltra-afi-table-wrap">
           <table className="siltra-table">
@@ -220,7 +220,7 @@ function AffiliationSiltraWorkspace({ initialDraftId }) {
       )}
 
       <div className="siltra-workspace-actions">
-        <button type="button" className="siltra-classic-button" onClick={() => loadFiles()} disabled={loading || busy}>Reconstruir seguimiento</button>
+        <button type="button" className="siltra-classic-button" onClick={() => loadFiles(selectedId || null)} disabled={loading || busy}>Reconstruir seguimiento</button>
         <button type="button" className="siltra-classic-button siltra-classic-button--primary" onClick={sendFile} disabled={busy || !selectedFile || !SENDABLE_STATUSES.has(selectedFile.status)}>
           {busy ? "Procesando..." : "Enviar fichero AFI seleccionado"}
         </button>
