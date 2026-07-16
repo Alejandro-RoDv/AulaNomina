@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 CALCULATION_MODES = {"fixed_amount", "percentage", "table_amount"}
+PERCENTAGE_BASES = {"salary_base", "salary_base_plus_agreement", "salary_table_total"}
 
 
 class AgreementSeniorityRuleBase(BaseModel):
@@ -14,7 +15,7 @@ class AgreementSeniorityRuleBase(BaseModel):
     code: str = "ANT"
     name: str = "Antigüedad"
     module_years: int = Field(default=3, ge=1, le=50)
-    calculation_mode: str = "table_amount"
+    calculation_mode: str = "fixed_amount"
     fixed_amount: Optional[Decimal] = Field(default=None, ge=Decimal("0.00"))
     percentage: Optional[Decimal] = Field(default=None, ge=Decimal("0.00"), le=Decimal("100.00"))
     percentage_base: str = "salary_base"
@@ -35,6 +36,13 @@ class AgreementSeniorityRuleBase(BaseModel):
     def validate_calculation_mode(cls, value: str):
         if value not in CALCULATION_MODES:
             raise ValueError("Forma de cálculo de antigüedad no válida")
+        return value
+
+    @field_validator("percentage_base")
+    @classmethod
+    def validate_percentage_base(cls, value: str):
+        if value not in PERCENTAGE_BASES:
+            raise ValueError("Base porcentual de antigüedad no válida")
         return value
 
     @model_validator(mode="after")
@@ -79,6 +87,13 @@ class AgreementSeniorityRuleUpdate(BaseModel):
     def validate_calculation_mode(cls, value: Optional[str]):
         if value is not None and value not in CALCULATION_MODES:
             raise ValueError("Forma de cálculo de antigüedad no válida")
+        return value
+
+    @field_validator("percentage_base")
+    @classmethod
+    def validate_percentage_base(cls, value: Optional[str]):
+        if value is not None and value not in PERCENTAGE_BASES:
+            raise ValueError("Base porcentual de antigüedad no válida")
         return value
 
 

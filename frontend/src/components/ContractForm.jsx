@@ -199,6 +199,26 @@ function getConceptSourceLabel(concept) {
   return concept.agreement_id ? "Convenio" : "Genérico";
 }
 
+function normalizeAgreementReference(value) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase();
+}
+
+function findConfiguredAgreement(center, company, agreements) {
+  const configuredReference = center?.collective_agreement || company?.main_collective_agreement || "";
+  const normalizedReference = normalizeAgreementReference(configuredReference);
+  if (!normalizedReference) return null;
+  return agreements.find((agreement) => {
+    const candidates = [agreement.name, agreement.official_name, agreement.internal_name, agreement.agreement_code]
+      .map(normalizeAgreementReference)
+      .filter(Boolean);
+    return candidates.some((candidate) => candidate === normalizedReference || candidate.includes(normalizedReference) || normalizedReference.includes(candidate));
+  }) || null;
+}
+
 function buildSsPayload(ssForm, form, extraForm, catalogs) {
   const situationCode = getSituationCodeForDates(form.end_date, extraForm.termination_reason || ssForm.situation_code);
   return {
@@ -278,6 +298,7 @@ export default function ContractForm({ form, employees, companies, workCenters, 
   const selectedEmployee = employees.find((employee) => String(employee.id) === String(form.employee_id));
   const selectedCompany = companies.find((company) => String(company.id) === String(form.company_id));
   const selectedCenter = workCenters.find((center) => String(center.id) === String(form.center_id));
+  const configuredAgreement = findConfiguredAgreement(selectedCenter, selectedCompany, collectiveAgreements);
   const workerContracts = contracts.filter((contract) => String(contract.employee_id) === String(form.employee_id));
   const activeOtherContracts = workerContracts.filter((contract) => contract.status === "active");
   const agreementCategories = agreementDetail?.professional_categories || [];
@@ -305,6 +326,18 @@ export default function ContractForm({ form, employees, companies, workCenters, 
   const updateExtra = (patch) => setExtraForm((prev) => ({ ...prev, ...patch }));
   const updateSs = (patch) => setSsForm((prev) => ({ ...prev, ...patch }));
 
+  useEffect(() => {
+    if (!configuredAgreement || extraForm.collective_agreement_id) return;
+    setExtraForm((current) => ({
+      ...current,
+      collective_agreement_id: String(configuredAgreement.id),
+      collective_agreement_code: configuredAgreement.agreement_code || "",
+      professional_category_id: "",
+      salary_table_row_id: "",
+      professional_category: "",
+    }));
+  }, [configuredAgreement, extraForm.collective_agreement_id]);
+
   const handleBaseChange = (event) => {
     const { name, value } = event.target;
     onChange(event);
@@ -321,9 +354,21 @@ export default function ContractForm({ form, employees, companies, workCenters, 
 
   const handleEmployeeChange = (event) => {
     const employee = employees.find((item) => String(item.id) === String(event.target.value));
+    const company = companies.find((item) => String(item.id) === String(employee?.company_id));
+    const center = workCenters.find((item) => String(item.id) === String(employee?.center_id));
+    const agreement = findConfiguredAgreement(center, company, collectiveAgreements);
     onChange({ target: { name: "employee_id", value: event.target.value } });
     onChange({ target: { name: "company_id", value: employee?.company_id ? String(employee.company_id) : "" } });
     onChange({ target: { name: "center_id", value: employee?.center_id ? String(employee.center_id) : "" } });
+    if (agreement) {
+      updateExtra({
+        collective_agreement_id: String(agreement.id),
+        collective_agreement_code: agreement.agreement_code || "",
+        professional_category_id: "",
+        salary_table_row_id: "",
+        professional_category: "",
+      });
+    }
   };
 
   const handleAgreementChange = (event) => {
@@ -499,6 +544,7 @@ export default function ContractForm({ form, employees, companies, workCenters, 
       </Section>
 
       <Section title="Retribución">
+        {configuredAgreement && <div style={styles.defaultNotice}>Convenio propuesto desde {selectedCenter?.collective_agreement ? "el centro" : "la empresa"}: <strong>{configuredAgreement.name}</strong>. Puedes cambiarlo manualmente.</div>}
         <div style={styles.formGrid}>
           <Field label="Convenio"><select value={extraForm.collective_agreement_id} onChange={handleAgreementChange} style={styles.input}><option value="">Sin convenio</option>{collectiveAgreements.map((agreement) => <option key={agreement.id} value={agreement.id}>{agreement.name} · {agreement.agreement_code || "sin código"}</option>)}</select></Field>
           <Field label="Categoría profesional"><select value={extraForm.professional_category_id} onChange={handleCategoryChange} disabled={!agreementDetail} style={styles.input}><option value="">Seleccionar categoría</option>{agreementCategories.map((category) => <option key={category.id} value={category.id}>{category.name}{category.level ? ` · ${category.level}` : ""}</option>)}</select></Field>
@@ -581,6 +627,7 @@ const styles = {
   formGroup: { minWidth: "220px", display: "flex", flexDirection: "column", gap: "6px" },
   input: { padding: "10px 12px", border: "1px solid #ccc", borderRadius: "8px", fontSize: "14px", backgroundColor: "white" },
   textarea: { padding: "10px 12px", border: "1px solid #ccc", borderRadius: "8px", fontSize: "14px", backgroundColor: "white", minHeight: "74px" },
+  defaultNotice: { marginBottom: "12px", padding: "10px 12px", border: "1px solid #fde68a", borderRadius: "8px", backgroundColor: "#fffbeb", color: "#78350f", fontSize: "13px" },
   summaryRow: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "12px", marginTop: "14px" },
   summaryCard: { border: "1px solid #e5e7eb", borderRadius: "10px", padding: "10px 12px", backgroundColor: "#f9fafb", display: "flex", flexDirection: "column", gap: "4px" },
   salaryPanel: { marginTop: "14px", border: "1px solid #e5e7eb", borderRadius: "10px", padding: "12px", backgroundColor: "#f9fafb" },

@@ -89,19 +89,39 @@ def load_applicable_seniority_rule(db: Session, contract: Contract, as_of: date)
     return sorted(rules, key=priority, reverse=True)[0]
 
 
+def percentage_base_for_contract(contract: Contract, percentage_base: str | None) -> tuple[Decimal, str]:
+    row = contract.salary_table_row
+    contract_base = as_money(contract.salary_base)
+    row_base = as_money(row.base_salary) if row else Decimal("0.00")
+    salary_base = contract_base if contract_base > 0 else row_base
+
+    if percentage_base == "salary_base_plus_agreement":
+        agreement_plus = as_money(row.agreement_plus) if row else Decimal("0.00")
+        return as_money(salary_base + agreement_plus), "salary_base_plus_agreement"
+
+    if percentage_base == "salary_table_total":
+        if row and as_money(row.total_amount) > 0:
+            return as_money(row.total_amount), "salary_table_total"
+        agreement_plus = as_money(row.agreement_plus) if row else Decimal("0.00")
+        specific_complement = as_money(row.specific_complement) if row else Decimal("0.00")
+        return as_money(salary_base + agreement_plus + specific_complement), "salary_table_total_calculated"
+
+    return salary_base, "salary_base"
+
+
 def amount_per_module(contract: Contract, rule: AgreementSeniorityRule) -> tuple[Decimal, str]:
     mode = rule.calculation_mode
     if mode == "fixed_amount":
         amount = as_money(rule.fixed_amount)
         source = "fixed_amount"
     elif mode == "percentage":
-        base = as_money(contract.salary_base)
+        base, base_source = percentage_base_for_contract(contract, rule.percentage_base)
         amount = as_money(base * Decimal(str(rule.percentage or 0)) / Decimal("100"))
-        source = "contract_salary_base"
+        source = base_source
     else:
         row_amount = contract.salary_table_row.seniority_amount if contract.salary_table_row else None
         amount = as_money(row_amount)
-        source = "salary_table_row"
+        source = "salary_table_row_legacy"
 
     if rule.applies_partiality:
         partiality = as_ratio(get_partiality(contract) / Decimal("100"))

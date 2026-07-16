@@ -6,13 +6,18 @@ import {
   fetchNextEmployeeCode,
   updateEmployee,
 } from "../services/employeeApi";
+import { getSelectedCompanyId, setSelectedCompanyId } from "../utils/companyContext";
 import { buildEmployeePayload, initialEmployeeForm } from "../utils/employeePayloads";
 
+function employeeFormWithContext() {
+  return { ...initialEmployeeForm, company_id: getSelectedCompanyId() };
+}
+
 function buildDuplicatedEmployeeForm(employee) {
-  if (!employee) return initialEmployeeForm;
+  if (!employee) return employeeFormWithContext();
 
   return {
-    ...initialEmployeeForm,
+    ...employeeFormWithContext(),
     document_type: employee.document_type || "DNI",
     dni: employee.dni || "",
     naf: employee.naf || "",
@@ -23,14 +28,12 @@ function buildDuplicatedEmployeeForm(employee) {
     birth_date: employee.birth_date || "",
     nationality: employee.nationality || "",
     birth_place: employee.birth_place || "",
-    domicile: employee.domicile || "",
-    address: employee.address || "",
+    domicile: employee.domicile || employee.address || "",
     city: employee.city || "",
     province: employee.province || "",
     postal_code: employee.postal_code || "",
     landline_phone: employee.landline_phone || "",
-    mobile_phone: employee.mobile_phone || "",
-    phone: employee.phone || "",
+    mobile_phone: employee.mobile_phone || employee.phone || "",
     fax: employee.fax || "",
     email: employee.email || "",
     website: employee.website || "",
@@ -49,7 +52,7 @@ function buildDuplicatedEmployeeForm(employee) {
 }
 
 export function useEmployeesModule({ onDataChanged }) {
-  const [employeeForm, setEmployeeForm] = useState(initialEmployeeForm);
+  const [employeeForm, setEmployeeForm] = useState(employeeFormWithContext);
   const [employeeSubmitting, setEmployeeSubmitting] = useState(false);
   const [employeeError, setEmployeeError] = useState("");
   const [employeeSuccess, setEmployeeSuccess] = useState("");
@@ -71,6 +74,7 @@ export function useEmployeesModule({ onDataChanged }) {
 
   const handleEmployeeChange = (event) => {
     const { name, value } = event.target;
+    if (name === "company_id") setSelectedCompanyId(value);
     setEmployeeForm((prev) =>
       name === "company_id"
         ? { ...prev, company_id: value, center_id: "" }
@@ -87,7 +91,7 @@ export function useEmployeesModule({ onDataChanged }) {
       setEmployeeSubmitting(true);
       await createEmployee(buildEmployeePayload({ ...employeeForm, is_active: true }));
       setEmployeeSuccess("Trabajador creado correctamente");
-      setEmployeeForm(initialEmployeeForm);
+      setEmployeeForm(employeeFormWithContext());
       await onDataChanged();
     } catch (err) {
       setEmployeeError(err.message || "Error al crear trabajador");

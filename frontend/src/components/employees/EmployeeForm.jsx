@@ -206,7 +206,6 @@ export default function EmployeeForm({
 
       <Section title="Contacto y domicilio">
         <div style={styles.formRow}><div style={styles.formGroupWide}><label>Domicilio</label><input name="domicile" value={form.domicile} onChange={onChange} style={styles.input} /></div></div>
-        <div style={styles.formRow}><div style={styles.formGroupWide}><label>Dirección</label><input name="address" value={form.address} onChange={onChange} style={styles.input} /></div></div>
         <div style={styles.formRow}>
           <div style={styles.formGroup}><label>Ciudad</label><input name="city" value={form.city} onChange={onChange} style={styles.input} /></div>
           <div style={styles.formGroup}><label>Provincia</label><input name="province" value={form.province} onChange={onChange} style={styles.input} /></div>
@@ -215,7 +214,6 @@ export default function EmployeeForm({
         <div style={styles.formRow}>
           <div style={styles.formGroupSmall}><label>Teléfono fijo</label><input name="landline_phone" value={form.landline_phone} onChange={onChange} style={styles.input} /></div>
           <div style={styles.formGroupSmall}><label>Móvil</label><input name="mobile_phone" value={form.mobile_phone} onChange={onChange} style={styles.input} /></div>
-          <div style={styles.formGroupSmall}><label>Teléfono general</label><input name="phone" value={form.phone} onChange={onChange} style={styles.input} /></div>
           <div style={styles.formGroupSmall}><label>Fax</label><input name="fax" value={form.fax} onChange={onChange} style={styles.input} /></div>
         </div>
         <div style={styles.formRow}>

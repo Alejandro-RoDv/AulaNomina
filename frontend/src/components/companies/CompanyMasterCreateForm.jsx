@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 import { createCompany } from "../../services/companyApi";
 
@@ -197,11 +197,16 @@ function MutualSelect({ name, value, onChange }) {
   );
 }
 
-export default function CompanyMasterCreateForm({ onCreated, onOpenPreferences }) {
+export default function CompanyMasterCreateForm({ collectiveAgreements = [], onCreated, onOpenPreferences }) {
   const [form, setForm] = useState(EMPTY_FORM);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [createdCompany, setCreatedCompany] = useState(null);
+
+  const agreementOptions = useMemo(
+    () => collectiveAgreements.filter((agreement) => agreement.is_active !== false),
+    [collectiveAgreements]
+  );
 
   const handleChange = (event) => {
     const { name, value, checked, type } = event.target;
@@ -255,7 +260,15 @@ export default function CompanyMasterCreateForm({ onCreated, onOpenPreferences }
           <Field label="Tipo de empresa"><select name="company_type" value={form.company_type} onChange={handleChange} style={styles.input}><option value="privada">Privada</option><option value="publica">Pública</option><option value="privada_sin_lucro">Privada sin lucro</option><option value="corporaciones">Corporaciones</option><option value="ett">ETT</option><option value="sociedad_laboral_privada">Sociedad laboral privada</option></select></Field>
           <Field label="CCC régimen"><TextInput name="ccc_regime" form={form} onChange={handleChange} /></Field>
           <Field label="CCC código"><TextInput name="ccc_code" form={form} onChange={handleChange} /></Field>
-          <Field label="Convenio principal" wide><TextInput name="main_collective_agreement" form={form} onChange={handleChange} /></Field>
+          <Field label="Convenio principal" wide>
+            <select name="main_collective_agreement" value={form.main_collective_agreement} onChange={handleChange} style={styles.input}>
+              <option value="">Sin convenio asignado</option>
+              {agreementOptions.map((agreement) => (
+                <option key={agreement.id} value={agreement.name}>{agreement.name}{agreement.agreement_code ? ` · ${agreement.agreement_code}` : ""}</option>
+              ))}
+            </select>
+            <small style={styles.help}>Solo se muestran convenios ya creados en el módulo de Convenios.</small>
+          </Field>
         </div>
         <div style={styles.checkRow}>
           <label><input type="checkbox" name="is_cooperative" checked={form.is_cooperative} onChange={handleChange} /> Sociedad cooperativa</label>
@@ -343,6 +356,7 @@ const styles = {
   field: { display: "flex", flexDirection: "column", gap: "6px", color: "#374151", fontSize: "13px", fontWeight: 800 },
   fieldWide: { display: "flex", flexDirection: "column", gap: "6px", color: "#374151", fontSize: "13px", fontWeight: 800, gridColumn: "1 / -1" },
   input: { width: "100%", minHeight: "39px", boxSizing: "border-box", border: "1px solid #cbd5e1", borderRadius: "7px", padding: "8px 10px", backgroundColor: "#fff" },
+  help: { color: "#64748b", fontSize: "12px", fontWeight: 600 },
   checkRow: { display: "flex", gap: "18px", flexWrap: "wrap", color: "#374151", fontWeight: 800, fontSize: "13px" },
   error: { padding: "11px 13px", borderRadius: "8px", backgroundColor: "#fef2f2", color: "#b91c1c", fontWeight: 800 },
   successRow: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px", padding: "12px 14px", borderRadius: "8px", backgroundColor: "#f0fdf4", color: "#166534", flexWrap: "wrap" },
