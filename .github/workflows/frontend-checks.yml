@@ -46,7 +46,8 @@ jobs:
           src/pages/SocialSecurityDashboardPage.jsx src/components/layout/Header.jsx
           src/components/layout/Sidebar.jsx src/components/siltra/SiltraGlobalLauncher.jsx
           src/components/affiliation/AffiliationRemittanceLauncher.jsx
-          src/main.jsx src/services/socialSecurityApi.js src/services/affiliationApi.js
+          src/affiliation-siltra-bridge.js src/main.jsx
+          src/services/socialSecurityApi.js src/services/affiliationApi.js
           src/utils/siltraSimulation.js src/tests/siltraSimulation.test.js
           --rule 'react-hooks/set-state-in-effect: off'
           --max-warnings=-1
