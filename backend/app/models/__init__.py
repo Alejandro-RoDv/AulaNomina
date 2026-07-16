@@ -24,6 +24,7 @@ from app.models.smi_parameter import SmiParameter
 from app.models.payroll import Payroll
 from app.models.payroll_calculation_snapshot import PayrollCalculationSnapshot
 from app.models.payroll_salary_structure import ContractPayrollConcept, PayrollConcept, PayrollItem
+from app.models.cra import CraConceptMapping
 from app.models.document import Document
 from app.models.employee_assignment_history import EmployeeAssignmentHistory
 from app.models.tax_profile import TaxProfile
