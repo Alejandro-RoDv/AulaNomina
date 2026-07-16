@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import CompanyCenterSplitForm from "../components/companyCenters/CompanyCenterSplitForm";
 import CompanyDetailWorkspace from "../components/companies/CompanyDetailWorkspace";
 import CompanyDirectory from "../components/companies/CompanyDirectory";
 import CompanyMasterCreateForm from "../components/companies/CompanyMasterCreateForm";
 import PageCard from "../components/layout/PageCard";
+import WorkCenterCreatePanel from "../components/workCenters/WorkCenterCreatePanel";
 import WorkCenterTable from "../components/workCenters/WorkCenterTable";
+import { getSelectedCompanyId, setSelectedCompanyId as persistSelectedCompanyId } from "../utils/companyContext";
 import { openReportPreset } from "../utils/reportShortcuts";
 
 const HASHES = {
@@ -51,6 +52,8 @@ export default function CompaniesPage(props) {
     loading,
     companies,
     workCenters,
+    collectiveAgreements = [],
+    onDataChanged,
     onUpdateCompany,
     onDeleteCompany,
     onUpdateWorkCenter,
@@ -60,7 +63,7 @@ export default function CompaniesPage(props) {
   } = props;
 
   const [route, setRoute] = useState(parseRoute);
-  const [selectedCompanyId, setSelectedCompanyId] = useState("");
+  const [selectedCompanyId, setSelectedCompanyId] = useState(getSelectedCompanyId);
   const [optimisticCompany, setOptimisticCompany] = useState(null);
   const [detailDirty, setDetailDirty] = useState(false);
   const routeRef = useRef(route);
@@ -70,11 +73,23 @@ export default function CompaniesPage(props) {
     return [...companies, optimisticCompany];
   }, [companies, optimisticCompany]);
 
+  const selectCompany = (companyId) => {
+    const normalized = companyId ? String(companyId) : "";
+    setSelectedCompanyId(normalized);
+    persistSelectedCompanyId(normalized);
+  };
+
   useEffect(() => {
     if (optimisticCompany && companies.some((company) => String(company.id) === String(optimisticCompany.id))) {
       setOptimisticCompany(null);
     }
   }, [companies, optimisticCompany]);
+
+  useEffect(() => {
+    if (!loading && selectedCompanyId && !availableCompanies.some((company) => String(company.id) === String(selectedCompanyId))) {
+      selectCompany("");
+    }
+  }, [availableCompanies, loading, selectedCompanyId]);
 
   const commitRoute = (hash) => {
     const nextRoute = parseRoute(hash);
@@ -136,21 +151,29 @@ export default function CompaniesPage(props) {
     [selectedCompanyId, workCenters]
   );
 
-  const openCompany = (company) => requestRoute(`#company-detail/${company.id}/general`);
+  const openCompany = (company) => {
+    selectCompany(company.id);
+    requestRoute(`#company-detail/${company.id}/general`);
+  };
 
   const manageCenters = (company) => {
-    setSelectedCompanyId(String(company.id));
+    selectCompany(company.id);
     requestRoute(HASHES.centers);
   };
 
   const handleCompanyCreated = (company) => {
     if (!company?.id) {
-      window.location.hash = HASHES.list;
-      window.location.reload();
+      requestRoute(HASHES.list);
       return;
     }
     setOptimisticCompany(company);
+    selectCompany(company.id);
     commitRoute(`#company-detail/${company.id}/general`);
+  };
+
+  const handleCenterCreated = async (_center, companyId) => {
+    selectCompany(companyId);
+    await onDataChanged?.();
   };
 
   const changeDetailTab = (tab) => {
@@ -191,7 +214,7 @@ export default function CompaniesPage(props) {
             <button type="button" className="company-button-ghost" onClick={() => requestRoute(HASHES.list)}>Volver al listado</button>
           </div>
           <PageCard title="Alta de empresa" subtitle="Crea la empresa y continúa después con centros, preferencias y domiciliación de pagos.">
-            <CompanyMasterCreateForm onCreated={handleCompanyCreated} onOpenPreferences={openCompany} />
+            <CompanyMasterCreateForm collectiveAgreements={collectiveAgreements} onCreated={handleCompanyCreated} onOpenPreferences={openCompany} />
           </PageCard>
         </>
       )}
@@ -201,6 +224,7 @@ export default function CompaniesPage(props) {
           company={selectedCompany}
           companies={availableCompanies}
           workCenters={workCenters}
+          collectiveAgreements={collectiveAgreements}
           activeTab={route.tab}
           onTabChange={changeDetailTab}
           onBack={() => {
@@ -224,10 +248,17 @@ export default function CompaniesPage(props) {
       {route.area === "centers" && (
         <>
           <div className="company-module-header"><div><h2>Centros de trabajo</h2><p>Crea y mantiene centros vinculados a empresas existentes.</p></div></div>
-          <PageCard title="Gestión de centros" subtitle="Selecciona una empresa para cargar o crear sus centros.">
-            <CompanyCenterSplitForm companies={availableCompanies} workCenters={workCenters} initialSection="centers" onReloadData={() => window.location.reload()} onSelectedCompanyChange={setSelectedCompanyId} />
+          <PageCard title="Gestión de centros" subtitle="La empresa elegida se conserva al cambiar de pestaña o módulo.">
+            <WorkCenterCreatePanel
+              companies={availableCompanies}
+              workCenters={workCenters}
+              collectiveAgreements={collectiveAgreements}
+              selectedCompanyId={selectedCompanyId}
+              onSelectedCompanyChange={selectCompany}
+              onCreated={handleCenterCreated}
+            />
           </PageCard>
-          <PageCard title="Centros de la empresa seleccionada" subtitle={selectedCompanyId ? "Centros vinculados a la empresa elegida." : "Selecciona una empresa para cargar sus centros."}>
+          <PageCard title="Centros de la empresa seleccionada" subtitle={selectedCompanyId ? "El nuevo centro aparecerá aquí inmediatamente después de guardarlo." : "Selecciona una empresa para cargar sus centros."}>
             <WorkCenterTable loading={loading} workCenters={visibleWorkCenters} companies={availableCompanies} onUpdateWorkCenter={onUpdateWorkCenter} onDeleteWorkCenter={onDeleteWorkCenter} submitting={workCenterSubmitting} />
           </PageCard>
         </>
