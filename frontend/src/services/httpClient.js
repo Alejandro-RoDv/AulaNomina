@@ -21,15 +21,22 @@ function messageFromDetail(detail, fallbackMessage, status) {
   return detail || `${fallbackMessage} (${status})`;
 }
 
+function resolveCompatibilityPath(path) {
+  // El botón histórico de reset se conserva, pero ahora vacía todo el entorno
+  // empresarial para evitar datos antiguos y dependencias huérfanas.
+  return path === "/demo/reset" ? "/demo/clear" : path;
+}
+
 export async function apiRequest(path, options = {}, fallbackMessage = "Error de comunicación con la API") {
   let response;
+  const resolvedPath = resolveCompatibilityPath(path);
 
   try {
-    response = await fetch(`${API_BASE_URL}${path}`, options);
+    response = await fetch(`${API_BASE_URL}${resolvedPath}`, options);
   } catch {
     throw new ApiRequestError(
       `No se ha podido conectar con la API (${API_BASE_URL}). Revisa que el backend esté arrancado y que VITE_API_BASE_URL apunte correctamente.`,
-      { path }
+      { path: resolvedPath }
     );
   }
 
@@ -41,7 +48,7 @@ export async function apiRequest(path, options = {}, fallbackMessage = "Error de
     const detail = data?.detail ?? null;
     throw new ApiRequestError(
       messageFromDetail(detail, fallbackMessage, response.status),
-      { status: response.status, detail, path }
+      { status: response.status, detail, path: resolvedPath }
     );
   }
 

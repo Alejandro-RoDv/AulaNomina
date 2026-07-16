@@ -248,17 +248,17 @@ export default function Header({
         <div style={styles.modalOverlay}>
           <section style={styles.modalBox}>
             <div style={styles.modalHeader}>
-              <div><p style={styles.modalKicker}>Configuración</p><h2 style={styles.modalTitle}>Ajustes de demo</h2></div>
+              <div><p style={styles.modalKicker}>Configuración</p><h2 style={styles.modalTitle}>Ajustes del entorno</h2></div>
               <button type="button" style={styles.closeButton} onClick={onCloseSettings}>Cerrar</button>
             </div>
             <div style={styles.warningBox}>
-              <strong>Reset demo</strong>
-              <p style={styles.warningText}>Reinicia únicamente los datos controlados de Fundación AulaNomina. No borra empresas, trabajadores ni contratos creados fuera de la demo.</p>
+              <strong>Vaciar entorno de trabajo</strong>
+              <p style={styles.warningText}>Elimina todas las empresas y sus datos asociados: centros, trabajadores, contratos, incidencias, nóminas, ficheros y comunicaciones. Los catálogos generales del sistema se conservan.</p>
             </div>
             {resetDemoError && <p style={styles.errorMessage}>{resetDemoError}</p>}
             {resetDemoMessage && <p style={styles.successMessage}>{resetDemoMessage}</p>}
             <div style={styles.modalActions}>
-              <button type="button" style={{ ...styles.resetButton, opacity: resetDemoLoading ? 0.7 : 1 }} onClick={onResetDemo} disabled={resetDemoLoading}>{resetDemoLoading ? "Reiniciando..." : "Reset demo"}</button>
+              <button type="button" style={{ ...styles.resetButton, opacity: resetDemoLoading ? 0.7 : 1 }} onClick={onResetDemo} disabled={resetDemoLoading}>{resetDemoLoading ? "Vaciando..." : "Vaciar entorno"}</button>
             </div>
           </section>
         </div>
