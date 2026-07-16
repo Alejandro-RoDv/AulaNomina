@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import logo from "../../assets/aulanomina-logo.svg";
 
 const SIDEBAR_STORAGE_KEY = "aulanomina:sidebarExpandedGroups";
+const AFFILIATION_EVENT = "aulanomina-open-affiliation-remittances";
 const panelItem = { id: "dashboard", label: "Panel", enabled: true };
 
 const groups = [
@@ -53,13 +54,13 @@ const groups = [
         ],
       },
       {
-        id: "incidents",
-        label: "Incidencias",
+        id: "labor-operations",
+        label: "Gestión laboral",
         enabled: true,
         children: [
           { id: "incidents", label: "Incidencias laborales", enabled: true, modeGroup: "incidents", modeValue: "list" },
           { id: "incidents", label: "Embargos judiciales", enabled: true, modeGroup: "incidents", modeValue: "embargo" },
-          { id: "affiliations", label: "Altas y bajas", enabled: false },
+          { id: "affiliations", label: "Altas y bajas", enabled: true, launchEvent: AFFILIATION_EVENT },
           { id: "variations", label: "Variaciones", enabled: false },
           { id: "communications", label: "Comunicados", enabled: false },
         ],
@@ -181,6 +182,11 @@ function clearHashIfNeeded(item) {
 }
 
 function applyItemNavigation(item) {
+  if (item.launchEvent) {
+    window.dispatchEvent(new Event(item.launchEvent));
+    return;
+  }
+
   let routeChanged = false;
   if (item.hash) {
     if (window.location.hash !== item.hash) window.location.hash = item.hash;
@@ -199,11 +205,15 @@ function applyItemNavigation(item) {
 }
 
 function itemMatchesPage(item, activePage, activeNavKey) {
+  if (item.launchEvent) return false;
   return item.id === activePage || getItemKey(item) === activeNavKey;
 }
 
 function groupContainsActiveItem(group, activePage, activeNavKey) {
-  return group.items.some((item) => itemMatchesPage(item, activePage, activeNavKey) || item.children?.some((child) => itemMatchesPage(child, activePage, activeNavKey)));
+  return group.items.some(
+    (item) => itemMatchesPage(item, activePage, activeNavKey)
+      || item.children?.some((child) => itemMatchesPage(child, activePage, activeNavKey))
+  );
 }
 
 function findGroupIdForPage(activePage, activeNavKey) {
@@ -229,6 +239,8 @@ export default function Sidebar({ activePage, setActivePage }) {
   const handleNavClick = (item) => {
     if (!item.enabled) return;
     applyItemNavigation(item);
+    if (item.launchEvent) return;
+
     const itemKey = getItemKey(item);
     setActiveNavKey(itemKey);
     setActivePage(item.id);
@@ -244,36 +256,69 @@ export default function Sidebar({ activePage, setActivePage }) {
   };
 
   const isItemActive = (item) => {
+    if (item.launchEvent) return false;
     const itemKey = getItemKey(item);
     if (activeNavKey === itemKey) return true;
     if (item.id !== activePage) return false;
     return !item.modeGroup && !item.hash;
   };
 
-  const isParentActive = (item) => activePage === item.id || activeNavKey === getItemKey(item) || item.children?.some((child) => isItemActive(child));
+  const isParentActive = (item) => (
+    activePage === item.id
+    || activeNavKey === getItemKey(item)
+    || item.children?.some((child) => isItemActive(child))
+  );
 
   return (
     <aside style={styles.sidebar}>
       <div style={styles.logoPanel}><img src={logo} alt="AulaNomina" style={styles.logo} /></div>
       <div style={styles.menuPanel}>
-        <button type="button" style={activePage === panelItem.id ? styles.panelButtonActive : styles.panelButton} onClick={() => handleNavClick(panelItem)}>{panelItem.label}</button>
+        <button
+          type="button"
+          style={activePage === panelItem.id ? styles.panelButtonActive : styles.panelButton}
+          onClick={() => handleNavClick(panelItem)}
+        >
+          {panelItem.label}
+        </button>
 
         {groups.map((group) => {
           const isExpanded = Boolean(expandedGroups[group.id]);
           const isGroupActive = groupContainsActiveItem(group, activePage, activeNavKey);
           return (
             <section key={group.id} style={styles.group}>
-              <button type="button" style={{ ...styles.groupToggle, ...(isGroupActive ? styles.groupToggleActive : {}) }} onClick={() => toggleGroup(group.id)} aria-expanded={isExpanded}>
+              <button
+                type="button"
+                style={{ ...styles.groupToggle, ...(isGroupActive ? styles.groupToggleActive : {}) }}
+                onClick={() => toggleGroup(group.id)}
+                aria-expanded={isExpanded}
+              >
                 <span>{group.title}</span><strong>{isExpanded ? "−" : "+"}</strong>
               </button>
               {isExpanded && (
                 <div style={styles.groupItems}>
                   {group.items.map((item) => (
                     <div key={`${item.id}-${item.label}`} style={styles.itemBlock}>
-                      <button type="button" disabled={!item.enabled} onClick={() => handleNavClick(item)} style={{ ...styles.navItem, ...(isParentActive(item) ? styles.navItemActive : {}), ...(!item.enabled ? styles.navItemDisabled : {}) }}>{item.label}</button>
+                      <button
+                        type="button"
+                        disabled={!item.enabled}
+                        onClick={() => handleNavClick(item)}
+                        style={{ ...styles.navItem, ...(isParentActive(item) ? styles.navItemActive : {}), ...(!item.enabled ? styles.navItemDisabled : {}) }}
+                      >
+                        {item.label}
+                      </button>
                       {item.children && (
                         <div style={styles.submenu}>
-                          {item.children.map((child) => <button key={`${child.id}-${child.label}`} type="button" disabled={!child.enabled} onClick={() => handleNavClick(child)} style={{ ...styles.subNavItem, ...(isItemActive(child) ? styles.subNavItemActive : {}), ...(!child.enabled ? styles.navItemDisabled : {}) }}>{child.label}</button>)}
+                          {item.children.map((child) => (
+                            <button
+                              key={`${child.id}-${child.label}`}
+                              type="button"
+                              disabled={!child.enabled}
+                              onClick={() => handleNavClick(child)}
+                              style={{ ...styles.subNavItem, ...(isItemActive(child) ? styles.subNavItemActive : {}), ...(!child.enabled ? styles.navItemDisabled : {}) }}
+                            >
+                              {child.label}
+                            </button>
+                          ))}
                         </div>
                       )}
                     </div>
