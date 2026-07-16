@@ -85,6 +85,7 @@ const nullableStringFields = [
 ];
 
 export function buildEmployeePayload(form) {
+  const domicile = form.domicile || form.address || null;
   const payload = {
     ...form,
     document_type: form.document_type || "DNI",
@@ -92,6 +93,9 @@ export function buildEmployeePayload(form) {
     center_id: form.center_id ? Number(form.center_id) : null,
     birth_date: form.birth_date || null,
     academic_title_date: form.academic_title_date || null,
+    domicile,
+    address: domicile,
+    phone: null,
     is_active: form.is_active ?? true,
   };
 
