@@ -1,0 +1,159 @@
+.siltra-window-content {
+  position: relative;
+}
+
+.siltra-afi-workspace {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow: auto;
+  padding: 12px;
+  box-sizing: border-box;
+  background: #edf1f5;
+}
+
+.siltra-afi-panel {
+  border: 1px solid #687587;
+  background: #f8fafc;
+  box-shadow: inset 0 0 0 1px #fff;
+}
+
+.siltra-afi-panel-title {
+  display: flex;
+  min-height: 38px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 5px 9px 5px 13px;
+  border-bottom: 1px solid #7d8999;
+  background: linear-gradient(180deg, #e8edf3, #cfd7e1);
+  color: #273244;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.siltra-afi-table-wrap {
+  max-height: 260px;
+}
+
+.siltra-afi-table-wrap td strong,
+.siltra-afi-table-wrap td small {
+  display: block;
+}
+
+.siltra-afi-table-wrap td small {
+  margin-top: 2px;
+  color: #5d6879;
+  font-size: 10px;
+}
+
+.siltra-afi-table-wrap tr.is-selected {
+  background: #fff3a8;
+}
+
+.siltra-afi-empty {
+  min-height: 72px;
+  display: grid;
+  place-items: center;
+}
+
+.siltra-afi-facts {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(120px, 1fr));
+  gap: 1px;
+  background: #aab4c1;
+}
+
+.siltra-afi-facts > div {
+  display: grid;
+  gap: 4px;
+  min-height: 52px;
+  padding: 8px;
+  background: #f7f9fb;
+}
+
+.siltra-afi-facts span {
+  color: #5b6677;
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.siltra-afi-facts strong {
+  color: #1f2937;
+  font-size: 11px;
+}
+
+.siltra-afi-preview {
+  max-height: 190px;
+  overflow: auto;
+  margin: 0;
+  border-top: 1px solid #8f9baa;
+  background: #111827;
+  color: #e5e7eb;
+  padding: 10px;
+  font-size: 10px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.siltra-afi-status {
+  display: inline-flex;
+  align-items: center;
+  min-height: 21px;
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 10px;
+  font-weight: 900;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.siltra-afi-status--ok {
+  background: #dff4e6;
+  color: #176534;
+}
+
+.siltra-afi-status--error {
+  background: #fbe1e1;
+  color: #8d2424;
+}
+
+.siltra-afi-status--pending {
+  background: #fff0c7;
+  color: #745205;
+}
+
+.siltra-afi-status--neutral {
+  background: #e3e8ee;
+  color: #3f4b5c;
+}
+
+.siltra-afi-response-summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  color: #344054;
+  font-size: 12px;
+}
+
+.siltra-afi-response-list {
+  padding: 0 10px 10px;
+}
+
+@media (max-width: 1050px) {
+  .siltra-afi-facts {
+    grid-template-columns: repeat(3, minmax(120px, 1fr));
+  }
+}
+
+@media (max-width: 700px) {
+  .siltra-afi-facts {
+    grid-template-columns: repeat(2, minmax(120px, 1fr));
+  }
+}
