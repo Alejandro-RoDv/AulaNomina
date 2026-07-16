@@ -117,7 +117,7 @@ export function useAppData({ onLoadError, onNextEmployeeCode } = {}) {
 
   const handleResetDemo = async () => {
     const confirmed = window.confirm(
-      "Esto reiniciará únicamente los datos demo de Fundación AulaNomina. Los demás datos no deberían tocarse. ¿Continuar?"
+      "Esta acción eliminará TODAS las empresas, centros, trabajadores, contratos, incidencias, nóminas, ficheros y comunicaciones asociados. El entorno quedará vacío para empezar desde cero. No se puede deshacer. ¿Continuar?"
     );
     if (!confirmed) return;
 
@@ -127,10 +127,11 @@ export function useAppData({ onLoadError, onNextEmployeeCode } = {}) {
     try {
       setResetDemoLoading(true);
       const data = await resetDemo();
-      setResetDemoMessage(data.message || "Demo reiniciada correctamente");
+      setResetDemoMessage(data.message || "Entorno vaciado correctamente");
       await loadData();
+      window.dispatchEvent(new Event("aulanomina-alerts-refresh"));
     } catch (err) {
-      setResetDemoError(err.message || "Error al reiniciar la demo");
+      setResetDemoError(err.message || "Error al vaciar el entorno");
     } finally {
       setResetDemoLoading(false);
     }
