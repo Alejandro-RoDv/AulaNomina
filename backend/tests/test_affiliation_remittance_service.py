@@ -1,3 +1,4 @@
+import json
 from datetime import date
 
 import pytest
@@ -183,10 +184,11 @@ def test_identity_and_naf_errors_are_returned_by_siltra(db, dni, naf, expected_c
     _, submission = prepare_submission(db, f"A:{contract.id}:2026-07-10")
 
     result = process_affiliation_submission(db, submission)
+    messages = json.loads(result.messages)
 
     assert result.status == "REJECTED"
     assert result.response_code == expected_code
-    assert any(message["code"] == expected_code for message in result.messages_as_list)
+    assert any(message["code"] == expected_code for message in messages)
 
 
 def test_progressive_draft_can_mix_companies_and_selected_movements(db):
