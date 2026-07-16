@@ -6,6 +6,7 @@ import {
   fetchCommunicationSubmissions,
   fetchSocialSecuritySettlements,
 } from "../services/socialSecurityApi";
+import { setSelectedCompanyId } from "../utils/companyContext";
 import {
   formatDateTime,
   formatMoney,
@@ -128,6 +129,12 @@ export default function SocialSecurityDashboardPage({ companies = [], onNavigate
   const lastSubmission = useMemo(() => latestSubmission(submissions), [submissions]);
   const selectedCompany = activeCompanies.find((company) => String(company.id) === String(companyId));
 
+  const openCraFiles = () => {
+    if (companyId) setSelectedCompanyId(companyId);
+    window.location.hash = "#cra-files";
+    window.dispatchEvent(new Event("aulanomina-route-change"));
+  };
+
   return (
     <div style={styles.page}>
       {error && <div style={styles.errorBanner}>{error}</div>}
@@ -171,6 +178,7 @@ export default function SocialSecurityDashboardPage({ companies = [], onNavigate
         <div style={styles.quickActions}>
           <button type="button" style={styles.primaryButton} onClick={() => onNavigate?.("social-security-settlements")}>Abrir liquidaciones</button>
           <button type="button" style={styles.secondaryButton} onClick={() => onNavigate?.("social-security-files")}>Ver ficheros generados</button>
+          <button type="button" style={styles.craButton} disabled={!companyId} onClick={openCraFiles}>Preparar ficheros CRA</button>
         </div>
       </PageCard>
 
@@ -221,6 +229,7 @@ const styles = {
   quickActions: { display: "flex", gap: "10px", flexWrap: "wrap", marginTop: "18px", paddingTop: "16px", borderTop: "1px solid #e5e7eb" },
   primaryButton: { ...baseButton, backgroundColor: "#111827", color: "#ffffff", border: "2px solid #111827" },
   secondaryButton: { ...baseButton, backgroundColor: "#ffffff", color: "#111827", border: "1px solid #9ca3af" },
+  craButton: { ...baseButton, backgroundColor: "#dbeafe", color: "#1d4ed8", border: "1px solid #1d4ed8" },
   emptyState: { border: "1px dashed #9ca3af", padding: "24px", color: "#6b7280", textAlign: "center", fontWeight: 700 },
   tableWrapper: { overflowX: "auto" },
   table: { width: "100%", minWidth: "880px", borderCollapse: "collapse" },
