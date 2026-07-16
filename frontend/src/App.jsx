@@ -8,6 +8,7 @@ import DocumentsRoute from "./components/documents/DocumentsRoute";
 import EmployeesRoute from "./components/employees/EmployeesRoute";
 import ReportsRoute from "./components/reports/ReportsRoute";
 
+import AffiliationRemittancesPage from "./pages/AffiliationRemittancesPage";
 import Dashboard from "./pages/Dashboard";
 import CollectiveAgreementsPage from "./pages/CollectiveAgreementsPage";
 import CompaniesPage from "./pages/CompaniesPage";
@@ -176,6 +177,8 @@ export default function App() {
     if (activePage === "employees-list") return "Listado de trabajadores";
     if (activePage === "employee-record") return "Expediente del trabajador";
     if (activePage === "contracts") return "Contratos";
+    if (activePage === "affiliations") return "Altas, modificaciones y bajas";
+    if (activePage === "affiliation-files") return "Ficheros de afiliación";
     if (activePage === "collective-agreements") return "Convenios";
     if (activePage === "payroll-concepts") return "Historial de conceptos";
     if (activePage === "permanent-payroll-concepts") return "Conceptos permanentes";
@@ -206,6 +209,8 @@ export default function App() {
     if (activePage === "employees-list") return "Consulta y mantenimiento operativo de trabajadores";
     if (activePage === "employee-record") return "Expediente personal, laboral y documental del trabajador";
     if (activePage === "contracts") return "Gestión de contratos laborales";
+    if (activePage === "affiliations") return "Selección progresiva de movimientos y generación de borradores AFI";
+    if (activePage === "affiliation-files") return "Consulta, descarga y presentación de ficheros AFI mediante SILTRA simulado";
     if (activePage === "collective-agreements") return "Parámetros de convenio para consulta didáctica y salario base mínimo";
     if (activePage === "payroll-concepts") return "Catálogo general de conceptos de sistema, personalizados y de convenio";
     if (activePage === "permanent-payroll-concepts") return "Conceptos recurrentes asociados a contratos";
@@ -294,6 +299,14 @@ export default function App() {
     if (activePage === "companies-dashboard") return renderModuleDashboard("companies");
     if (activePage === "workers-dashboard") return renderModuleDashboard("workers");
     if (activePage === "contracts-dashboard") return renderModuleDashboard("contracts");
+
+    if (activePage === "affiliations") {
+      return <AffiliationRemittancesPage initialSection="movements" />;
+    }
+
+    if (activePage === "affiliation-files") {
+      return <AffiliationRemittancesPage initialSection="files" />;
+    }
 
     if (activePage === "social-security-dashboard") {
       return (
