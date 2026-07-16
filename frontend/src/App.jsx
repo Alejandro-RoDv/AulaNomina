@@ -426,6 +426,8 @@ export default function App() {
           loading={loading}
           companies={companies}
           workCenters={workCenters}
+          collectiveAgreements={collectiveAgreements}
+          onDataChanged={loadData}
           companyForm={companyForm}
           workCenterForm={workCenterForm}
           onCompanyChange={handleCompanyChange}
