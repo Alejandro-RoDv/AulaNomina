@@ -46,14 +46,15 @@ export default function CraRoute() {
     <div style={styles.wrapper}>
       <header style={styles.header}>
         <div>
-          <h1 style={styles.title}>Ficheros CRA</h1>
-          <p style={styles.subtitle}>Conceptos retributivos abonados y envío educativo mediante SILTRA.</p>
+          <span style={styles.eyebrow}>Nómina · Seguros sociales</span>
+          <h1 style={styles.title}>Conceptos Retributivos Abonados (CRA)</h1>
+          <p style={styles.subtitle}>Configuración, generación, revisión de ficheros y envío educativo mediante SILTRA.</p>
         </div>
         <button type="button" onClick={closeCraRoute} style={styles.backButton}>Volver a Seguros Sociales</button>
       </header>
       <main style={styles.main}>
         {error && <div style={styles.error}>{error}</div>}
-        {loading ? <div style={styles.loading}>Cargando empresas...</div> : <CraFilesPage companies={companies} />}
+        {loading ? <div style={styles.loading}>Cargando empresas y configuración CRA...</div> : <CraFilesPage companies={companies} />}
       </main>
     </div>
   );
@@ -73,17 +74,18 @@ const styles = {
   header: {
     borderBottom: "3px solid #111111",
     backgroundColor: "#ffffff",
-    padding: "24px 42px 18px 32px",
+    padding: "22px 42px 16px 32px",
     boxSizing: "border-box",
     display: "flex",
     justifyContent: "space-between",
     alignItems: "center",
     gap: "16px",
   },
-  title: { margin: 0, color: "#111111", fontSize: "32px", fontWeight: 950 },
-  subtitle: { margin: "6px 0 0", color: "#4b5563", fontSize: "15px", fontWeight: 700 },
-  backButton: { border: "1px solid #111827", borderRadius: "8px", backgroundColor: "#ffffff", color: "#111827", padding: "9px 13px", cursor: "pointer", fontWeight: 900 },
-  main: { padding: "26px 42px 48px 32px", boxSizing: "border-box", maxWidth: "1320px", width: "100%" },
+  eyebrow: { display: "block", marginBottom: "4px", color: "#1d4ed8", fontSize: "11px", fontWeight: 900, letterSpacing: "0.08em", textTransform: "uppercase" },
+  title: { margin: 0, color: "#111111", fontSize: "30px", fontWeight: 950 },
+  subtitle: { margin: "6px 0 0", color: "#4b5563", fontSize: "14px", fontWeight: 700 },
+  backButton: { border: "1px solid #111827", borderRadius: "5px", backgroundColor: "#ffffff", color: "#111827", padding: "9px 13px", cursor: "pointer", fontWeight: 900 },
+  main: { padding: "24px 42px 48px 32px", boxSizing: "border-box", maxWidth: "1480px", width: "100%" },
   error: { border: "1px solid #fca5a5", backgroundColor: "#fef2f2", color: "#991b1b", padding: "12px", marginBottom: "18px", fontWeight: 800 },
   loading: { border: "1px solid #d1d5db", backgroundColor: "#f9fafb", padding: "18px", color: "#4b5563", fontWeight: 800 },
 };
