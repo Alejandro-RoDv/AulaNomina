@@ -7,6 +7,11 @@ function isCraRoute() {
   return window.location.hash === "#cra-files";
 }
 
+function closeCraRoute() {
+  window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
+  window.dispatchEvent(new Event("aulanomina-route-change"));
+}
+
 export default function CraRoute() {
   const [active, setActive] = useState(isCraRoute());
   const [companies, setCompanies] = useState([]);
@@ -44,6 +49,7 @@ export default function CraRoute() {
           <h1 style={styles.title}>Ficheros CRA</h1>
           <p style={styles.subtitle}>Conceptos retributivos abonados y envío educativo mediante SILTRA.</p>
         </div>
+        <button type="button" onClick={closeCraRoute} style={styles.backButton}>Volver a Seguros Sociales</button>
       </header>
       <main style={styles.main}>
         {error && <div style={styles.error}>{error}</div>}
@@ -69,9 +75,14 @@ const styles = {
     backgroundColor: "#ffffff",
     padding: "24px 42px 18px 32px",
     boxSizing: "border-box",
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: "16px",
   },
   title: { margin: 0, color: "#111111", fontSize: "32px", fontWeight: 950 },
   subtitle: { margin: "6px 0 0", color: "#4b5563", fontSize: "15px", fontWeight: 700 },
+  backButton: { border: "1px solid #111827", borderRadius: "8px", backgroundColor: "#ffffff", color: "#111827", padding: "9px 13px", cursor: "pointer", fontWeight: 900 },
   main: { padding: "26px 42px 48px 32px", boxSizing: "border-box", maxWidth: "1320px", width: "100%" },
   error: { border: "1px solid #fca5a5", backgroundColor: "#fef2f2", color: "#991b1b", padding: "12px", marginBottom: "18px", fontWeight: 800 },
   loading: { border: "1px solid #d1d5db", backgroundColor: "#f9fafb", padding: "18px", color: "#4b5563", fontWeight: 800 },
