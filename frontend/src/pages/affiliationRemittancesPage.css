@@ -1,0 +1,128 @@
+.afi-page {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.afi-page-tabs {
+  display: flex;
+  gap: 8px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid #111;
+}
+
+.afi-page-tabs button,
+.afi-files-toolbar button,
+.afi-files-actions button {
+  min-height: 34px;
+  border: 1px solid #111827;
+  border-radius: 6px;
+  background: #fff;
+  color: #111827;
+  padding: 7px 11px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.afi-page-tabs button.is-active {
+  border: 2px solid #111;
+  background: #f5ef9c;
+}
+
+.afi-page-panel {
+  box-shadow: none;
+}
+
+.afi-page-table-wrap {
+  max-height: 420px;
+}
+
+.afi-files-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.afi-files-toolbar div {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  color: #4b5563;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.afi-files-toolbar strong {
+  color: #111827;
+  font-size: 22px;
+}
+
+.afi-files-empty {
+  border: 1px dashed #9ca3af;
+  background: #f9fafb;
+}
+
+.afi-files-table tbody tr.is-selected {
+  background: #fff8b8;
+}
+
+.afi-files-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.afi-files-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.afi-files-actions .afi-files-upload {
+  border-color: #145f9b;
+  background: #1f78b4;
+  color: #fff;
+}
+
+.afi-file-detail-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.afi-file-detail-header > div:first-child {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #4b5563;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.afi-file-preview {
+  max-height: 440px;
+  overflow: auto;
+  margin: 0;
+  border: 1px solid #9ca3af;
+  background: #111827;
+  color: #e5e7eb;
+  padding: 14px;
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+@media (max-width: 900px) {
+  .afi-files-toolbar,
+  .afi-file-detail-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
