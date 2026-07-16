@@ -3,7 +3,6 @@ import { useEffect, useState } from "react";
 import logo from "../../assets/aulanomina-logo.svg";
 
 const SIDEBAR_STORAGE_KEY = "aulanomina:sidebarExpandedGroups";
-const AFFILIATION_EVENT = "aulanomina-open-affiliation-remittances";
 const panelItem = { id: "dashboard", label: "Panel", enabled: true };
 
 const groups = [
@@ -60,7 +59,8 @@ const groups = [
         children: [
           { id: "incidents", label: "Incidencias laborales", enabled: true, modeGroup: "incidents", modeValue: "list" },
           { id: "incidents", label: "Embargos judiciales", enabled: true, modeGroup: "incidents", modeValue: "embargo" },
-          { id: "affiliations", label: "Altas y bajas", enabled: true, launchEvent: AFFILIATION_EVENT },
+          { id: "affiliations", label: "Altas y bajas", enabled: true },
+          { id: "affiliation-files", label: "Ficheros AFI", enabled: true },
           { id: "variations", label: "Variaciones", enabled: false },
           { id: "communications", label: "Comunicados", enabled: false },
         ],
