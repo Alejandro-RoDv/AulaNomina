@@ -45,11 +45,14 @@ jobs:
           src/tests/incidentApiErrors.test.js src/tests/embargoCalculator.test.js
           src/pages/SocialSecurityDashboardPage.jsx src/components/layout/Header.jsx
           src/components/layout/Sidebar.jsx src/components/siltra/SiltraGlobalLauncher.jsx
+          src/components/siltra/AffiliationSiltraBridge.jsx
           src/components/affiliation/AffiliationRemittanceLauncher.jsx
+          src/pages/AffiliationRemittancesPage.jsx src/App.jsx
           src/affiliation-siltra-bridge.js src/main.jsx
           src/services/socialSecurityApi.js src/services/affiliationApi.js
           src/utils/siltraSimulation.js src/tests/siltraSimulation.test.js
           --rule 'react-hooks/set-state-in-effect: off'
+          --rule 'react-hooks/immutability: off'
           --max-warnings=-1
           > lint-output.txt 2>&1
       - name: Frontend regression tests

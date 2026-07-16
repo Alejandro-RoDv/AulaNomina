@@ -1,4 +1,4 @@
-const AFFILIATION_EVENT = "aulanomina-open-affiliation-remittances";
+const AFFILIATION_EVENT = "aulanomina-open-siltra-affiliation";
 
 function isAffiliationAction(button) {
   const label = String(button?.textContent || "").replace(/\s+/g, " ").trim();
@@ -9,10 +9,9 @@ function openAffiliationWorkspace(event) {
   const button = event.target instanceof Element ? event.target.closest("button") : null;
   if (!button || !isAffiliationAction(button)) return;
 
-  event.preventDefault();
-  event.stopPropagation();
-  event.stopImmediatePropagation();
-  window.dispatchEvent(new Event(AFFILIATION_EVENT));
+  window.setTimeout(() => {
+    window.dispatchEvent(new CustomEvent(AFFILIATION_EVENT, { detail: { draftId: null } }));
+  }, 0);
 }
 
 document.addEventListener("click", openAffiliationWorkspace, true);

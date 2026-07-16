@@ -7,11 +7,11 @@ import "./contract-print-v5-fixes.js";
 import "./convenios-ui-fixes.js";
 import "./affiliation-siltra-bridge.js";
 import App from "./App.jsx";
-import AffiliationRemittanceLauncher from "./components/affiliation/AffiliationRemittanceLauncher.jsx";
+import AffiliationSiltraBridge from "./components/siltra/AffiliationSiltraBridge.jsx";
 
 createRoot(document.getElementById("root")).render(
   <StrictMode>
     <App />
-    <AffiliationRemittanceLauncher />
+    <AffiliationSiltraBridge />
   </StrictMode>
 );
