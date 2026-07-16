@@ -1,6 +1,7 @@
 import { useState } from "react";
 
 import { createContract, deleteContract, updateContract } from "../services/api";
+import { getSelectedCompanyId, setSelectedCompanyId } from "../utils/companyContext";
 import {
   buildContractPayload,
   normalizeSocialSecurityPayload,
@@ -18,6 +19,10 @@ const initialContractForm = {
   pay_schedule: "not_prorated_14",
   status: "active",
 };
+
+function contractFormWithContext() {
+  return { ...initialContractForm, company_id: getSelectedCompanyId() };
+}
 
 function formatValidationErrors(errors) {
   return `Validaciones pendientes: ${errors
@@ -62,13 +67,14 @@ function cleanContractExtraForPersistence(contractExtra = {}) {
 }
 
 export function useContractsModule({ onDataChanged }) {
-  const [contractForm, setContractForm] = useState(initialContractForm);
+  const [contractForm, setContractForm] = useState(contractFormWithContext);
   const [contractSubmitting, setContractSubmitting] = useState(false);
   const [contractError, setContractError] = useState("");
   const [contractSuccess, setContractSuccess] = useState("");
 
   const handleContractChange = (event) => {
     const { name, value } = event.target;
+    if (name === "company_id") setSelectedCompanyId(value);
     setContractForm((prev) => ({ ...prev, [name]: value }));
   };
 
@@ -100,7 +106,7 @@ export function useContractsModule({ onDataChanged }) {
         salaryLines
       );
       setContractSuccess("Contrato, alta SS y estructura retributiva creados correctamente");
-      setContractForm(initialContractForm);
+      setContractForm(contractFormWithContext());
       await onDataChanged();
     } catch (err) {
       setContractError(err.message || "Error al crear contrato");
