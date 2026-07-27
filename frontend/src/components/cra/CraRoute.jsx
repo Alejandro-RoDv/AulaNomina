@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 
 import CraFilesPage from "../../pages/CraFilesPage";
 import { fetchCompanies } from "../../services/companyApi";
-import CraValidationPanel from "./CraValidationPanel";
 
 function isCraRoute() {
   return window.location.hash === "#cra-files";
@@ -55,14 +54,9 @@ export default function CraRoute() {
       </header>
       <main style={styles.main}>
         {error && <div style={styles.error}>{error}</div>}
-        {loading ? (
-          <div style={styles.loading}>Cargando empresas y configuración CRA...</div>
-        ) : (
-          <>
-            <CraFilesPage companies={companies} />
-            <CraValidationPanel companies={companies} />
-          </>
-        )}
+        {loading
+          ? <div style={styles.loading}>Cargando empresas y configuración CRA...</div>
+          : <CraFilesPage companies={companies} />}
       </main>
     </div>
   );
