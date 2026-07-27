@@ -1,0 +1,464 @@
+.cra-validation-banner {
+  margin-bottom: 14px;
+  border: 1px solid;
+  padding: 11px 13px;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.cra-validation-banner--danger {
+  border-color: #dc2626;
+  background: #fef2f2;
+  color: #991b1b;
+}
+
+.cra-validation-banner--success {
+  border-color: #16a34a;
+  background: #f0fdf4;
+  color: #166534;
+}
+
+.cra-validation-flow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 18px;
+  border: 1px solid #111827;
+  background: #f8f3b5;
+  padding: 11px 13px;
+  color: #111827;
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.cra-validation-flow strong {
+  font-size: 16px;
+}
+
+.cra-validation-toolbar {
+  display: grid;
+  grid-template-columns: minmax(230px, 1fr) minmax(300px, 1.4fr) minmax(210px, 0.8fr) auto;
+  gap: 12px;
+  align-items: end;
+  margin-bottom: 16px;
+}
+
+.cra-validation-toolbar label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  color: #374151;
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.cra-validation-toolbar select {
+  min-height: 40px;
+  border: 1px solid #9ca3af;
+  border-radius: 7px;
+  background: #fff;
+  padding: 8px 10px;
+  color: #111827;
+  font-weight: 750;
+}
+
+.cra-validation-toolbar small {
+  min-height: 30px;
+  color: #6b7280;
+  line-height: 1.35;
+  font-weight: 650;
+}
+
+.cra-validation-toolbar > button,
+.cra-validation-primary,
+.cra-validation-secondary {
+  min-height: 38px;
+  border-radius: 7px;
+  padding: 8px 11px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.cra-validation-toolbar > button {
+  border: 1px solid #111827;
+  background: #fff;
+  color: #111827;
+}
+
+.cra-validation-toolbar > button:disabled,
+.cra-validation-primary:disabled,
+.cra-validation-secondary:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.cra-validation-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(120px, 1fr));
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.cra-validation-summary {
+  border: 1px solid #d1d5db;
+  background: #f9fafb;
+  padding: 11px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cra-validation-summary span {
+  color: #6b7280;
+  font-size: 11px;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.cra-validation-summary strong {
+  color: #111827;
+  font-size: 22px;
+}
+
+.cra-validation-summary--success {
+  border-color: #86efac;
+  background: #f0fdf4;
+}
+
+.cra-validation-summary--warning {
+  border-color: #fde68a;
+  background: #fffbeb;
+}
+
+.cra-validation-summary--danger {
+  border-color: #fecaca;
+  background: #fef2f2;
+}
+
+.cra-validation-summary--info {
+  border-color: #bfdbfe;
+  background: #eff6ff;
+}
+
+.cra-validation-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.55fr) minmax(330px, 0.8fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.cra-validation-table-wrap {
+  overflow: auto;
+  border: 1px solid #d1d5db;
+  max-height: 640px;
+}
+
+.cra-validation-table {
+  width: 100%;
+  min-width: 900px;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.cra-validation-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  border-bottom: 2px solid #111827;
+  background: #f3f4f6;
+  padding: 10px;
+  text-align: left;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  font-size: 11px;
+}
+
+.cra-validation-table td {
+  border-bottom: 1px solid #e5e7eb;
+  padding: 10px;
+  vertical-align: top;
+}
+
+.cra-validation-table tbody tr {
+  cursor: pointer;
+}
+
+.cra-validation-table tbody tr:hover,
+.cra-validation-table tbody tr.is-selected {
+  background: #fffde7;
+}
+
+.cra-validation-table td strong,
+.cra-validation-table td small {
+  display: block;
+}
+
+.cra-validation-table td small {
+  margin-top: 4px;
+  color: #6b7280;
+  line-height: 1.35;
+}
+
+.cra-validation-status {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid;
+  border-radius: 999px;
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.cra-validation-status--success {
+  border-color: #16a34a;
+  background: #dcfce7;
+  color: #166534;
+}
+
+.cra-validation-status--warning {
+  border-color: #d97706;
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.cra-validation-status--danger {
+  border-color: #dc2626;
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.cra-validation-status--neutral {
+  border-color: #9ca3af;
+  background: #f3f4f6;
+  color: #374151;
+}
+
+.cra-validation-primary {
+  border: 1px solid #111827;
+  background: #111827;
+  color: #fff;
+}
+
+.cra-validation-secondary {
+  border: 1px solid #1d4ed8;
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.cra-validation-linked {
+  display: inline-flex;
+  border: 1px solid #7c3aed;
+  background: #ede9fe;
+  color: #5b21b6;
+  border-radius: 999px;
+  padding: 5px 8px;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.cra-validation-detail {
+  position: sticky;
+  top: 0;
+  border: 2px solid #111827;
+  background: #fff;
+  padding: 14px;
+  box-shadow: 4px 4px 0 #f8f3b5;
+}
+
+.cra-validation-detail-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: start;
+  border-bottom: 1px solid #d1d5db;
+  padding-bottom: 12px;
+}
+
+.cra-validation-detail-header > div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cra-validation-detail-header span:first-child {
+  color: #6b7280;
+  font-size: 11px;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.cra-validation-detail-header strong {
+  overflow-wrap: anywhere;
+  color: #111827;
+}
+
+.cra-validation-data {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin: 12px 0;
+}
+
+.cra-validation-data div {
+  border: 1px solid #e5e7eb;
+  background: #f9fafb;
+  padding: 8px;
+}
+
+.cra-validation-data dt {
+  color: #6b7280;
+  font-size: 10px;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.cra-validation-data dd {
+  margin: 4px 0 0;
+  color: #111827;
+  font-size: 12px;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+.cra-validation-response {
+  margin: 12px 0;
+  border-left: 4px solid;
+  padding: 10px;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.45;
+}
+
+.cra-validation-response--success {
+  border-color: #16a34a;
+  background: #f0fdf4;
+  color: #166534;
+}
+
+.cra-validation-response--warning {
+  border-color: #d97706;
+  background: #fffbeb;
+  color: #92400e;
+}
+
+.cra-validation-response--danger {
+  border-color: #dc2626;
+  background: #fef2f2;
+  color: #991b1b;
+}
+
+.cra-validation-response--neutral {
+  border-color: #6b7280;
+  background: #f9fafb;
+  color: #374151;
+}
+
+.cra-validation-messages h4 {
+  margin: 14px 0 9px;
+  font-size: 13px;
+}
+
+.cra-validation-message {
+  margin-bottom: 8px;
+  border: 1px solid;
+  padding: 9px;
+}
+
+.cra-validation-message header {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 11px;
+}
+
+.cra-validation-message p {
+  margin: 6px 0 0;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.cra-validation-message small {
+  display: block;
+  margin-top: 6px;
+  font-weight: 750;
+}
+
+.cra-validation-message--danger {
+  border-color: #fca5a5;
+  background: #fef2f2;
+  color: #991b1b;
+}
+
+.cra-validation-message--warning {
+  border-color: #fcd34d;
+  background: #fffbeb;
+  color: #92400e;
+}
+
+.cra-validation-message--info {
+  border-color: #93c5fd;
+  background: #eff6ff;
+  color: #1e40af;
+}
+
+.cra-validation-correction-help {
+  margin-top: 14px;
+  border-top: 2px solid #111827;
+  background: #f8f3b5;
+  padding: 11px;
+  color: #111827;
+}
+
+.cra-validation-correction-help p {
+  margin: 5px 0 0;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.cra-validation-empty {
+  padding: 18px;
+  color: #6b7280;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+@media (max-width: 1180px) {
+  .cra-validation-toolbar {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .cra-validation-summary-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .cra-validation-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .cra-validation-detail {
+    position: static;
+  }
+}
+
+@media (max-width: 720px) {
+  .cra-validation-toolbar,
+  .cra-validation-summary-grid,
+  .cra-validation-data {
+    grid-template-columns: 1fr;
+  }
+
+  .cra-validation-flow {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .cra-validation-flow strong {
+    transform: rotate(90deg);
+  }
+}
