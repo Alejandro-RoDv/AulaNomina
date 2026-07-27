@@ -24,12 +24,12 @@ const SCENARIOS = [
   {
     value: "AUTO",
     label: "Validación automática",
-    help: "SILTRA decide el resultado a partir del contenido del fichero.",
+    help: "El resultado depende del contenido, los datos y los envíos anteriores.",
   },
   {
     value: "WARNINGS",
     label: "Práctica: aceptación con avisos",
-    help: "Añade un aviso didáctico si el fichero no contiene errores bloqueantes.",
+    help: "Añade un aviso didáctico cuando no existen errores bloqueantes.",
   },
   {
     value: "REJECTED",
@@ -86,7 +86,11 @@ function SummaryCard({ label, value, tone = "neutral" }) {
   );
 }
 
-export default function CraValidationPanel({ companies = [] }) {
+export default function CraValidationPanel({
+  companies = [],
+  refreshToken = 0,
+  onNewFile = null,
+}) {
   const activeCompanies = useMemo(
     () => companies.filter((company) => company.is_active !== false),
     [companies]
@@ -100,6 +104,7 @@ export default function CraValidationPanel({ companies = [] }) {
   const [busyFileId, setBusyFileId] = useState(null);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [showXml, setShowXml] = useState(false);
 
   useEffect(() => subscribeSelectedCompany(setCompanyId), []);
 
@@ -132,8 +137,9 @@ export default function CraValidationPanel({ companies = [] }) {
 
   useEffect(() => {
     setMessage("");
+    setShowXml(false);
     loadFiles();
-  }, [companyId]);
+  }, [companyId, refreshToken]);
 
   const filteredFiles = useMemo(
     () => files.filter((file) => statusFilter === "ALL" || file.status === statusFilter),
@@ -182,10 +188,26 @@ export default function CraValidationPanel({ companies = [] }) {
     }
   }
 
+  function downloadFile(file) {
+    if (!file?.content) {
+      setError("El fichero no contiene XML disponible para descargar.");
+      return;
+    }
+    const blob = new Blob([file.content], { type: "application/xml;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = file.original_filename || `CRA_${file.period || "fichero"}.xml`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
+  }
+
   return (
     <PageCard
-      title="Validación SILTRA y rectificaciones CRA"
-      subtitle="Practica respuestas aceptadas, aceptadas con avisos, rechazadas y la generación de una comunicación correctora trazable."
+      title="Ficheros, respuestas y rectificaciones"
+      subtitle="Único punto de envío CRA: valida el XML, recibe la respuesta RCA y genera una comunicación correctora cuando sea necesario."
     >
       {error && <div className="cra-validation-banner cra-validation-banner--danger">{error}</div>}
       {message && <div className="cra-validation-banner cra-validation-banner--success">{message}</div>}
@@ -193,11 +215,11 @@ export default function CraValidationPanel({ companies = [] }) {
       <div className="cra-validation-flow" aria-label="Flujo de validación CRA">
         <span>1. Fichero generado</span>
         <strong>→</strong>
-        <span>2. Validación SILTRA</span>
+        <span>2. Validar y enviar</span>
         <strong>→</strong>
         <span>3. Respuesta RCA</span>
         <strong>→</strong>
-        <span>4. Corrección y reenvío</span>
+        <span>4. Correctora y reenvío</span>
       </div>
 
       <div className="cra-validation-toolbar">
@@ -229,9 +251,16 @@ export default function CraValidationPanel({ companies = [] }) {
             <option value="REJECTED">Rechazados</option>
           </select>
         </label>
-        <button type="button" onClick={() => loadFiles()} disabled={loading || !companyId}>
-          {loading ? "Actualizando..." : "Actualizar"}
-        </button>
+        <div className="cra-validation-toolbar__actions">
+          <button type="button" onClick={() => loadFiles()} disabled={loading || !companyId}>
+            {loading ? "Actualizando..." : "Actualizar"}
+          </button>
+          {onNewFile && (
+            <button type="button" className="cra-validation-primary" onClick={onNewFile}>
+              Nuevo fichero
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="cra-validation-summary-grid">
@@ -263,7 +292,10 @@ export default function CraValidationPanel({ companies = [] }) {
                   <tr
                     key={file.id}
                     className={selectedFileId === file.id ? "is-selected" : ""}
-                    onClick={() => setSelectedFileId(file.id)}
+                    onClick={() => {
+                      setSelectedFileId(file.id);
+                      setShowXml(false);
+                    }}
                   >
                     <td>
                       <strong>{file.original_filename}</strong>
@@ -320,7 +352,7 @@ export default function CraValidationPanel({ companies = [] }) {
 
         <aside className="cra-validation-detail">
           {!selectedFile ? (
-            <div className="cra-validation-empty">Selecciona un fichero para consultar su respuesta.</div>
+            <div className="cra-validation-empty">Selecciona un fichero para consultar su contenido y respuesta.</div>
           ) : (
             <>
               <div className="cra-validation-detail-header">
@@ -339,6 +371,24 @@ export default function CraValidationPanel({ companies = [] }) {
                 <div><dt>Enviado</dt><dd>{formatDate(selectedFile.submitted_at)}</dd></div>
                 <div><dt>Procesado</dt><dd>{formatDate(selectedFile.processed_at)}</dd></div>
               </dl>
+
+              <div className="cra-validation-file-actions">
+                <button type="button" className="cra-validation-secondary" onClick={() => downloadFile(selectedFile)}>
+                  Descargar XML
+                </button>
+                <button type="button" className="cra-validation-secondary" onClick={() => setShowXml((value) => !value)}>
+                  {showXml ? "Ocultar XML" : "Ver XML"}
+                </button>
+                {selectedFile.status === "GENERATED" && (
+                  <button type="button" className="cra-validation-primary" disabled={busyFileId === selectedFile.id} onClick={() => handleSend(selectedFile)}>
+                    {busyFileId === selectedFile.id ? "Procesando..." : "Validar y enviar a SILTRA"}
+                  </button>
+                )}
+              </div>
+
+              {showXml && (
+                <pre className="cra-validation-xml">{selectedFile.content || "XML no disponible."}</pre>
+              )}
 
               {selectedFile.response_message && (
                 <div className={`cra-validation-response cra-validation-response--${statusTone(selectedFile.status)}`}>
@@ -370,7 +420,7 @@ export default function CraValidationPanel({ companies = [] }) {
                   <strong>Comunicación correctora</strong>
                   <p>
                     Tras un rechazo se genera una nueva alta corregida. Tras una aceptación o aceptación con avisos,
-                    la correctora utiliza actuación M para sustituir el importe comunicado anteriormente.
+                    la correctora utiliza actuación M para sustituir lo comunicado anteriormente.
                   </p>
                 </div>
               )}

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 
+import CraValidationPanel from "../components/cra/CraValidationPanel";
 import PageCard from "../components/layout/PageCard";
 import {
   fetchCraCatalog,
@@ -8,7 +9,6 @@ import {
   generateCra,
   previewCra,
   saveCraMapping,
-  sendCraFile,
 } from "../services/craApi";
 import { fetchPayrollConcepts } from "../services/payrollApi";
 import { fetchCompanyCccOptions } from "../services/socialSecurityApi";
@@ -21,46 +21,21 @@ import "./craFilesPage.css";
 
 const TABS = [
   { id: "generate", label: "Generar CRA", hint: "Asistente mensual" },
-  { id: "files", label: "Ficheros y envíos", hint: "Revisión y SILTRA" },
-  { id: "configuration", label: "Configuración conceptos", hint: "Parametrización maestra" },
+  { id: "files", label: "Ficheros, respuestas y rectificaciones", hint: "SILTRA y RCA" },
+  { id: "configuration", label: "Configuración de conceptos", hint: "Parametrización maestra" },
 ];
+
+const FINAL_STATUSES = new Set(["ACCEPTED", "ACCEPTED_WITH_WARNINGS", "REJECTED"]);
 
 function currentPeriod() {
   return new Date().toISOString().slice(0, 7);
 }
 
 function money(value) {
-  return Number(value || 0).toLocaleString("es-ES", {
+  return `${Number(value || 0).toLocaleString("es-ES", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
-  }) + " €";
-}
-
-function statusLabel(status) {
-  return {
-    GENERATED: "Pendiente de envío",
-    SENT: "Enviado",
-    PROCESSING: "Procesando",
-    ACCEPTED: "Aceptado",
-    ACCEPTED_WITH_WARNINGS: "Aceptado con avisos",
-    REJECTED: "Rechazado",
-  }[status] || status || "-";
-}
-
-function statusTone(status) {
-  if (status === "ACCEPTED") return "success";
-  if (status === "ACCEPTED_WITH_WARNINGS") return "warning";
-  if (status === "REJECTED") return "danger";
-  if (status === "GENERATED") return "pending";
-  return "neutral";
-}
-
-function formatDate(value) {
-  if (!value) return "-";
-  const date = new Date(value);
-  return Number.isNaN(date.getTime())
-    ? value
-    : date.toLocaleString("es-ES", { dateStyle: "short", timeStyle: "short" });
+  })} €`;
 }
 
 function formatPeriod(value) {
@@ -91,10 +66,6 @@ function Metric({ label, value, hint, tone = "default" }) {
       {hint && <small>{hint}</small>}
     </div>
   );
-}
-
-function StatusPill({ status }) {
-  return <span className={`cra-status cra-status--${statusTone(status)}`}>{statusLabel(status)}</span>;
 }
 
 function WizardStep({ number, title, description, state }) {
@@ -132,8 +103,6 @@ export default function CraFilesPage({ companies = [] }) {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [previewSearch, setPreviewSearch] = useState("");
-  const [fileSearch, setFileSearch] = useState("");
-  const [selectedFileId, setSelectedFileId] = useState(null);
   const [conceptSearch, setConceptSearch] = useState("");
   const [mappingFilter, setMappingFilter] = useState("all");
   const [categoryFilter, setCategoryFilter] = useState("all");
@@ -141,6 +110,7 @@ export default function CraFilesPage({ companies = [] }) {
   const [bulkCraCode, setBulkCraCode] = useState("");
   const [bulkIndicator, setBulkIndicator] = useState("I");
   const [bulkActive, setBulkActive] = useState(true);
+  const [filesRefreshToken, setFilesRefreshToken] = useState(0);
 
   useEffect(() => subscribeSelectedCompany(setCompanyId), []);
 
@@ -205,7 +175,6 @@ export default function CraFilesPage({ companies = [] }) {
 
   useEffect(() => {
     setPreview(null);
-    setSelectedFileId(null);
     loadCompanyData();
   }, [companyId]);
 
@@ -237,7 +206,6 @@ export default function CraFilesPage({ companies = [] }) {
       payroll_id: worker.payroll_id,
       employee_name: worker.employee_name,
       naf: worker.naf,
-      worker_total: worker.total_amount,
     })));
   }, [preview]);
 
@@ -252,28 +220,6 @@ export default function CraFilesPage({ companies = [] }) {
       row.payroll_id,
     ].some((value) => String(value || "").toLowerCase().includes(query)));
   }, [previewRows, previewSearch]);
-
-  const filteredFiles = useMemo(() => {
-    const query = fileSearch.trim().toLowerCase();
-    if (!query) return files;
-    return files.filter((file) => [
-      file.original_filename,
-      file.period,
-      file.ccc_id,
-      statusLabel(file.status),
-      file.response_code,
-    ].some((value) => String(value || "").toLowerCase().includes(query)));
-  }, [files, fileSearch]);
-
-  const selectedFile = useMemo(
-    () => files.find((file) => String(file.id) === String(selectedFileId)) || null,
-    [files, selectedFileId]
-  );
-
-  const currentContextFile = useMemo(
-    () => files.find((file) => String(file.ccc_id) === String(cccId) && file.period === period) || null,
-    [cccId, files, period]
-  );
 
   const filteredConcepts = useMemo(() => {
     const query = conceptSearch.trim().toLowerCase();
@@ -292,13 +238,6 @@ export default function CraFilesPage({ companies = [] }) {
     });
   }, [categoryFilter, conceptSearch, concepts, mappingByConcept, mappingFilter]);
 
-  const fileStats = useMemo(() => ({
-    total: files.length,
-    pending: files.filter((file) => file.status === "GENERATED").length,
-    accepted: files.filter((file) => file.status === "ACCEPTED").length,
-    rejected: files.filter((file) => file.status === "REJECTED").length,
-  }), [files]);
-
   const bulkAllowedIndicators = useMemo(
     () => catalog.find((item) => item.code === bulkCraCode)?.allowed_indicators || ["I", "E"],
     [bulkCraCode, catalog]
@@ -307,6 +246,21 @@ export default function CraFilesPage({ companies = [] }) {
   useEffect(() => {
     if (!bulkAllowedIndicators.includes(bulkIndicator)) setBulkIndicator(bulkAllowedIndicators[0]);
   }, [bulkAllowedIndicators, bulkIndicator]);
+
+  const currentContextFile = useMemo(
+    () => files.find((file) => String(file.ccc_id) === String(cccId) && file.period === period) || null,
+    [cccId, files, period]
+  );
+
+  const wizardState = FINAL_STATUSES.has(currentContextFile?.status)
+    ? 4
+    : ["GENERATED", "SENT", "PROCESSING"].includes(currentContextFile?.status)
+      ? 3
+      : preview
+        ? 2
+        : 1;
+
+  const pendingFiles = files.filter((file) => file.status === "GENERATED").length;
 
   function changeCompany(event) {
     setMessage("");
@@ -433,46 +387,14 @@ export default function CraFilesPage({ companies = [] }) {
       const result = await generateCra({ company_id: Number(companyId), ccc_id: cccId, period });
       setPreview(result.preview);
       await loadCompanyData();
-      setSelectedFileId(result.file.id);
-      setMessage(`Fichero ${result.file.original_filename} generado y disponible para su envío.`);
+      setFilesRefreshToken((value) => value + 1);
+      setMessage(`Fichero ${result.file.original_filename} generado. Valídalo y envíalo desde la pestaña de ficheros.`);
       setActiveTab("files");
     } catch (requestError) {
       setError(requestError.message || "No se pudo generar el fichero CRA.");
     } finally {
       setBusy(false);
     }
-  }
-
-  async function sendFile(file) {
-    setBusy(true);
-    setError("");
-    setMessage("");
-    try {
-      const result = await sendCraFile(file.id);
-      setMessage(`${result.submission_number}: ${result.response_message}`);
-      setSelectedFileId(file.id);
-      await loadCompanyData();
-    } catch (requestError) {
-      setError(requestError.message || "No se pudo enviar el CRA por SILTRA simulado.");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  function downloadFile(file) {
-    if (!file?.content) {
-      setError("El fichero no tiene contenido disponible para descargar.");
-      return;
-    }
-    const blob = new Blob([file.content], { type: "application/xml;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = file.original_filename || `CRA_${file.period || "fichero"}.xml`;
-    document.body.appendChild(anchor);
-    anchor.click();
-    anchor.remove();
-    URL.revokeObjectURL(url);
   }
 
   function resetProcess() {
@@ -483,25 +405,17 @@ export default function CraFilesPage({ companies = [] }) {
     setActiveTab("generate");
   }
 
-  const wizardState = currentContextFile?.status === "ACCEPTED"
-    ? 4
-    : currentContextFile?.status === "GENERATED"
-      ? 3
-      : preview
-        ? 2
-        : 1;
-
   return (
     <div className="cra-workspace">
       <section className="cra-hero">
         <div>
           <span className="cra-eyebrow">Seguridad Social · Conceptos retributivos abonados</span>
           <h2>Proceso CRA</h2>
-          <p>Configura los conceptos una sola vez, genera el fichero desde las nóminas calculadas, revísalo y envíalo por SILTRA simulado.</p>
+          <p>Configura los conceptos una vez, genera la comunicación mensual y gestiona en un único lugar la validación, la respuesta RCA y las rectificaciones.</p>
         </div>
         <div className="cra-hero__summary">
           <div><span>Conceptos configurados</span><strong>{mappedCount}/{concepts.length}</strong></div>
-          <div><span>Ficheros pendientes</span><strong>{fileStats.pending}</strong></div>
+          <div><span>Ficheros pendientes</span><strong>{pendingFiles}</strong></div>
         </div>
       </section>
 
@@ -529,13 +443,13 @@ export default function CraFilesPage({ companies = [] }) {
       {activeTab === "generate" && (
         <>
           <div className="cra-wizard">
-            <WizardStep number="1" title="Parámetros" description="Empresa, CCC y periodo" state={wizardState > 1 ? "done" : wizardState === 1 ? "active" : "pending"} />
+            <WizardStep number="1" title="Parámetros" description="Empresa, CCC y periodo" state={wizardState > 1 ? "done" : "active"} />
             <WizardStep number="2" title="Revisión" description="Trabajadores y conceptos" state={wizardState > 2 ? "done" : wizardState === 2 ? "active" : "pending"} />
             <WizardStep number="3" title="Fichero" description="Generación del XML" state={wizardState > 3 ? "done" : wizardState === 3 ? "active" : "pending"} />
-            <WizardStep number="4" title="SILTRA" description="Envío y respuesta" state={wizardState === 4 ? "done" : "pending"} />
+            <WizardStep number="4" title="SILTRA" description="Respuesta aceptada, con avisos o rechazada" state={wizardState === 4 ? "done" : "pending"} />
           </div>
 
-          <PageCard title="1. Parámetros del proceso" subtitle="En los ERP laborales, el CRA se genera después de calcular las nóminas del periodo.">
+          <PageCard title="1. Parámetros del proceso" subtitle="El CRA se genera después de calcular las nóminas del periodo.">
             <div className="cra-form-grid">
               <label className="cra-field">
                 <span>Empresa</span>
@@ -574,20 +488,9 @@ export default function CraFilesPage({ companies = [] }) {
                 />
               </label>
               <label className="cra-field">
-                <span>Tipo de liquidación</span>
-                <select defaultValue="NORMAL">
-                  <option value="NORMAL">Mes normal</option>
-                  <option value="ATRASOS" disabled>Atrasos · próxima ampliación</option>
-                </select>
-              </label>
-              <label className="cra-field">
-                <span>Tipo de actuación</span>
-                <select defaultValue="A">
-                  <option value="A">Alta · primera comunicación</option>
-                  <option value="M" disabled>Modificación · próxima ampliación</option>
-                  <option value="C" disabled>Complementaria · próxima ampliación</option>
-                  <option value="B" disabled>Baja · próxima ampliación</option>
-                </select>
+                <span>Comunicación inicial</span>
+                <input value="Alta · primera comunicación (A)" readOnly />
+                <small>Las modificaciones y rectificaciones se generan desde la pestaña de ficheros.</small>
               </label>
             </div>
 
@@ -606,7 +509,7 @@ export default function CraFilesPage({ companies = [] }) {
             </div>
 
             <div className="cra-action-bar">
-              <span>El proceso no modifica las nóminas; solo prepara la comunicación CRA.</span>
+              <span>El proceso no modifica las nóminas; únicamente prepara la comunicación.</span>
               <button type="button" className="cra-button cra-button--primary" onClick={calculatePreview} disabled={busy || loading || !cccId || !period}>
                 {busy ? "Preparando..." : "Siguiente: revisar datos"}
               </button>
@@ -614,7 +517,7 @@ export default function CraFilesPage({ companies = [] }) {
           </PageCard>
 
           {preview && (
-            <PageCard title="2. Revisión del fichero" subtitle="Comprueba el resultado antes de generar el XML. Los importes proceden de las líneas de nómina.">
+            <PageCard title="2. Revisión del fichero" subtitle="Comprueba trabajadores, claves e importes antes de generar el XML.">
               <div className="cra-metrics">
                 <Metric label="Nóminas incluidas" value={preview.payroll_count} hint={formatPeriod(period)} />
                 <Metric label="Trabajadores" value={preview.worker_count} hint={cccId} />
@@ -633,12 +536,12 @@ export default function CraFilesPage({ companies = [] }) {
                 <div className="cra-review-box cra-review-box--danger">
                   <div>
                     <strong>Conceptos sin tratamiento CRA</strong>
-                    <span>No se incluirán en el fichero hasta que se les asigne una clave.</span>
+                    <span>No se incluirán hasta que se les asigne una clave.</span>
                   </div>
                   {preview.unmapped_concepts.map((item) => (
                     <span key={item.payroll_concept_id}>{item.concept_code || "SIN_CODIGO"} · {item.concept_name}: {money(item.amount)}</span>
                   ))}
-                  <button type="button" className="cra-link-button" onClick={() => setActiveTab("configuration")}>Abrir configuración de conceptos</button>
+                  <button type="button" className="cra-link-button" onClick={() => setActiveTab("configuration")}>Abrir configuración</button>
                 </div>
               )}
 
@@ -688,7 +591,7 @@ export default function CraFilesPage({ companies = [] }) {
               <div className="cra-action-bar">
                 <button type="button" className="cra-button cra-button--secondary" onClick={() => setPreview(null)}>Volver a parámetros</button>
                 <div className="cra-action-bar__right">
-                  <span>{preview.unmapped_concepts?.length ? "Puedes generar el fichero, pero los conceptos sin clave quedarán fuera." : "La revisión está preparada para generar."}</span>
+                  <span>{preview.unmapped_concepts?.length ? "Los conceptos sin clave quedarán fuera del fichero." : "La revisión está preparada para generar."}</span>
                   <button type="button" className="cra-button cra-button--primary" onClick={createFile} disabled={busy || !preview.worker_count}>
                     {busy ? "Generando..." : "Generar fichero CRA"}
                   </button>
@@ -700,108 +603,22 @@ export default function CraFilesPage({ companies = [] }) {
       )}
 
       {activeTab === "files" && (
-        <>
-          <PageCard title="Ficheros CRA y comunicaciones" subtitle="Editor, descarga y envío a SILTRA simulado. Esta área equivale al gestor de ficheros de un ERP laboral.">
-            <div className="cra-metrics">
-              <Metric label="Ficheros" value={fileStats.total} />
-              <Metric label="Pendientes de envío" value={fileStats.pending} tone={fileStats.pending ? "warning" : "default"} />
-              <Metric label="Aceptados" value={fileStats.accepted} tone="success" />
-              <Metric label="Rechazados" value={fileStats.rejected} tone={fileStats.rejected ? "danger" : "default"} />
-            </div>
-
-            <div className="cra-table-toolbar">
-              <div>
-                <strong>Historial de ficheros</strong>
-                <small>{files.length} fichero(s) de la empresa seleccionada</small>
-              </div>
-              <div className="cra-toolbar-actions">
-                <input
-                  type="search"
-                  value={fileSearch}
-                  onChange={(event) => setFileSearch(event.target.value)}
-                  placeholder="Buscar fichero, periodo o estado"
-                />
-                <button type="button" className="cra-button cra-button--secondary" onClick={resetProcess}>Nuevo fichero</button>
-              </div>
-            </div>
-
-            <div className="cra-table-wrap">
-              <table className="cra-table cra-table--files">
-                <thead>
-                  <tr>
-                    <th>Fichero</th>
-                    <th>Periodo</th>
-                    <th>CCC</th>
-                    <th>Contenido</th>
-                    <th>Generado</th>
-                    <th>Estado</th>
-                    <th>Acciones</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredFiles.map((file) => (
-                    <tr key={file.id} className={String(file.id) === String(selectedFileId) ? "cra-table__selected" : ""}>
-                      <td><strong>{file.original_filename}</strong><small>{file.response_code ? `${file.response_code} · ${file.response_message}` : "Sin respuesta SILTRA"}</small></td>
-                      <td>{formatPeriod(file.period)}</td>
-                      <td>{file.ccc_id}</td>
-                      <td>{file.metadata?.worker_count || 0} trabajadores<small>{file.metadata?.record_count || 0} registros CRA</small></td>
-                      <td>{formatDate(file.generated_at)}</td>
-                      <td><StatusPill status={file.status} /></td>
-                      <td>
-                        <div className="cra-row-actions">
-                          <button type="button" className="cra-button cra-button--small cra-button--secondary" onClick={() => setSelectedFileId(file.id)}>Revisar</button>
-                          <button type="button" className="cra-button cra-button--small cra-button--secondary" onClick={() => downloadFile(file)}>Descargar</button>
-                          {file.status === "GENERATED" && (
-                            <button type="button" className="cra-button cra-button--small cra-button--send" onClick={() => sendFile(file)} disabled={busy}>
-                              Enviar a SILTRA
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                  {!filteredFiles.length && (
-                    <tr><td colSpan="7" className="cra-empty">No hay ficheros CRA para los filtros seleccionados.</td></tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </PageCard>
-
-          {selectedFile && (
-            <PageCard title={`Editor del fichero · ${selectedFile.original_filename}`} subtitle="Consulta el contenido generado y la respuesta asociada antes o después de enviarlo.">
-              <div className="cra-file-inspector">
-                <div className="cra-file-inspector__summary">
-                  <div><span>Empresa</span><strong>{activeCompanies.find((company) => String(company.id) === String(companyId))?.name || "-"}</strong></div>
-                  <div><span>Periodo</span><strong>{formatPeriod(selectedFile.period)}</strong></div>
-                  <div><span>CCC</span><strong>{selectedFile.ccc_id}</strong></div>
-                  <div><span>Estado</span><StatusPill status={selectedFile.status} /></div>
-                  <div><span>Respuesta</span><strong>{selectedFile.response_code ? `${selectedFile.response_code} · ${selectedFile.response_message}` : "Pendiente"}</strong></div>
-                </div>
-                <pre>{selectedFile.content || "Contenido XML no disponible en la respuesta del servidor."}</pre>
-                <div className="cra-action-bar">
-                  <button type="button" className="cra-button cra-button--secondary" onClick={() => downloadFile(selectedFile)}>Descargar XML</button>
-                  {selectedFile.status === "GENERATED" && (
-                    <button type="button" className="cra-button cra-button--send" onClick={() => sendFile(selectedFile)} disabled={busy}>
-                      {busy ? "Enviando..." : "Enviar fichero a SILTRA"}
-                    </button>
-                  )}
-                </div>
-              </div>
-            </PageCard>
-          )}
-        </>
+        <CraValidationPanel
+          companies={companies}
+          refreshToken={filesRefreshToken}
+          onNewFile={resetProcess}
+        />
       )}
 
       {activeTab === "configuration" && (
-        <PageCard title="Configuración maestra de conceptos CRA" subtitle="Asigna una clave CRA a cada concepto de devengo. Esta parametrización se reutiliza en todos los procesos mensuales.">
+        <PageCard title="Configuración maestra de conceptos CRA" subtitle="Asigna una clave CRA a cada concepto de devengo. La parametrización se reutiliza cada mes.">
           <div className="cra-config-intro">
             <div>
               <strong>Orden recomendado</strong>
               <ol>
                 <li>Revisar conceptos sin asignar.</li>
-                <li>Aplicar una clave CRA y el indicador incluido/excluido.</li>
-                <li>Guardar la configuración antes de generar el mes.</li>
+                <li>Aplicar clave CRA e indicador incluido o excluido.</li>
+                <li>Guardar antes de generar el periodo.</li>
               </ol>
             </div>
             <button type="button" className="cra-button cra-button--primary" onClick={() => setActiveTab("generate")}>Volver al asistente mensual</button>
@@ -839,7 +656,7 @@ export default function CraFilesPage({ companies = [] }) {
 
           <section className="cra-bulk-panel">
             <div className="cra-bulk-panel__title">
-              <div><strong>Asistente de asignación masiva</strong><small>{selectedConceptIds.length} concepto(s) seleccionado(s)</small></div>
+              <div><strong>Asignación masiva</strong><small>{selectedConceptIds.length} concepto(s) seleccionado(s)</small></div>
               <button type="button" className="cra-link-button" onClick={() => setSelectedConceptIds([])} disabled={!selectedConceptIds.length}>Limpiar selección</button>
             </div>
             <div className="cra-bulk-panel__fields">
@@ -858,70 +675,84 @@ export default function CraFilesPage({ companies = [] }) {
                   ))}
                 </select>
               </label>
-              <label className="cra-checkbox-field">
-                <input type="checkbox" checked={bulkActive} onChange={(event) => setBulkActive(event.target.checked)} />
-                <span>Asignación activa</span>
+              <label className="cra-field">
+                <span>Estado</span>
+                <select value={bulkActive ? "active" : "inactive"} onChange={(event) => setBulkActive(event.target.value === "active")}>
+                  <option value="active">Activo</option>
+                  <option value="inactive">Inactivo</option>
+                </select>
               </label>
               <button type="button" className="cra-button cra-button--primary" onClick={saveBulkMappings} disabled={bulkSaving || !selectedConceptIds.length || !bulkCraCode}>
-                {bulkSaving ? "Aplicando..." : "Aplicar a seleccionados"}
+                {bulkSaving ? "Guardando..." : "Aplicar a seleccionados"}
               </button>
             </div>
           </section>
 
-          <div className="cra-table-toolbar">
-            <div>
-              <strong>Conceptos salariales</strong>
-              <small>{filteredConcepts.length} concepto(s) visibles</small>
-            </div>
-            <button type="button" className="cra-button cra-button--secondary" onClick={toggleAllFilteredConcepts}>
-              {filteredConcepts.length > 0 && filteredConcepts.every((concept) => selectedConceptIds.includes(concept.id)) ? "Desmarcar visibles" : "Seleccionar visibles"}
-            </button>
-          </div>
-
-          <div className="cra-table-wrap cra-table-wrap--tall">
-            <table className="cra-table cra-table--configuration">
+          <div className="cra-table-wrap">
+            <table className="cra-table cra-table--mapping">
               <thead>
                 <tr>
-                  <th className="cra-table__check"><input type="checkbox" aria-label="Seleccionar conceptos visibles" checked={filteredConcepts.length > 0 && filteredConcepts.every((concept) => selectedConceptIds.includes(concept.id))} onChange={toggleAllFilteredConcepts} /></th>
+                  <th>
+                    <input
+                      type="checkbox"
+                      aria-label="Seleccionar conceptos visibles"
+                      checked={filteredConcepts.length > 0 && filteredConcepts.every((concept) => selectedConceptIds.includes(concept.id))}
+                      onChange={toggleAllFilteredConcepts}
+                    />
+                  </th>
                   <th>Concepto de nómina</th>
                   <th>Categoría</th>
-                  <th>Estado</th>
                   <th>Clave CRA</th>
                   <th>Indicador</th>
-                  <th>Activo</th>
+                  <th>Estado</th>
                   <th>Acción</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredConcepts.map((concept) => {
                   const draft = drafts[concept.id] || mappingDraft(null, catalog);
-                  const savedMapping = mappingByConcept[concept.id];
-                  const allowed = catalog.find((item) => item.code === draft.cra_code)?.allowed_indicators || ["I", "E"];
-                  const state = !savedMapping?.cra_code ? "unmapped" : savedMapping.is_active ? "mapped" : "inactive";
+                  const allowedIndicators = catalog.find((item) => item.code === draft.cra_code)?.allowed_indicators || ["I", "E"];
                   return (
-                    <tr key={concept.id} className={state === "unmapped" ? "cra-table__attention" : ""}>
-                      <td className="cra-table__check"><input type="checkbox" checked={selectedConceptIds.includes(concept.id)} onChange={() => toggleConcept(concept.id)} /></td>
-                      <td><strong>{concept.name}</strong><small>{concept.code}</small></td>
-                      <td>{concept.category || "Sin categoría"}</td>
-                      <td><span className={`cra-config-state cra-config-state--${state}`}>{state === "mapped" ? "Configurado" : state === "inactive" ? "Inactivo" : "Sin asignar"}</span></td>
+                    <tr key={concept.id}>
+                      <td>
+                        <input
+                          type="checkbox"
+                          checked={selectedConceptIds.includes(concept.id)}
+                          onChange={() => toggleConcept(concept.id)}
+                          aria-label={`Seleccionar ${concept.name}`}
+                        />
+                      </td>
+                      <td><strong>{concept.code || "SIN_CODIGO"}</strong><small>{concept.name}</small></td>
+                      <td>{concept.category || "-"}</td>
                       <td>
                         <select value={draft.cra_code} onChange={(event) => changeDraft(concept.id, { cra_code: event.target.value })}>
-                          <option value="">Sin comunicar</option>
+                          <option value="">Sin asignar</option>
                           {catalog.map((item) => <option key={item.code} value={item.code}>{item.code} · {item.name}</option>)}
                         </select>
                       </td>
                       <td>
-                        <select value={draft.base_indicator || "I"} onChange={(event) => changeDraft(concept.id, { base_indicator: event.target.value })} disabled={!draft.cra_code}>
-                          {allowed.map((indicator) => <option key={indicator} value={indicator}>{indicator === "I" ? "I · Incluido" : "E · Excluido"}</option>)}
+                        <select value={draft.base_indicator} onChange={(event) => changeDraft(concept.id, { base_indicator: event.target.value })} disabled={!draft.cra_code}>
+                          {allowedIndicators.map((indicator) => (
+                            <option key={indicator} value={indicator}>{indicator === "I" ? "Incluido" : "Excluido"}</option>
+                          ))}
                         </select>
                       </td>
-                      <td className="cra-table__check"><input type="checkbox" checked={draft.is_active !== false} onChange={(event) => changeDraft(concept.id, { is_active: event.target.checked })} /></td>
-                      <td><button type="button" className="cra-button cra-button--small cra-button--primary" onClick={() => saveMapping(concept.id)} disabled={mappingBusyId === concept.id || !draft.cra_code}>{mappingBusyId === concept.id ? "Guardando..." : "Guardar"}</button></td>
+                      <td>
+                        <select value={draft.is_active ? "active" : "inactive"} onChange={(event) => changeDraft(concept.id, { is_active: event.target.value === "active" })}>
+                          <option value="active">Activo</option>
+                          <option value="inactive">Inactivo</option>
+                        </select>
+                      </td>
+                      <td>
+                        <button type="button" className="cra-button cra-button--small cra-button--primary" onClick={() => saveMapping(concept.id)} disabled={mappingBusyId === concept.id || !draft.cra_code}>
+                          {mappingBusyId === concept.id ? "Guardando..." : "Guardar"}
+                        </button>
+                      </td>
                     </tr>
                   );
                 })}
                 {!filteredConcepts.length && (
-                  <tr><td colSpan="8" className="cra-empty">No hay conceptos que coincidan con los filtros.</td></tr>
+                  <tr><td colSpan="7" className="cra-empty">No hay conceptos para los filtros seleccionados.</td></tr>
                 )}
               </tbody>
             </table>
