@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 
 import CraFilesPage from "../../pages/CraFilesPage";
 import { fetchCompanies } from "../../services/companyApi";
+import "./craModuleClosure.css";
 
 function isCraRoute() {
   return window.location.hash === "#cra-files";
