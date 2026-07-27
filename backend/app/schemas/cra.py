@@ -96,3 +96,16 @@ class CraGenerateRequest(CraPreviewRequest):
 
 class CraSendRequest(BaseModel):
     created_by: Optional[int] = None
+    simulation_scenario: str = "AUTO"
+
+    @field_validator("simulation_scenario")
+    @classmethod
+    def validate_simulation_scenario(cls, value: str):
+        normalized = str(value or "AUTO").strip().upper()
+        if normalized not in {"AUTO", "WARNINGS", "REJECTED"}:
+            raise ValueError("El escenario debe ser AUTO, WARNINGS o REJECTED")
+        return normalized
+
+
+class CraSubstituteRequest(BaseModel):
+    created_by: Optional[int] = None
