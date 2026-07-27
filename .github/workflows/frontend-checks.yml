@@ -47,7 +47,7 @@ jobs:
           src/components/layout/Sidebar.jsx src/components/siltra/SiltraGlobalLauncher.jsx
           src/components/siltra/AffiliationSiltraBridge.jsx
           src/components/affiliation/AffiliationRemittanceLauncher.jsx
-          src/components/cra/CraRoute.jsx src/pages/CraFilesPage.jsx
+          src/components/cra/CraRoute.jsx src/components/cra/CraValidationPanel.jsx src/pages/CraFilesPage.jsx
           src/pages/AffiliationRemittancesPage.jsx src/App.jsx
           src/affiliation-siltra-bridge.js src/main.jsx
           src/services/socialSecurityApi.js src/services/affiliationApi.js src/services/craApi.js

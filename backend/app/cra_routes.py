@@ -10,6 +10,7 @@ from app.schemas.cra import (
     CraPreviewRequest,
     CraPreviewResponse,
     CraSendRequest,
+    CraSubstituteRequest,
 )
 from app.services.cra_service import (
     CraDomainError,
@@ -17,8 +18,11 @@ from app.services.cra_service import (
     create_cra_file,
     list_cra_files,
     list_cra_mappings,
-    send_cra_file,
     upsert_cra_mapping,
+)
+from app.services.cra_validation_service import (
+    create_cra_substitute,
+    send_cra_file_with_validation,
 )
 
 router = APIRouter(prefix="/cra", tags=["cra"])
@@ -106,6 +110,27 @@ def send_cra(
     db: Session = Depends(get_db),
 ):
     try:
-        return send_cra_file(db, communication_file_id, created_by=payload.created_by)
+        return send_cra_file_with_validation(
+            db,
+            communication_file_id,
+            created_by=payload.created_by,
+            scenario=payload.simulation_scenario,
+        )
+    except CraDomainError as error:
+        raise domain_error(error) from error
+
+
+@router.post("/files/{communication_file_id}/substitute")
+def substitute_cra(
+    communication_file_id: int,
+    payload: CraSubstituteRequest,
+    db: Session = Depends(get_db),
+):
+    try:
+        return create_cra_substitute(
+            db,
+            communication_file_id,
+            created_by=payload.created_by,
+        )
     except CraDomainError as error:
         raise domain_error(error) from error

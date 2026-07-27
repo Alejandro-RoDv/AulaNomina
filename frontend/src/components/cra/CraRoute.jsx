@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 
 import CraFilesPage from "../../pages/CraFilesPage";
 import { fetchCompanies } from "../../services/companyApi";
+import CraValidationPanel from "./CraValidationPanel";
 
 function isCraRoute() {
   return window.location.hash === "#cra-files";
@@ -48,13 +49,20 @@ export default function CraRoute() {
         <div>
           <span style={styles.eyebrow}>Nómina · Seguros sociales</span>
           <h1 style={styles.title}>Conceptos Retributivos Abonados (CRA)</h1>
-          <p style={styles.subtitle}>Configuración, generación, revisión de ficheros y envío educativo mediante SILTRA.</p>
+          <p style={styles.subtitle}>Configuración, generación, validación, respuesta RCA y comunicaciones correctoras mediante SILTRA simulado.</p>
         </div>
         <button type="button" onClick={closeCraRoute} style={styles.backButton}>Volver a Seguros Sociales</button>
       </header>
       <main style={styles.main}>
         {error && <div style={styles.error}>{error}</div>}
-        {loading ? <div style={styles.loading}>Cargando empresas y configuración CRA...</div> : <CraFilesPage companies={companies} />}
+        {loading ? (
+          <div style={styles.loading}>Cargando empresas y configuración CRA...</div>
+        ) : (
+          <>
+            <CraFilesPage companies={companies} />
+            <CraValidationPanel companies={companies} />
+          </>
+        )}
       </main>
     </div>
   );

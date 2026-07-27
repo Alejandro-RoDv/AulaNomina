@@ -65,14 +65,29 @@ export async function fetchCraFiles(filters = {}) {
   );
 }
 
-export async function sendCraFile(fileId, createdBy = null) {
+export async function sendCraFile(fileId, createdBy = null, simulationScenario = "AUTO") {
   return apiRequest(
     `/cra/files/${encodeURIComponent(fileId)}/send`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        created_by: createdBy,
+        simulation_scenario: simulationScenario,
+      }),
+    },
+    "Error al validar y enviar el fichero CRA por SILTRA simulado"
+  );
+}
+
+export async function createCraSubstitute(fileId, createdBy = null) {
+  return apiRequest(
+    `/cra/files/${encodeURIComponent(fileId)}/substitute`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ created_by: createdBy }),
     },
-    "Error al enviar el fichero CRA por SILTRA simulado"
+    "Error al generar la comunicación CRA correctora"
   );
 }
