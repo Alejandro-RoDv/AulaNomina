@@ -1,6 +1,8 @@
+from datetime import datetime
+
 from sqlalchemy.orm import Session
 
-from app.models.fie import FieCommunication
+from app.models.fie import FieCommunication, FieProcessingEvent
 from app.models.incident import Incident
 from app.schemas.fie import FieSimulationRequest
 from app.services.fie_enhanced_service import simulate_fie_communication_enhanced
@@ -16,7 +18,7 @@ def generate_pending_fie_communications(
     """Create one incoming FIE message for internal IT processes not yet represented.
 
     This is an educational trigger, not an external integration. Existing linked
-    communications prevent duplicate messages when the inbox is opened repeatedly.
+    communications prevent duplicate messages when the inbox is checked repeatedly.
     """
 
     query = (
@@ -71,7 +73,7 @@ def generate_pending_fie_communications(
                 relapse_date=incident.start_date if communication_type == "RELAPSE" else None,
                 result_scenario="AUTO_INTERNAL_INCIDENT",
                 priority="NORMAL",
-                notes="Generada automáticamente al consultar comunicaciones pendientes.",
+                notes="Recibida al ejecutar una consulta manual al INSS simulado.",
                 created_by=actor,
             ),
         )
@@ -82,3 +84,64 @@ def generate_pending_fie_communications(
         created.append(communication)
 
     return created
+
+
+def check_new_fie_communications(
+    db: Session,
+    *,
+    company_id: int | None = None,
+    actor: str | None = "Usuario demo",
+    limit: int = 20,
+) -> dict:
+    """Run an explicit educational INSS query and return a stable summary."""
+
+    checked_at = datetime.utcnow()
+    communications = generate_pending_fie_communications(
+        db,
+        company_id=company_id,
+        actor=actor,
+        limit=limit,
+    )
+
+    for communication in communications:
+        db.add(
+            FieProcessingEvent(
+                communication_id=communication.id,
+                event_type="INSS_QUERY",
+                actor=actor,
+                detail="Comunicación incorporada mediante una consulta manual al INSS simulado.",
+                payload={
+                    "checked_at": checked_at.isoformat(),
+                    "company_id": company_id,
+                },
+            )
+        )
+
+    if communications:
+        db.commit()
+        for communication in communications:
+            db.refresh(communication)
+
+    received_count = len(communications)
+    unmatched_count = sum(1 for item in communications if item.employee_id is None)
+    identified_count = received_count - unmatched_count
+    pending_review_count = sum(
+        1
+        for item in communications
+        if item.status in {"RECEIVED", "PENDING_REVIEW", "DISCREPANCY", "ERROR", "UNMATCHED_WORKER"}
+    )
+
+    return {
+        "checked_at": checked_at,
+        "company_id": company_id,
+        "received_count": received_count,
+        "identified_count": identified_count,
+        "unmatched_count": unmatched_count,
+        "pending_review_count": pending_review_count,
+        "message": (
+            "No hay nuevas comunicaciones disponibles."
+            if received_count == 0
+            else f"Se han recibido {received_count} comunicaciones nuevas."
+        ),
+        "communications": communications,
+    }
