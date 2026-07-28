@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import {
+  checkNewFieCommunications,
   compareFieCommunication,
   fetchFieCommunications,
   ignoreFieCommunication,
@@ -63,9 +64,23 @@ const SCENARIO_LABELS = {
 };
 
 const EMPTY_FILTERS = { status: "", communication_type: "", priority: "", unread: false };
+const QUERY_PHASES = [
+  "Conectando con INSS Empresas...",
+  "Consultando procesos disponibles...",
+  "Validando comunicaciones recibidas...",
+  "Actualizando la bandeja...",
+];
 
 function today() {
   return new Date().toISOString().slice(0, 10);
+}
+
+function delay(milliseconds) {
+  return new Promise((resolve) => window.setTimeout(resolve, milliseconds));
+}
+
+function lastCheckStorageKey(companyId) {
+  return `aulanomina:fie:lastCheck:${companyId}`;
 }
 
 function defaultSimulation(companyId = "", employeeId = "") {
@@ -116,6 +131,42 @@ function PriorityBadge({ priority }) {
 
 function SummaryCard({ label, value, tone = "neutral" }) {
   return <div className={`fie-summary-card fie-summary-card--${tone}`}><span>{label}</span><strong>{value}</strong></div>;
+}
+
+function QueryResult({ result, onClose }) {
+  if (!result) return null;
+  return (
+    <section className="fie-query-result">
+      <div className="fie-query-result__header">
+        <div>
+          <span className="fie-eyebrow">Consulta INSS finalizada</span>
+          <h2>{result.message}</h2>
+          <p>Última consulta: {formatDateTime(result.checked_at)}</p>
+        </div>
+        <button type="button" className="fie-text-button" onClick={onClose}>Cerrar resumen</button>
+      </div>
+      <div className="fie-query-result__grid">
+        <div><span>Nuevas</span><strong>{result.received_count}</strong></div>
+        <div><span>Identificadas</span><strong>{result.identified_count}</strong></div>
+        <div><span>Sin identificar</span><strong>{result.unmatched_count}</strong></div>
+        <div><span>Pendientes de revisión</span><strong>{result.pending_review_count}</strong></div>
+      </div>
+    </section>
+  );
+}
+
+function QueryOverlay({ phase }) {
+  return (
+    <div className="fie-query-overlay" role="status" aria-live="polite">
+      <div className="fie-query-dialog">
+        <div className="fie-query-spinner" />
+        <span className="fie-eyebrow">Consulta manual</span>
+        <h2>Consultando el INSS simulado</h2>
+        <p>{phase}</p>
+        <small>La bandeja no se modifica hasta que finalice la consulta.</small>
+      </div>
+    </div>
+  );
 }
 
 function ComparisonPanel({ communication }) {
@@ -222,6 +273,10 @@ export default function FieInboxPage({ companies = [], employees = [] }) {
   const [simulation, setSimulation] = useState(defaultSimulation());
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [checkingInss, setCheckingInss] = useState(false);
+  const [queryPhase, setQueryPhase] = useState(QUERY_PHASES[0]);
+  const [queryResult, setQueryResult] = useState(null);
+  const [lastCheckedAt, setLastCheckedAt] = useState("");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
 
@@ -233,6 +288,15 @@ export default function FieInboxPage({ companies = [], employees = [] }) {
       setSimulation(defaultSimulation(nextCompanyId, firstEmployee ? String(firstEmployee.id) : ""));
     }
   }, [activeCompanies, companyId, employees]);
+
+  useEffect(() => {
+    if (!companyId) {
+      setLastCheckedAt("");
+      return;
+    }
+    setLastCheckedAt(window.localStorage.getItem(lastCheckStorageKey(companyId)) || "");
+    setQueryResult(null);
+  }, [companyId]);
 
   const companyEmployees = useMemo(() => employees.filter((employee) => !companyId || String(employee.company_id) === String(companyId)), [companyId, employees]);
 
@@ -275,6 +339,41 @@ export default function FieInboxPage({ companies = [], employees = [] }) {
   };
 
   const updateSimulation = (field, value) => setSimulation((previous) => ({ ...previous, [field]: value }));
+
+  const checkNewCommunications = async () => {
+    if (!companyId) return;
+    setCheckingInss(true);
+    setError("");
+    setNotice("");
+    setQueryResult(null);
+    setQueryPhase(QUERY_PHASES[0]);
+
+    const timers = [
+      window.setTimeout(() => setQueryPhase(QUERY_PHASES[1]), 250),
+      window.setTimeout(() => setQueryPhase(QUERY_PHASES[2]), 550),
+    ];
+    const startedAt = Date.now();
+
+    try {
+      const result = await checkNewFieCommunications(
+        { company_id: Number(companyId), limit: 100 },
+        "Usuario demo"
+      );
+      const remaining = Math.max(0, 850 - (Date.now() - startedAt));
+      if (remaining) await delay(remaining);
+      setQueryPhase(QUERY_PHASES[3]);
+      await loadCommunications();
+      setQueryResult(result);
+      setLastCheckedAt(result.checked_at);
+      window.localStorage.setItem(lastCheckStorageKey(companyId), result.checked_at);
+      setNotice(result.message);
+    } catch (requestError) {
+      setError(requestError.message || "No se ha podido consultar el INSS simulado");
+    } finally {
+      timers.forEach((timer) => window.clearTimeout(timer));
+      setCheckingInss(false);
+    }
+  };
 
   const runAction = async (action) => {
     if (!selected) return;
@@ -347,6 +446,8 @@ export default function FieInboxPage({ companies = [], employees = [] }) {
 
   return (
     <div className="fie-page">
+      {checkingInss && <QueryOverlay phase={queryPhase} />}
+
       <section className="fie-summary-grid">
         <SummaryCard label="Comunicaciones" value={stats.total} />
         <SummaryCard label="No leídas" value={stats.unread} tone="info" />
@@ -358,6 +459,18 @@ export default function FieInboxPage({ companies = [], employees = [] }) {
 
       {error && <div className="fie-banner fie-banner--error">{error}</div>}
       {notice && <div className="fie-banner fie-banner--notice">{notice}</div>}
+      <QueryResult result={queryResult} onClose={() => setQueryResult(null)} />
+
+      <section className="fie-query-toolbar">
+        <div>
+          <span className="fie-eyebrow">Recepción de comunicaciones</span>
+          <strong>La bandeja solo recibe novedades cuando ejecutas una consulta.</strong>
+          <small>Última consulta: {lastCheckedAt ? formatDateTime(lastCheckedAt) : "Todavía no realizada para esta empresa"}</small>
+        </div>
+        <button type="button" className="fie-button fie-button--primary" onClick={checkNewCommunications} disabled={checkingInss || !companyId}>
+          {checkingInss ? "Consultando INSS..." : "Consultar nuevas comunicaciones"}
+        </button>
+      </section>
 
       <section className="fie-toolbar">
         <label><span>Empresa</span><select value={companyId} onChange={(event) => { const value = event.target.value; setCompanyId(value); const firstEmployee = employees.find((employee) => String(employee.company_id) === value); setSimulation(defaultSimulation(value, firstEmployee ? String(firstEmployee.id) : "")); }}><option value="">Selecciona empresa</option>{activeCompanies.map((company) => <option key={company.id} value={company.id}>{company.name}</option>)}</select></label>
@@ -365,8 +478,8 @@ export default function FieInboxPage({ companies = [], employees = [] }) {
         <label><span>Tipo</span><select value={filters.communication_type} onChange={(event) => setFilters((previous) => ({ ...previous, communication_type: event.target.value }))}><option value="">Todos</option>{Object.entries(TYPE_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
         <label><span>Prioridad</span><select value={filters.priority} onChange={(event) => setFilters((previous) => ({ ...previous, priority: event.target.value }))}><option value="">Todas</option><option value="NORMAL">Normal</option><option value="HIGH">Alta</option><option value="URGENT">Urgente</option></select></label>
         <label className="fie-checkbox fie-checkbox--toolbar"><input type="checkbox" checked={filters.unread} onChange={(event) => setFilters((previous) => ({ ...previous, unread: event.target.checked }))} /><span>Solo no leídas</span></label>
-        <button type="button" className="fie-button fie-button--secondary" onClick={loadCommunications} disabled={loading}>{loading ? "Consultando..." : "Actualizar"}</button>
-        <button type="button" className="fie-button fie-button--primary" onClick={() => setShowSimulator((value) => !value)}>Generar caso práctico</button>
+        <button type="button" className="fie-button fie-button--secondary" onClick={loadCommunications} disabled={loading}>{loading ? "Actualizando..." : "Actualizar bandeja"}</button>
+        <button type="button" className="fie-button fie-button--secondary" onClick={() => setShowSimulator((value) => !value)}>Generar caso práctico</button>
       </section>
 
       {showSimulator && (
@@ -397,7 +510,7 @@ export default function FieInboxPage({ companies = [], employees = [] }) {
       <div className="fie-workspace">
         <section className="fie-inbox">
           <div className="fie-section-title"><div><span className="fie-eyebrow">Gestión laboral</span><h2>Comunicaciones INSS (FIE)</h2></div><strong>{visibleCommunications.length}</strong></div>
-          {loading ? <div className="fie-empty">Cargando comunicaciones...</div> : visibleCommunications.length === 0 ? <div className="fie-empty">No hay comunicaciones para los filtros seleccionados.</div> : (
+          {loading ? <div className="fie-empty">Actualizando comunicaciones...</div> : visibleCommunications.length === 0 ? <div className="fie-empty">No hay comunicaciones para los filtros seleccionados. Pulsa «Consultar nuevas comunicaciones» para buscar novedades.</div> : (
             <div className="fie-table-wrapper"><table><thead><tr><th></th><th>Recepción</th><th>Trabajador</th><th>Comunicación</th><th>Prioridad</th><th>Estado</th><th>Impacto</th></tr></thead><tbody>{visibleCommunications.map((item) => <tr key={item.id} className={`${String(item.id) === String(selectedId) ? "is-selected" : ""} ${!item.is_read ? "is-unread" : ""}`} onClick={() => selectCommunication(item)}><td>{item.is_read ? "" : <span className="fie-unread-dot" title="No leída" />}</td><td>{formatDateTime(item.received_at)}</td><td><strong>{item.external_worker_name || item.employee_name || "No identificado"}</strong><small>{item.naf || "Sin NAF"}</small></td><td>{TYPE_LABELS[item.communication_type]}<small>{formatDate(item.event_date)}</small></td><td><PriorityBadge priority={item.priority} /></td><td><StatusBadge status={item.status} /></td><td>{IMPACT_LABELS[item.payroll_impact] || item.payroll_impact}</td></tr>)}</tbody></table></div>
           )}
         </section>
