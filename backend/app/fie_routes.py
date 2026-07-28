@@ -7,6 +7,7 @@ from app.db import SessionLocal
 from app.fie_schema_patch import apply_fie_schema_patch
 from app.schemas.fie import (
     FieActionRequest,
+    FieCheckCommunicationsResponse,
     FieCommunicationResponse,
     FieProcessingEventResponse,
     FieResolutionRequest,
@@ -21,7 +22,10 @@ from app.services.fie_enhanced_service import (
     resolve_fie_communication,
     simulate_fie_communication_enhanced,
 )
-from app.services.fie_pending_service import generate_pending_fie_communications
+from app.services.fie_pending_service import (
+    check_new_fie_communications,
+    generate_pending_fie_communications,
+)
 from app.services.fie_service import (
     FieDomainError,
     apply_fie_communication,
@@ -83,13 +87,32 @@ def simulate_communication(payload: FieSimulationRequest, db: Session = Depends(
         raise domain_error(error) from error
 
 
-@router.post("/generate-pending", response_model=list[FieCommunicationResponse])
+@router.post("/check-new-communications", response_model=FieCheckCommunicationsResponse)
+def check_new_communications(
+    payload: FieActionRequest | None = None,
+    company_id: int | None = Query(default=None),
+    limit: int = Query(default=20, ge=1, le=100),
+    db: Session = Depends(get_db),
+):
+    try:
+        return check_new_fie_communications(
+            db,
+            company_id=company_id,
+            actor=payload.actor if payload else "Usuario demo",
+            limit=limit,
+        )
+    except FieDomainError as error:
+        raise domain_error(error) from error
+
+
+@router.post("/generate-pending", response_model=list[FieCommunicationResponse], deprecated=True)
 def generate_pending_communications(
     payload: FieActionRequest | None = None,
     company_id: int | None = Query(default=None),
     limit: int = Query(default=20, ge=1, le=100),
     db: Session = Depends(get_db),
 ):
+    """Compatibility endpoint kept for existing demos; prefer check-new-communications."""
     try:
         return generate_pending_fie_communications(
             db,
