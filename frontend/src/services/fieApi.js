@@ -61,8 +61,16 @@ function postAction(communicationId, action, payload = {}) {
   );
 }
 
+export async function markFieCommunicationRead(communicationId, actor = null) {
+  return postAction(communicationId, "read", { actor });
+}
+
 export async function compareFieCommunication(communicationId, actor = null) {
   return postAction(communicationId, "compare", { actor });
+}
+
+export async function resolveFieCommunication(communicationId, payload = {}) {
+  return postAction(communicationId, "resolve", payload);
 }
 
 export async function applyFieCommunication(communicationId, payload = {}) {
