@@ -45,7 +45,7 @@ jobs:
           src/tests/incidentApiErrors.test.js src/tests/embargoCalculator.test.js
           src/pages/SocialSecurityDashboardPage.jsx src/components/layout/Header.jsx
           src/components/layout/Sidebar.jsx src/components/siltra/SiltraGlobalLauncher.jsx
-          src/components/siltra/AffiliationSiltraBridge.jsx
+          src/components/siltra/AffiliationSiltraBridge.jsx src/components/siltra/FieSiltraBridge.jsx
           src/components/affiliation/AffiliationRemittanceLauncher.jsx
           src/components/cra/CraRoute.jsx src/components/cra/CraValidationPanel.jsx src/pages/CraFilesPage.jsx
           src/components/fie/FieRoute.jsx src/pages/FieInboxPage.jsx
