@@ -179,3 +179,14 @@ class FieCommunicationResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class FieCheckCommunicationsResponse(BaseModel):
+    checked_at: datetime
+    company_id: int | None = None
+    received_count: int
+    identified_count: int
+    unmatched_count: int
+    pending_review_count: int
+    message: str
+    communications: list[FieCommunicationResponse] = Field(default_factory=list)
