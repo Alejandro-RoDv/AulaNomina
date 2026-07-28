@@ -48,7 +48,7 @@ jobs:
       - name: FIE reconciliation tests
         id: fie_tests
         continue-on-error: true
-        run: python -m pytest -q --tb=short tests/test_fie_reconciliation.py tests/test_fie_pending_service.py >> backend-test-output.txt 2>&1
+        run: python -m pytest -q --tb=short tests/test_fie_reconciliation.py tests/test_fie_pending_service.py tests/test_fie_guided_resolution.py >> backend-test-output.txt 2>&1
       - name: Affiliation remittance tests
         id: affiliation_tests
         continue-on-error: true
