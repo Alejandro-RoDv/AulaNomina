@@ -44,15 +44,19 @@ La separación conserva las dos realidades necesarias para la práctica:
 
 ### Paso 2. Bandeja y simulación
 
-La ruta `#fie-inss` carga el espacio de trabajo **FIE / INSS Empresas**.
+La ruta `#fie-inss` carga el espacio de trabajo **FIE / INSS Empresas**. También puede abrirse desde **Nómina → Seguros sociales** y desde la pantalla **Procesar remesas INSS** del SILTRA simulado.
 
 Incluye:
 
 - filtros por empresa, estado y tipo de comunicación;
 - bandeja con fecha de recepción, trabajador, NAF, comunicación, fecha, estado e impacto;
-- formulario de administración para generar comunicaciones de prueba;
+- detección automática de IT y recaídas internas que todavía no tienen comunicación FIE;
+- generación idempotente: consultar la bandeja repetidamente no duplica mensajes del mismo proceso;
+- formulario de administración para generar comunicaciones de prueba y discrepancias deliberadas;
 - visor funcional y visor técnico JSON;
 - histórico completo del procesamiento.
+
+La detección automática crea una baja o recaída para procesos abiertos y un alta para procesos internos ya cerrados. Este mecanismo representa la llegada del mensaje desde el INSS simulado; no realiza ninguna consulta externa.
 
 ### Paso 3. Conciliación con incidencias
 
@@ -122,6 +126,7 @@ Filtros disponibles:
 ### Simulación y procesamiento
 
 - `POST /fie/simulate`
+- `POST /fie/generate-pending`
 - `POST /fie/communications/{communication_id}/compare`
 - `POST /fie/communications/{communication_id}/apply`
 - `POST /fie/communications/{communication_id}/ignore`
@@ -131,16 +136,17 @@ Filtros disponibles:
 
 1. Crear una incidencia IT manual para un trabajador.
 2. Calcular su nómina mensual.
-3. Abrir `FIE / INSS Empresas`.
-4. Generar una confirmación con la misma referencia o fecha de baja.
-5. Comparar la comunicación con el ERP.
-6. Aplicarla y comprobar el parte de confirmación en la incidencia.
-7. Generar posteriormente un alta médica.
-8. Comparar y aplicar el alta.
-9. Comprobar que la incidencia queda cerrada.
-10. Revisar si la nómina aparece como pendiente de recálculo o regularización.
-11. Consultar el histórico y el contenido técnico de ambas comunicaciones.
+3. Abrir `FIE / INSS Empresas` desde Seguros sociales o SILTRA.
+4. Comprobar que aparece automáticamente la comunicación asociada a la IT.
+5. Comparar la comunicación con el ERP y verificar que no duplica la incidencia.
+6. Generar manualmente una confirmación con la misma referencia o fecha de baja.
+7. Aplicarla y comprobar el parte de confirmación en la incidencia.
+8. Generar posteriormente un alta médica.
+9. Comparar y aplicar el alta.
+10. Comprobar que la incidencia queda cerrada.
+11. Revisar si la nómina aparece como pendiente de recálculo o regularización.
+12. Consultar el histórico y el contenido técnico de las comunicaciones.
 
 ## Criterio de cierre
 
-El split se considera funcional cuando el usuario puede recibir una comunicación simulada, compararla con el dato interno, aplicar una decisión controlada, actualizar la incidencia y detectar el impacto sobre la nómina conservando toda la trazabilidad.
+El split se considera funcional cuando el usuario puede recibir una comunicación automática o manual, compararla con el dato interno, aplicar una decisión controlada, actualizar la incidencia y detectar el impacto sobre la nómina conservando toda la trazabilidad.
