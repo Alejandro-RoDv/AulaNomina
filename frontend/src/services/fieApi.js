@@ -37,6 +37,18 @@ export async function simulateFieCommunication(payload) {
   );
 }
 
+export async function generatePendingFieCommunications(params = {}, actor = "Sistema INSS simulado") {
+  return apiRequest(
+    `/fie/generate-pending${queryString(params)}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ actor }),
+    },
+    "Error al consultar comunicaciones FIE pendientes"
+  );
+}
+
 function postAction(communicationId, action, payload = {}) {
   return apiRequest(
     `/fie/communications/${encodeURIComponent(communicationId)}/${action}`,
