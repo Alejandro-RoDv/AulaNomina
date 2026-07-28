@@ -84,6 +84,7 @@ const groups = [
           { id: "social-security-settlements", label: "Liquidaciones", enabled: true },
           { id: "social-security-files", label: "Ficheros generados", enabled: true },
           { id: "social-security-dashboard", label: "Ficheros CRA", enabled: true, hash: "#cra-files" },
+          { id: "social-security-dashboard", label: "FIE / INSS Empresas", enabled: true, hash: "#fie-inss" },
         ],
       },
       {
