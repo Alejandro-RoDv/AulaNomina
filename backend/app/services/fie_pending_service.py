@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from app.models.fie import FieCommunication
 from app.models.incident import Incident
 from app.schemas.fie import FieSimulationRequest
-from app.services.fie_service import simulate_fie_communication
+from app.services.fie_enhanced_service import simulate_fie_communication_enhanced
 
 
 def generate_pending_fie_communications(
@@ -56,7 +56,7 @@ def generate_pending_fie_communications(
         )
         event_date = incident.end_date if communication_type == "MEDICAL_DISCHARGE" else incident.start_date
 
-        communication = simulate_fie_communication(
+        communication = simulate_fie_communication_enhanced(
             db,
             FieSimulationRequest(
                 company_id=incident.company_id,
@@ -70,6 +70,7 @@ def generate_pending_fie_communications(
                 medical_discharge_date=incident.end_date if communication_type == "MEDICAL_DISCHARGE" else None,
                 relapse_date=incident.start_date if communication_type == "RELAPSE" else None,
                 result_scenario="AUTO_INTERNAL_INCIDENT",
+                priority="NORMAL",
                 notes="Generada automáticamente al consultar comunicaciones pendientes.",
                 created_by=actor,
             ),
