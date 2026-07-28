@@ -37,6 +37,18 @@ export async function simulateFieCommunication(payload) {
   );
 }
 
+export async function checkNewFieCommunications(params = {}, actor = "Usuario demo") {
+  return apiRequest(
+    `/fie/check-new-communications${queryString(params)}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ actor }),
+    },
+    "Error al consultar nuevas comunicaciones en el INSS simulado"
+  );
+}
+
 export async function generatePendingFieCommunications(params = {}, actor = "Sistema INSS simulado") {
   return apiRequest(
     `/fie/generate-pending${queryString(params)}`,
