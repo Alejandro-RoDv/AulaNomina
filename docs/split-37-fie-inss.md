@@ -210,6 +210,20 @@ El visor técnico permite:
 
 `/resolve` recibe la actuación elegida, la incidencia seleccionada cuando sea necesaria, las observaciones y la confirmación para sustituir fechas.
 
+## Validación automatizada
+
+La integración continua cubre:
+
+- reglas base de conciliación e impacto en nómina;
+- generación automática idempotente;
+- trabajador no identificado;
+- detección de comunicaciones duplicadas;
+- discrepancia de fechas;
+- aplicación de una resolución guiada sobre la incidencia;
+- importación completa de la aplicación;
+- estabilidad con PostgreSQL;
+- lint, regresión y compilación del frontend.
+
 ## Recorrido didáctico recomendado
 
 1. Crear una incidencia IT manual.
