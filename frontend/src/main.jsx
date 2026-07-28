@@ -9,11 +9,13 @@ import "./affiliation-siltra-bridge.js";
 import App from "./App.jsx";
 import AffiliationSiltraBridge from "./components/siltra/AffiliationSiltraBridge.jsx";
 import CraRoute from "./components/cra/CraRoute.jsx";
+import FieRoute from "./components/fie/FieRoute.jsx";
 
 createRoot(document.getElementById("root")).render(
   <StrictMode>
     <App />
     <AffiliationSiltraBridge />
     <CraRoute />
+    <FieRoute />
   </StrictMode>
 );
