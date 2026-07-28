@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import {
-  applyFieCommunication,
   compareFieCommunication,
   fetchFieCommunications,
   ignoreFieCommunication,
+  markFieCommunicationRead,
   reopenFieCommunication,
+  resolveFieCommunication,
   simulateFieCommunication,
 } from "../services/fieApi";
 import "./fieInboxPage.css";
@@ -20,23 +21,48 @@ const TYPE_LABELS = {
 };
 
 const STATUS_LABELS = {
-  RECEIVED: "Recibido",
+  RECEIVED: "Recibida",
   PENDING_REVIEW: "Pendiente de revisión",
   MATCHED: "Coincidente",
   DISCREPANCY: "Discrepancia",
-  APPLIED: "Aplicado",
-  IGNORED: "Ignorado",
+  UNMATCHED_WORKER: "Trabajador no identificado",
+  DUPLICATE: "Duplicada",
+  APPLIED: "Aplicada",
+  IGNORED: "Descartada",
   ERROR: "Error",
 };
 
 const IMPACT_LABELS = {
   NO_IMPACT: "Sin impacto",
-  PENDING_RECALCULATION: "Recalcular nómina",
+  PENDING_RECALCULATION: "Pendiente de recálculo",
   RECALCULATED: "Recalculada",
   REGULARIZATION_REQUIRED: "Regularización necesaria",
 };
 
-const EMPTY_FILTERS = { status: "", communication_type: "" };
+const ACTION_LABELS = {
+  LINK_INCIDENT: "Vincular a incidencia existente",
+  CREATE_INCIDENT: "Crear nueva incidencia",
+  UPDATE_INCIDENT: "Actualizar fechas de la incidencia",
+  ADD_CONFIRMATION: "Añadir parte de confirmación",
+  CLOSE_INCIDENT: "Cerrar incidencia por alta",
+  CANCEL_INCIDENT: "Anular incidencia",
+  CREATE_RELAPSE: "Crear recaída",
+  MARK_FOR_REVIEW: "Marcar para revisión manual",
+  IGNORE_DUPLICATE: "Descartar como duplicada",
+};
+
+const SCENARIO_LABELS = {
+  AUTO: "Caso normal / automático",
+  DATE_MISMATCH: "Fecha distinta a la incidencia",
+  UNKNOWN_WORKER: "Trabajador no identificado",
+  NO_ACTIVE_CONTRACT: "Sin contrato vigente",
+  CONFIRMATION_WITHOUT_PROCESS: "Confirmación sin proceso abierto",
+  DISCHARGE_WITHOUT_PROCESS: "Alta sin baja previa",
+  RELAPSE_WITHOUT_PREVIOUS: "Recaída sin proceso anterior",
+  DUPLICATE: "Comunicación duplicada",
+};
+
+const EMPTY_FILTERS = { status: "", communication_type: "", priority: "", unread: false };
 
 function today() {
   return new Date().toISOString().slice(0, 10);
@@ -57,6 +83,11 @@ function defaultSimulation(companyId = "", employeeId = "") {
     previous_process_reference: "",
     estimated_duration: "",
     result_scenario: "AUTO",
+    priority: "NORMAL",
+    external_worker_name: "",
+    external_nif: "",
+    external_naf: "",
+    notes: "",
     created_by: "Usuario demo",
   };
 }
@@ -79,18 +110,18 @@ function StatusBadge({ status }) {
   return <span className={`fie-status fie-status--${String(status || "received").toLowerCase()}`}>{STATUS_LABELS[status] || status}</span>;
 }
 
+function PriorityBadge({ priority }) {
+  return <span className={`fie-priority fie-priority--${String(priority || "normal").toLowerCase()}`}>{priority === "URGENT" ? "Urgente" : priority === "HIGH" ? "Alta" : "Normal"}</span>;
+}
+
 function SummaryCard({ label, value, tone = "neutral" }) {
-  return (
-    <div className={`fie-summary-card fie-summary-card--${tone}`}>
-      <span>{label}</span>
-      <strong>{value}</strong>
-    </div>
-  );
+  return <div className={`fie-summary-card fie-summary-card--${tone}`}><span>{label}</span><strong>{value}</strong></div>;
 }
 
 function ComparisonPanel({ communication }) {
   const result = communication?.reconciliation_result || {};
   const checks = result.checks || [];
+  const issues = result.issues || [];
   if (!communication) return null;
 
   return (
@@ -98,7 +129,8 @@ function ComparisonPanel({ communication }) {
       <section className="fie-detail-card">
         <h3>Información recibida del INSS</h3>
         <dl>
-          <div><dt>Trabajador</dt><dd>{communication.employee_name || "-"}</dd></div>
+          <div><dt>Trabajador</dt><dd>{communication.external_worker_name || communication.employee_name || "No identificado"}</dd></div>
+          <div><dt>NIF</dt><dd>{communication.external_nif || "Sin informar"}</dd></div>
           <div><dt>NAF</dt><dd>{communication.naf || "Sin informar"}</dd></div>
           <div><dt>Proceso</dt><dd>{communication.process_reference}</dd></div>
           <div><dt>Comunicación</dt><dd>{TYPE_LABELS[communication.communication_type]}</dd></div>
@@ -108,34 +140,73 @@ function ComparisonPanel({ communication }) {
       </section>
 
       <section className="fie-detail-card">
-        <h3>Información existente en AulaNomina</h3>
+        <h3>Información registrada en AulaNomina</h3>
         <dl>
-          <div><dt>Incidencia vinculada</dt><dd>{communication.incident_id ? `#${communication.incident_id}` : "No localizada"}</dd></div>
+          <div><dt>Trabajador</dt><dd>{communication.employee_id ? `${communication.employee_name} (#${communication.employee_id})` : "No localizado"}</dd></div>
+          <div><dt>Contrato vigente</dt><dd>{communication.contract_id ? `#${communication.contract_id}` : "No localizado"}</dd></div>
+          <div><dt>Incidencia</dt><dd>{communication.incident_id ? `#${communication.incident_id}` : "No vinculada"}</dd></div>
           <div><dt>Estado interno</dt><dd>{communication.incident_status || "-"}</dd></div>
-          <div><dt>Impacto en nómina</dt><dd>{IMPACT_LABELS[communication.payroll_impact] || communication.payroll_impact}</dd></div>
-          <div><dt>Acción propuesta</dt><dd>{result.recommended_action || "Comparar comunicación"}</dd></div>
+          <div><dt>Acción propuesta</dt><dd>{ACTION_LABELS[result.recommended_action] || result.recommended_action || "Comparar comunicación"}</dd></div>
         </dl>
       </section>
 
       <section className="fie-result-card">
-        <div>
-          <span className="fie-eyebrow">Resultado de conciliación</span>
-          <h3>{result.summary || "La comunicación todavía no se ha comparado con el ERP."}</h3>
+        <div className="fie-result-heading">
+          <div><span className="fie-eyebrow">Resultado de conciliación</span><h3>{result.summary || "La comunicación todavía no se ha comparado con AulaNomina."}</h3></div>
+          <StatusBadge status={communication.status} />
         </div>
-        <StatusBadge status={communication.status} />
+        {issues.length > 0 && <div className="fie-issue-list">{issues.map((issue, index) => <p key={`${issue.code}-${index}`}><strong>{issue.code}</strong>{issue.message}</p>)}</div>}
         {checks.length > 0 && (
-          <div className="fie-check-list">
+          <div className="fie-check-table">
+            <div className="fie-check-table__head"><span>Campo</span><span>INSS</span><span>AulaNomina</span><span>Resultado</span></div>
             {checks.map((check) => (
-              <div key={check.field} className={check.matches ? "fie-check fie-check--ok" : "fie-check fie-check--warning"}>
-                <strong>{check.matches ? "✓" : "!"} {check.field}</strong>
-                <span>ERP: {check.internal ?? "-"}</span>
-                <span>INSS: {check.external ?? "-"}</span>
+              <div key={check.field} className={check.matches ? "fie-check-row fie-check-row--ok" : "fie-check-row fie-check-row--warning"}>
+                <strong>{check.label || check.field}</strong><span>{check.external ?? "-"}</span><span>{check.internal ?? "-"}</span><span>{check.message || (check.matches ? "Coincide" : "Revisar")}</span>
               </div>
             ))}
           </div>
         )}
       </section>
+
+      <section className={`fie-impact-card fie-impact-card--${String(communication.payroll_impact || "NO_IMPACT").toLowerCase()}`}>
+        <span className="fie-eyebrow">Impacto previsto en nómina</span>
+        <h3>{IMPACT_LABELS[communication.payroll_impact] || communication.payroll_impact}</h3>
+        <p>{result.payroll_explanation || "La comunicación no recalcula automáticamente ninguna nómina."}</p>
+      </section>
     </div>
+  );
+}
+
+function ResolutionPanel({ communication, busy, onResolve }) {
+  const result = communication?.reconciliation_result || {};
+  const actions = result.available_actions || [];
+  const candidates = result.candidate_incidents || [];
+  const [action, setAction] = useState("");
+  const [incidentId, setIncidentId] = useState("");
+  const [notes, setNotes] = useState("");
+  const [allowDateOverride, setAllowDateOverride] = useState(false);
+
+  useEffect(() => {
+    const next = actions[0] || "";
+    setAction(next);
+    setIncidentId(communication?.incident_id ? String(communication.incident_id) : candidates[0]?.id ? String(candidates[0].id) : "");
+    setNotes("");
+    setAllowDateOverride(false);
+  }, [communication?.id, communication?.incident_id, actions.join("|"), candidates.length]);
+
+  if (!communication || communication.status === "APPLIED") return null;
+  if (actions.length === 0) return <div className="fie-resolution-empty">Compara la comunicación para obtener opciones de resolución.</div>;
+
+  const needsIncident = ["LINK_INCIDENT", "UPDATE_INCIDENT", "ADD_CONFIRMATION", "CLOSE_INCIDENT", "CANCEL_INCIDENT", "CREATE_RELAPSE"].includes(action);
+  return (
+    <section className="fie-resolution-panel">
+      <div><span className="fie-eyebrow">Decisión del usuario</span><h3>Resolver comunicación</h3></div>
+      <label><span>Actuación</span><select value={action} onChange={(event) => setAction(event.target.value)}>{actions.map((value) => <option key={value} value={value}>{ACTION_LABELS[value] || value}</option>)}</select></label>
+      {needsIncident && <label><span>Incidencia relacionada</span><select value={incidentId} onChange={(event) => setIncidentId(event.target.value)}><option value="">Selecciona incidencia</option>{candidates.map((candidate) => <option key={candidate.id} value={candidate.id}>#{candidate.id} · {candidate.type} · {formatDate(candidate.start_date)} · {candidate.status}</option>)}</select></label>}
+      {action === "UPDATE_INCIDENT" && <label className="fie-checkbox"><input type="checkbox" checked={allowDateOverride} onChange={(event) => setAllowDateOverride(event.target.checked)} /><span>Confirmo que las fechas recibidas sustituirán a las registradas.</span></label>}
+      <label><span>Motivo / observaciones</span><textarea value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Explica la decisión adoptada" /></label>
+      <button type="button" className="fie-button fie-button--primary" disabled={busy || !action || (needsIncident && !incidentId)} onClick={() => onResolve({ action, incident_id: incidentId ? Number(incidentId) : null, allow_date_override: allowDateOverride, notes })}>Aplicar resolución</button>
+    </section>
   );
 }
 
@@ -162,88 +233,82 @@ export default function FieInboxPage({ companies = [], employees = [] }) {
     }
   }, [activeCompanies, companyId, employees]);
 
-  const companyEmployees = useMemo(
-    () => employees.filter((employee) => !companyId || String(employee.company_id) === String(companyId)),
-    [companyId, employees]
-  );
+  const companyEmployees = useMemo(() => employees.filter((employee) => !companyId || String(employee.company_id) === String(companyId)), [companyId, employees]);
 
   const loadCommunications = useCallback(async () => {
-    if (!companyId) {
-      setCommunications([]);
-      setSelectedId("");
-      return;
-    }
+    if (!companyId) return;
     setLoading(true);
     setError("");
     try {
-      const data = await fetchFieCommunications({ company_id: companyId, ...filters });
+      const data = await fetchFieCommunications({ company_id: companyId, status: filters.status, communication_type: filters.communication_type });
       setCommunications(data || []);
-      setSelectedId((current) => {
-        if (current && data?.some((item) => String(item.id) === String(current))) return current;
-        return data?.[0] ? String(data[0].id) : "";
-      });
+      setSelectedId((current) => current && data?.some((item) => String(item.id) === String(current)) ? current : data?.[0] ? String(data[0].id) : "");
     } catch (requestError) {
       setError(requestError.message || "No se ha podido cargar la bandeja FIE");
     } finally {
       setLoading(false);
     }
-  }, [companyId, filters]);
+  }, [companyId, filters.status, filters.communication_type]);
 
-  useEffect(() => {
-    loadCommunications();
-  }, [loadCommunications]);
+  useEffect(() => { loadCommunications(); }, [loadCommunications]);
 
+  const visibleCommunications = useMemo(() => communications.filter((item) => (!filters.priority || item.priority === filters.priority) && (!filters.unread || !item.is_read)), [communications, filters.priority, filters.unread]);
   const selected = communications.find((item) => String(item.id) === String(selectedId)) || null;
   const stats = useMemo(() => ({
     total: communications.length,
+    unread: communications.filter((item) => !item.is_read).length,
     pending: communications.filter((item) => ["RECEIVED", "PENDING_REVIEW"].includes(item.status)).length,
-    discrepancies: communications.filter((item) => ["DISCREPANCY", "ERROR"].includes(item.status)).length,
-    applied: communications.filter((item) => item.status === "APPLIED").length,
+    discrepancies: communications.filter((item) => ["DISCREPANCY", "ERROR", "DUPLICATE"].includes(item.status)).length,
+    unmatched: communications.filter((item) => item.status === "UNMATCHED_WORKER").length,
+    regularization: communications.filter((item) => item.payroll_impact === "REGULARIZATION_REQUIRED").length,
   }), [communications]);
 
-  const updateSimulation = (field, value) => {
-    setSimulation((previous) => {
-      const next = { ...previous, [field]: value };
-      if (field === "event_date") {
-        if (next.communication_type === "SICK_LEAVE") next.sick_leave_date = value;
-        if (next.communication_type === "CONFIRMATION") next.confirmation_date = value;
-        if (next.communication_type === "MEDICAL_DISCHARGE") next.medical_discharge_date = value;
-        if (next.communication_type === "RELAPSE") next.relapse_date = value;
-      }
-      return next;
-    });
+  const replaceCommunication = (updated) => setCommunications((previous) => previous.map((item) => item.id === updated.id ? updated : item));
+
+  const selectCommunication = async (item) => {
+    setSelectedId(String(item.id));
+    setSelectedTab("comparison");
+    if (!item.is_read) {
+      try { replaceCommunication(await markFieCommunicationRead(item.id, "Usuario demo")); } catch { /* La lectura no bloquea la revisión. */ }
+    }
   };
+
+  const updateSimulation = (field, value) => setSimulation((previous) => ({ ...previous, [field]: value }));
 
   const runAction = async (action) => {
     if (!selected) return;
-    setBusy(true);
-    setError("");
-    setNotice("");
+    setBusy(true); setError(""); setNotice("");
     try {
       let updated;
       if (action === "compare") updated = await compareFieCommunication(selected.id, "Usuario demo");
-      if (action === "apply") updated = await applyFieCommunication(selected.id, { actor: "Usuario demo" });
-      if (action === "ignore") updated = await ignoreFieCommunication(selected.id, { actor: "Usuario demo", notes: "Revisión aplazada desde la bandeja FIE" });
+      if (action === "ignore") updated = await ignoreFieCommunication(selected.id, { actor: "Usuario demo", notes: "Descartada desde la bandeja FIE" });
       if (action === "reopen") updated = await reopenFieCommunication(selected.id, { actor: "Usuario demo" });
-      setCommunications((previous) => previous.map((item) => (item.id === updated.id ? updated : item)));
-      setNotice(action === "apply" ? "Comunicación aplicada y trazabilidad actualizada." : "Comunicación actualizada.");
-    } catch (requestError) {
-      setError(requestError.message || "No se ha podido procesar la comunicación");
-    } finally {
-      setBusy(false);
-    }
+      replaceCommunication(updated);
+      setNotice(action === "compare" ? "Conciliación completada. Revisa las diferencias y selecciona una resolución." : "Comunicación actualizada.");
+    } catch (requestError) { setError(requestError.message || "No se ha podido procesar la comunicación"); }
+    finally { setBusy(false); }
+  };
+
+  const resolveCommunication = async (resolution) => {
+    if (!selected) return;
+    setBusy(true); setError(""); setNotice("");
+    try {
+      const updated = await resolveFieCommunication(selected.id, { ...resolution, actor: "Usuario demo" });
+      replaceCommunication(updated);
+      setNotice("Resolución aplicada. Se ha actualizado la trazabilidad y el posible impacto en nómina.");
+    } catch (requestError) { setError(requestError.message || "No se ha podido aplicar la resolución"); }
+    finally { setBusy(false); }
   };
 
   const submitSimulation = async (event) => {
     event.preventDefault();
-    setBusy(true);
-    setError("");
-    setNotice("");
+    setBusy(true); setError(""); setNotice("");
     try {
+      const unknownWorker = simulation.result_scenario === "UNKNOWN_WORKER";
       const payload = {
         ...simulation,
         company_id: Number(simulation.company_id),
-        employee_id: Number(simulation.employee_id),
+        employee_id: unknownWorker ? null : Number(simulation.employee_id),
         estimated_duration: simulation.estimated_duration ? Number(simulation.estimated_duration) : null,
         sick_leave_date: simulation.sick_leave_date || null,
         confirmation_date: simulation.confirmation_date || null,
@@ -251,73 +316,67 @@ export default function FieInboxPage({ companies = [], employees = [] }) {
         relapse_date: simulation.relapse_date || null,
         process_reference: simulation.process_reference || null,
         previous_process_reference: simulation.previous_process_reference || null,
+        external_worker_name: simulation.external_worker_name || null,
+        external_nif: simulation.external_nif || null,
+        external_naf: simulation.external_naf || null,
       };
       const created = await simulateFieCommunication(payload);
-      setCompanyId(String(created.company_id));
-      setFilters(EMPTY_FILTERS);
+      setCompanyId(String(created.company_id)); setFilters(EMPTY_FILTERS);
       setCommunications((previous) => [created, ...previous.filter((item) => item.id !== created.id)]);
-      setSelectedId(String(created.id));
-      setShowSimulator(false);
-      setNotice("Comunicación FIE de prueba recibida en la bandeja.");
-    } catch (requestError) {
-      setError(requestError.message || "No se ha podido generar la comunicación FIE");
-    } finally {
-      setBusy(false);
-    }
+      setSelectedId(String(created.id)); setShowSimulator(false);
+      setNotice("Comunicación de práctica recibida en la bandeja.");
+    } catch (requestError) { setError(requestError.message || "No se ha podido generar la comunicación FIE"); }
+    finally { setBusy(false); }
+  };
+
+  const copyTechnical = async () => {
+    if (!selected) return;
+    await navigator.clipboard.writeText(JSON.stringify(selected.raw_content, null, 2));
+    setNotice("Contenido técnico copiado.");
+  };
+
+  const downloadTechnical = () => {
+    if (!selected) return;
+    const blob = new Blob([JSON.stringify(selected.raw_content, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url; anchor.download = `${selected.external_message_id}.json`; anchor.click();
+    URL.revokeObjectURL(url);
   };
 
   return (
     <div className="fie-page">
       <section className="fie-summary-grid">
         <SummaryCard label="Comunicaciones" value={stats.total} />
+        <SummaryCard label="No leídas" value={stats.unread} tone="info" />
         <SummaryCard label="Pendientes" value={stats.pending} tone="warning" />
         <SummaryCard label="Discrepancias" value={stats.discrepancies} tone="danger" />
-        <SummaryCard label="Aplicadas" value={stats.applied} tone="success" />
+        <SummaryCard label="Sin identificar" value={stats.unmatched} tone="danger" />
+        <SummaryCard label="A regularizar" value={stats.regularization} tone="warning" />
       </section>
 
       {error && <div className="fie-banner fie-banner--error">{error}</div>}
       {notice && <div className="fie-banner fie-banner--notice">{notice}</div>}
 
       <section className="fie-toolbar">
-        <label>
-          <span>Empresa</span>
-          <select value={companyId} onChange={(event) => {
-            const value = event.target.value;
-            setCompanyId(value);
-            const firstEmployee = employees.find((employee) => String(employee.company_id) === value);
-            setSimulation(defaultSimulation(value, firstEmployee ? String(firstEmployee.id) : ""));
-          }}>
-            <option value="">Selecciona empresa</option>
-            {activeCompanies.map((company) => <option key={company.id} value={company.id}>{company.name}</option>)}
-          </select>
-        </label>
-        <label>
-          <span>Estado</span>
-          <select value={filters.status} onChange={(event) => setFilters((previous) => ({ ...previous, status: event.target.value }))}>
-            <option value="">Todos</option>
-            {Object.entries(STATUS_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-          </select>
-        </label>
-        <label>
-          <span>Tipo</span>
-          <select value={filters.communication_type} onChange={(event) => setFilters((previous) => ({ ...previous, communication_type: event.target.value }))}>
-            <option value="">Todos</option>
-            {Object.entries(TYPE_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-          </select>
-        </label>
-        <button type="button" className="fie-button fie-button--secondary" onClick={loadCommunications} disabled={loading}>{loading ? "Consultando..." : "Consultar comunicaciones"}</button>
-        <button type="button" className="fie-button fie-button--primary" onClick={() => setShowSimulator((value) => !value)}>Generar FIE de prueba</button>
+        <label><span>Empresa</span><select value={companyId} onChange={(event) => { const value = event.target.value; setCompanyId(value); const firstEmployee = employees.find((employee) => String(employee.company_id) === value); setSimulation(defaultSimulation(value, firstEmployee ? String(firstEmployee.id) : "")); }}><option value="">Selecciona empresa</option>{activeCompanies.map((company) => <option key={company.id} value={company.id}>{company.name}</option>)}</select></label>
+        <label><span>Estado</span><select value={filters.status} onChange={(event) => setFilters((previous) => ({ ...previous, status: event.target.value }))}><option value="">Todos</option>{Object.entries(STATUS_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+        <label><span>Tipo</span><select value={filters.communication_type} onChange={(event) => setFilters((previous) => ({ ...previous, communication_type: event.target.value }))}><option value="">Todos</option>{Object.entries(TYPE_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+        <label><span>Prioridad</span><select value={filters.priority} onChange={(event) => setFilters((previous) => ({ ...previous, priority: event.target.value }))}><option value="">Todas</option><option value="NORMAL">Normal</option><option value="HIGH">Alta</option><option value="URGENT">Urgente</option></select></label>
+        <label className="fie-checkbox fie-checkbox--toolbar"><input type="checkbox" checked={filters.unread} onChange={(event) => setFilters((previous) => ({ ...previous, unread: event.target.checked }))} /><span>Solo no leídas</span></label>
+        <button type="button" className="fie-button fie-button--secondary" onClick={loadCommunications} disabled={loading}>{loading ? "Consultando..." : "Actualizar"}</button>
+        <button type="button" className="fie-button fie-button--primary" onClick={() => setShowSimulator((value) => !value)}>Generar caso práctico</button>
       </section>
 
       {showSimulator && (
         <form className="fie-simulator" onSubmit={submitSimulation}>
-          <div className="fie-section-title">
-            <div><span className="fie-eyebrow">Modo demo / administrador</span><h2>Generar comunicación FIE de prueba</h2></div>
-            <button type="button" className="fie-text-button" onClick={() => setShowSimulator(false)}>Cerrar</button>
-          </div>
+          <div className="fie-section-title"><div><span className="fie-eyebrow">Modo docente / administrador</span><h2>Generar comunicación de práctica</h2></div><button type="button" className="fie-text-button" onClick={() => setShowSimulator(false)}>Cerrar</button></div>
           <div className="fie-form-grid">
             <label><span>Empresa</span><select required value={simulation.company_id} onChange={(event) => updateSimulation("company_id", event.target.value)}>{activeCompanies.map((company) => <option key={company.id} value={company.id}>{company.name}</option>)}</select></label>
-            <label><span>Trabajador</span><select required value={simulation.employee_id} onChange={(event) => updateSimulation("employee_id", event.target.value)}><option value="">Selecciona trabajador</option>{companyEmployees.map((employee) => <option key={employee.id} value={employee.id}>{employee.first_name} {employee.last_name}</option>)}</select></label>
+            <label><span>Escenario</span><select value={simulation.result_scenario} onChange={(event) => updateSimulation("result_scenario", event.target.value)}>{Object.entries(SCENARIO_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+            <label><span>Prioridad</span><select value={simulation.priority} onChange={(event) => updateSimulation("priority", event.target.value)}><option value="NORMAL">Normal</option><option value="HIGH">Alta</option><option value="URGENT">Urgente</option></select></label>
+            {simulation.result_scenario !== "UNKNOWN_WORKER" && <label><span>Trabajador</span><select required value={simulation.employee_id} onChange={(event) => updateSimulation("employee_id", event.target.value)}><option value="">Selecciona trabajador</option>{companyEmployees.map((employee) => <option key={employee.id} value={employee.id}>{employee.first_name} {employee.last_name}</option>)}</select></label>}
+            {simulation.result_scenario === "UNKNOWN_WORKER" && <><label><span>Nombre recibido</span><input value={simulation.external_worker_name} onChange={(event) => updateSimulation("external_worker_name", event.target.value)} placeholder="Persona no registrada" /></label><label><span>NIF recibido</span><input value={simulation.external_nif} onChange={(event) => updateSimulation("external_nif", event.target.value)} /></label><label><span>NAF recibido</span><input value={simulation.external_naf} onChange={(event) => updateSimulation("external_naf", event.target.value)} /></label></>}
             <label><span>Tipo</span><select value={simulation.communication_type} onChange={(event) => updateSimulation("communication_type", event.target.value)}>{Object.entries(TYPE_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
             <label><span>Fecha del hecho</span><input type="date" required value={simulation.event_date} onChange={(event) => updateSimulation("event_date", event.target.value)} /></label>
             <label><span>Fecha de baja</span><input type="date" value={simulation.sick_leave_date} onChange={(event) => updateSimulation("sick_leave_date", event.target.value)} /></label>
@@ -328,6 +387,7 @@ export default function FieInboxPage({ companies = [], employees = [] }) {
             <label><span>Proceso anterior</span><input value={simulation.previous_process_reference} onChange={(event) => updateSimulation("previous_process_reference", event.target.value)} /></label>
             <label><span>Contingencia</span><select value={simulation.contingency_type} onChange={(event) => updateSimulation("contingency_type", event.target.value)}><option value="COMMON_DISEASE">Enfermedad común</option><option value="NON_WORK_ACCIDENT">Accidente no laboral</option><option value="WORK_ACCIDENT">Accidente de trabajo</option><option value="OCCUPATIONAL_DISEASE">Enfermedad profesional</option></select></label>
             <label><span>Días estimados</span><input type="number" min="0" value={simulation.estimated_duration} onChange={(event) => updateSimulation("estimated_duration", event.target.value)} /></label>
+            <label className="fie-form-grid__wide"><span>Observaciones del caso</span><input value={simulation.notes} onChange={(event) => updateSimulation("notes", event.target.value)} /></label>
           </div>
           <div className="fie-form-actions"><button type="submit" className="fie-button fie-button--primary" disabled={busy}>{busy ? "Generando..." : "Recibir comunicación"}</button></div>
         </form>
@@ -335,43 +395,22 @@ export default function FieInboxPage({ companies = [], employees = [] }) {
 
       <div className="fie-workspace">
         <section className="fie-inbox">
-          <div className="fie-section-title"><div><span className="fie-eyebrow">SILTRA simulado</span><h2>Bandeja FIE / INSS Empresas</h2></div><strong>{communications.length}</strong></div>
-          {loading ? <div className="fie-empty">Cargando comunicaciones...</div> : communications.length === 0 ? <div className="fie-empty">No hay comunicaciones para los filtros seleccionados.</div> : (
-            <div className="fie-table-wrapper">
-              <table>
-                <thead><tr><th>Recepción</th><th>Trabajador</th><th>Comunicación</th><th>Fecha</th><th>Estado</th><th>Resultado</th></tr></thead>
-                <tbody>{communications.map((item) => (
-                  <tr key={item.id} className={String(item.id) === String(selectedId) ? "is-selected" : ""} onClick={() => setSelectedId(String(item.id))}>
-                    <td>{formatDateTime(item.received_at)}</td><td><strong>{item.employee_name}</strong><small>{item.naf || "Sin NAF"}</small></td><td>{TYPE_LABELS[item.communication_type]}</td><td>{formatDate(item.event_date)}</td><td><StatusBadge status={item.status} /></td><td>{IMPACT_LABELS[item.payroll_impact] || item.payroll_impact}</td>
-                  </tr>
-                ))}</tbody>
-              </table>
-            </div>
+          <div className="fie-section-title"><div><span className="fie-eyebrow">Gestión laboral</span><h2>Comunicaciones INSS (FIE)</h2></div><strong>{visibleCommunications.length}</strong></div>
+          {loading ? <div className="fie-empty">Cargando comunicaciones...</div> : visibleCommunications.length === 0 ? <div className="fie-empty">No hay comunicaciones para los filtros seleccionados.</div> : (
+            <div className="fie-table-wrapper"><table><thead><tr><th></th><th>Recepción</th><th>Trabajador</th><th>Comunicación</th><th>Prioridad</th><th>Estado</th><th>Impacto</th></tr></thead><tbody>{visibleCommunications.map((item) => <tr key={item.id} className={`${String(item.id) === String(selectedId) ? "is-selected" : ""} ${!item.is_read ? "is-unread" : ""}`} onClick={() => selectCommunication(item)}><td>{item.is_read ? "" : <span className="fie-unread-dot" title="No leída" />}</td><td>{formatDateTime(item.received_at)}</td><td><strong>{item.external_worker_name || item.employee_name || "No identificado"}</strong><small>{item.naf || "Sin NAF"}</small></td><td>{TYPE_LABELS[item.communication_type]}<small>{formatDate(item.event_date)}</small></td><td><PriorityBadge priority={item.priority} /></td><td><StatusBadge status={item.status} /></td><td>{IMPACT_LABELS[item.payroll_impact] || item.payroll_impact}</td></tr>)}</tbody></table></div>
           )}
         </section>
 
         <section className="fie-detail">
-          {!selected ? <div className="fie-empty">Selecciona una comunicación para revisar sus datos.</div> : (
-            <>
-              <div className="fie-detail-header">
-                <div><span className="fie-eyebrow">{selected.external_message_id}</span><h2>{TYPE_LABELS[selected.communication_type]} · {selected.employee_name}</h2><p>{selected.process_reference}</p></div>
-                <StatusBadge status={selected.status} />
-              </div>
-              <div className="fie-tabs">
-                <button type="button" className={selectedTab === "comparison" ? "is-active" : ""} onClick={() => setSelectedTab("comparison")}>Conciliación</button>
-                <button type="button" className={selectedTab === "history" ? "is-active" : ""} onClick={() => setSelectedTab("history")}>Histórico</button>
-                <button type="button" className={selectedTab === "technical" ? "is-active" : ""} onClick={() => setSelectedTab("technical")}>Contenido técnico</button>
-              </div>
-              {selectedTab === "comparison" && <ComparisonPanel communication={selected} />}
-              {selectedTab === "history" && <div className="fie-timeline">{(selected.events || []).map((event) => <div key={event.id}><span>{formatDateTime(event.created_at)}</span><strong>{event.event_type}</strong><p>{event.detail || "Sin detalle"}</p></div>)}</div>}
-              {selectedTab === "technical" && <pre className="fie-technical">{JSON.stringify(selected.raw_content, null, 2)}</pre>}
-              <div className="fie-detail-actions">
-                <button type="button" className="fie-button fie-button--secondary" disabled={busy || selected.status === "APPLIED"} onClick={() => runAction("compare")}>Comparar con ERP</button>
-                <button type="button" className="fie-button fie-button--primary" disabled={busy || ["APPLIED", "IGNORED", "DISCREPANCY", "ERROR"].includes(selected.status)} onClick={() => runAction("apply")}>Aplicar comunicación</button>
-                {selected.status === "IGNORED" || selected.status === "ERROR" || selected.status === "DISCREPANCY" ? <button type="button" className="fie-button fie-button--secondary" disabled={busy} onClick={() => runAction("reopen")}>Reabrir</button> : <button type="button" className="fie-button fie-button--danger" disabled={busy || selected.status === "APPLIED"} onClick={() => runAction("ignore")}>Dejar pendiente / ignorar</button>}
-              </div>
-            </>
-          )}
+          {!selected ? <div className="fie-empty">Selecciona una comunicación para revisar sus datos.</div> : <>
+            <div className="fie-detail-header"><div><span className="fie-eyebrow">{selected.external_message_id}</span><h2>{TYPE_LABELS[selected.communication_type]} · {selected.external_worker_name || selected.employee_name || "Sin identificar"}</h2><p>{selected.process_reference}</p></div><div className="fie-detail-badges"><PriorityBadge priority={selected.priority} /><StatusBadge status={selected.status} /></div></div>
+            <div className="fie-tabs"><button type="button" className={selectedTab === "comparison" ? "is-active" : ""} onClick={() => setSelectedTab("comparison")}>Conciliación</button><button type="button" className={selectedTab === "resolution" ? "is-active" : ""} onClick={() => setSelectedTab("resolution")}>Resolución</button><button type="button" className={selectedTab === "history" ? "is-active" : ""} onClick={() => setSelectedTab("history")}>Histórico</button><button type="button" className={selectedTab === "technical" ? "is-active" : ""} onClick={() => setSelectedTab("technical")}>Contenido técnico</button></div>
+            {selectedTab === "comparison" && <ComparisonPanel communication={selected} />}
+            {selectedTab === "resolution" && <ResolutionPanel communication={selected} busy={busy} onResolve={resolveCommunication} />}
+            {selectedTab === "history" && <div className="fie-timeline">{(selected.events || []).map((event) => <div key={event.id}><span>{formatDateTime(event.created_at)}</span><strong>{event.event_type}</strong><p>{event.detail || "Sin detalle"}</p>{event.actor && <small>Usuario: {event.actor}</small>}</div>)}</div>}
+            {selectedTab === "technical" && <div className="fie-technical-wrap"><div className="fie-technical-actions"><button type="button" className="fie-button fie-button--secondary" onClick={copyTechnical}>Copiar JSON</button><button type="button" className="fie-button fie-button--secondary" onClick={downloadTechnical}>Descargar</button></div><pre className="fie-technical">{JSON.stringify(selected.raw_content, null, 2)}</pre><div className="fie-field-help"><strong>process.reference</strong><span>Relaciona la baja, las confirmaciones y el alta del mismo proceso simulado.</span><strong>simulation_scenario</strong><span>Indica el conflicto didáctico introducido por el profesor.</span><strong>worker.naf</strong><span>Dato principal utilizado para localizar el expediente interno.</span></div></div>}
+            <div className="fie-detail-actions"><button type="button" className="fie-button fie-button--secondary" disabled={busy || selected.status === "APPLIED"} onClick={() => runAction("compare")}>Comparar con AulaNomina</button>{["IGNORED", "ERROR", "DISCREPANCY", "DUPLICATE", "UNMATCHED_WORKER"].includes(selected.status) ? <button type="button" className="fie-button fie-button--secondary" disabled={busy} onClick={() => runAction("reopen")}>Reabrir</button> : <button type="button" className="fie-button fie-button--danger" disabled={busy || selected.status === "APPLIED"} onClick={() => runAction("ignore")}>Descartar</button>}</div>
+          </>}
         </section>
       </div>
     </div>
