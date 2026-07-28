@@ -11,6 +11,8 @@ function isFieRoute() {
 
 function closeFieRoute() {
   window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
+  window.sessionStorage.setItem("aulanomina:incidentsMode", "list");
+  window.dispatchEvent(new CustomEvent("aulanomina-open-page", { detail: { page: "incidents" } }));
   window.dispatchEvent(new Event("aulanomina-route-change"));
 }
 
@@ -65,11 +67,11 @@ export default function FieRoute() {
     <div style={styles.wrapper}>
       <header style={styles.header}>
         <div>
-          <span style={styles.eyebrow}>Seguros sociales · SILTRA simulado</span>
+          <span style={styles.eyebrow}>Gestión laboral · INSS simulado</span>
           <h1 style={styles.title}>FIE / INSS Empresas</h1>
           <p style={styles.subtitle}>Recepción, conciliación y aplicación educativa de bajas, confirmaciones, altas, modificaciones, anulaciones y recaídas.</p>
         </div>
-        <button type="button" onClick={closeFieRoute} style={styles.backButton}>Volver a Seguros Sociales</button>
+        <button type="button" onClick={closeFieRoute} style={styles.backButton}>Volver a incidencias laborales</button>
       </header>
       <main style={styles.main}>
         {error && <div style={styles.error}>{error}</div>}
