@@ -11,11 +11,13 @@ class FieCommunication(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     company_id = Column(Integer, ForeignKey("companies.id"), nullable=False, index=True)
-    employee_id = Column(Integer, ForeignKey("employees.id"), nullable=False, index=True)
+    employee_id = Column(Integer, ForeignKey("employees.id"), nullable=True, index=True)
     contract_id = Column(Integer, ForeignKey("contracts.id"), nullable=True, index=True)
     incident_id = Column(Integer, ForeignKey("incidents.id"), nullable=True, index=True)
     ccc_id = Column(String, nullable=True, index=True)
     naf = Column(String, nullable=True, index=True)
+    external_worker_name = Column(String, nullable=True)
+    external_nif = Column(String, nullable=True, index=True)
     external_message_id = Column(String, nullable=False, unique=True, index=True)
     process_reference = Column(String, nullable=False, index=True)
     previous_process_reference = Column(String, nullable=True, index=True)
@@ -28,7 +30,9 @@ class FieCommunication(Base):
     relapse_date = Column(Date, nullable=True)
     estimated_duration = Column(Integer, nullable=True)
     source = Column(String, default="SIMULATION", nullable=False)
+    priority = Column(String, default="NORMAL", nullable=False, index=True)
     received_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+    read_at = Column(DateTime, nullable=True, index=True)
     status = Column(String, default="RECEIVED", nullable=False, index=True)
     reconciliation_result = Column(JSON, default=dict, nullable=False)
     payroll_impact = Column(String, default="NO_IMPACT", nullable=False)
@@ -55,21 +59,25 @@ class FieCommunication(Base):
 
     @property
     def employee_name(self):
-        if not self.employee:
-            return None
-        return " ".join(
-            part
-            for part in [
-                self.employee.first_name,
-                self.employee.last_name,
-                self.employee.second_last_name,
-            ]
-            if part
-        )
+        if self.employee:
+            return " ".join(
+                part
+                for part in [
+                    self.employee.first_name,
+                    self.employee.last_name,
+                    self.employee.second_last_name,
+                ]
+                if part
+            )
+        return self.external_worker_name
 
     @property
     def incident_status(self):
         return self.incident.status if self.incident else None
+
+    @property
+    def is_read(self):
+        return self.read_at is not None
 
 
 class FieProcessingEvent(Base):
