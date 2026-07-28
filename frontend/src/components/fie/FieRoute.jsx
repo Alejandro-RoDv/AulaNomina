@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import FieInboxPage from "../../pages/FieInboxPage";
 import { fetchCompanies } from "../../services/companyApi";
 import { fetchEmployees } from "../../services/employeeApi";
+import { generatePendingFieCommunications } from "../../services/fieApi";
 
 function isFieRoute() {
   return window.location.hash === "#fie-inss";
@@ -33,20 +34,28 @@ export default function FieRoute() {
   useEffect(() => {
     if (!active) return undefined;
     let mounted = true;
-    setLoading(true);
-    setError("");
-    Promise.all([fetchCompanies(), fetchEmployees()])
-      .then(([companyData, employeeData]) => {
+
+    const loadModule = async () => {
+      setLoading(true);
+      setError("");
+      try {
+        const [companyData, employeeData] = await Promise.all([fetchCompanies(), fetchEmployees()]);
+        try {
+          await generatePendingFieCommunications({ limit: 50 });
+        } catch (pendingError) {
+          if (mounted) setError(pendingError.message || "No se han podido consultar nuevas comunicaciones automáticas");
+        }
         if (!mounted) return;
         setCompanies(companyData || []);
         setEmployees(employeeData || []);
-      })
-      .catch((requestError) => {
+      } catch (requestError) {
         if (mounted) setError(requestError.message || "Error cargando el módulo FIE");
-      })
-      .finally(() => {
+      } finally {
         if (mounted) setLoading(false);
-      });
+      }
+    };
+
+    loadModule();
     return () => { mounted = false; };
   }, [active]);
 
@@ -65,7 +74,7 @@ export default function FieRoute() {
       <main style={styles.main}>
         {error && <div style={styles.error}>{error}</div>}
         {loading
-          ? <div style={styles.loading}>Cargando empresas, trabajadores y bandeja FIE...</div>
+          ? <div style={styles.loading}>Consultando INSS simulado y cargando la bandeja FIE...</div>
           : <FieInboxPage companies={companies} employees={employees} />}
       </main>
     </div>
