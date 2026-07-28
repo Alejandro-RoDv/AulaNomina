@@ -5,6 +5,7 @@ const ACTION_MARKER = "aulanomina-fie-siltra-action";
 function openFieInbox() {
   document.querySelector(".siltra-exit-button")?.click();
   window.location.hash = "#fie-inss";
+  window.dispatchEvent(new CustomEvent("aulanomina-open-page", { detail: { page: "fie-inss" } }));
   window.dispatchEvent(new Event("aulanomina-route-change"));
 }
 
