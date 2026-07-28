@@ -61,6 +61,7 @@ const groups = [
           { id: "incidents", label: "Embargos judiciales", enabled: true, modeGroup: "incidents", modeValue: "embargo" },
           { id: "affiliations", label: "Altas y bajas", enabled: true },
           { id: "affiliation-files", label: "Ficheros AFI", enabled: true },
+          { id: "fie-inss", label: "FIE / INSS Empresas", enabled: true, hash: "#fie-inss" },
           { id: "variations", label: "Variaciones", enabled: false },
           { id: "communications", label: "Comunicados", enabled: false },
         ],
@@ -84,7 +85,6 @@ const groups = [
           { id: "social-security-settlements", label: "Liquidaciones", enabled: true },
           { id: "social-security-files", label: "Ficheros generados", enabled: true },
           { id: "social-security-dashboard", label: "Ficheros CRA", enabled: true, hash: "#cra-files" },
-          { id: "social-security-dashboard", label: "FIE / INSS Empresas", enabled: true, hash: "#fie-inss" },
         ],
       },
       {
@@ -161,6 +161,7 @@ function getInitialActiveKey(activePage) {
     const mode = window.sessionStorage.getItem(modeStorageKeys.incidents) || "list";
     return `incidents:incidents:${mode}`;
   }
+  if (activePage === "fie-inss") return "fie-inss:#fie-inss";
   return activePage;
 }
 
