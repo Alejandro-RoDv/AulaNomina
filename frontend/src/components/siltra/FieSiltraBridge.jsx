@@ -18,7 +18,7 @@ function installFieAction() {
   const button = document.createElement("button");
   button.type = "button";
   button.className = `siltra-classic-button siltra-classic-button--primary ${ACTION_MARKER}`;
-  button.textContent = "Abrir bandeja FIE / INSS Empresas";
+  button.textContent = "Abrir Comunicaciones INSS (FIE)";
   button.addEventListener("click", openFieInbox);
   container.appendChild(button);
 }
