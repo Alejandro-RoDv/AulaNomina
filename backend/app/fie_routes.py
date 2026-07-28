@@ -10,6 +10,7 @@ from app.schemas.fie import (
     FieProcessingEventResponse,
     FieSimulationRequest,
 )
+from app.services.fie_pending_service import generate_pending_fie_communications
 from app.services.fie_service import (
     FieDomainError,
     apply_fie_communication,
@@ -69,6 +70,24 @@ def get_communication(communication_id: int, db: Session = Depends(get_db)):
 def simulate_communication(payload: FieSimulationRequest, db: Session = Depends(get_db)):
     try:
         return simulate_fie_communication(db, payload)
+    except FieDomainError as error:
+        raise domain_error(error) from error
+
+
+@router.post("/generate-pending", response_model=list[FieCommunicationResponse])
+def generate_pending_communications(
+    payload: FieActionRequest | None = None,
+    company_id: int | None = Query(default=None),
+    limit: int = Query(default=20, ge=1, le=100),
+    db: Session = Depends(get_db),
+):
+    try:
+        return generate_pending_fie_communications(
+            db,
+            company_id=company_id,
+            actor=payload.actor if payload else "Sistema INSS simulado",
+            limit=limit,
+        )
     except FieDomainError as error:
         raise domain_error(error) from error
 
