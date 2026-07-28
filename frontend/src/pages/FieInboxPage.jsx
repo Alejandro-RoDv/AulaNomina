@@ -181,6 +181,7 @@ function ResolutionPanel({ communication, busy, onResolve }) {
   const result = communication?.reconciliation_result || {};
   const actions = result.available_actions || [];
   const candidates = result.candidate_incidents || [];
+  const actionsKey = actions.join("|");
   const [action, setAction] = useState("");
   const [incidentId, setIncidentId] = useState("");
   const [notes, setNotes] = useState("");
@@ -192,7 +193,7 @@ function ResolutionPanel({ communication, busy, onResolve }) {
     setIncidentId(communication?.incident_id ? String(communication.incident_id) : candidates[0]?.id ? String(candidates[0].id) : "");
     setNotes("");
     setAllowDateOverride(false);
-  }, [communication?.id, communication?.incident_id, actions.join("|"), candidates.length]);
+  }, [communication?.id, communication?.incident_id, actionsKey, candidates]);
 
   if (!communication || communication.status === "APPLIED") return null;
   if (actions.length === 0) return <div className="fie-resolution-empty">Compara la comunicación para obtener opciones de resolución.</div>;
