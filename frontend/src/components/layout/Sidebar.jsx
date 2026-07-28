@@ -61,8 +61,8 @@ const groups = [
           { id: "incidents", label: "Embargos judiciales", enabled: true, modeGroup: "incidents", modeValue: "embargo" },
           { id: "affiliations", label: "Altas y bajas", enabled: true },
           { id: "affiliation-files", label: "Ficheros AFI", enabled: true },
+          { id: "fie-inss", label: "Comunicaciones INSS (FIE)", enabled: true, hash: "#fie-inss" },
           { id: "variations", label: "Variaciones", enabled: false },
-          { id: "communications", label: "Comunicados", enabled: false },
         ],
       },
     ],
@@ -160,6 +160,7 @@ function getInitialActiveKey(activePage) {
     const mode = window.sessionStorage.getItem(modeStorageKeys.incidents) || "list";
     return `incidents:incidents:${mode}`;
   }
+  if (activePage === "fie-inss") return "fie-inss:#fie-inss";
   return activePage;
 }
 
