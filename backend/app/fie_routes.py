@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app.db import SessionLocal
+from app.fie_schema_patch import apply_fie_schema_patch
 from app.schemas.fie import (
     FieActionRequest,
     FieCommunicationResponse,
@@ -27,6 +28,7 @@ from app.services.fie_service import (
     reopen_fie_communication,
 )
 
+apply_fie_schema_patch()
 router = APIRouter(prefix="/fie", tags=["fie"])
 
 
