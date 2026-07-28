@@ -51,7 +51,7 @@ export default function FieRoute() {
         setCompanies(companyData || []);
         setEmployees(employeeData || []);
       } catch (requestError) {
-        if (mounted) setError(requestError.message || "Error cargando el módulo FIE");
+        if (mounted) setError(requestError.message || "Error cargando las comunicaciones INSS");
       } finally {
         if (mounted) setLoading(false);
       }
@@ -68,15 +68,15 @@ export default function FieRoute() {
       <header style={styles.header}>
         <div>
           <span style={styles.eyebrow}>Gestión laboral · INSS simulado</span>
-          <h1 style={styles.title}>FIE / INSS Empresas</h1>
-          <p style={styles.subtitle}>Recepción, conciliación y aplicación educativa de bajas, confirmaciones, altas, modificaciones, anulaciones y recaídas.</p>
+          <h1 style={styles.title}>Comunicaciones INSS (FIE)</h1>
+          <p style={styles.subtitle}>Recepción, identificación, conciliación y resolución educativa de bajas, confirmaciones, altas, modificaciones, anulaciones y recaídas.</p>
         </div>
         <button type="button" onClick={closeFieRoute} style={styles.backButton}>Volver a incidencias laborales</button>
       </header>
       <main style={styles.main}>
         {error && <div style={styles.error}>{error}</div>}
         {loading
-          ? <div style={styles.loading}>Consultando INSS simulado y cargando la bandeja FIE...</div>
+          ? <div style={styles.loading}>Consultando el INSS simulado y cargando la bandeja de comunicaciones...</div>
           : <FieInboxPage companies={companies} employees={employees} />}
       </main>
     </div>
