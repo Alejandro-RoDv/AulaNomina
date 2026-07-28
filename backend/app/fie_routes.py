@@ -12,8 +12,11 @@ from app.schemas.fie import (
     FieResolutionRequest,
     FieSimulationRequest,
 )
+from app.services.fie_case_service import (
+    compare_fie_case_communication,
+    reopen_fie_case_communication,
+)
 from app.services.fie_enhanced_service import (
-    compare_fie_communication_enhanced,
     mark_fie_communication_read,
     resolve_fie_communication,
     simulate_fie_communication_enhanced,
@@ -25,7 +28,6 @@ from app.services.fie_service import (
     get_fie_communication,
     ignore_fie_communication,
     list_fie_communications,
-    reopen_fie_communication,
 )
 
 apply_fie_schema_patch()
@@ -122,7 +124,7 @@ def compare_communication(
     db: Session = Depends(get_db),
 ):
     try:
-        return compare_fie_communication_enhanced(
+        return compare_fie_case_communication(
             db,
             communication_id,
             actor=payload.actor if payload else None,
@@ -184,7 +186,7 @@ def reopen_communication(
     db: Session = Depends(get_db),
 ):
     try:
-        return reopen_fie_communication(
+        return reopen_fie_case_communication(
             db,
             communication_id,
             actor=payload.actor,
