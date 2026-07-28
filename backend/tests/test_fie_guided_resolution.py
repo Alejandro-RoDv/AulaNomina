@@ -9,9 +9,9 @@ from app.models.company import Company
 from app.models.contract import Contract
 from app.models.employee import Employee
 from app.models.incident import Incident
-from app.schemas.fie import FieSimulationRequest
+from app.schemas.fie import FieResolutionRequest, FieSimulationRequest
 from app.services.fie_case_service import compare_fie_case_communication
-from app.services.fie_enhanced_service import simulate_fie_communication_enhanced
+from app.services.fie_enhanced_service import resolve_fie_communication, simulate_fie_communication_enhanced
 
 
 def build_session():
@@ -96,7 +96,7 @@ def test_duplicate_communication_is_detected_and_can_be_discarded():
     db.close()
 
 
-def test_date_mismatch_proposes_a_valid_update_action():
+def test_date_mismatch_proposes_and_applies_a_valid_update_action():
     db = build_session()
     company, employee, contract = seed_worker(db)
     incident = Incident(
@@ -138,4 +138,21 @@ def test_date_mismatch_proposes_a_valid_update_action():
             "IGNORE_DUPLICATE",
         }
     )
+
+    resolved = resolve_fie_communication(
+        db,
+        communication.id,
+        FieResolutionRequest(
+            action="UPDATE_INCIDENT",
+            incident_id=incident.id,
+            allow_date_override=True,
+            actor="Alumno",
+            notes="Se acepta la fecha comunicada por el INSS simulado.",
+        ),
+    )
+    db.refresh(incident)
+
+    assert resolved.status == "APPLIED"
+    assert incident.start_date == date(2026, 7, 10)
+    assert resolved.reconciliation_result["applied_action"] == "UPDATE_INCIDENT"
     db.close()
