@@ -8,18 +8,23 @@ from app.schemas.fie import (
     FieActionRequest,
     FieCommunicationResponse,
     FieProcessingEventResponse,
+    FieResolutionRequest,
     FieSimulationRequest,
+)
+from app.services.fie_enhanced_service import (
+    compare_fie_communication_enhanced,
+    mark_fie_communication_read,
+    resolve_fie_communication,
+    simulate_fie_communication_enhanced,
 )
 from app.services.fie_pending_service import generate_pending_fie_communications
 from app.services.fie_service import (
     FieDomainError,
     apply_fie_communication,
-    compare_fie_communication,
     get_fie_communication,
     ignore_fie_communication,
     list_fie_communications,
     reopen_fie_communication,
-    simulate_fie_communication,
 )
 
 router = APIRouter(prefix="/fie", tags=["fie"])
@@ -69,7 +74,7 @@ def get_communication(communication_id: int, db: Session = Depends(get_db)):
 @router.post("/simulate", response_model=FieCommunicationResponse)
 def simulate_communication(payload: FieSimulationRequest, db: Session = Depends(get_db)):
     try:
-        return simulate_fie_communication(db, payload)
+        return simulate_fie_communication_enhanced(db, payload)
     except FieDomainError as error:
         raise domain_error(error) from error
 
@@ -92,6 +97,22 @@ def generate_pending_communications(
         raise domain_error(error) from error
 
 
+@router.post("/communications/{communication_id}/read", response_model=FieCommunicationResponse)
+def read_communication(
+    communication_id: int,
+    payload: FieActionRequest | None = None,
+    db: Session = Depends(get_db),
+):
+    try:
+        return mark_fie_communication_read(
+            db,
+            communication_id,
+            actor=payload.actor if payload else None,
+        )
+    except FieDomainError as error:
+        raise domain_error(error) from error
+
+
 @router.post("/communications/{communication_id}/compare", response_model=FieCommunicationResponse)
 def compare_communication(
     communication_id: int,
@@ -99,7 +120,23 @@ def compare_communication(
     db: Session = Depends(get_db),
 ):
     try:
-        return compare_fie_communication(db, communication_id, actor=payload.actor if payload else None)
+        return compare_fie_communication_enhanced(
+            db,
+            communication_id,
+            actor=payload.actor if payload else None,
+        )
+    except FieDomainError as error:
+        raise domain_error(error) from error
+
+
+@router.post("/communications/{communication_id}/resolve", response_model=FieCommunicationResponse)
+def resolve_communication(
+    communication_id: int,
+    payload: FieResolutionRequest,
+    db: Session = Depends(get_db),
+):
+    try:
+        return resolve_fie_communication(db, communication_id, payload)
     except FieDomainError as error:
         raise domain_error(error) from error
 
