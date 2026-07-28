@@ -3,7 +3,6 @@ import { useEffect, useState } from "react";
 import FieInboxPage from "../../pages/FieInboxPage";
 import { fetchCompanies } from "../../services/companyApi";
 import { fetchEmployees } from "../../services/employeeApi";
-import { generatePendingFieCommunications } from "../../services/fieApi";
 
 function isFieRoute() {
   return window.location.hash === "#fie-inss";
@@ -42,11 +41,6 @@ export default function FieRoute() {
       setError("");
       try {
         const [companyData, employeeData] = await Promise.all([fetchCompanies(), fetchEmployees()]);
-        try {
-          await generatePendingFieCommunications({ limit: 50 });
-        } catch (pendingError) {
-          if (mounted) setError(pendingError.message || "No se han podido consultar nuevas comunicaciones automáticas");
-        }
         if (!mounted) return;
         setCompanies(companyData || []);
         setEmployees(employeeData || []);
@@ -76,7 +70,7 @@ export default function FieRoute() {
       <main style={styles.main}>
         {error && <div style={styles.error}>{error}</div>}
         {loading
-          ? <div style={styles.loading}>Consultando el INSS simulado y cargando la bandeja de comunicaciones...</div>
+          ? <div style={styles.loading}>Cargando la bandeja de comunicaciones ya recibidas...</div>
           : <FieInboxPage companies={companies} employees={employees} />}
       </main>
     </div>
