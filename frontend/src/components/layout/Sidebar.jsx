@@ -98,6 +98,14 @@ const groups = [
     ],
   },
   {
+    id: "tax-management",
+    title: "Fiscalidad",
+    items: [
+      { id: "reports", label: "Modelo 111", enabled: true, hash: "#model-111" },
+      { id: "reports", label: "Modelo 190", enabled: false, hash: "#model-190" },
+    ],
+  },
+  {
     id: "document-control",
     title: "Documentación y control",
     items: [
@@ -160,6 +168,7 @@ function getInitialActiveKey(activePage) {
     const mode = window.sessionStorage.getItem(modeStorageKeys.incidents) || "list";
     return `incidents:incidents:${mode}`;
   }
+  if (activePage === "reports" && window.location.hash) return `reports:${window.location.hash}`;
   if (activePage === "fie-inss") return "fie-inss:#fie-inss";
   return activePage;
 }
@@ -208,6 +217,7 @@ function applyItemNavigation(item) {
 
 function itemMatchesPage(item, activePage, activeNavKey) {
   if (item.launchEvent) return false;
+  if (item.hash || item.modeGroup) return getItemKey(item) === activeNavKey;
   return item.id === activePage || getItemKey(item) === activeNavKey;
 }
 
