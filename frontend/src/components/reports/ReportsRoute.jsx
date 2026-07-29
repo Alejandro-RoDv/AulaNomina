@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 
+import Model111Page from "../../pages/Model111Page";
 import ReportsPage from "../../pages/ReportsPage";
 import { fetchContracts } from "../../services/api";
 import { fetchCompanies } from "../../services/companyApi";
@@ -9,12 +10,14 @@ import { fetchIncidents } from "../../services/incidentApi";
 import { fetchPayrolls } from "../../services/payrollApi";
 import { fetchWorkCenters } from "../../services/workCenterApi";
 
-function isReportsRoute() {
-  return window.location.hash === "#reports";
+function getRoute() {
+  if (window.location.hash === "#model-111") return "model-111";
+  if (window.location.hash === "#reports") return "reports";
+  return null;
 }
 
 export default function ReportsRoute() {
-  const [active, setActive] = useState(isReportsRoute());
+  const [route, setRoute] = useState(getRoute());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [data, setData] = useState({
@@ -28,7 +31,7 @@ export default function ReportsRoute() {
   });
 
   useEffect(() => {
-    const handleRouteChange = () => setActive(isReportsRoute());
+    const handleRouteChange = () => setRoute(getRoute());
 
     window.addEventListener("hashchange", handleRouteChange);
     window.addEventListener("aulanomina-route-change", handleRouteChange);
@@ -40,12 +43,18 @@ export default function ReportsRoute() {
   }, []);
 
   useEffect(() => {
-    if (!active) return;
+    if (!route) return;
 
-    async function loadReportsData() {
+    async function loadRouteData() {
       try {
         setLoading(true);
         setError("");
+        if (route === "model-111") {
+          const companies = await fetchCompanies();
+          setData((current) => ({ ...current, companies }));
+          return;
+        }
+
         const [contracts, employees, companies, workCenters, incidents, payrolls, documents] = await Promise.all([
           fetchContracts(),
           fetchAllEmployees(),
@@ -58,16 +67,34 @@ export default function ReportsRoute() {
 
         setData({ contracts, employees, companies, workCenters, incidents, payrolls, documents });
       } catch (err) {
-        setError(err.message || "Error cargando informes");
+        setError(err.message || "Error cargando el módulo");
       } finally {
         setLoading(false);
       }
     }
 
-    loadReportsData();
-  }, [active]);
+    loadRouteData();
+  }, [route]);
 
-  if (!active) return null;
+  if (!route) return null;
+
+  if (route === "model-111") {
+    return (
+      <div style={styles.wrapper}>
+        <header style={styles.header}>
+          <div>
+            <h1 style={styles.title}>Modelo 111</h1>
+            <p style={styles.subtitle}>Retenciones de trabajo y actividades económicas, conciliación y presentación AEAT simulada.</p>
+          </div>
+          <button type="button" style={styles.headerButton} onClick={() => { window.location.hash = "#reports"; }}>Volver a informes</button>
+        </header>
+        <main style={styles.main}>
+          {error ? <div style={styles.error}>{error}</div> : null}
+          <Model111Page companies={data.companies} />
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div style={styles.wrapper}>
@@ -76,6 +103,7 @@ export default function ReportsRoute() {
           <h1 style={styles.title}>Informes</h1>
           <p style={styles.subtitle}>Documentos HTML imprimibles y listados exportables tipo Excel.</p>
         </div>
+        <button type="button" style={styles.headerButton} onClick={() => { window.location.hash = "#model-111"; }}>Abrir Modelo 111</button>
       </header>
       <main style={styles.main}>
         {error && <div style={styles.error}>{error}</div>}
@@ -101,6 +129,19 @@ const styles = {
     backgroundColor: "#ffffff",
     padding: "24px 42px 18px 32px",
     boxSizing: "border-box",
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: "18px",
+  },
+  headerButton: {
+    border: "3px solid #111111",
+    background: "#f8f3b5",
+    color: "#111111",
+    boxShadow: "3px 3px 0 #111111",
+    padding: "10px 14px",
+    fontWeight: 900,
+    cursor: "pointer",
   },
   title: {
     margin: 0,
