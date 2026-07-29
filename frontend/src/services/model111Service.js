@@ -1,4 +1,4 @@
-import { apiRequest } from "./httpClient";
+import { API_BASE_URL, apiRequest } from "./httpClient";
 
 function withQuery(path, params = {}) {
   const query = new URLSearchParams();
@@ -73,6 +73,30 @@ export function updateProfessionalInvoice(invoiceId, payload) {
   );
 }
 
+export function fetchTaxWithholdingAdjustments({ companyId, year, period }) {
+  return apiRequest(
+    withQuery("/model-111/adjustments", { company_id: companyId, year, period }),
+    {},
+    "No se han podido cargar los ajustes fiscales"
+  );
+}
+
+export function createTaxWithholdingAdjustment(payload) {
+  return apiRequest(
+    "/model-111/adjustments",
+    jsonOptions("POST", payload),
+    "No se ha podido guardar el ajuste fiscal"
+  );
+}
+
+export function seedModel111Demo(companyId) {
+  return apiRequest(
+    withQuery("/model-111/demo-seed", { company_id: companyId }),
+    { method: "POST" },
+    "No se ha podido cargar el caso demostrativo"
+  );
+}
+
 export function fetchModel111Declarations({ companyId, year }) {
   return apiRequest(
     withQuery("/model-111/declarations", { company_id: companyId, year }),
@@ -103,4 +127,8 @@ export function presentModel111Declaration(declarationId, payload) {
     jsonOptions("POST", payload),
     "No se ha podido presentar la declaración simulada"
   );
+}
+
+export function model111ReceiptUrl(declarationId) {
+  return `${API_BASE_URL}/model-111/declarations/${declarationId}/receipt`;
 }
