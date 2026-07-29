@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, Query
+from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session
 
 from app.db import SessionLocal
@@ -11,6 +12,8 @@ from app.schemas.model111 import (
     ProfessionalUpdate,
     TaxWithholdingAdjustmentCreate,
 )
+from app.services.model111_demo_service import seed_model111_demo
+from app.services.model111_receipt_service import render_model111_receipt
 from app.services.model111_service import (
     Model111DomainError,
     build_model111_preview,
@@ -112,6 +115,14 @@ def post_adjustment(payload: TaxWithholdingAdjustmentCreate, db: Session = Depen
     return domain_guard(create_adjustment, db, payload)
 
 
+@router.post("/demo-seed")
+def post_demo_seed(
+    company_id: int = Query(...),
+    db: Session = Depends(get_db),
+):
+    return domain_guard(seed_model111_demo, db, company_id)
+
+
 @router.get("/preview")
 def get_preview(
     company_id: int = Query(...),
@@ -139,6 +150,15 @@ def post_declaration(payload: Model111GenerateRequest, db: Session = Depends(get
 @router.get("/declarations/{declaration_id}")
 def get_declaration(declaration_id: int, db: Session = Depends(get_db)):
     return domain_guard(get_model111_declaration, db, declaration_id)
+
+
+@router.get("/declarations/{declaration_id}/receipt", response_class=HTMLResponse)
+def get_declaration_receipt(declaration_id: int, db: Session = Depends(get_db)):
+    content = domain_guard(render_model111_receipt, db, declaration_id)
+    return HTMLResponse(
+        content=content,
+        headers={"Content-Disposition": f'inline; filename="modelo-111-{declaration_id}.html"'},
+    )
 
 
 @router.post("/declarations/{declaration_id}/present")
