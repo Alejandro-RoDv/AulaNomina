@@ -86,7 +86,7 @@ export default function ReportsRoute() {
             <h1 style={styles.title}>Modelo 111</h1>
             <p style={styles.subtitle}>Retenciones de trabajo y actividades económicas, conciliación y presentación AEAT simulada.</p>
           </div>
-          <button type="button" style={styles.headerButton} onClick={() => { window.location.hash = "#reports"; }}>Volver a informes</button>
+          <button type="button" style={styles.headerButton} onClick={() => { window.location.hash = ""; }}>Volver al panel</button>
         </header>
         <main style={styles.main}>
           {error ? <div style={styles.error}>{error}</div> : null}
