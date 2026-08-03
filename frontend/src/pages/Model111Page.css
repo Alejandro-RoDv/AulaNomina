@@ -1,0 +1,313 @@
+.model111-route {
+  --m111-border: #d8dee8;
+  --m111-border-strong: #b8c2d1;
+  --m111-background: #f5f7fa;
+  --m111-surface: #ffffff;
+  --m111-surface-soft: #f8fafc;
+  --m111-text: #182235;
+  --m111-muted: #647084;
+  --m111-primary: #2454d7;
+  --m111-primary-soft: #edf3ff;
+  --m111-success: #176b3a;
+}
+
+.model111-route > header {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
+
+.model111-route > main {
+  max-width: 1440px !important;
+  background: var(--m111-background);
+}
+
+.model111-route > main > div {
+  gap: 22px !important;
+  color: var(--m111-text);
+}
+
+/* Selector de empresa y periodo */
+.model111-route main > div > section:first-child {
+  padding: 20px !important;
+  border: 1px solid var(--m111-border) !important;
+  border-radius: 14px !important;
+  background: var(--m111-surface) !important;
+  box-shadow: 0 3px 12px rgba(24, 34, 53, 0.05);
+}
+
+.model111-route main > div > section:first-child label {
+  display: flex !important;
+  min-width: 130px;
+  flex-direction: column !important;
+  gap: 7px !important;
+  color: #3c485b;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.model111-route main > div > section:first-child label:first-child {
+  min-width: min(390px, 100%);
+  flex: 1 1 330px;
+}
+
+.model111-route main > div > section:first-child input,
+.model111-route main > div > section:first-child select {
+  min-height: 42px;
+  box-sizing: border-box;
+  border: 1px solid var(--m111-border-strong) !important;
+  border-radius: 8px;
+  padding: 8px 11px;
+  background: #fff;
+  color: var(--m111-text);
+  font: inherit;
+}
+
+/* Navegación entre pestañas */
+.model111-route main > div > nav {
+  display: flex !important;
+  gap: 8px;
+  padding: 6px !important;
+  border: 1px solid var(--m111-border) !important;
+  border-radius: 12px;
+  background: #e9edf3;
+}
+
+.model111-route main > div > nav > button {
+  min-height: 42px;
+  flex: 0 1 auto;
+  border: 1px solid transparent !important;
+  border-radius: 8px !important;
+  padding: 10px 16px !important;
+  background: transparent !important;
+  color: #465267 !important;
+  font-weight: 850 !important;
+  transition: background 120ms ease, border-color 120ms ease, color 120ms ease;
+}
+
+.model111-route main > div > nav > button:hover {
+  background: rgba(255, 255, 255, 0.65) !important;
+  color: var(--m111-text) !important;
+}
+
+.model111-route main > div > nav > button[style*="rgb(239, 246, 255)"],
+.model111-route main > div > nav > button[style*="#eff6ff"] {
+  border-color: #b8cdfb !important;
+  background: var(--m111-surface) !important;
+  color: var(--m111-primary) !important;
+  box-shadow: 0 2px 6px rgba(36, 84, 215, 0.1);
+}
+
+/* Paneles y tarjetas */
+.model111-route main > div > section:not(:first-child),
+.model111-route main > div > section > form,
+.model111-route main > div > section > section {
+  border-color: var(--m111-border) !important;
+  border-radius: 14px !important;
+  background: var(--m111-surface) !important;
+  box-shadow: 0 3px 14px rgba(24, 34, 53, 0.045);
+}
+
+.model111-route main > div > section:not(:first-child) {
+  padding: 22px !important;
+}
+
+.model111-route main > div > section > form,
+.model111-route main > div > section > section {
+  padding: 22px !important;
+}
+
+.model111-route main h2,
+.model111-route main h3 {
+  color: #121a28;
+  letter-spacing: -0.015em;
+}
+
+.model111-route main h2 {
+  margin-top: 0;
+  margin-bottom: 4px;
+}
+
+.model111-route main form > p,
+.model111-route main section > p {
+  color: var(--m111-muted);
+  line-height: 1.5;
+}
+
+/* Formularios */
+.model111-route main form label {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 6px !important;
+  color: #354155;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.model111-route main form input:not([type="radio"]):not([type="checkbox"]),
+.model111-route main form select {
+  width: 100% !important;
+  min-height: 42px;
+  box-sizing: border-box;
+  border: 1px solid var(--m111-border-strong) !important;
+  border-radius: 8px;
+  padding: 9px 11px;
+  background: #fff;
+  color: var(--m111-text);
+  font: inherit;
+}
+
+.model111-route main form input:focus,
+.model111-route main form select:focus {
+  border-color: #7798ed !important;
+  outline: 3px solid rgba(36, 84, 215, 0.12);
+}
+
+.model111-route main form button {
+  min-height: 42px;
+  margin-top: 14px;
+  padding: 10px 16px !important;
+  border-radius: 8px !important;
+}
+
+/* Tablas */
+.model111-route main table {
+  width: 100%;
+  min-width: 760px;
+  margin-top: 15px;
+  border-collapse: separate;
+  border-spacing: 0;
+  overflow: hidden;
+  border: 1px solid var(--m111-border);
+  border-radius: 10px;
+  background: #fff;
+}
+
+.model111-route main thead th {
+  padding: 11px 13px !important;
+  border-bottom: 1px solid var(--m111-border) !important;
+  background: #eef2f7;
+  color: #445066;
+  font-size: 12px;
+  font-weight: 900;
+  text-align: left;
+  text-transform: uppercase;
+  letter-spacing: 0.035em;
+  white-space: nowrap;
+}
+
+.model111-route main tbody td {
+  padding: 12px 13px !important;
+  border-bottom: 1px solid #e6eaf0;
+  color: #263247;
+  vertical-align: top;
+}
+
+.model111-route main tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.model111-route main tbody tr:hover td {
+  background: #f7f9fc;
+}
+
+.model111-route main td small {
+  display: block;
+  margin-top: 3px;
+  color: var(--m111-muted);
+  font-size: 12px;
+}
+
+/* Métricas del resumen */
+.model111-route main article {
+  border-color: var(--m111-border) !important;
+  border-radius: 12px !important;
+  background: linear-gradient(180deg, #fff 0%, #f9fafc 100%);
+}
+
+.model111-route main article > span:first-child {
+  color: #4d596d;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.model111-route main article > strong {
+  color: #152037;
+  font-size: 22px;
+}
+
+.model111-route main article > small {
+  color: var(--m111-muted);
+}
+
+/* Botones */
+.model111-route main button {
+  border-radius: 8px !important;
+}
+
+.model111-route main button:not(:disabled) {
+  cursor: pointer;
+}
+
+.model111-route main button:disabled {
+  cursor: not-allowed;
+}
+
+/* Históricos y estados vacíos */
+.model111-route main [style*="border: 1px dashed"] {
+  padding: 24px !important;
+  border-color: #b9c5d6 !important;
+  border-radius: 12px !important;
+  background: #f8fafc !important;
+}
+
+.model111-route main [style*="grid-template-columns: 1fr auto auto"],
+.model111-route main [style*="gridTemplateColumns: 1fr auto auto"] {
+  border-color: var(--m111-border) !important;
+  background: #f8fafc !important;
+}
+
+/* Modal AEAT: no aplicar estilos de formulario ERP a radios y pasos */
+.model111-route [role="dialog"] section {
+  box-shadow: none;
+}
+
+.model111-route [role="dialog"] label {
+  flex-direction: row !important;
+  align-items: center;
+  font-size: inherit;
+}
+
+@media (max-width: 980px) {
+  .model111-route > main {
+    padding: 22px 20px 40px !important;
+  }
+
+  .model111-route main > div > nav {
+    overflow-x: auto;
+    flex-wrap: nowrap !important;
+  }
+
+  .model111-route main > div > nav > button {
+    flex: 0 0 auto;
+  }
+}
+
+@media (max-width: 720px) {
+  .model111-route > header {
+    align-items: flex-start !important;
+    flex-direction: column;
+  }
+
+  .model111-route main > div > section:first-child label,
+  .model111-route main > div > section:first-child label:first-child {
+    width: 100%;
+    min-width: 0;
+    flex-basis: 100%;
+  }
+
+  .model111-route main > div > section > form,
+  .model111-route main > div > section > section {
+    min-width: 0;
+  }
+}
