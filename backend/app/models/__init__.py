@@ -26,6 +26,13 @@ from app.models.payroll_calculation_snapshot import PayrollCalculationSnapshot
 from app.models.payroll_salary_structure import ContractPayrollConcept, PayrollConcept, PayrollItem
 from app.models.cra import CraConceptMapping
 from app.models.fie import FieCommunication, FieProcessingEvent
+from app.models.model111 import (
+    Model111Declaration,
+    Model111Line,
+    Professional,
+    ProfessionalInvoice,
+    TaxWithholdingAdjustment,
+)
 from app.models.document import Document
 from app.models.employee_assignment_history import EmployeeAssignmentHistory
 from app.models.tax_profile import TaxProfile
