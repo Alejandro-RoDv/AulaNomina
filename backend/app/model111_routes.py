@@ -13,7 +13,7 @@ from app.schemas.model111 import (
     TaxWithholdingAdjustmentCreate,
 )
 from app.services.model111_demo_service import seed_model111_demo
-from app.services.model111_receipt_service import render_model111_receipt
+from app.services.model111_receipt_service import render_model111_form, render_model111_receipt
 from app.services.model111_service import (
     Model111DomainError,
     build_model111_preview,
@@ -150,6 +150,15 @@ def post_declaration(payload: Model111GenerateRequest, db: Session = Depends(get
 @router.get("/declarations/{declaration_id}")
 def get_declaration(declaration_id: int, db: Session = Depends(get_db)):
     return domain_guard(get_model111_declaration, db, declaration_id)
+
+
+@router.get("/declarations/{declaration_id}/form", response_class=HTMLResponse)
+def get_declaration_form(declaration_id: int, db: Session = Depends(get_db)):
+    content = domain_guard(render_model111_form, db, declaration_id)
+    return HTMLResponse(
+        content=content,
+        headers={"Content-Disposition": f'inline; filename="modelo-111-{declaration_id}.html"'},
+    )
 
 
 @router.get("/declarations/{declaration_id}/receipt", response_class=HTMLResponse)
