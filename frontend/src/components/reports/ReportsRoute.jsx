@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 
 import Model111Page from "../../pages/Model111Page";
+import "../../pages/Model111Page.css";
 import ReportsPage from "../../pages/ReportsPage";
 import { fetchContracts } from "../../services/api";
 import { fetchCompanies } from "../../services/companyApi";
@@ -80,7 +81,7 @@ export default function ReportsRoute() {
 
   if (route === "model-111") {
     return (
-      <div style={styles.wrapper}>
+      <div className="model111-route" style={styles.wrapper}>
         <header style={styles.header}>
           <div>
             <h1 style={styles.title}>Modelo 111</h1>
