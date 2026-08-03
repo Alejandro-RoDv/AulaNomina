@@ -19,7 +19,7 @@ from app.schemas.model111 import (
     TaxWithholdingAdjustmentCreate,
 )
 from app.services.model111_demo_service import seed_model111_demo
-from app.services.model111_receipt_service import render_model111_receipt
+from app.services.model111_receipt_service import render_model111_form, render_model111_receipt
 from app.services.model111_service import (
     Model111DomainError,
     build_model111_preview,
@@ -232,7 +232,23 @@ def test_demo_seed_builds_three_months_and_three_professional_invoices(db):
     assert preview["validations"]["is_valid"] is True
 
 
-def test_receipt_contains_frozen_boxes_and_educational_warning(db):
+def test_generated_form_is_available_before_presentation(db):
+    company, _, _ = build_company_context(db)
+    declaration = generate_model111_declaration(
+        db,
+        Model111GenerateRequest(company_id=company.id, year=2026, period="2T"),
+    )
+
+    html = render_model111_form(db, declaration["id"])
+
+    assert "Retenciones e ingresos a cuenta del IRPF" in html
+    assert "<b>111</b>" in html
+    assert "SIMULACIÓN EDUCATIVA" in html
+    assert "Pendiente de presentación" in html
+    assert "data:image/png;base64" in html
+
+
+def test_receipt_contains_official_structure_frozen_boxes_and_warning(db):
     company, _, _ = build_company_context(db)
     declaration = generate_model111_declaration(
         db,
@@ -247,6 +263,11 @@ def test_receipt_contains_frozen_boxes_and_educational_warning(db):
     html = render_model111_receipt(db, declaration["id"])
 
     assert "SIMULACIÓN EDUCATIVA" in html
-    assert "Casillas principales" in html
+    assert "Retenciones e ingresos a cuenta del IRPF" in html
+    assert "Rendimientos del trabajo" in html
+    assert "Rendimientos de actividades económicas" in html
+    assert "Resultado a ingresar (28 - 29)" in html
     assert "960,00 €" in html
     assert declaration["receipt_number"] in html
+    assert "data:image/png;base64" in html
+    assert "Anexo formativo del Modelo 111" in html
