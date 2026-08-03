@@ -129,6 +129,10 @@ export function presentModel111Declaration(declarationId, payload) {
   );
 }
 
+export function model111FormUrl(declarationId) {
+  return `${API_BASE_URL}/model-111/declarations/${declarationId}/form`;
+}
+
 export function model111ReceiptUrl(declarationId) {
   return `${API_BASE_URL}/model-111/declarations/${declarationId}/receipt`;
 }
