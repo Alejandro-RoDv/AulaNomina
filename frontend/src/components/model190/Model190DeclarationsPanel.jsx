@@ -5,8 +5,16 @@ import {
   fetchModel190Declarations,
   fetchModel190Validations,
   generateModel190Declaration,
+  model190AnnualSummaryUrl,
+  model190CertificatesArchiveUrl,
+  model190CertificatesDirectoryUrl,
   model190FileUrl,
+  model190RecipientsDocumentUrl,
 } from "../../services/model190Service";
+import {
+  model190DocumentAvailability,
+  model190DocumentsStatusText,
+} from "../../utils/model190Documents";
 
 function money(value) {
   return new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" }).format(Number(value || 0));
@@ -21,8 +29,12 @@ function typeText(value) {
   return { ordinary: "Ordinaria", complementary: "Complementaria", substitutive: "Sustitutiva" }[value] || value;
 }
 
+function openUrl(url) {
+  window.open(url, "_blank", "noopener,noreferrer");
+}
+
 function openFile(declarationId, format) {
-  window.open(model190FileUrl(declarationId, format), "_blank", "noopener,noreferrer");
+  openUrl(model190FileUrl(declarationId, format));
 }
 
 export default function Model190DeclarationsPanel({ companies = [] }) {
@@ -113,9 +125,9 @@ export default function Model190DeclarationsPanel({ companies = [] }) {
     <section style={styles.workspace}>
       <header style={styles.header}>
         <div>
-          <span style={styles.eyebrow}>DECLARACIONES, FICHEROS Y PRESENTACIÓN</span>
+          <span style={styles.eyebrow}>DECLARACIONES, FICHEROS, DOCUMENTOS Y PRESENTACIÓN</span>
           <h2 style={styles.title}>Cierre anual del Modelo 190</h2>
-          <p style={styles.description}>Cada generación conserva sus perceptores, líneas, validaciones, conciliación y ficheros. La presentación posterior importa exactamente ese snapshot congelado.</p>
+          <p style={styles.description}>Cada generación conserva perceptores, líneas, validaciones, conciliación, ficheros y documentos. La presentación importa exactamente ese snapshot congelado.</p>
         </div>
         <span style={styles.simulation}>SIMULACIÓN EDUCATIVA · NO PRESENTABLE</span>
       </header>
@@ -161,12 +173,13 @@ export default function Model190DeclarationsPanel({ companies = [] }) {
       <div style={styles.tableScroll}>
         <table style={styles.table}>
           <thead>
-            <tr><th>ID</th><th>Tipo</th><th>Estado</th><th>Generada</th><th>Perceptores</th><th>Percepciones</th><th>Retenciones</th><th>Ficheros congelados</th><th>AEAT simulada</th></tr>
+            <tr><th>ID</th><th>Tipo</th><th>Estado</th><th>Generada</th><th>Perceptores</th><th>Percepciones</th><th>Retenciones</th><th>Ficheros</th><th>Documentos</th><th>AEAT simulada</th></tr>
           </thead>
           <tbody>
             {declarations.length ? declarations.map((item) => {
               const fixed = item.file_metadata?.fixed_width;
               const readable = item.file_metadata?.readable;
+              const documents = model190DocumentAvailability(item);
               return (
                 <tr key={item.id}>
                   <td><b>#{item.id}</b>{item.original_declaration_id ? <small style={styles.note}>Original #{item.original_declaration_id}</small> : null}</td>
@@ -181,8 +194,37 @@ export default function Model190DeclarationsPanel({ companies = [] }) {
                       <button type="button" style={styles.fileButton} onClick={() => openFile(item.id, "readable")}>TXT legible</button>
                       <button type="button" style={styles.fileButton} onClick={() => openFile(item.id, "fixed_width")}>Registro fijo</button>
                     </div>
-                    <small style={styles.note}>{fixed?.record_count || 0} registros · {fixed?.record_length || 250} posiciones · {fixed?.validation_errors?.length || 0} errores de fichero</small>
+                    <small style={styles.note}>{fixed?.record_count || 0} registros · {fixed?.record_length || 250} posiciones · {fixed?.validation_errors?.length || 0} errores</small>
                     <small style={styles.hash}>SHA {String(fixed?.sha256 || readable?.sha256 || "—").slice(0, 16)}…</small>
+                  </td>
+                  <td>
+                    <div style={styles.documentActions}>
+                      <button
+                        type="button"
+                        style={styles.documentButton}
+                        disabled={!documents.annualSummary}
+                        onClick={() => openUrl(model190AnnualSummaryUrl(item.id))}
+                      >Resumen anual</button>
+                      <button
+                        type="button"
+                        style={styles.documentButton}
+                        disabled={!documents.recipientRelation}
+                        onClick={() => openUrl(model190RecipientsDocumentUrl(item.id))}
+                      >Perceptores</button>
+                      <button
+                        type="button"
+                        style={{ ...styles.documentButton, opacity: documents.certificateDirectory ? 1 : 0.45 }}
+                        disabled={!documents.certificateDirectory}
+                        onClick={() => openUrl(model190CertificatesDirectoryUrl(item.id))}
+                      >Certificados</button>
+                      <button
+                        type="button"
+                        style={{ ...styles.documentButton, opacity: documents.certificateArchive ? 1 : 0.45 }}
+                        disabled={!documents.certificateArchive}
+                        onClick={() => openUrl(model190CertificatesArchiveUrl(item.id))}
+                      >Lote ZIP</button>
+                    </div>
+                    <small style={styles.note}>{model190DocumentsStatusText(item)}</small>
                   </td>
                   <td>
                     <button
@@ -198,7 +240,7 @@ export default function Model190DeclarationsPanel({ companies = [] }) {
                 </tr>
               );
             }) : (
-              <tr><td colSpan="9" style={styles.empty}>No hay declaraciones congeladas para la empresa y el ejercicio.</td></tr>
+              <tr><td colSpan="10" style={styles.empty}>No hay declaraciones congeladas para la empresa y el ejercicio.</td></tr>
             )}
           </tbody>
         </table>
@@ -221,7 +263,7 @@ const styles = {
   header: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "20px" },
   eyebrow: { display: "block", marginBottom: "5px", fontSize: "10px", fontWeight: 950, letterSpacing: "0.12em" },
   title: { margin: 0, fontSize: "22px" },
-  description: { maxWidth: "760px", margin: "7px 0 0", color: "#4b5563", fontSize: "13px", lineHeight: 1.45 },
+  description: { maxWidth: "800px", margin: "7px 0 0", color: "#4b5563", fontSize: "13px", lineHeight: 1.45 },
   simulation: { padding: "7px 10px", border, background: "#111111", color: "#fff37a", fontSize: "10px", fontWeight: 950, letterSpacing: "0.06em", whiteSpace: "nowrap" },
   toolbar: { display: "flex", flexWrap: "wrap", alignItems: "end", gap: "12px", padding: "14px", border, background: "#fff8a6" },
   control: { display: "grid", gap: "5px", minWidth: "170px", fontSize: "11px", fontWeight: 900, textTransform: "uppercase" },
@@ -241,6 +283,8 @@ const styles = {
   statusPresented: { display: "inline-block", padding: "4px 7px", border: "1px solid #111111", background: "#d9f99d", fontWeight: 900, textTransform: "uppercase", fontSize: "9px" },
   fileActions: { display: "flex", flexWrap: "wrap", gap: "6px" },
   fileButton: { padding: "5px 8px", border: "1px solid #111111", background: "#fff8a6", fontWeight: 850, cursor: "pointer", fontSize: "11px" },
+  documentActions: { display: "grid", gridTemplateColumns: "repeat(2, minmax(90px, 1fr))", gap: "5px", minWidth: "205px" },
+  documentButton: { padding: "5px 7px", border: "1px solid #111111", background: "#ffffff", fontWeight: 850, cursor: "pointer", fontSize: "10px" },
   aeatButton: { padding: "7px 9px", border, background: "#111111", color: "#fff37a", fontWeight: 900, cursor: "pointer", fontSize: "11px" },
   receiptButton: { padding: "7px 9px", border, background: "#d9f99d", color: "#111111", fontWeight: 900, cursor: "pointer", fontSize: "11px" },
   empty: { padding: "24px", textAlign: "center", color: "#6b7280" },
