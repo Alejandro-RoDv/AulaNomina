@@ -14,6 +14,11 @@ from app.services.model190_declaration_service import (
     get_model190_file,
     list_model190_declarations,
 )
+from app.services.model190_demo_service import (
+    correct_model190_demo,
+    get_model190_demo_status,
+    seed_model190_demo,
+)
 from app.services.model190_document_service import (
     build_model190_certificates_archive,
     render_model190_annual_summary,
@@ -79,6 +84,30 @@ def get_validations(
     preview = domain_guard(build_model190_preview, db, company_id, year)
     reconciliation = domain_guard(build_model190_reconciliation, db, company_id, year)
     return build_model190_validations(db, preview, reconciliation)
+
+
+@router.get("/demo-status")
+def get_demo_status(
+    company_id: int = Query(...),
+    db: Session = Depends(get_db),
+):
+    return domain_guard(get_model190_demo_status, db, company_id)
+
+
+@router.post("/demo-seed")
+def post_demo_seed(
+    company_id: int | None = Query(default=None),
+    db: Session = Depends(get_db),
+):
+    return domain_guard(seed_model190_demo, db, company_id)
+
+
+@router.post("/demo-correct")
+def post_demo_correction(
+    company_id: int = Query(...),
+    db: Session = Depends(get_db),
+):
+    return domain_guard(correct_model190_demo, db, company_id)
 
 
 @router.get("/declarations")
