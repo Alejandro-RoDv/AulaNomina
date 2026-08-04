@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+import Model190AeatModal from "./Model190AeatModal";
 import {
   fetchModel190Declarations,
   fetchModel190Validations,
@@ -32,6 +33,7 @@ export default function Model190DeclarationsPanel({ companies = [] }) {
   const [originalId, setOriginalId] = useState("");
   const [declarations, setDeclarations] = useState([]);
   const [validations, setValidations] = useState(null);
+  const [presentationDeclaration, setPresentationDeclaration] = useState(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
@@ -85,11 +87,17 @@ export default function Model190DeclarationsPanel({ companies = [] }) {
       });
       setMessage(`Declaración ${typeText(result.declaration_type).toLowerCase()} congelada con ${result.total_recipients} líneas de perceptor.`);
       await load();
+      setPresentationDeclaration(result);
     } catch (requestError) {
       setError(requestError?.message || "No se ha podido generar la declaración anual");
     } finally {
       setBusy(false);
     }
+  }
+
+  async function handlePresented(result) {
+    setMessage(`Declaración #${result.id} presentada correctamente en la AEAT simulada.`);
+    await load();
   }
 
   const hasBlockingErrors = Number(validations?.counts?.error || 0) > 0;
@@ -105,9 +113,9 @@ export default function Model190DeclarationsPanel({ companies = [] }) {
     <section style={styles.workspace}>
       <header style={styles.header}>
         <div>
-          <span style={styles.eyebrow}>DECLARACIONES Y FICHEROS</span>
-          <h2 style={styles.title}>Congelación anual del Modelo 190</h2>
-          <p style={styles.description}>Cada generación conserva sus perceptores, líneas, validaciones, conciliación y ficheros aunque cambien después las operaciones originales.</p>
+          <span style={styles.eyebrow}>DECLARACIONES, FICHEROS Y PRESENTACIÓN</span>
+          <h2 style={styles.title}>Cierre anual del Modelo 190</h2>
+          <p style={styles.description}>Cada generación conserva sus perceptores, líneas, validaciones, conciliación y ficheros. La presentación posterior importa exactamente ese snapshot congelado.</p>
         </div>
         <span style={styles.simulation}>SIMULACIÓN EDUCATIVA · NO PRESENTABLE</span>
       </header>
@@ -153,7 +161,7 @@ export default function Model190DeclarationsPanel({ companies = [] }) {
       <div style={styles.tableScroll}>
         <table style={styles.table}>
           <thead>
-            <tr><th>ID</th><th>Tipo</th><th>Estado</th><th>Generada</th><th>Perceptores</th><th>Percepciones</th><th>Retenciones</th><th>Ficheros congelados</th></tr>
+            <tr><th>ID</th><th>Tipo</th><th>Estado</th><th>Generada</th><th>Perceptores</th><th>Percepciones</th><th>Retenciones</th><th>Ficheros congelados</th><th>AEAT simulada</th></tr>
           </thead>
           <tbody>
             {declarations.length ? declarations.map((item) => {
@@ -163,7 +171,7 @@ export default function Model190DeclarationsPanel({ companies = [] }) {
                 <tr key={item.id}>
                   <td><b>#{item.id}</b>{item.original_declaration_id ? <small style={styles.note}>Original #{item.original_declaration_id}</small> : null}</td>
                   <td>{typeText(item.declaration_type)}</td>
-                  <td><span style={styles.status}>{item.status}</span></td>
+                  <td><span style={item.status === "presented" ? styles.statusPresented : styles.status}>{item.status}</span></td>
                   <td>{dateText(item.generated_at)}</td>
                   <td>{item.total_recipients}</td>
                   <td>{money(item.total_cash_income)}</td>
@@ -176,14 +184,33 @@ export default function Model190DeclarationsPanel({ companies = [] }) {
                     <small style={styles.note}>{fixed?.record_count || 0} registros · {fixed?.record_length || 250} posiciones · {fixed?.validation_errors?.length || 0} errores de fichero</small>
                     <small style={styles.hash}>SHA {String(fixed?.sha256 || readable?.sha256 || "—").slice(0, 16)}…</small>
                   </td>
+                  <td>
+                    <button
+                      type="button"
+                      style={item.status === "presented" ? styles.receiptButton : styles.aeatButton}
+                      disabled={!['generated', 'presented'].includes(item.status)}
+                      onClick={() => setPresentationDeclaration(item)}
+                    >
+                      {item.status === "presented" ? "Ver justificante" : "Presentar fichero"}
+                    </button>
+                    {item.receipt_number ? <small style={styles.note}>Justificante {item.receipt_number}</small> : <small style={styles.note}>Acceso → importación → validación → firma</small>}
+                  </td>
                 </tr>
               );
             }) : (
-              <tr><td colSpan="8" style={styles.empty}>No hay declaraciones congeladas para la empresa y el ejercicio.</td></tr>
+              <tr><td colSpan="9" style={styles.empty}>No hay declaraciones congeladas para la empresa y el ejercicio.</td></tr>
             )}
           </tbody>
         </table>
       </div>
+
+      {presentationDeclaration ? (
+        <Model190AeatModal
+          declaration={presentationDeclaration}
+          onClose={() => setPresentationDeclaration(null)}
+          onPresented={handlePresented}
+        />
+      ) : null}
     </section>
   );
 }
@@ -211,7 +238,10 @@ const styles = {
   note: { display: "block", marginTop: "4px", color: "#6b7280", fontSize: "10px" },
   hash: { display: "block", marginTop: "3px", color: "#4b5563", fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontSize: "9px" },
   status: { display: "inline-block", padding: "4px 7px", border: "1px solid #111111", background: "#f8f3b5", fontWeight: 900, textTransform: "uppercase", fontSize: "9px" },
+  statusPresented: { display: "inline-block", padding: "4px 7px", border: "1px solid #111111", background: "#d9f99d", fontWeight: 900, textTransform: "uppercase", fontSize: "9px" },
   fileActions: { display: "flex", flexWrap: "wrap", gap: "6px" },
   fileButton: { padding: "5px 8px", border: "1px solid #111111", background: "#fff8a6", fontWeight: 850, cursor: "pointer", fontSize: "11px" },
+  aeatButton: { padding: "7px 9px", border, background: "#111111", color: "#fff37a", fontWeight: 900, cursor: "pointer", fontSize: "11px" },
+  receiptButton: { padding: "7px 9px", border, background: "#d9f99d", color: "#111111", fontWeight: 900, cursor: "pointer", fontSize: "11px" },
   empty: { padding: "24px", textAlign: "center", color: "#6b7280" },
 };
