@@ -13,7 +13,7 @@
     "test:incidencias": "node --test src/tests/incidentPayloads.test.js src/tests/incidentWorkspace.test.js src/tests/incidentApiErrors.test.js",
     "test:seguridad-social": "node --test src/tests/socialSecuritySettlement.test.js",
     "test:siltra": "node --test src/tests/siltraSimulation.test.js",
-    "test:model190": "node --test src/tests/model190View.test.js",
+    "test:model190": "node --test src/tests/model190View.test.js src/tests/model190Presentation.test.js",
     "preview": "vite preview"
   },
   "dependencies": {
