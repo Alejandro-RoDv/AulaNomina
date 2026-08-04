@@ -49,12 +49,18 @@ export function fetchModel190DemoStatus(companyId) {
   );
 }
 
-export function seedModel190Demo(companyId = null) {
-  return apiRequest(
+export async function seedModel190Demo(companyId = null) {
+  const result = await apiRequest(
     `/model-190/demo-seed${companyQuery(companyId)}`,
     { method: "POST" },
     "No se ha podido preparar el caso demo integral del Modelo 190"
   );
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(
+      new CustomEvent("aulanomina-model190-demo-seeded", { detail: result })
+    );
+  }
+  return result;
 }
 
 export function correctModel190Demo(companyId) {
