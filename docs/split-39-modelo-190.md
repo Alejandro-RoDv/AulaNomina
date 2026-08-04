@@ -4,25 +4,28 @@
 
 Construir una simulación educativa completa del Modelo 190 que permita:
 
-- obtener el resumen anual por perceptor;
-- clasificar trabajadores y profesionales;
-- conciliar el cierre anual con los Modelos 111 trimestrales;
-- revisar errores y advertencias;
-- congelar declaraciones;
-- generar ficheros educativos;
-- importar y presentar el fichero en una AEAT simulada;
-- conservar justificantes, documentos y certificados de retenciones.
+- obtener el resumen anual nominativo de trabajadores y profesionales;
+- clasificar perceptores mediante claves y subclaves fiscales;
+- conciliar el cierre anual con los cuatro Modelos 111;
+- revisar errores, advertencias y documentos no emparejados;
+- generar y congelar declaraciones ordinarias, complementarias y sustitutivas;
+- producir ficheros educativos de registros tipo 1 y tipo 2;
+- importar, validar, firmar y presentar el fichero en una AEAT simulada;
+- emitir justificantes, relaciones nominativas y certificados;
+- practicar el proceso completo mediante un caso demostrativo reproducible.
 
-Todos los documentos, ficheros, firmas y presentaciones se identifican expresamente como simulaciones educativas sin validez fiscal.
+Todo el módulo se identifica expresamente como **simulación educativa sin validez fiscal**. No genera un fichero oficialmente presentable ni realiza comunicaciones reales con la AEAT.
+
+---
 
 ## Paso 39.1 — Dominio anual y catálogo fiscal
 
 ### Entidades
 
 - `Model190Declaration`: cabecera anual, tipo, estado, totales, payload congelado y referencias de presentación.
-- `Model190Recipient`: fotografía anual nominativa agrupada por NIF, clave, subclave y ejercicio de devengo.
-- `Model190RecipientLine`: trazabilidad hasta nóminas, facturas, atrasos, regularizaciones, ajustes y Modelo 111 trimestral.
-- `Model190RecipientOverride`: clasificación fiscal revisable sin modificar nóminas ni facturas.
+- `Model190Recipient`: fotografía nominativa agrupada por NIF, clave, subclave y ejercicio de devengo.
+- `Model190RecipientLine`: trazabilidad hasta nóminas, facturas, atrasos, regularizaciones, ajustes y Modelo 111.
+- `Model190RecipientOverride`: clasificación fiscal revisable sin modificar los documentos originales.
 - `Tax190Key` y `Tax190Subkey`: catálogo fiscal versionado por ejercicio.
 
 ### Reutilización del Modelo 111
@@ -37,29 +40,24 @@ No se duplican profesionales, facturas ni ajustes. `TaxWithholdingAdjustment` se
 ### Catálogo educativo inicial
 
 - clave `A`: rendimientos ordinarios del trabajo, sin subclave;
-- clave `G`, subclave `01`: actividad profesional con tipo general;
-- clave `G`, subclave `03`: inicio de actividad profesional con tipo reducido.
+- clave `G-01`: actividad profesional con tipo general;
+- clave `G-03`: inicio de actividad profesional con tipo reducido.
 
-El catálogo está inspirado en el diseño AEAT del ejercicio 2025, pero no es exhaustivo ni garantiza compatibilidad con campañas posteriores.
+El catálogo está inspirado en el diseño AEAT del ejercicio 2025. No es exhaustivo ni garantiza compatibilidad con campañas posteriores.
 
 ### Migración ligera
 
-`model190_schema_patch.py`:
+`model190_schema_patch.py` crea las tablas, añade los campos anuales a ajustes existentes, genera índices y siembra el catálogo de forma idempotente.
 
-- crea las tablas nuevas mediante SQLAlchemy;
-- añade los campos anuales a ajustes existentes;
-- crea índices auxiliares;
-- siembra el catálogo soportado de forma idempotente.
+---
 
 ## Paso 39.2 — Motor anual de perceptores
 
 `backend/app/services/model190_calculator.py` extrae, normaliza y acumula:
 
 - nóminas `reviewed` o `closed`;
-- facturas profesionales `paid` con fecha de pago en el ejercicio;
+- facturas profesionales `paid` con fecha de pago dentro del ejercicio;
 - ajustes, atrasos y regularizaciones confirmados.
-
-Las pagas extraordinarias 13, 14 y 15 se asignan a julio, diciembre y diciembre para su distribución trimestral.
 
 ### Agrupación
 
@@ -71,7 +69,8 @@ Esto permite:
 
 - acumular varios contratos del mismo trabajador;
 - separar atrasos de ejercicios anteriores;
-- admitir varias clasificaciones para un mismo NIF cuando proceda.
+- admitir varias clasificaciones para un mismo NIF;
+- conservar cada documento de origen.
 
 ### Clasificación automática
 
@@ -97,11 +96,9 @@ Profesionales:
 - retención;
 - fecha de pago como fecha fiscal.
 
-El preview declara como capacidades pendientes:
+El preview declara como capacidades pendientes las percepciones en especie complejas, reducciones avanzadas y rentas exentas diferenciadas.
 
-- percepciones en especie separadas;
-- reducciones;
-- rentas exentas y dietas diferenciadas.
+---
 
 ## Paso 39.3 — Conciliación trimestral 111/190
 
@@ -109,13 +106,9 @@ El preview declara como capacidades pendientes:
 
 ### Declaración efectiva
 
-Para cada trimestre se utiliza la última declaración presentada. Una complementaria presentada posteriormente sustituye al snapshot anterior.
+Para cada trimestre se utiliza la última declaración presentada. Una complementaria presentada posteriormente se considera el snapshot efectivo completo del periodo.
 
-Las declaraciones generadas pero no presentadas:
-
-- se muestran como pendientes;
-- no computan como declaradas;
-- generan un aviso.
+Las declaraciones generadas pero no presentadas se muestran como pendientes y no computan como declaradas.
 
 ### Comparaciones
 
@@ -130,27 +123,20 @@ También se generan totales y diferencias anuales.
 
 ### Conciliación documental
 
-Las líneas se vinculan por tipo de origen e identificador. Se detectan:
+Se detectan:
 
 - documentos solo en el 190;
 - documentos solo en el 111;
 - documentos presentes en ambos con importes distintos;
 - totales iguales construidos con documentos diferentes.
 
-### Drill-down
+Cada trimestre incluye drill-down por NIF, perceptor, bloque, origen y documento.
 
-Cada trimestre incluye detalle por perceptor, NIF, bloque fiscal, origen y documento.
-
-### API
-
-```text
-GET /model-190/preview
-GET /model-190/reconciliation
-```
+---
 
 ## Paso 39.4 — Pantalla ERP
 
-`frontend/src/pages/Model190Page.jsx` está disponible en:
+Disponible en:
 
 ```text
 Fiscalidad → Modelo 190
@@ -164,9 +150,9 @@ Fiscalidad → Modelo 190
 - Conciliación 111/190.
 - Validaciones.
 
-La pantalla incluye métricas anuales, composición por origen, filtros nominativos, panel lateral por perceptor, selector trimestral y avisos de conciliación.
+La pantalla permite filtrar perceptores, abrir su trazabilidad, revisar diferencias trimestrales y consultar errores estructurales y avisos didácticos.
 
-`frontend/src/utils/model190View.js` centraliza los controles estructurales y los avisos de interfaz.
+---
 
 ## Paso 39.5 — Generación, congelación y fichero
 
@@ -178,7 +164,7 @@ Servicios:
 
 ### Validación de backend
 
-Errores bloqueantes:
+Errores bloqueantes principales:
 
 - declaración sin perceptores;
 - NIF o nombre ausente;
@@ -190,7 +176,7 @@ Errores bloqueantes:
 - ordinaria duplicada;
 - complementaria o sustitutiva sin original.
 
-También se generan avisos por diferencias con los Modelos 111, trimestres no presentados, NIF dudosos, gastos deducibles ausentes, retención cero, atrasos, clasificaciones automáticas y múltiples documentos de origen.
+También se generan avisos sobre diferencias con los Modelos 111, gastos deducibles, retención cero, atrasos, nombres distintos, clasificaciones automáticas y múltiples contratos o facturas.
 
 ### Congelación
 
@@ -210,37 +196,22 @@ Una modificación posterior de datos vivos no cambia una declaración congelada.
 
 ### Ficheros
 
-Se generan:
+Se conservan dos versiones:
 
 - TXT legible delimitado por `|`;
-- registro fijo educativo de 250 posiciones;
-- registro tipo 1;
-- registros tipo 2;
-- importes en céntimos con signo;
-- versión `AULANOMINA-M190-EDU-1`;
-- hash SHA-256;
-- errores asociados a registros.
+- registro fijo simulado de 250 posiciones.
 
-Los ficheros contienen marcas visibles de simulación y no son presentables ante la AEAT.
+El registro fijo contiene una cabecera tipo 1, una línea tipo 2 por perceptor, importes en céntimos con signo, versión educativa y hash SHA-256.
 
-### API
-
-```text
-GET  /model-190/validations
-POST /model-190/declarations
-GET  /model-190/declarations
-GET  /model-190/declarations/{id}
-GET  /model-190/declarations/{id}/file?format=readable
-GET  /model-190/declarations/{id}/file?format=fixed_width
-```
+---
 
 ## Paso 39.6 — Presentación AEAT simulada
 
 Servicios:
 
-- `backend/app/services/model190_presentation_service.py`;
-- `backend/app/services/model190_receipt_service.py`;
-- `frontend/src/components/model190/Model190AeatModal.jsx`.
+- `model190_presentation_service.py`;
+- `model190_receipt_service.py`;
+- `Model190AeatModal.jsx`.
 
 ### Flujo
 
@@ -253,27 +224,212 @@ Acceso
 → justificante
 ```
 
-La presentación importa el fichero fijo conservado dentro de la declaración. No reconstruye el fichero desde nóminas o facturas vivas.
+La presentación importa el fichero conservado dentro del snapshot. No reconstruye datos desde nóminas o facturas vivas.
 
 ### Validación de importación
 
-Se comprueban hash, longitud, tipos de registro, modelo, ejercicio, NIF, tipo de declaración, número de perceptores, totales, claves, subclaves, devengo, importes, duplicados, marca educativa y número físico de registros.
-
-El resultado devuelve registros leídos, correctos, erróneos, detalle por campo y posibilidad de presentación.
+Se comprueban hash, longitud, tipos de registro, modelo, ejercicio, NIF, tipo de declaración, número de perceptores, totales, claves, subclaves, devengo, importes, duplicados y marca educativa.
 
 ### Firma y envío
 
-La presentación requiere:
+Requiere:
 
 - fichero sin errores;
-- hash firmado idéntico al validado;
+- hash idéntico al validado;
 - nombre del firmante;
 - certificado educativo;
 - confirmación expresa.
 
-Al presentar se congelan fecha, justificante, CSV, referencia AulaNomina, hash, resultado de importación y firma simulada. Una declaración presentada no puede volver a enviarse.
+Al presentar se generan fecha, justificante, CSV, referencia AulaNomina, resultado de importación y firma simulada. La declaración queda bloqueada.
 
-### API
+---
+
+## Paso 39.7 — Documentos y certificados
+
+Servicio:
+
+```text
+backend/app/services/model190_document_service.py
+```
+
+### Documentos anuales
+
+- resumen anual HTML;
+- relación nominativa completa apaisada.
+
+Se construyen exclusivamente desde el snapshot congelado.
+
+### Certificados
+
+Solo están disponibles después de la presentación simulada. Cada certificado agrupa todas las líneas del mismo NIF, incluidas claves, subclaves o ejercicios de devengo distintos.
+
+### Lote colectivo
+
+El ZIP contiene:
+
+- un certificado HTML por NIF único;
+- `manifest-certificados.csv`;
+- `LEEME.txt`;
+- hash SHA-256;
+- contador de certificados.
+
+---
+
+## Paso 39.8 — Caso demo y pruebas integrales
+
+Servicios y componentes:
+
+- `backend/app/services/model190_demo_service.py`;
+- `backend/tests/test_model190_demo_flow.py`;
+- `frontend/src/components/model190/Model190DemoPanel.jsx`;
+- `frontend/src/utils/model190Demo.js`;
+- `frontend/src/tests/model190Demo.test.js`.
+
+### Empresa y ejercicio
+
+Si no se selecciona una empresa, se crea o reutiliza una empresa formativa independiente:
+
+```text
+AulaNomina Demo Modelo 190 SL
+B19000026
+Ejercicio 2026
+```
+
+También es posible cargar expresamente el escenario sobre una empresa seleccionada, siempre que no exista un conflicto con una declaración anual previa.
+
+### Datos del escenario
+
+El caso crea de forma idempotente:
+
+- tres trabajadores con nóminas revisadas;
+- un trabajador con dos contratos durante el año;
+- un profesional con una factura al 15 % y otra al 7 %;
+- atrasos pagados en 2026 con devengo 2025;
+- una regularización negativa;
+- cuatro Modelos 111 ordinarios presentados;
+- una diferencia deliberada en el 2T;
+- una subclave profesional deliberadamente inválida (`G-99`).
+
+### Primera fase: diagnóstico
+
+Después de preparar el caso:
+
+- la validación bloquea la generación por `RECIPIENT_SUBKEY_INVALID`;
+- la conciliación detecta una diferencia en el 2T;
+- el panel muestra los ocho hitos del ejercicio;
+- el alumno debe identificar que existen dos problemas independientes: clasificación y conciliación.
+
+### Segunda fase: corrección
+
+La acción guiada:
+
+1. elimina la clasificación `G-99` y recupera las clasificaciones automáticas `G-01` y `G-03`;
+2. confirma la revisión fiscal del profesional;
+3. genera una complementaria del Modelo 111 del 2T;
+4. presenta la complementaria;
+5. recalcula validaciones y conciliación.
+
+El resultado debe quedar:
+
+```text
+Validación: correcta
+Conciliación 1T: correcta
+Conciliación 2T: correcta
+Conciliación 3T: correcta
+Conciliación 4T: correcta
+Estado: listo para generar
+```
+
+### Tercera fase: cierre
+
+El usuario continúa en el espacio anual existente:
+
+1. genera y congela la ordinaria del Modelo 190;
+2. descarga o revisa el fichero;
+3. importa el registro fijo;
+4. valida los registros;
+5. firma y presenta;
+6. abre el justificante;
+7. consulta resumen, perceptores y certificados;
+8. descarga el lote ZIP.
+
+### Estados del panel
+
+```text
+not_prepared
+needs_correction
+ready_to_generate
+generated
+presented
+```
+
+### API del caso demo
+
+```text
+GET  /model-190/demo-status?company_id={id}
+POST /model-190/demo-seed
+POST /model-190/demo-seed?company_id={id}
+POST /model-190/demo-correct?company_id={id}
+```
+
+### Idempotencia
+
+Repetir la preparación no duplica:
+
+- empresa;
+- trabajadores;
+- contratos;
+- nóminas;
+- profesional;
+- facturas;
+- ajustes;
+- overrides;
+- Modelos 111.
+
+Repetir la corrección no crea una segunda complementaria del 2T.
+
+### Prueba end-to-end
+
+`test_model190_demo_flow.py` recorre:
+
+```text
+Preparación con errores
+→ diagnóstico
+→ corrección
+→ conciliación completa
+→ generación
+→ validación del fichero
+→ presentación
+→ justificante
+→ documentos
+→ certificados ZIP
+```
+
+La prueba también comprueba que el lote contiene cuatro certificados, uno por cada NIF único, junto con el manifiesto CSV.
+
+---
+
+## API consolidada
+
+### Cálculo y conciliación
+
+```text
+GET /model-190/preview
+GET /model-190/reconciliation
+GET /model-190/validations
+```
+
+### Declaraciones y ficheros
+
+```text
+POST /model-190/declarations
+GET  /model-190/declarations
+GET  /model-190/declarations/{id}
+GET  /model-190/declarations/{id}/file?format=readable
+GET  /model-190/declarations/{id}/file?format=fixed_width
+```
+
+### Presentación
 
 ```text
 GET  /model-190/declarations/{id}/import-validation
@@ -282,75 +438,7 @@ POST /model-190/declarations/{id}/present
 GET  /model-190/declarations/{id}/receipt
 ```
 
-## Paso 39.7 — Documentos y certificados
-
-Se incorpora `backend/app/services/model190_document_service.py`.
-
-Todos los documentos se generan desde `Model190Declaration`, `Model190Recipient`, `Model190RecipientLine` y el payload congelado. No consultan ni recalculan nóminas, facturas o ajustes vivos.
-
-### Resumen anual HTML
-
-Disponible desde el momento en que la declaración queda generada y congelada. Incluye:
-
-- declarante, NIF, ejercicio, tipo y estado;
-- fecha de generación y presentación;
-- justificante y CSV cuando existen;
-- perceptores, percepciones, retenciones y gastos deducibles;
-- resultado de validaciones;
-- diferencias anuales 111/190;
-- composición por origen;
-- relación abreviada de perceptores;
-- referencia de presentación y fichero validado.
-
-### Relación nominativa completa
-
-Documento HTML apaisado con:
-
-- todas las líneas de perceptor;
-- NIF y nombre;
-- tipo de perceptor;
-- clave y subclave;
-- ejercicio de devengo;
-- provincia;
-- percepciones;
-- retenciones;
-- gastos deducibles;
-- número de documentos de origen;
-- totales de la declaración.
-
-Un mismo NIF puede aparecer en varias filas cuando cambian la clave, subclave o el ejercicio de devengo.
-
-### Certificados individuales
-
-Los certificados solo se habilitan cuando la declaración está `presented`.
-
-Cada certificado agrupa todas las líneas del mismo NIF y muestra:
-
-- pagador y NIF del pagador;
-- perceptor y NIF del perceptor;
-- declaración, ejercicio y presentación;
-- justificante y CSV;
-- percepciones dinerarias;
-- retenciones;
-- gastos deducibles;
-- percepciones en especie;
-- desglose por clave, subclave y devengo;
-- firmante y certificado simulado;
-- referencia y hash del fichero.
-
-### Directorio y lote colectivo
-
-El directorio HTML presenta un enlace individual por NIF.
-
-El lote ZIP contiene:
-
-- un certificado HTML por NIF único;
-- `manifest-certificados.csv` con importes y nombres de fichero;
-- `LEEME.txt` con el contexto educativo;
-- hash SHA-256 del ZIP;
-- número de certificados en las cabeceras de respuesta.
-
-### API
+### Documentos
 
 ```text
 GET /model-190/declarations/{id}/annual-summary
@@ -360,43 +448,28 @@ GET /model-190/declarations/{id}/certificates/{recipient_id}
 GET /model-190/declarations/{id}/certificates.zip
 ```
 
-### Interfaz
+---
 
-`Model190DeclarationsPanel.jsx` añade una columna de documentos con:
+## Criterio de cierre del Split 39
 
-- `Resumen anual`;
-- `Perceptores`;
-- `Certificados`;
-- `Lote ZIP`.
+- [x] Dominio anual y catálogo fiscal.
+- [x] Motor nominativo por NIF, clave, subclave y devengo.
+- [x] Trabajadores, profesionales, atrasos y regularizaciones.
+- [x] Conciliación trimestral y documental con el Modelo 111.
+- [x] Pantalla ERP con filtros, detalle y validaciones.
+- [x] Declaraciones ordinarias, complementarias y sustitutivas.
+- [x] Snapshot inmutable.
+- [x] Fichero legible y registro fijo educativo.
+- [x] Importación y validación registro a registro.
+- [x] Firma y presentación AEAT simuladas.
+- [x] Justificante y documentos anuales.
+- [x] Certificados individuales y lote colectivo.
+- [x] Caso práctico guiado e idempotente.
+- [x] Prueba integral desde la preparación hasta los certificados.
 
-El resumen y la relación nominativa están disponibles para declaraciones congeladas. Los certificados y el ZIP se activan tras la presentación simulada.
+**El Split 39 queda funcionalmente cerrado para el MVP educativo.**
 
-### Pruebas
-
-`test_model190_document_service.py` cubre:
-
-- documentos construidos desde el snapshot congelado;
-- inmutabilidad después de modificar una nómina viva;
-- bloqueo de certificados antes de presentar;
-- agrupación de varias líneas del mismo NIF;
-- datos de firma y justificante;
-- un certificado por NIF único;
-- manifiesto CSV y contenido del ZIP.
-
-`model190Documents.test.js` cubre las reglas de disponibilidad documental en la interfaz.
-
-## Paso pendiente
-
-### Paso 39.8 — Caso demo y pruebas integrales
-
-- varios trabajadores;
-- trabajador con dos contratos;
-- profesional;
-- atrasos anteriores;
-- regularización negativa;
-- error deliberado;
-- diferencia con un Modelo 111;
-- corrección y presentación final.
+---
 
 ## Alcance excluido del MVP
 
@@ -408,4 +481,4 @@ El resumen y la relación nominativa están disponibles para declaraciones conge
 - territorios forales;
 - rendimientos en especie complejos;
 - reducciones avanzadas;
-- modificación real de declaraciones en AEAT.
+- modificación real de declaraciones en la AEAT.
