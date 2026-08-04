@@ -52,9 +52,11 @@ jobs:
           src/pages/AffiliationRemittancesPage.jsx src/App.jsx
           src/components/reports/ReportsRoute.jsx src/pages/Model111Page.jsx src/services/model111Service.js
           src/pages/Model190Page.jsx src/components/model190/Model190DeclarationsPanel.jsx
-          src/components/model190/Model190AeatModal.jsx src/services/model190Service.js
-          src/utils/model190View.js src/utils/model190Presentation.js src/utils/model190Documents.js
-          src/tests/model190View.test.js src/tests/model190Presentation.test.js src/tests/model190Documents.test.js
+          src/components/model190/Model190AeatModal.jsx src/components/model190/Model190DemoPanel.jsx
+          src/services/model190Service.js src/utils/model190View.js src/utils/model190Presentation.js
+          src/utils/model190Documents.js src/utils/model190Demo.js
+          src/tests/model190View.test.js src/tests/model190Presentation.test.js
+          src/tests/model190Documents.test.js src/tests/model190Demo.test.js
           src/affiliation-siltra-bridge.js src/main.jsx
           src/services/socialSecurityApi.js src/services/affiliationApi.js src/services/craApi.js src/services/fieApi.js
           src/utils/siltraSimulation.js src/tests/siltraSimulation.test.js
