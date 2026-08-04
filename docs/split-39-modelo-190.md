@@ -179,12 +179,73 @@ GET /model-190/reconciliation
 
 Ambos requieren `company_id` y `year`.
 
+## Paso 39.4 — Pantalla ERP del Modelo 190
+
+Se incorpora `frontend/src/pages/Model190Page.jsx`, accesible desde **Fiscalidad → Modelo 190** y desde el conmutador de los Modelos 111/190.
+
+### Resumen anual
+
+La cabecera permite seleccionar empresa y ejercicio. El resumen muestra:
+
+- líneas anuales y NIF únicos;
+- percepciones dinerarias;
+- retenciones acumuladas;
+- gastos deducibles;
+- diferencia anual entre operaciones del 190 y Modelos 111 efectivos;
+- composición por nóminas, facturas, ajustes, atrasos y regularizaciones.
+
+### Relación nominativa
+
+La pestaña de perceptores permite filtrar por:
+
+- NIF o nombre;
+- trabajador o profesional;
+- clave;
+- subclave;
+- ejercicio de devengo.
+
+Cada fila abre un panel lateral con clasificación fiscal, importes acumulados y documentos de origen.
+
+### Conciliación
+
+La interfaz presenta:
+
+- estado anual;
+- selector visual de los cuatro trimestres;
+- comparación de bases y retenciones;
+- Modelo 111 efectivo o pendiente;
+- avisos trimestrales;
+- desglose por perceptor;
+- documentos exclusivos del 111 o del 190;
+- documentos con importes diferentes.
+
+### Validaciones de interfaz
+
+`frontend/src/utils/model190View.js` centraliza filtros y controles previos:
+
+- NIF obligatorio;
+- clave fiscal obligatoria;
+- subclave obligatoria para la clave G;
+- ausencia de subclave para la clave A del catálogo educativo;
+- ejercicio de devengo obligatorio;
+- identificación de clasificaciones automáticas pendientes de revisión;
+- advertencias por capacidades todavía no soportadas;
+- incorporación de los avisos procedentes de la conciliación 111/190.
+
+Las clasificaciones automáticas se muestran como información y no bloquean por sí solas. Los defectos estructurales se muestran como errores.
+
+### Navegación y pruebas
+
+- el enlace lateral del Modelo 190 queda habilitado;
+- `ReportsRoute` admite `#model-190` y permite alternar entre 111 y 190;
+- `model190Service.js` consume los endpoints de preview y conciliación;
+- `model190View.test.js` cubre filtros, nombres fiscales, validaciones y diferencias anuales;
+- el test se integra en `npm test` y los nuevos archivos se añaden al lint de GitHub Actions.
+
 ## Fuera de los pasos completados
 
-- edición y persistencia de overrides desde API;
-- pantalla ERP;
-- validaciones completas del Modelo 190;
+- edición y persistencia de overrides desde la interfaz;
 - generación y congelación de declaraciones;
 - fichero de declaración;
-- simulador AEAT;
+- simulador AEAT del Modelo 190;
 - certificados de retenciones.
