@@ -38,13 +38,26 @@ export default function ReportsRoute() {
 
   useEffect(() => {
     const handleRouteChange = () => setRoute(getRoute());
+    const handleDemoSeeded = (event) => {
+      const company = event.detail?.company;
+      if (!company?.id) return;
+      setData((current) => ({
+        ...current,
+        companies: [
+          ...current.companies.filter((item) => item.id !== company.id),
+          company,
+        ],
+      }));
+    };
 
     window.addEventListener("hashchange", handleRouteChange);
     window.addEventListener("aulanomina-route-change", handleRouteChange);
+    window.addEventListener("aulanomina-model190-demo-seeded", handleDemoSeeded);
 
     return () => {
       window.removeEventListener("hashchange", handleRouteChange);
       window.removeEventListener("aulanomina-route-change", handleRouteChange);
+      window.removeEventListener("aulanomina-model190-demo-seeded", handleDemoSeeded);
     };
   }, []);
 
