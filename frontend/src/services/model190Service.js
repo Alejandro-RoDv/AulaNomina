@@ -64,7 +64,7 @@ export function fetchModel190ImportValidation(declarationId) {
   return apiRequest(
     `/model-190/declarations/${declarationId}/import-validation`,
     {},
-    "No se ha podido validar la importación del fichero"
+    "No se ha podido validar el fichero del Modelo 190"
   );
 }
 
@@ -76,7 +76,7 @@ export function presentModel190Declaration(declarationId, payload) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     },
-    "No se ha podido completar la presentación simulada"
+    "No se ha podido presentar el Modelo 190"
   );
 }
 
@@ -91,4 +91,24 @@ export function model190ErrorReportUrl(declarationId) {
 
 export function model190ReceiptUrl(declarationId) {
   return `${API_BASE_URL}/model-190/declarations/${declarationId}/receipt`;
+}
+
+export function model190AnnualSummaryUrl(declarationId) {
+  return `${API_BASE_URL}/model-190/declarations/${declarationId}/annual-summary`;
+}
+
+export function model190RecipientsDocumentUrl(declarationId) {
+  return `${API_BASE_URL}/model-190/declarations/${declarationId}/recipients-document`;
+}
+
+export function model190CertificatesDirectoryUrl(declarationId) {
+  return `${API_BASE_URL}/model-190/declarations/${declarationId}/certificates`;
+}
+
+export function model190RecipientCertificateUrl(declarationId, recipientId) {
+  return `${API_BASE_URL}/model-190/declarations/${declarationId}/certificates/${recipientId}`;
+}
+
+export function model190CertificatesArchiveUrl(declarationId) {
+  return `${API_BASE_URL}/model-190/declarations/${declarationId}/certificates.zip`;
 }
