@@ -102,7 +102,7 @@ const groups = [
     title: "Fiscalidad",
     items: [
       { id: "reports", label: "Modelo 111", enabled: true, hash: "#model-111" },
-      { id: "reports", label: "Modelo 190", enabled: false, hash: "#model-190" },
+      { id: "reports", label: "Modelo 190", enabled: true, hash: "#model-190" },
     ],
   },
   {

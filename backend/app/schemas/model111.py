@@ -202,6 +202,10 @@ class TaxWithholdingAdjustmentCreate(BaseModel):
     recipient_name: str = Field(..., min_length=1, max_length=255)
     base_amount: Decimal = Decimal("0.00")
     withholding_amount: Decimal = Decimal("0.00")
+    model190_key: Optional[str] = Field(default=None, max_length=1)
+    model190_subkey: Optional[str] = Field(default=None, max_length=2)
+    accrual_year: Optional[int] = Field(default=None, ge=1900, le=2100)
+    deductible_expense_amount: Decimal = Decimal("0.00")
     status: str = "confirmed"
     notes: Optional[str] = None
 
@@ -209,6 +213,26 @@ class TaxWithholdingAdjustmentCreate(BaseModel):
     @classmethod
     def normalize_nif(cls, value: str) -> str:
         return value.strip().upper()
+
+    @field_validator("model190_key")
+    @classmethod
+    def normalize_model190_key(cls, value: Optional[str]) -> Optional[str]:
+        if value is None or not value.strip():
+            return None
+        normalized = value.strip().upper()
+        if len(normalized) != 1 or not normalized.isalpha():
+            raise ValueError("La clave del Modelo 190 debe contener una letra")
+        return normalized
+
+    @field_validator("model190_subkey")
+    @classmethod
+    def normalize_model190_subkey(cls, value: Optional[str]) -> Optional[str]:
+        if value is None or not value.strip():
+            return None
+        normalized = value.strip().zfill(2)
+        if len(normalized) != 2 or not normalized.isdigit():
+            raise ValueError("La subclave del Modelo 190 debe contener dos dígitos")
+        return normalized
 
     @field_validator("category")
     @classmethod
@@ -234,7 +258,9 @@ class TaxWithholdingAdjustmentCreate(BaseModel):
     @model_validator(mode="after")
     def validate_negative_amounts(self):
         if self.adjustment_type != "regularization" and (
-            self.base_amount < 0 or self.withholding_amount < 0
+            self.base_amount < 0
+            or self.withholding_amount < 0
+            or self.deductible_expense_amount < 0
         ):
             raise ValueError("Solo una regularización puede contener importes negativos")
         return self

@@ -1,5 +1,6 @@
 import app.incident_payroll_schema_patch  # noqa: F401
 import app.payroll_stability_schema_patch  # noqa: F401
+import app.model190_schema_patch  # noqa: F401
 
 from app.models.user import User
 from app.models.communication_file import CommunicationFile, CommunicationFileEvent
@@ -32,6 +33,14 @@ from app.models.model111 import (
     Professional,
     ProfessionalInvoice,
     TaxWithholdingAdjustment,
+)
+from app.models.model190 import (
+    Model190Declaration,
+    Model190Recipient,
+    Model190RecipientLine,
+    Model190RecipientOverride,
+    Tax190Key,
+    Tax190Subkey,
 )
 from app.models.document import Document
 from app.models.employee_assignment_history import EmployeeAssignmentHistory

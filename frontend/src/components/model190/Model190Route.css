@@ -1,0 +1,37 @@
+@media (max-width: 1050px) {
+  .model190-route {
+    left: 230px !important;
+  }
+
+  .model190-route > header {
+    align-items: flex-start !important;
+    flex-direction: column;
+  }
+
+  .model190-route > header > div:last-child {
+    width: 100%;
+  }
+
+  .model190-route > header button {
+    flex: 1;
+  }
+}
+
+@media (max-width: 760px) {
+  .model190-route {
+    left: 0 !important;
+    top: 0 !important;
+    z-index: 100 !important;
+  }
+
+  .model190-route > header,
+  .model190-route > main {
+    padding-left: 18px !important;
+    padding-right: 18px !important;
+  }
+
+  .model190-route > header > div:last-child {
+    display: grid !important;
+    grid-template-columns: 1fr;
+  }
+}
