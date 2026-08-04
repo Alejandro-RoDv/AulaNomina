@@ -14,7 +14,7 @@ from app.services.model190_declaration_service import (
     get_model190_file,
     list_model190_declarations,
 )
-from app.services.model190_demo_service import (
+from app.services.model190_demo_safe_service import (
     correct_model190_demo,
     get_model190_demo_status,
     seed_model190_demo,
