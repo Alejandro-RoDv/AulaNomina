@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 
 import Model190DeclarationsPanel from "../model190/Model190DeclarationsPanel";
+import Model190DemoPanel from "../model190/Model190DemoPanel";
 import Model111Page from "../../pages/Model111Page";
 import "../../pages/Model111Page.css";
 import Model190Page from "../../pages/Model190Page";
@@ -92,7 +93,7 @@ export default function ReportsRoute() {
             <h1 style={styles.title}>{isModel190 ? "Modelo 190" : "Modelo 111"}</h1>
             <p style={styles.subtitle}>
               {isModel190
-                ? "Resumen anual nominativo, clasificación fiscal, conciliación trimestral, congelación y ficheros educativos."
+                ? "Cierre anual nominativo, conciliación 111/190, caso práctico guiado, ficheros, presentación y certificados."
                 : "Retenciones de trabajo y actividades económicas, conciliación y presentación AEAT simulada."}
             </p>
           </div>
@@ -111,6 +112,7 @@ export default function ReportsRoute() {
           {error ? <div style={styles.error}>{error}</div> : null}
           {isModel190 ? (
             <>
+              <Model190DemoPanel companies={data.companies} />
               <Model190DeclarationsPanel companies={data.companies} />
               <Model190Page companies={data.companies} />
             </>
