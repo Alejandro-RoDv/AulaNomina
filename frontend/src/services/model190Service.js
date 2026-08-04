@@ -8,6 +8,15 @@ function queryString({ companyId, year }) {
   return params.toString();
 }
 
+function companyQuery(companyId) {
+  const params = new URLSearchParams();
+  if (companyId !== undefined && companyId !== null && companyId !== "") {
+    params.set("company_id", String(companyId));
+  }
+  const value = params.toString();
+  return value ? `?${value}` : "";
+}
+
 export function fetchModel190Preview({ companyId, year }) {
   return apiRequest(
     `/model-190/preview?${queryString({ companyId, year })}`,
@@ -29,6 +38,30 @@ export function fetchModel190Validations({ companyId, year }) {
     `/model-190/validations?${queryString({ companyId, year })}`,
     {},
     "No se han podido validar los datos del Modelo 190"
+  );
+}
+
+export function fetchModel190DemoStatus(companyId) {
+  return apiRequest(
+    `/model-190/demo-status${companyQuery(companyId)}`,
+    {},
+    "No se ha podido consultar el caso demo del Modelo 190"
+  );
+}
+
+export function seedModel190Demo(companyId = null) {
+  return apiRequest(
+    `/model-190/demo-seed${companyQuery(companyId)}`,
+    { method: "POST" },
+    "No se ha podido preparar el caso demo integral del Modelo 190"
+  );
+}
+
+export function correctModel190Demo(companyId) {
+  return apiRequest(
+    `/model-190/demo-correct${companyQuery(companyId)}`,
+    { method: "POST" },
+    "No se ha podido corregir el caso demo del Modelo 190"
   );
 }
 
