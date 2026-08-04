@@ -1,0 +1,457 @@
+.m190-workspace {
+  display: grid;
+  gap: 20px;
+  color: #111827;
+}
+
+.m190-workspace__tabs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  padding: 10px;
+  border: 2px solid #111111;
+  background: #f6f7f9;
+}
+
+.m190-workspace__tabs button {
+  display: grid;
+  gap: 4px;
+  min-height: 68px;
+  padding: 12px 14px;
+  border: 1px solid #9ca3af;
+  background: #ffffff;
+  color: #111827;
+  text-align: left;
+  cursor: pointer;
+}
+
+.m190-workspace__tabs button b {
+  font-size: 14px;
+}
+
+.m190-workspace__tabs button span {
+  color: #6b7280;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.m190-workspace__tabs button.is-active {
+  border: 2px solid #111111;
+  background: #fff6a6;
+  box-shadow: 3px 3px 0 #111111;
+}
+
+.m190-workspace__tabs button.is-active span {
+  color: #374151;
+}
+
+.m190-workspace__content {
+  min-width: 0;
+}
+
+.m190-annual {
+  display: grid;
+  gap: 18px;
+}
+
+.m190-annual__toolbar,
+.m190-annual__filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid #111111;
+  background: #fff9bd;
+}
+
+.m190-annual__toolbar label,
+.m190-annual__filters label {
+  display: grid;
+  flex: 1 1 220px;
+  gap: 5px;
+  min-width: 180px;
+}
+
+.m190-annual__toolbar label span,
+.m190-annual__filters label span {
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.m190-annual__toolbar select,
+.m190-annual__toolbar input,
+.m190-annual__filters select,
+.m190-annual__filters input {
+  width: 100%;
+  height: 40px;
+  padding: 0 10px;
+  border: 1px solid #111111;
+  background: #ffffff;
+  color: #111827;
+  font: inherit;
+}
+
+.m190-annual__toolbar .m190-annual__year {
+  flex: 0 0 130px;
+  min-width: 130px;
+}
+
+.m190-annual__toolbar button,
+.m190-annual__filters button,
+.m190-annual__quick-actions button,
+.m190-annual__panel button {
+  min-height: 40px;
+  padding: 8px 13px;
+  border: 1px solid #111111;
+  background: #ffffff;
+  color: #111827;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.m190-annual__toolbar button:disabled {
+  cursor: not-allowed;
+  opacity: .55;
+}
+
+.m190-annual__heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 18px;
+  padding-bottom: 15px;
+  border-bottom: 2px solid #111111;
+}
+
+.m190-annual__heading h2 {
+  margin: 7px 0 3px;
+  font-size: 27px;
+}
+
+.m190-annual__heading p {
+  margin: 0;
+  color: #6b7280;
+  font-weight: 650;
+}
+
+.m190-annual__eyebrow {
+  color: #374151;
+  font-size: 10px;
+  font-weight: 950;
+  letter-spacing: .12em;
+}
+
+.m190-annual__status {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  padding: 6px 9px;
+  border: 1px solid #111111;
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.m190-annual__status.is-ok {
+  background: #e7f8bd;
+}
+
+.m190-annual__status.is-warning {
+  background: #fde0ba;
+}
+
+.m190-annual__tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #9ca3af;
+}
+
+.m190-annual__tabs button {
+  padding: 8px 13px;
+  border: 1px solid #9ca3af;
+  background: #ffffff;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.m190-annual__tabs button.is-active {
+  border-color: #111111;
+  background: #fff6a6;
+  box-shadow: 2px 2px 0 #111111;
+}
+
+.m190-annual__section {
+  display: grid;
+  gap: 16px;
+}
+
+.m190-annual__metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.m190-annual__metrics.is-compact {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.m190-annual__metric {
+  display: grid;
+  gap: 5px;
+  min-height: 92px;
+  padding: 14px;
+  border: 1px solid #111111;
+  background: #ffffff;
+}
+
+.m190-annual__metric.is-success {
+  background: #edfacd;
+}
+
+.m190-annual__metric.is-warning {
+  background: #fff0cf;
+}
+
+.m190-annual__metric span {
+  font-size: 10px;
+  font-weight: 950;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+}
+
+.m190-annual__metric strong {
+  font-size: 22px;
+}
+
+.m190-annual__metric small {
+  color: #6b7280;
+}
+
+.m190-annual__summary-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(280px, 2fr);
+  gap: 14px;
+}
+
+.m190-annual__panel {
+  min-width: 0;
+  padding: 17px;
+  border: 1px solid #111111;
+  background: #ffffff;
+}
+
+.m190-annual__panel > header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 15px;
+  margin-bottom: 13px;
+}
+
+.m190-annual__panel h3 {
+  margin: 4px 0 0;
+  font-size: 18px;
+}
+
+.m190-annual__panel p {
+  color: #4b5563;
+  line-height: 1.5;
+}
+
+.m190-annual__source-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 8px;
+}
+
+.m190-annual__source-list > div {
+  display: grid;
+  gap: 4px;
+  padding: 11px;
+  border: 1px solid #d1d5db;
+  background: #fffdf0;
+}
+
+.m190-annual__source-list small {
+  color: #6b7280;
+}
+
+.m190-annual__quick-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.m190-annual__table-wrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.m190-annual table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.m190-annual th,
+.m190-annual td {
+  padding: 9px 8px;
+  border-bottom: 1px solid #d1d5db;
+  text-align: left;
+  vertical-align: top;
+  white-space: nowrap;
+}
+
+.m190-annual th {
+  border-top: 1px solid #111111;
+  border-bottom: 1px solid #111111;
+  background: #f8f4bb;
+  font-size: 10px;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+}
+
+.m190-annual td small {
+  display: block;
+  margin-top: 3px;
+  color: #6b7280;
+}
+
+.m190-annual__recipient-detail {
+  border-left: 5px solid #111111;
+  background: #fafafa;
+}
+
+.m190-annual__detail-grid {
+  display: grid;
+  grid-template-columns: 150px 1fr 150px 1fr;
+  gap: 7px 12px;
+  margin-bottom: 14px;
+  padding: 12px;
+  border: 1px solid #d1d5db;
+  background: #ffffff;
+}
+
+.m190-annual__detail-grid span {
+  color: #6b7280;
+}
+
+.m190-annual__quarters {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 9px;
+}
+
+.m190-annual__quarters > button {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  padding: 11px;
+  border: 1px solid #9ca3af;
+  background: #ffffff;
+  cursor: pointer;
+}
+
+.m190-annual__quarters > button.is-active {
+  border: 2px solid #111111;
+  background: #fff6a6;
+}
+
+.m190-annual__alerts,
+.m190-annual__validation-list {
+  display: grid;
+  gap: 7px;
+  margin-top: 13px;
+}
+
+.m190-annual__alerts > div,
+.m190-annual__validation-list > div {
+  display: grid;
+  grid-template-columns: minmax(150px, auto) 1fr auto;
+  gap: 10px;
+  padding: 9px 10px;
+  border-left: 4px solid #b45309;
+  background: #fff7ed;
+}
+
+.m190-annual__validation-list > div.is-error {
+  border-left-color: #b91c1c;
+  background: #fef2f2;
+}
+
+.m190-annual__information {
+  margin-top: 13px;
+  padding: 10px 12px;
+  border: 1px solid #d1d5db;
+  background: #f9fafb;
+}
+
+.m190-annual__information summary {
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.m190-annual__information p {
+  margin: 8px 0 0;
+  font-size: 12px;
+}
+
+.m190-annual__valid,
+.m190-annual__empty,
+.m190-annual__error {
+  padding: 13px 15px;
+  border: 1px solid #111111;
+}
+
+.m190-annual__valid {
+  background: #edfbd0;
+}
+
+.m190-annual__empty {
+  border-style: dashed;
+  color: #6b7280;
+  background: #fafafa;
+  text-align: center;
+}
+
+.m190-annual__error {
+  border-color: #b91c1c;
+  background: #fef2f2;
+  color: #991b1b;
+  font-weight: 750;
+}
+
+@media (max-width: 1000px) {
+  .m190-workspace__tabs,
+  .m190-annual__metrics,
+  .m190-annual__summary-grid,
+  .m190-annual__quarters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 680px) {
+  .m190-workspace__tabs,
+  .m190-annual__metrics,
+  .m190-annual__metrics.is-compact,
+  .m190-annual__summary-grid,
+  .m190-annual__quarters {
+    grid-template-columns: 1fr;
+  }
+
+  .m190-annual__heading,
+  .m190-annual__panel > header {
+    flex-direction: column;
+  }
+
+  .m190-annual__detail-grid {
+    grid-template-columns: 120px 1fr;
+  }
+}
