@@ -19,6 +19,7 @@ from app.cra_routes import router as cra_router
 from app.environment_reset_routes import router as environment_reset_router
 from app.fie_routes import router as fie_router
 from app.model111_routes import router as model111_router
+from app.model190_routes import router as model190_router
 from app.social_security_registration_routes import router as social_security_registration_router
 from app.social_security_settlement_routes import router as social_security_settlement_router
 from app.wage_garnishment_routes import router as wage_garnishment_router
@@ -31,6 +32,7 @@ router.include_router(cra_router)
 router.include_router(environment_reset_router)
 router.include_router(fie_router)
 router.include_router(model111_router)
+router.include_router(model190_router)
 router.include_router(social_security_registration_router)
 router.include_router(social_security_settlement_router)
 router.include_router(wage_garnishment_router)
