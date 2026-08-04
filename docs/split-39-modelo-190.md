@@ -104,11 +104,86 @@ El preview identifica expresamente que el dominio actual todavía no permite acu
 
 Estas capacidades permanecen desactivadas hasta que la nómina conserve esos importes de forma independiente.
 
+## Paso 39.3 — Conciliación trimestral 111/190
+
+Se incorpora `backend/app/services/model190_reconciliation.py` para comparar el acumulado anual vivo con las declaraciones trimestrales congeladas del Modelo 111.
+
+### Selección de la declaración efectiva
+
+Para cada trimestre se utiliza la última declaración presentada. Si existe una complementaria presentada posteriormente, su snapshot completo se considera la versión efectiva del trimestre.
+
+Las declaraciones generadas o validadas, pero no presentadas:
+
+- se muestran como pendientes;
+- no computan como importes declarados;
+- generan un aviso específico.
+
+### Comparaciones
+
+La conciliación compara por trimestre y bloque fiscal:
+
+- percepciones de trabajo;
+- retenciones de trabajo;
+- percepciones de actividades económicas;
+- retenciones de actividades económicas;
+- número de documentos;
+- número de perceptores.
+
+También genera totales y diferencias anuales.
+
+### Conciliación documental
+
+Las líneas se vinculan por tipo de origen e identificador del documento:
+
+- nómina;
+- factura profesional;
+- ajuste, atraso o regularización.
+
+La respuesta identifica:
+
+- documentos incluidos en el Modelo 190 que no aparecen en el Modelo 111 efectivo;
+- documentos declarados en el Modelo 111 sin línea anual equivalente;
+- documentos presentes en ambos modelos con bases o retenciones distintas.
+
+De esta forma, dos trimestres con los mismos totales pueden seguir apareciendo como no conciliados si proceden de documentos diferentes.
+
+### Drill-down
+
+Cada trimestre incluye desglose:
+
+- por perceptor y NIF;
+- por bloque fiscal;
+- por tipo de origen;
+- por documento concreto.
+
+### Avisos
+
+Se generan avisos para:
+
+- trimestre sin Modelo 111;
+- Modelo 111 generado pero no presentado;
+- versión posterior pendiente de presentación;
+- diferencias de percepciones;
+- diferencias de retenciones;
+- documentos no emparejados;
+- importes documentales distintos.
+
+### API disponible
+
+Se registran dos endpoints de lectura:
+
+```text
+GET /model-190/preview
+GET /model-190/reconciliation
+```
+
+Ambos requieren `company_id` y `year`.
+
 ## Fuera de los pasos completados
 
-- conciliación 111/190;
-- endpoints;
+- edición y persistencia de overrides desde API;
 - pantalla ERP;
+- validaciones completas del Modelo 190;
 - generación y congelación de declaraciones;
 - fichero de declaración;
 - simulador AEAT;
