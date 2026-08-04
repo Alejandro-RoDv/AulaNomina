@@ -242,10 +242,126 @@ Las clasificaciones automáticas se muestran como información y no bloquean por
 - `model190View.test.js` cubre filtros, nombres fiscales, validaciones y diferencias anuales;
 - el test se integra en `npm test` y los nuevos archivos se añaden al lint de GitHub Actions.
 
+## Paso 39.5 — Generación, congelación y fichero
+
+Se incorporan `backend/app/services/model190_validation.py`, `model190_declaration_service.py` y `model190_file_service.py`.
+
+### Validación de backend
+
+Antes de crear una declaración se ejecutan validaciones independientes de la interfaz. Los errores bloqueantes incluyen:
+
+- declaración sin perceptores;
+- NIF vacío;
+- perceptor sin nombre;
+- clave inexistente o no vigente para el ejercicio;
+- clave incompatible con el tipo de perceptor;
+- subclave obligatoria, inexistente o no vigente;
+- ejercicio de devengo ausente;
+- importes fuera del rango del fichero educativo;
+- descuadre entre los totales y la suma de perceptores.
+
+También se generan advertencias e informaciones sobre:
+
+- diferencias con los Modelos 111;
+- trimestres no presentados;
+- NIF con formato a revisar;
+- gastos deducibles ausentes;
+- retención cero;
+- atrasos sin ejercicio anterior identificado;
+- nombres o tipos distintos para el mismo NIF;
+- clasificaciones automáticas pendientes;
+- varios contratos, varias facturas y ajustes manuales.
+
+### Congelación
+
+Al generar una declaración:
+
+1. se recalculan las operaciones anuales;
+2. se agrupan los perceptores;
+3. se aplican los overrides existentes;
+4. se incorpora la conciliación 111/190;
+5. se ejecutan las validaciones de backend;
+6. se crea `Model190Declaration` con estado `generated` y `locked=true`;
+7. se copian los perceptores a `Model190Recipient`;
+8. se copian los documentos de origen a `Model190RecipientLine`;
+9. se vincula cada línea con el Modelo 111 efectivo de su trimestre cuando existe;
+10. se congela el payload completo junto con los ficheros y sus hashes SHA-256.
+
+Una modificación posterior de una nómina, factura o ajuste no altera la declaración ya generada. Para reflejar nuevos datos debe crearse una complementaria o sustitutiva vinculada a una declaración congelada anterior.
+
+La declaración ordinaria no puede duplicarse para la misma empresa y ejercicio mientras exista otra ordinaria no cancelada.
+
+### Fichero educativo legible
+
+Se genera un TXT delimitado por `|` con:
+
+- una cabecera tipo 1 del declarante;
+- una línea tipo 2 por cada perceptor;
+- NIF, nombre, clave, subclave y ejercicio de devengo;
+- percepciones, retenciones y gastos deducibles.
+
+El fichero incluye de forma visible:
+
+```text
+SIMULACION EDUCATIVA | MODELO 190 | NO PRESENTABLE ANTE LA AEAT
+```
+
+### Registro fijo simulado
+
+También se genera un TXT de longitud fija con:
+
+- registros de 250 posiciones;
+- un registro tipo 1;
+- un registro tipo 2 por perceptor;
+- importes expresados en céntimos con signo;
+- relleno de posiciones;
+- versión `AULANOMINA-M190-EDU-1`;
+- errores de formato detectados por registro;
+- hash SHA-256 del contenido.
+
+El diseño está inspirado únicamente en el aprendizaje de registros fijos. No reproduce íntegramente el diseño oficial vigente y no es presentable ante la AEAT.
+
+### API
+
+```text
+GET  /model-190/validations
+POST /model-190/declarations
+GET  /model-190/declarations
+GET  /model-190/declarations/{id}
+GET  /model-190/declarations/{id}/file?format=readable
+GET  /model-190/declarations/{id}/file?format=fixed_width
+```
+
+### Interfaz
+
+`Model190DeclarationsPanel.jsx` añade al espacio ERP:
+
+- selección de empresa y ejercicio;
+- generación ordinaria, complementaria o sustitutiva;
+- selección de la declaración original;
+- resultado de las validaciones de backend;
+- histórico anual congelado;
+- totales y estado;
+- descarga del TXT legible y del registro fijo;
+- número de registros, errores del fichero y hash del contenido.
+
+### Pruebas
+
+`test_model190_declaration_service.py` comprueba:
+
+- creación de cabecera, perceptores, líneas, payload y ficheros;
+- longitud de 250 posiciones;
+- marcas educativas;
+- inmutabilidad tras modificar una nómina viva;
+- bloqueo de ordinarias duplicadas;
+- generación de complementarias;
+- bloqueo por NIF ausente.
+
 ## Fuera de los pasos completados
 
 - edición y persistencia de overrides desde la interfaz;
-- generación y congelación de declaraciones;
-- fichero de declaración;
 - simulador AEAT del Modelo 190;
-- certificados de retenciones.
+- presentación, firma y justificante;
+- documentos HTML de la declaración;
+- certificados de retenciones;
+- caso demo completo del Modelo 190.
