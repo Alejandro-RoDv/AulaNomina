@@ -4,6 +4,7 @@ import Model190AnnualPanel from "./Model190AnnualPanel";
 import Model190DeclarationsPanel from "./Model190DeclarationsPanel";
 import Model190DemoPanel from "./Model190DemoPanel";
 import "./Model190Workspace.css";
+import "./Model190Route.css";
 
 const TABS = [
   ["annual", "Cálculo anual", "Resumen, perceptores, conciliación y validaciones"],
