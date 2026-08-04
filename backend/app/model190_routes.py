@@ -14,6 +14,13 @@ from app.services.model190_declaration_service import (
     get_model190_file,
     list_model190_declarations,
 )
+from app.services.model190_document_service import (
+    build_model190_certificates_archive,
+    render_model190_annual_summary,
+    render_model190_certificate,
+    render_model190_certificate_directory,
+    render_model190_recipient_relation,
+)
 from app.services.model190_presentation_service import (
     build_model190_error_report,
     present_model190_declaration,
@@ -162,5 +169,103 @@ def get_declaration_receipt(
         headers={
             "Content-Disposition": f'inline; filename="modelo-190-{declaration_id}-justificante.html"',
             "X-AulaNomina-Simulation": "educational-receipt",
+        },
+    )
+
+
+@router.get(
+    "/declarations/{declaration_id}/annual-summary",
+    response_class=HTMLResponse,
+)
+def get_annual_summary(
+    declaration_id: int,
+    db: Session = Depends(get_db),
+):
+    content = domain_guard(render_model190_annual_summary, db, declaration_id)
+    return HTMLResponse(
+        content=content,
+        headers={
+            "Content-Disposition": f'inline; filename="modelo-190-{declaration_id}-resumen-anual.html"',
+            "X-AulaNomina-Simulation": "educational-annual-summary",
+        },
+    )
+
+
+@router.get(
+    "/declarations/{declaration_id}/recipients-document",
+    response_class=HTMLResponse,
+)
+def get_recipients_document(
+    declaration_id: int,
+    db: Session = Depends(get_db),
+):
+    content = domain_guard(render_model190_recipient_relation, db, declaration_id)
+    return HTMLResponse(
+        content=content,
+        headers={
+            "Content-Disposition": f'inline; filename="modelo-190-{declaration_id}-perceptores.html"',
+            "X-AulaNomina-Simulation": "educational-recipient-relation",
+        },
+    )
+
+
+@router.get(
+    "/declarations/{declaration_id}/certificates",
+    response_class=HTMLResponse,
+)
+def get_certificate_directory(
+    declaration_id: int,
+    db: Session = Depends(get_db),
+):
+    content = domain_guard(render_model190_certificate_directory, db, declaration_id)
+    return HTMLResponse(
+        content=content,
+        headers={
+            "Content-Disposition": f'inline; filename="modelo-190-{declaration_id}-certificados.html"',
+            "X-AulaNomina-Simulation": "educational-certificate-directory",
+        },
+    )
+
+
+@router.get(
+    "/declarations/{declaration_id}/certificates/{recipient_id}",
+    response_class=HTMLResponse,
+)
+def get_recipient_certificate(
+    declaration_id: int,
+    recipient_id: int,
+    db: Session = Depends(get_db),
+):
+    content = domain_guard(
+        render_model190_certificate,
+        db,
+        declaration_id,
+        recipient_id,
+    )
+    return HTMLResponse(
+        content=content,
+        headers={
+            "Content-Disposition": (
+                f'inline; filename="modelo-190-{declaration_id}-certificado-{recipient_id}.html"'
+            ),
+            "X-AulaNomina-Simulation": "educational-retention-certificate",
+        },
+    )
+
+
+@router.get("/declarations/{declaration_id}/certificates.zip")
+def download_certificates_archive(
+    declaration_id: int,
+    db: Session = Depends(get_db),
+):
+    archive = domain_guard(build_model190_certificates_archive, db, declaration_id)
+    return Response(
+        content=archive["content"],
+        media_type="application/zip",
+        headers={
+            "Content-Disposition": f'attachment; filename="{archive["filename"]}"',
+            "X-AulaNomina-Simulation": "educational-certificate-batch",
+            "X-AulaNomina-Certificate-Count": str(archive["certificate_count"]),
+            "X-AulaNomina-File-SHA256": archive["sha256"],
         },
     )
