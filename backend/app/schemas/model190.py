@@ -129,6 +129,31 @@ class Model190DeclarationCreate(BaseModel):
         return self
 
 
+class Model190PresentationRequest(BaseModel):
+    file_sha256: str = Field(..., min_length=64, max_length=64)
+    signer_name: str = Field(..., min_length=2, max_length=160)
+    certificate_alias: str = Field(
+        default="Certificado AulaNomina Demo",
+        min_length=2,
+        max_length=160,
+    )
+    confirm_information: bool = False
+
+    @field_validator("file_sha256")
+    @classmethod
+    def validate_file_sha256(cls, value: str) -> str:
+        normalized = value.strip().lower()
+        if len(normalized) != 64 or any(character not in "0123456789abcdef" for character in normalized):
+            raise ValueError("La huella SHA-256 del fichero no es válida")
+        return normalized
+
+    @model_validator(mode="after")
+    def validate_confirmation(self):
+        if not self.confirm_information:
+            raise ValueError("Debes confirmar la declaración informativa antes de firmar")
+        return self
+
+
 class Model190RecipientLineResponse(BaseModel):
     id: int
     model190_recipient_id: int
