@@ -49,10 +49,10 @@ jobs:
         id: model111_tests
         continue-on-error: true
         run: python -m pytest -q --tb=short tests/test_model111_calculator.py tests/test_model111_service.py >> backend-test-output.txt 2>&1
-      - name: Modelo 190 domain calculator and reconciliation tests
+      - name: Modelo 190 tests
         id: model190_tests
         continue-on-error: true
-        run: python -m pytest -q --tb=short tests/test_model190_domain.py tests/test_model190_calculator.py tests/test_model190_reconciliation.py >> backend-test-output.txt 2>&1
+        run: python -m pytest -q --tb=short tests/test_model190_domain.py tests/test_model190_calculator.py tests/test_model190_reconciliation.py tests/test_model190_declaration_service.py >> backend-test-output.txt 2>&1
       - name: FIE reconciliation tests
         id: fie_tests
         continue-on-error: true
