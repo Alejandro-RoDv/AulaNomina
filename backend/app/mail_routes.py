@@ -1,16 +1,25 @@
+from urllib.parse import quote
+
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
 from app.db import SessionLocal
 from app.schemas.mail import (
+    EmailAttachmentPreviewResponse,
     EmailMessageCreate,
+    EmailThreadCreate,
     EmailThreadResponse,
     EmailThreadUpdate,
     MailboxResponse,
     MailboxStatsResponse,
 )
 from app.services.mail_service import (
+    attachment_download,
+    attachment_preview,
+    create_thread,
     create_thread_message,
+    get_attachment,
     get_demo_mailbox,
     get_mailbox,
     get_thread,
@@ -55,6 +64,18 @@ def read_mailbox_threads(
     return list_threads(db, mailbox_id, folder=folder, status=status, search=search)
 
 
+@router.post("/mailboxes/{mailbox_id}/threads", response_model=EmailThreadResponse, status_code=201)
+def post_mailbox_thread(
+    mailbox_id: int,
+    payload: EmailThreadCreate,
+    db: Session = Depends(get_db),
+):
+    mailbox = get_mailbox(db, mailbox_id)
+    if not mailbox:
+        raise HTTPException(status_code=404, detail="Buzón no encontrado")
+    return create_thread(db, mailbox, payload)
+
+
 @router.get("/mailboxes/{mailbox_id}/stats", response_model=MailboxStatsResponse)
 def read_mailbox_stats(mailbox_id: int, db: Session = Depends(get_db)):
     if not get_mailbox(db, mailbox_id):
@@ -84,3 +105,25 @@ def post_thread_message(thread_id: int, payload: EmailMessageCreate, db: Session
     if not thread:
         raise HTTPException(status_code=404, detail="Hilo de correo no encontrado")
     return create_thread_message(db, thread, payload)
+
+
+@router.get("/attachments/{attachment_id}/preview", response_model=EmailAttachmentPreviewResponse)
+def read_attachment_preview(attachment_id: int, db: Session = Depends(get_db)):
+    attachment = get_attachment(db, attachment_id)
+    if not attachment:
+        raise HTTPException(status_code=404, detail="Adjunto no encontrado")
+    return attachment_preview(attachment)
+
+
+@router.get("/attachments/{attachment_id}/download")
+def download_attachment(attachment_id: int, db: Session = Depends(get_db)):
+    attachment = get_attachment(db, attachment_id)
+    if not attachment:
+        raise HTTPException(status_code=404, detail="Adjunto no encontrado")
+    content, media_type = attachment_download(attachment)
+    filename = quote(attachment.filename)
+    return Response(
+        content=content,
+        media_type=media_type,
+        headers={"Content-Disposition": f"attachment; filename*=UTF-8''{filename}"},
+    )
