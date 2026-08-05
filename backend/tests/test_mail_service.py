@@ -52,7 +52,7 @@ def test_threads_can_be_filtered_by_folder_status_and_search():
         fie = list_threads(db, mailbox.id, search="FIE")
 
         assert len(inbox) == 5
-        assert len(resolved) >= 2
+        assert len(resolved) == 3
         assert len(fie) == 1
         assert fie[0].case_reference == "IT-2026-008"
         assert fie[0].case_study_id is not None
