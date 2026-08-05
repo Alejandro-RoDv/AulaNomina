@@ -112,12 +112,42 @@ Los mensajes demo de antigüedad, incapacidad temporal y sustitución quedan vin
 - iniciar el caso;
 - seguir la secuencia de pasos;
 - añadir una anotación;
-- confirmar manualmente un paso en esta fase inicial;
+- confirmar manualmente un paso;
 - registrar un error y reabrirlo;
 - reiniciar el progreso;
 - comprobar cómo cambia el estado del hilo y de la asignación.
 
-La confirmación manual se identifica como modo educativo de demostración. Las reglas ya están estructuradas, pero su comprobación automática contra trabajadores, contratos, incidencias, nóminas, FIE o SILTRA corresponde al siguiente bloque.
+## Quinta entrega: navegación, validación y tutor automático
+
+Cada paso puede abrir su módulo real manteniendo el contexto del ejercicio entre pestañas. El cliente HTTP central detecta las operaciones relevantes realizadas por el alumno y las relaciona con el paso activo.
+
+Las operaciones iniciales instrumentadas incluyen:
+
+- alta de trabajadores;
+- creación o actualización de contratos;
+- registro de incidencias;
+- cálculo y actualización de nóminas;
+- conceptos salariales permanentes;
+- regularizaciones;
+- afiliación;
+- lectura y conciliación FIE;
+- gestión documental.
+
+El backend evalúa los datos reales después de la operación. Una acción correcta completa el paso y activa el siguiente. Una acción incompleta mantiene el paso abierto y explica qué condición falta. Los errores de API se registran como intentos fallidos.
+
+Cada resultado genera un nuevo mensaje del **Tutor automático de AulaNomina** dentro del hilo. La respuesta puede confirmar el acierto, detallar comprobaciones pendientes, solicitar confirmación manual o indicar que debe corregirse un error.
+
+La pestaña de correo escucha los cambios producidos desde la pestaña ERP y actualiza automáticamente:
+
+- la conversación;
+- el estado del paso;
+- el porcentaje del ejercicio;
+- el estado y contador del hilo.
+
+### Endpoints de validación y eventos
+
+- `POST /case-assignments/{assignment_id}/steps/{task_id}/validate`
+- `POST /case-assignments/{assignment_id}/events`
 
 ## Decisiones de interfaz
 
@@ -131,9 +161,8 @@ La identidad visual utiliza el azul del icono de correo y la marca AulaNomina, e
 
 ## Siguientes pasos
 
-1. Activar los enlaces reales hacia trabajador, contrato, nómina, incidencia, FIE, SILTRA y modelos fiscales.
-2. Registrar eventos de los módulos del ERP y evaluarlos contra las reglas declarativas de cada paso.
-3. Generar respuestas automáticas distintas para aciertos y errores.
-4. Adaptar la vista de alumno y el panel docente al progreso por asignación.
-5. Añadir trazabilidad detallada de acciones, intentos y tiempos.
-6. Construir el caso demo integral de baja médica, sustitución, nómina y discrepancia FIE.
+1. Adaptar el panel docente a la cronología de pasos, intentos, errores y tiempos.
+2. Añadir respuestas configurables por el profesor para cada escenario y resultado.
+3. Ampliar la validación automática a documentos, SILTRA y modelos fiscales.
+4. Construir el caso demo integral de baja médica, sustitución, nómina y discrepancia FIE.
+5. Añadir una vista de revisión y corrección del ejercicio entregado.
