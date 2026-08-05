@@ -32,6 +32,28 @@ export function updateAssignmentScenarioStep(assignmentId, taskId, payload) {
 }
 
 
+export function validateAssignmentScenarioStep(assignmentId, taskId) {
+  return apiRequest(
+    `/case-assignments/${assignmentId}/steps/${taskId}/validate`,
+    { method: "POST" },
+    "No se ha podido validar automáticamente el paso"
+  );
+}
+
+
+export function recordAssignmentContextEvent(assignmentId, payload) {
+  return apiRequest(
+    `/case-assignments/${assignmentId}/events`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    },
+    "No se ha podido registrar la navegación del caso"
+  );
+}
+
+
 export function resetAssignmentScenario(assignmentId) {
   return apiRequest(
     `/case-assignments/${assignmentId}/reset-progress`,
