@@ -156,6 +156,7 @@ export default function MailWorkspace({ onClose }) {
   const [composer, setComposer] = useState(null);
   const requestSequence = useRef(0);
 
+  const mailboxId = mailbox?.id;
   const selectedMessage = messages.find((message) => message.id === selectedId) || null;
 
   useEffect(() => {
@@ -167,23 +168,23 @@ export default function MailWorkspace({ onClose }) {
     window.dispatchEvent(new Event("aulanomina-mail-stats-refresh"));
   }, []);
 
-  const loadStats = useCallback(async (mailboxId) => {
-    const nextStats = await fetchMailboxStats(mailboxId);
+  const loadStats = useCallback(async (currentMailboxId) => {
+    const nextStats = await fetchMailboxStats(currentMailboxId);
     setStats(nextStats || EMPTY_STATS);
     publishStatsRefresh();
     return nextStats;
   }, [publishStatsRefresh]);
 
   const refreshView = useCallback(async ({ silent = false, preferredId = null } = {}) => {
-    if (!mailbox?.id) return;
+    if (!mailboxId) return;
     const sequence = ++requestSequence.current;
     if (!silent) setListLoading(true);
     setError("");
 
     try {
       const [nextMessages, nextStats] = await Promise.all([
-        fetchMailboxThreads(mailbox.id, filtersForView(activeView, appliedSearch)),
-        fetchMailboxStats(mailbox.id),
+        fetchMailboxThreads(mailboxId, filtersForView(activeView, appliedSearch)),
+        fetchMailboxStats(mailboxId),
       ]);
       if (sequence !== requestSequence.current) return;
 
@@ -201,7 +202,7 @@ export default function MailWorkspace({ onClose }) {
     } finally {
       if (sequence === requestSequence.current && !silent) setListLoading(false);
     }
-  }, [activeView, appliedSearch, mailbox?.id, publishStatsRefresh]);
+  }, [activeView, appliedSearch, mailboxId, publishStatsRefresh]);
 
   const initializeMailbox = useCallback(async () => {
     setInitialLoading(true);
@@ -221,8 +222,8 @@ export default function MailWorkspace({ onClose }) {
   }, [initializeMailbox]);
 
   useEffect(() => {
-    if (mailbox?.id) refreshView();
-  }, [mailbox?.id, activeView, appliedSearch, refreshView]);
+    if (mailboxId) refreshView();
+  }, [mailboxId, activeView, appliedSearch, refreshView]);
 
   const selectMessage = async (message) => {
     setSelectedId(message.id);
@@ -238,7 +239,7 @@ export default function MailWorkspace({ onClose }) {
       setMessages((current) => current.map((item) => (
         item.id === updated.id ? updated : item
       )));
-      await loadStats(mailbox.id);
+      await loadStats(mailboxId);
     } catch (requestError) {
       setError(requestError.message || "No se ha podido marcar el mensaje como leído.");
       await refreshView({ silent: true, preferredId: message.id });
@@ -340,13 +341,20 @@ export default function MailWorkspace({ onClose }) {
     setError("");
     try {
       const demoMailbox = await resetDemoMailbox();
+      const [nextMessages, nextStats] = await Promise.all([
+        fetchMailboxThreads(demoMailbox.id, { folder: "inbox" }),
+        fetchMailboxStats(demoMailbox.id),
+      ]);
       setMailbox(demoMailbox);
+      setMessages(nextMessages);
+      setStats(nextStats || EMPTY_STATS);
+      setSelectedId(nextMessages[0]?.id || null);
       setNotice("Buzón de demostración restaurado.");
       setComposer(null);
       setActiveView("inbox");
       setSearchText("");
       setAppliedSearch("");
-      await loadStats(demoMailbox.id);
+      publishStatsRefresh();
     } catch (requestError) {
       setError(requestError.message || "No se ha podido restaurar el buzón.");
     } finally {
