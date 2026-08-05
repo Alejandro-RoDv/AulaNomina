@@ -32,6 +32,18 @@ CASE_ASSIGNMENT_COLUMNS = {
 EMAIL_THREAD_COLUMNS = {
     "case_assignment_id": "INTEGER REFERENCES case_assignments(id)",
     "case_task_id": "INTEGER REFERENCES case_tasks(id)",
+    "employee_id": "INTEGER REFERENCES employees(id)",
+    "related_entity_type": "VARCHAR",
+    "related_entity_id": "INTEGER",
+}
+
+EMAIL_MESSAGE_COLUMNS = {
+    "cc_address": "TEXT",
+}
+
+EMAIL_ATTACHMENT_COLUMNS = {
+    "content_text": "TEXT",
+    "linked_document_id": "INTEGER REFERENCES documents(id)",
 }
 
 
@@ -100,6 +112,10 @@ def add_missing_case_scenario_columns() -> None:
             _add_columns(connection, "case_assignments", CASE_ASSIGNMENT_COLUMNS)
         if "email_threads" in table_names:
             _add_columns(connection, "email_threads", EMAIL_THREAD_COLUMNS)
+        if "email_messages" in table_names:
+            _add_columns(connection, "email_messages", EMAIL_MESSAGE_COLUMNS)
+        if "email_attachments" in table_names:
+            _add_columns(connection, "email_attachments", EMAIL_ATTACHMENT_COLUMNS)
 
         if {"case_assignments", "case_tasks"}.issubset(table_names):
             _create_progress_table(connection)
