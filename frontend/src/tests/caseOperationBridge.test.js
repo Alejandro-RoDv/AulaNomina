@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import { applyFieCaseContext } from "../services/fieApi.js";
 import {
   ACTIVE_CASE_CONTEXT_KEY,
   LAST_CASE_FEEDBACK_KEY,
@@ -196,6 +197,34 @@ test("publica que una operación externa ha generado una comunicación", async (
 
   assert.equal(result.professionalMessageId, 120);
   assert.match(result.feedbackNotice, /nueva comunicación/i);
+});
+
+
+test("la bandeja FIE aplica trabajador y empresa del contexto activo", () => {
+  const previousWindow = global.window;
+  const storage = new MemoryStorage();
+  storage.setItem("aulanomina:active-case-context", JSON.stringify({
+    employeeId: 22,
+    companyId: 4,
+  }));
+  global.window = {
+    location: { search: "", hash: "#fie-inbox" },
+    localStorage: storage,
+  };
+
+  try {
+    assert.deepEqual(applyFieCaseContext({ status: "RECEIVED" }), {
+      company_id: 4,
+      employee_id: 22,
+      status: "RECEIVED",
+    });
+    assert.deepEqual(applyFieCaseContext({ employee_id: 99 }), {
+      company_id: 4,
+      employee_id: 99,
+    });
+  } finally {
+    global.window = previousWindow;
+  }
 });
 
 
