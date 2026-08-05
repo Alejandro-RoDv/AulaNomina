@@ -51,7 +51,8 @@ jobs:
           src/components/fie/FieRoute.jsx src/pages/FieInboxPage.jsx
           src/components/mail src/services/mailApi.js src/services/caseScenarioApi.js
           src/components/case-studies/CaseNavigationBridge.jsx src/utils/caseNavigation.js
-          src/tests/caseNavigation.test.js
+          src/utils/caseOperationBridge.js src/tests/caseNavigation.test.js
+          src/tests/caseOperationBridge.test.js
           src/pages/AffiliationRemittancesPage.jsx src/App.jsx
           src/components/reports/ReportsRoute.jsx src/pages/Model111Page.jsx src/services/model111Service.js
           src/components/model190/Model190DeclarationsPanel.jsx
