@@ -20,6 +20,21 @@ class CaseTaskProgressUpdate(BaseModel):
         return value
 
 
+class CaseContextEventCreate(BaseModel):
+    task_id: Optional[int] = None
+    event_type: str
+    action_code: Optional[str] = None
+    target: Optional[str] = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+    @field_validator("event_type")
+    @classmethod
+    def validate_event_type(cls, value):
+        if not value or not value.strip():
+            raise ValueError("El tipo de evento es obligatorio")
+        return value.strip()
+
+
 class CaseScenarioStepResponse(BaseModel):
     task_id: int
     title: str
@@ -65,3 +80,11 @@ class CaseScenarioResponse(BaseModel):
     started_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
     steps: list[CaseScenarioStepResponse] = Field(default_factory=list)
+
+
+class CaseStepValidationResponse(BaseModel):
+    passed: bool
+    manual_required: bool = False
+    message: str
+    checks: list[dict[str, Any]] = Field(default_factory=list)
+    scenario: CaseScenarioResponse
