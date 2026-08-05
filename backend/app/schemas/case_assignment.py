@@ -61,6 +61,10 @@ class CaseAssignmentResponse(CaseAssignmentBase):
     assignee_name: Optional[str] = None
     assignee_type: str = "none"
     assigned_at: datetime
+    started_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None
+    current_task_order: int = 1
+    completion_percentage: int = 0
     created_at: datetime
 
     class Config:
