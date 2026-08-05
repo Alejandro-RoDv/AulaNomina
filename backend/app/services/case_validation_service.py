@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import datetime
 from typing import Any
 import unicodedata
 
@@ -20,7 +20,6 @@ from app.models.social_security_registration import SocialSecurityRegistration
 from app.schemas.case_scenario import CaseContextEventCreate, CaseTaskProgressUpdate
 from app.services.case_scenario_service import (
     CaseScenarioError,
-    build_assignment_scenario,
     ensure_assignment_progress,
     update_assignment_step,
 )
@@ -123,7 +122,11 @@ def _employee_exists(db: Session, assignment: CaseAssignment, rule: dict[str, An
     return _check(
         "employee_exists",
         passed=employee is not None and employee.is_active,
-        message="La persona está dada de alta y activa." if employee and employee.is_active else "La persona todavía no está creada como trabajadora activa.",
+        message=(
+            "La persona está dada de alta y activa."
+            if employee and employee.is_active
+            else "La persona todavía no está creada como trabajadora activa."
+        ),
         evidence={"employee_id": employee.id if employee else None},
     )
 
@@ -159,7 +162,11 @@ def _active_contract(db: Session, assignment: CaseAssignment, rule: dict[str, An
     return _check(
         "active_contract",
         passed=match is not None,
-        message="Existe un contrato activo con la modalidad esperada." if match else "No se ha encontrado el contrato activo requerido.",
+        message=(
+            "Existe un contrato activo con la modalidad esperada."
+            if match
+            else "No se ha encontrado el contrato activo requerido."
+        ),
         evidence={"employee_id": employee.id, "contract_id": match.id if match else None},
     )
 
@@ -185,7 +192,11 @@ def _affiliation_prepared(db: Session, assignment: CaseAssignment, rule: dict[st
     return _check(
         "affiliation_prepared",
         passed=passed,
-        message="El movimiento de alta está preparado con fecha coherente." if passed else "No existe todavía una preparación de alta válida para la persona del caso.",
+        message=(
+            "El movimiento de alta está preparado con fecha coherente."
+            if passed
+            else "No existe todavía una preparación de alta válida para la persona del caso."
+        ),
         evidence={"registration_id": registration.id if registration else None},
     )
 
@@ -209,7 +220,11 @@ def _review_fie(db: Session, assignment: CaseAssignment, rule: dict[str, Any]) -
     return _check(
         "review_fie",
         passed=match is not None,
-        message="La comunicación FIE ha sido abierta y revisada." if match else "La comunicación FIE aún no consta como revisada.",
+        message=(
+            "La comunicación FIE ha sido abierta y revisada."
+            if match
+            else "La comunicación FIE aún no consta como revisada."
+        ),
         evidence={"communication_id": match.id if match else None},
     )
 
@@ -233,7 +248,11 @@ def _reconcile_fie(db: Session, assignment: CaseAssignment, rule: dict[str, Any]
     return _check(
         "reconcile_fie",
         passed=match is not None,
-        message="La comunicación FIE está conciliada con una incidencia." if match else "La comunicación FIE todavía no está conciliada.",
+        message=(
+            "La comunicación FIE está conciliada con una incidencia."
+            if match
+            else "La comunicación FIE todavía no está conciliada."
+        ),
         evidence={"communication_id": match.id if match else None, "incident_id": match.incident_id if match else None},
     )
 
@@ -262,7 +281,11 @@ def _payroll_recalculated(db: Session, assignment: CaseAssignment, rule: dict[st
     return _check(
         "payroll_recalculated",
         passed=match is not None,
-        message="Existe una nómina recalculada para el periodo del caso." if match else "No se ha encontrado una nómina recalculada para el periodo requerido.",
+        message=(
+            "Existe una nómina recalculada para el periodo del caso."
+            if match
+            else "No se ha encontrado una nómina recalculada para el periodo requerido."
+        ),
         evidence={"payroll_id": match.id if match else None},
     )
 
@@ -281,7 +304,11 @@ def _seniority_date_checked(db: Session, assignment: CaseAssignment, rule: dict[
     return _check(
         "seniority_date_checked",
         passed=passed,
-        message="El contrato contiene una fecha de antigüedad revisable." if passed else "No consta una fecha de antigüedad en el contrato activo.",
+        message=(
+            "El contrato contiene una fecha de antigüedad revisable."
+            if passed
+            else "No consta una fecha de antigüedad en el contrato activo."
+        ),
         evidence={"contract_id": contract.id if contract else None},
     )
 
@@ -312,7 +339,11 @@ def _payroll_concept_exists(db: Session, assignment: CaseAssignment, rule: dict[
     return _check(
         "payroll_concept_exists",
         passed=match is not None,
-        message="El complemento salarial requerido está activo en el contrato." if match else "No se ha encontrado el complemento salarial requerido.",
+        message=(
+            "El complemento salarial requerido está activo en el contrato."
+            if match
+            else "No se ha encontrado el complemento salarial requerido."
+        ),
         evidence={"contract_concept_id": match.id if match else None},
     )
 
@@ -334,7 +365,11 @@ def _reply_mail(db: Session, assignment: CaseAssignment, rule: dict[str, Any]) -
     return _check(
         "reply_mail",
         passed=message is not None,
-        message="Se ha enviado una respuesta dentro del hilo del caso." if message else "Todavía no se ha enviado una respuesta al hilo.",
+        message=(
+            "Se ha enviado una respuesta dentro del hilo del caso."
+            if message
+            else "Todavía no se ha enviado una respuesta al hilo."
+        ),
         evidence={"message_id": message.id if message else None},
     )
 
@@ -384,37 +419,86 @@ def _task_for_assignment(assignment: CaseAssignment, task_id: int | None) -> Cas
     return task
 
 
-def record_assignment_event(db: Session, assignment_id: int, payload: CaseContextEventCreate) -> dict:
+def _feedback_text(
+    task: CaseTask,
+    payload: CaseContextEventCreate,
+    validation: dict[str, Any] | None,
+) -> str:
+    action_label = payload.response_summary or payload.action_code or task.title
+    if payload.operation_status == "error":
+        return (
+            f"La operación «{action_label}» no se ha completado correctamente. "
+            "El intento se ha registrado en el caso. Revisa el mensaje mostrado por el módulo, corrige los datos y vuelve a intentarlo."
+        )
+    if validation and validation["passed"]:
+        return (
+            f"La operación «{action_label}» se ha comprobado correctamente. "
+            f"El paso «{task.title}» queda completado y el caso avanza al siguiente punto."
+        )
+    if validation and validation["manual_required"]:
+        return (
+            f"La operación «{action_label}» ha quedado registrada. "
+            "Este paso todavía requiere confirmación manual porque no existe una comprobación automática suficientemente fiable."
+        )
+    failed_checks = [item["message"] for item in (validation or {}).get("checks", []) if not item["passed"]]
+    detail = " ".join(failed_checks[:2])
+    return (
+        f"La operación «{action_label}» se ha ejecutado, pero el paso «{task.title}» aún no cumple todas las condiciones. "
+        f"{detail or 'Revisa los datos del módulo relacionado y vuelve a validar.'}"
+    )
+
+
+def _create_feedback_message(
+    db: Session,
+    assignment_id: int,
+    task: CaseTask,
+    payload: CaseContextEventCreate,
+    validation: dict[str, Any] | None,
+) -> int | None:
     assignment = ensure_assignment_progress(db, assignment_id)
-    task = _task_for_assignment(assignment, payload.task_id)
-    progress = next((entry for entry in assignment.progress_entries if entry.task_id == task.id), None)
-    if not progress:
-        raise CaseScenarioError("Progreso de paso no encontrado", code="PROGRESS_NOT_FOUND", status_code=404)
+    thread = next((item for item in assignment.email_threads if item.case_task_id == task.id), None)
+    if thread is None and assignment.email_threads:
+        thread = assignment.email_threads[0]
+    if thread is None:
+        return None
 
-    validation_result = dict(progress.validation_result or {})
-    events = list(validation_result.get("events") or [])
-    events.append(
-        {
-            "event_type": payload.event_type,
-            "action_code": payload.action_code,
-            "target": payload.target,
-            "metadata": payload.metadata,
-            "recorded_at": datetime.utcnow().isoformat(),
-        }
-    )
-    validation_result["events"] = events[-50:]
+    event_id = str((payload.metadata or {}).get("event_id") or "").strip()
+    marker = f"case-event:{event_id}" if event_id else None
+    if marker:
+        existing = (
+            db.query(EmailMessage)
+            .filter(
+                EmailMessage.thread_id == thread.id,
+                EmailMessage.direction == "system",
+                EmailMessage.message_type == "automatic",
+                EmailMessage.body_html == marker,
+            )
+            .first()
+        )
+        if existing:
+            return existing.id
 
-    target_status = "in_progress" if progress.status == "pending" else progress.status
-    return update_assignment_step(
-        db,
-        assignment_id,
-        task.id,
-        CaseTaskProgressUpdate(
-            status=target_status,
-            student_notes=progress.student_notes,
-            validation_result=validation_result,
-        ),
+    body = _feedback_text(task, payload, validation)
+    now = datetime.utcnow()
+    message = EmailMessage(
+        thread_id=thread.id,
+        sender_name="Tutor automático · AulaNomina",
+        sender_address="tutor@aulanomina.local",
+        recipient_name=thread.mailbox.display_name if thread.mailbox else "Alumno",
+        recipient_address=thread.mailbox.address if thread.mailbox else "alumno@aulanomina.local",
+        body_html=marker,
+        body_text=body,
+        sent_at=now,
+        direction="system",
+        message_type="automatic",
     )
+    db.add(message)
+    db.flush()
+    thread.preview = body[:220]
+    thread.is_read = False
+    thread.updated_at = now
+    db.commit()
+    return message.id
 
 
 def validate_assignment_step(db: Session, assignment_id: int, task_id: int) -> dict[str, Any]:
@@ -478,5 +562,66 @@ def validate_assignment_step(db: Session, assignment_id: int, task_id: int) -> d
         "manual_required": manual_required,
         "message": message,
         "checks": checks,
+        "scenario": scenario,
+    }
+
+
+def record_assignment_event(db: Session, assignment_id: int, payload: CaseContextEventCreate) -> dict:
+    assignment = ensure_assignment_progress(db, assignment_id)
+    task = _task_for_assignment(assignment, payload.task_id)
+    progress = next((entry for entry in assignment.progress_entries if entry.task_id == task.id), None)
+    if not progress:
+        raise CaseScenarioError("Progreso de paso no encontrado", code="PROGRESS_NOT_FOUND", status_code=404)
+
+    validation_result = dict(progress.validation_result or {})
+    events = list(validation_result.get("events") or [])
+    events.append(
+        {
+            "event_type": payload.event_type,
+            "action_code": payload.action_code,
+            "target": payload.target,
+            "operation_status": payload.operation_status,
+            "response_summary": payload.response_summary,
+            "metadata": payload.metadata,
+            "recorded_at": datetime.utcnow().isoformat(),
+        }
+    )
+    validation_result["events"] = events[-50:]
+
+    if payload.operation_status == "error":
+        target_status = "failed"
+    else:
+        target_status = "in_progress" if progress.status in {"pending", "failed"} else progress.status
+
+    scenario = update_assignment_step(
+        db,
+        assignment_id,
+        task.id,
+        CaseTaskProgressUpdate(
+            status=target_status,
+            student_notes=progress.student_notes,
+            validation_result=validation_result,
+        ),
+    )
+
+    validation = None
+    if payload.operation_status == "success" and payload.auto_validate:
+        validation = validate_assignment_step(db, assignment_id, task.id)
+        scenario = validation["scenario"]
+
+    feedback_message_id = None
+    if payload.operation_status in {"success", "error"}:
+        feedback_message_id = _create_feedback_message(
+            db,
+            assignment_id,
+            task,
+            payload,
+            validation,
+        )
+
+    return {
+        "event_recorded": True,
+        "feedback_message_id": feedback_message_id,
+        "validation": validation,
         "scenario": scenario,
     }
