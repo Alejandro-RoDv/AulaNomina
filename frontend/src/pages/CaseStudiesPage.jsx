@@ -8,6 +8,7 @@ import {
   fetchCaseStudies,
   seedDemoCaseStudies,
   updateCaseStudy,
+  updateCaseTask,
 } from "../services/caseStudyApi";
 
 const initialCaseForm = {
@@ -25,6 +26,14 @@ const initialTaskForm = {
   expected_result: "",
   task_order: 1,
   is_required: true,
+};
+
+const initialFeedbackForm = {
+  criteria: "",
+  success: "",
+  pending: "",
+  error: "",
+  manual: "",
 };
 
 const difficultyLabels = {
@@ -46,6 +55,12 @@ const moduleLabels = {
   incidents: "Incidencias",
   payrolls: "Nóminas",
   companies: "Empresas / centros",
+  affiliations: "Afiliación",
+  fie: "FIE",
+  siltra: "SILTRA",
+  model111: "Modelo 111",
+  model190: "Modelo 190",
+  regularizations: "Regularizaciones",
   general: "General",
 };
 
@@ -72,11 +87,38 @@ function buildTaskPayload(form) {
   };
 }
 
+function feedbackToForm(config = {}) {
+  return {
+    criteria: Array.isArray(config.criteria) ? config.criteria.join("\n") : "",
+    success: config.success || "",
+    pending: config.pending || "",
+    error: config.error || "",
+    manual: config.manual || "",
+  };
+}
+
+function feedbackToPayload(form) {
+  return {
+    criteria: form.criteria.split("\n").map((item) => item.trim()).filter(Boolean),
+    success: form.success.trim(),
+    pending: form.pending.trim(),
+    error: form.error.trim(),
+    manual: form.manual.trim(),
+  };
+}
+
+function hasFeedbackConfig(task) {
+  const config = task.feedback_config || {};
+  return Boolean((config.criteria || []).length || config.success || config.pending || config.error || config.manual);
+}
+
 export default function CaseStudiesPage() {
   const [cases, setCases] = useState([]);
   const [selectedCaseId, setSelectedCaseId] = useState(null);
   const [caseForm, setCaseForm] = useState(initialCaseForm);
   const [taskForm, setTaskForm] = useState(initialTaskForm);
+  const [feedbackTaskId, setFeedbackTaskId] = useState(null);
+  const [feedbackForm, setFeedbackForm] = useState(initialFeedbackForm);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState("");
@@ -112,6 +154,11 @@ export default function CaseStudiesPage() {
   const handleTaskChange = (event) => {
     const { name, value, type, checked } = event.target;
     setTaskForm((prev) => ({ ...prev, [name]: type === "checkbox" ? checked : value }));
+  };
+
+  const handleFeedbackChange = (event) => {
+    const { name, value } = event.target;
+    setFeedbackForm((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleCreateCase = async (event) => {
@@ -181,6 +228,35 @@ export default function CaseStudiesPage() {
     }
   };
 
+  const handleOpenFeedback = (task) => {
+    if (Number(feedbackTaskId) === Number(task.id)) {
+      setFeedbackTaskId(null);
+      setFeedbackForm(initialFeedbackForm);
+      return;
+    }
+    setFeedbackTaskId(task.id);
+    setFeedbackForm(feedbackToForm(task.feedback_config));
+  };
+
+  const handleSaveFeedback = async (event, taskId) => {
+    event.preventDefault();
+    setError("");
+    setMessage("");
+
+    try {
+      setSubmitting(true);
+      await updateCaseTask(taskId, { feedback_config: feedbackToPayload(feedbackForm) });
+      setMessage("Configuración del tutor guardada");
+      setFeedbackTaskId(null);
+      setFeedbackForm(initialFeedbackForm);
+      await loadCases();
+    } catch (err) {
+      setError(err.message || "Error al guardar la configuración del tutor");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const handleDeleteCase = async (caseStudyId) => {
     if (!window.confirm("¿Eliminar este caso práctico y sus tareas?")) return;
 
@@ -204,6 +280,7 @@ export default function CaseStudiesPage() {
     try {
       await deleteCaseTask(taskId);
       setMessage("Tarea eliminada");
+      if (Number(feedbackTaskId) === Number(taskId)) setFeedbackTaskId(null);
       await loadCases();
     } catch (err) {
       setError(err.message || "Error al eliminar tarea");
@@ -286,13 +363,35 @@ export default function CaseStudiesPage() {
                     <div>
                       <div style={styles.taskTopLine}>
                         <strong>{task.task_order}. {task.title}</strong>
-                        <span style={styles.moduleBadge}>{moduleLabels[task.module]}</span>
+                        <span style={styles.moduleBadge}>{moduleLabels[task.module] || task.module}</span>
                         {task.is_required && <span style={styles.requiredBadge}>Obligatoria</span>}
+                        {hasFeedbackConfig(task) && <span style={styles.tutorBadge}>Tutor personalizado</span>}
                       </div>
                       <p style={styles.taskDescription}>{task.description || "Sin descripción."}</p>
                       {task.expected_result && <p style={styles.expected}>Resultado esperado: {task.expected_result}</p>}
                     </div>
-                    <button type="button" style={styles.linkButton} onClick={() => handleDeleteTask(task.id)}>Quitar</button>
+                    <div style={styles.taskActions}>
+                      <button type="button" style={styles.smallButton} onClick={() => handleOpenFeedback(task)}>{Number(feedbackTaskId) === Number(task.id) ? "Cerrar" : "Tutor"}</button>
+                      <button type="button" style={styles.linkButton} onClick={() => handleDeleteTask(task.id)}>Quitar</button>
+                    </div>
+
+                    {Number(feedbackTaskId) === Number(task.id) && (
+                      <form style={styles.feedbackForm} onSubmit={(event) => handleSaveFeedback(event, task.id)}>
+                        <div>
+                          <h4 style={styles.feedbackTitle}>Configuración avanzada del tutor</h4>
+                          <p style={styles.feedbackHelp}>Opcional. No asigna notas ni crea una rúbrica académica completa; solo conserva criterios internos y personaliza las respuestas automáticas.</p>
+                        </div>
+                        <label style={styles.field}>Criterios de revisión, uno por línea<textarea name="criteria" value={feedbackForm.criteria} onChange={handleFeedbackChange} rows={3} style={styles.textarea} placeholder="Trabajador correcto\nFecha de efectos correcta\nMovimiento guardado" /></label>
+                        <label style={styles.field}>Mensaje al completar<textarea name="success" value={feedbackForm.success} onChange={handleFeedbackChange} rows={2} style={styles.textarea} placeholder="El paso {paso} se ha completado correctamente." /></label>
+                        <label style={styles.field}>Mensaje si quedan condiciones pendientes<textarea name="pending" value={feedbackForm.pending} onChange={handleFeedbackChange} rows={2} style={styles.textarea} placeholder="La operación {accion} se ha guardado, pero falta revisar: {detalle}" /></label>
+                        <label style={styles.field}>Mensaje si la operación falla<textarea name="error" value={feedbackForm.error} onChange={handleFeedbackChange} rows={2} style={styles.textarea} placeholder="La operación {accion} no se ha completado. Revisa los datos." /></label>
+                        <label style={styles.field}>Mensaje si requiere confirmación manual<textarea name="manual" value={feedbackForm.manual} onChange={handleFeedbackChange} rows={2} style={styles.textarea} placeholder="La operación se ha registrado y queda pendiente de revisión." /></label>
+                        <div style={styles.feedbackActions}>
+                          <button type="submit" style={styles.primaryButton} disabled={submitting}>Guardar configuración</button>
+                          <button type="button" style={styles.secondaryButton} onClick={() => setFeedbackForm(initialFeedbackForm)} disabled={submitting}>Vaciar</button>
+                        </div>
+                      </form>
+                    )}
                   </article>
                 ))}
               </div>
@@ -334,8 +433,9 @@ const styles = {
   textarea: { border: "2px solid #111111", padding: "9px 10px", fontSize: "14px", backgroundColor: "#ffffff", resize: "vertical" },
   primaryButton: { border: "2px solid #111111", backgroundColor: "#111111", color: "#ffffff", padding: "10px 14px", fontWeight: 900, cursor: "pointer" },
   secondaryButton: { border: "2px solid #111111", backgroundColor: "#f8f3b5", color: "#111111", padding: "9px 12px", fontWeight: 900, cursor: "pointer" },
+  smallButton: { border: "2px solid #111111", backgroundColor: "#ffffff", color: "#111111", padding: "6px 8px", fontWeight: 900, cursor: "pointer" },
   dangerButton: { border: "2px solid #991b1b", backgroundColor: "#ffffff", color: "#991b1b", padding: "8px 10px", fontWeight: 900, cursor: "pointer" },
-  linkButton: { border: "none", backgroundColor: "transparent", color: "#991b1b", fontWeight: 900, cursor: "pointer", alignSelf: "center" },
+  linkButton: { border: "none", backgroundColor: "transparent", color: "#991b1b", fontWeight: 900, cursor: "pointer" },
   success: { border: "2px solid #15803d", backgroundColor: "#dcfce7", color: "#14532d", padding: "10px 12px", fontWeight: 800 },
   error: { border: "2px solid #991b1b", backgroundColor: "#fee2e2", color: "#7f1d1d", padding: "10px 12px", fontWeight: 800 },
   loading: { fontWeight: 800 },
@@ -349,13 +449,19 @@ const styles = {
   badges: { display: "flex", gap: "8px", flexWrap: "wrap" },
   badge: { border: "2px solid #111111", backgroundColor: "#f8f3b5", padding: "4px 8px", fontSize: "12px", fontWeight: 900 },
   taskList: { display: "flex", flexDirection: "column", gap: "10px", marginBottom: "18px" },
-  taskItem: { display: "grid", gridTemplateColumns: "1fr 90px", gap: "12px", border: "1px solid #d1d5db", padding: "12px", backgroundColor: "#f9fafb" },
+  taskItem: { display: "grid", gridTemplateColumns: "1fr 100px", gap: "12px", border: "1px solid #d1d5db", padding: "12px", backgroundColor: "#f9fafb" },
+  taskActions: { display: "flex", flexDirection: "column", gap: "7px", alignItems: "stretch" },
   taskTopLine: { display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" },
   taskDescription: { margin: "6px 0", color: "#374151", fontSize: "14px" },
   expected: { margin: 0, color: "#111111", fontSize: "13px", fontWeight: 800 },
   moduleBadge: { backgroundColor: "#111111", color: "#ffffff", padding: "3px 7px", fontSize: "11px", fontWeight: 900 },
   requiredBadge: { border: "1px solid #111111", padding: "2px 6px", fontSize: "11px", fontWeight: 900 },
+  tutorBadge: { border: "1px solid #7c3aed", color: "#5b21b6", backgroundColor: "#ede9fe", padding: "2px 6px", fontSize: "11px", fontWeight: 900 },
   smallSelect: { border: "2px solid #111111", padding: "7px", fontWeight: 800, backgroundColor: "#ffffff" },
   taskForm: { borderTop: "2px solid #111111", paddingTop: "16px" },
   sectionTitle: { margin: "0 0 12px", fontSize: "18px", fontWeight: 900 },
+  feedbackForm: { gridColumn: "1 / -1", borderTop: "1px solid #9ca3af", paddingTop: "12px" },
+  feedbackTitle: { margin: "0 0 4px", fontSize: "16px", fontWeight: 900 },
+  feedbackHelp: { margin: "0 0 12px", color: "#4b5563", fontSize: "13px", lineHeight: 1.45 },
+  feedbackActions: { display: "flex", gap: "8px", flexWrap: "wrap" },
 };
