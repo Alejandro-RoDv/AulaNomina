@@ -1,4 +1,4 @@
-# Split 40 — Navegación contextual y validación automática
+# Split 40 — Navegación contextual, validación y tutor automático
 
 ## Navegación desde el correo
 
@@ -21,7 +21,7 @@ Se incorpora el endpoint:
 
 El motor comprueba datos reales almacenados en PostgreSQL o SQLite y puede completar automáticamente el paso cuando todas sus reglas se cumplen.
 
-Reglas cubiertas en esta entrega:
+Reglas cubiertas:
 
 - trabajador activo existente;
 - incidencia laboral existente por trabajador, tipo y fecha;
@@ -36,22 +36,66 @@ Reglas cubiertas en esta entrega:
 
 Cuando una acción todavía no dispone de comprobación fiable, el motor devuelve `manual_required=true` y mantiene disponible la confirmación manual. No se considera completado un paso únicamente por haber abierto una pantalla.
 
-## Registro de eventos
+## Registro automático de operaciones
 
-Se incorpora el endpoint:
+El cliente HTTP central de AulaNomina detecta operaciones mutables realizadas mientras existe un contexto de caso activo. La instrumentación no se añade formulario a formulario, sino en el punto común de acceso a la API.
+
+Operaciones cubiertas inicialmente:
+
+- alta de trabajador;
+- creación y actualización de contrato;
+- creación de incidencia;
+- recálculo o actualización de nómina;
+- alta o modificación de conceptos permanentes;
+- aplicación de regularizaciones;
+- preparación de movimientos de afiliación;
+- lectura y conciliación de comunicaciones FIE;
+- actualización de documentación.
+
+El puente solo registra la operación cuando coincide con la acción esperada del paso activo. De esta forma, una llamada auxiliar realizada durante un alta contractual no completa por error otro paso del caso.
+
+Para cada operación se envía al endpoint:
 
 - `POST /case-assignments/{assignment_id}/events`
 
-El frontend lo utiliza para registrar la apertura de módulos desde el correo. Los eventos quedan asociados al progreso del paso y conservan tipo, acción, destino, metadatos y fecha.
+El evento conserva:
+
+- acción y módulo;
+- método y ruta de API;
+- resultado correcto o erróneo;
+- código HTTP;
+- identificador del recurso creado o actualizado;
+- escenario y paso activos;
+- identificador único para evitar respuestas duplicadas.
+
+## Tutor automático por correo
+
+Cuando una operación del ERP termina, el backend evalúa automáticamente el paso y genera una respuesta dentro del hilo del caso.
+
+El remitente simulado es:
+
+- `Tutor automático · AulaNomina <tutor@aulanomina.local>`
+
+La respuesta cambia según el resultado:
+
+- **correcto:** confirma la comprobación, completa el paso y activa el siguiente;
+- **operación realizada pero condición no cumplida:** explica qué comprobaciones siguen pendientes;
+- **regla no automatizable:** informa de que debe usarse la confirmación manual;
+- **error de API:** registra el intento, marca el paso con error y solicita corregir los datos.
+
+El mensaje automático deja el hilo como no leído. La pestaña del correo recibe el cambio mediante almacenamiento compartido del navegador, actualiza el progreso y vuelve a cargar la conversación sin que el alumno tenga que refrescar manualmente.
 
 ## Interfaz
 
-El paso actual muestra ahora:
+El paso actual muestra:
 
 - botón para abrir el módulo real;
 - botón **Validar automáticamente**;
 - resultado de cada comprobación;
 - confirmación manual como alternativa explícita;
-- registro de error y reapertura del paso.
+- registro de error y reapertura del paso;
+- sincronización del resultado producido desde otra pestaña del ERP.
 
-El siguiente bloque debe instrumentar las operaciones internas de los módulos para registrar eventos de creación, modificación, cálculo, conciliación y presentación sin depender de una validación solicitada por el alumno.
+## Siguiente bloque
+
+Queda pendiente adaptar el panel docente para consultar cronología, intentos, errores, mensajes automáticos y tiempo empleado por alumno o grupo, además de construir el caso integral de IT, sustitución, nómina y FIE.
