@@ -149,6 +149,26 @@ La pestaña de correo escucha los cambios producidos desde la pestaña ERP y act
 - `POST /case-assignments/{assignment_id}/steps/{task_id}/validate`
 - `POST /case-assignments/{assignment_id}/events`
 
+## Sexta entrega: configuración mínima del tutor
+
+Cada `CaseTask` puede guardar una configuración opcional y compacta en `feedback_config`:
+
+- criterios internos de revisión;
+- mensaje cuando la comprobación es correcta;
+- mensaje cuando todavía quedan condiciones pendientes;
+- mensaje cuando la operación del ERP falla;
+- mensaje cuando el paso requiere confirmación manual.
+
+Los mensajes aceptan tres sustituciones sencillas:
+
+- `{accion}`: operación realizada;
+- `{paso}`: título del paso;
+- `{detalle}`: primeras condiciones de validación pendientes.
+
+La configuración se edita desde un bloque avanzado dentro de la tarea existente. No se ha creado otra pantalla docente ni un sistema de rúbricas separado.
+
+Este alcance queda deliberadamente limitado. No incluye puntuaciones, pesos, calificaciones, libro de notas, competencias ni automatización académica. Los criterios se conservan como referencia interna para una futura revisión del enfoque docente.
+
 ## Decisiones de interfaz
 
 La aplicación de correo ocupa toda la pestaña para mantener una separación clara respecto al ERP principal. Conserva un patrón reconocible de tres columnas:
@@ -159,10 +179,14 @@ La aplicación de correo ocupa toda la pestaña para mantener una separación cl
 
 La identidad visual utiliza el azul del icono de correo y la marca AulaNomina, evitando copiar logos, nombres o recursos de Microsoft Outlook.
 
-## Siguientes pasos
+## Alcance congelado de docencia
 
-1. Adaptar el panel docente a la cronología de pasos, intentos, errores y tiempos.
-2. Añadir respuestas configurables por el profesor para cada escenario y resultado.
-3. Ampliar la validación automática a documentos, SILTRA y modelos fiscales.
-4. Construir el caso demo integral de baja médica, sustitución, nómina y discrepancia FIE.
-5. Añadir una vista de revisión y corrección del ejercicio entregado.
+El módulo docente queda estabilizado en su estado actual. Durante el MVP solo se realizarán correcciones necesarias para que los casos demo y el correo funcionen, sin ampliar el producto hacia un LMS.
+
+Los siguientes desarrollos deben volver a priorizar:
+
+1. procesos ERP y ficheros laborales pendientes;
+2. simuladores SILTRA y AEAT;
+3. caso demo integral de baja médica, sustitución, nómina y discrepancia FIE;
+4. creación de nuevos hilos, adjuntos simulados y navegación efectiva desde el correo;
+5. validaciones de documentos, SILTRA y modelos fiscales únicamente cuando aporten valor a la demostración comercial.
