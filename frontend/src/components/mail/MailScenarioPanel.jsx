@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
   CheckCircle2,
+  ChevronDown,
+  ChevronUp,
   ExternalLink,
   LoaderCircle,
   Play,
@@ -24,10 +26,10 @@ import "./mailScenario.css";
 
 
 const ASSIGNMENT_STATUS_LABELS = {
-  assigned: "Pendiente de iniciar",
+  assigned: "Sin iniciar",
   in_progress: "En curso",
-  submitted: "Entregado",
-  reviewed: "Corregido",
+  submitted: "Completado",
+  reviewed: "Revisado",
   approved: "Aprobado",
   needs_revision: "Requiere revisión",
 };
@@ -63,6 +65,7 @@ export default function MailScenarioPanel({ message, onScenarioChanged }) {
   const [error, setError] = useState("");
   const [validationNotice, setValidationNotice] = useState("");
   const [notes, setNotes] = useState({});
+  const [expanded, setExpanded] = useState(false);
 
   const loadScenario = useCallback(async () => {
     if (!assignmentId) {
@@ -77,7 +80,7 @@ export default function MailScenarioPanel({ message, onScenarioChanged }) {
       setScenario(data);
     } catch (requestError) {
       setScenario(null);
-      setError(requestError.message || "No se ha podido cargar el caso guiado.");
+      setError(requestError.message || "No se ha podido cargar la guía del caso.");
     } finally {
       setLoading(false);
     }
@@ -88,6 +91,7 @@ export default function MailScenarioPanel({ message, onScenarioChanged }) {
     setNotes({});
     setError("");
     setValidationNotice("");
+    setExpanded(false);
     loadScenario();
   }, [loadScenario]);
 
@@ -99,14 +103,14 @@ export default function MailScenarioPanel({ message, onScenarioChanged }) {
       if (detail.scenario) setScenario(detail.scenario);
       if (detail.validation?.message) setValidationNotice(detail.validation.message);
       else if (detail.operationStatus === "error") {
-        setValidationNotice("El tutor automático ha registrado el error y ha enviado una respuesta al hilo.");
+        setValidationNotice("La operación se ha registrado con error. Revisa el último mensaje del hilo.");
       }
       if (detail.scenario && onScenarioChanged) {
         void onScenarioChanged(
           detail.scenario,
           detail.operationStatus === "error"
-            ? "Operación registrada con error. Revisa la respuesta automática."
-            : "Operación comprobada por el tutor automático."
+            ? "Operación registrada con error. Revisa la respuesta recibida."
+            : "La operación del caso se ha comprobado."
         );
       }
     };
@@ -148,9 +152,9 @@ export default function MailScenarioPanel({ message, onScenarioChanged }) {
     setValidationNotice("");
     try {
       const nextScenario = await startAssignmentScenario(assignmentId);
-      await publishChange(nextScenario, "Caso iniciado. El primer paso ya está en curso.");
+      await publishChange(nextScenario, "Seguimiento iniciado. Ya puedes trabajar sobre el primer punto.");
     } catch (requestError) {
-      setError(requestError.message || "No se ha podido iniciar el caso.");
+      setError(requestError.message || "No se ha podido iniciar el seguimiento.");
     } finally {
       setBusy("");
     }
@@ -176,11 +180,11 @@ export default function MailScenarioPanel({ message, onScenarioChanged }) {
       await publishChange(
         nextScenario,
         status === "completed"
-          ? "Paso confirmado manualmente."
-          : "Se ha registrado una incidencia en el paso."
+          ? "Punto confirmado manualmente."
+          : "Se ha registrado una incidencia en este punto."
       );
     } catch (requestError) {
-      setError(requestError.message || "No se ha podido actualizar el paso.");
+      setError(requestError.message || "No se ha podido actualizar la guía.");
     } finally {
       setBusy("");
     }
@@ -234,10 +238,10 @@ export default function MailScenarioPanel({ message, onScenarioChanged }) {
       setValidationNotice(result.message);
       await publishChange(
         result.scenario,
-        result.passed ? "Paso validado automáticamente." : "Validación automática ejecutada."
+        result.passed ? "Punto comprobado automáticamente." : "Comprobación ejecutada."
       );
     } catch (requestError) {
-      setError(requestError.message || "No se ha podido validar automáticamente el paso.");
+      setError(requestError.message || "No se ha podido comprobar automáticamente este punto.");
     } finally {
       setBusy("");
     }
@@ -245,7 +249,7 @@ export default function MailScenarioPanel({ message, onScenarioChanged }) {
 
   const resetProgress = async () => {
     if (!assignmentId) return;
-    if (!window.confirm("Se reiniciará el progreso de este caso. ¿Continuar?")) return;
+    if (!window.confirm("Se reiniciará el seguimiento de este caso. ¿Continuar?")) return;
 
     setBusy("reset");
     setError("");
@@ -253,9 +257,9 @@ export default function MailScenarioPanel({ message, onScenarioChanged }) {
     try {
       const nextScenario = await resetAssignmentScenario(assignmentId);
       setNotes({});
-      await publishChange(nextScenario, "Progreso del caso reiniciado.");
+      await publishChange(nextScenario, "Seguimiento del caso reiniciado.");
     } catch (requestError) {
-      setError(requestError.message || "No se ha podido reiniciar el caso.");
+      setError(requestError.message || "No se ha podido reiniciar el seguimiento.");
     } finally {
       setBusy("");
     }
@@ -266,7 +270,7 @@ export default function MailScenarioPanel({ message, onScenarioChanged }) {
   if (loading) {
     return (
       <div className="mail-scenario-loading">
-        <LoaderCircle className="mail-spinner" size={17} /> Cargando caso práctico guiado...
+        <LoaderCircle className="mail-spinner" size={17} /> Cargando guía opcional...
       </div>
     );
   }
@@ -284,34 +288,54 @@ export default function MailScenarioPanel({ message, onScenarioChanged }) {
 
   const isLocked = ["reviewed", "approved"].includes(scenario.assignment_status);
   const isFinished = scenario.completion_percentage === 100;
+  const canAct = !isLocked && !isFinished && currentStep && scenario.assignment_status !== "assigned";
+  const automaticChecks = currentStep?.validation_result?.mode === "automatic"
+    ? currentStep.validation_result.checks || []
+    : [];
 
   return (
-    <section className="mail-scenario-panel" aria-label="Progreso del caso práctico">
+    <section className={`mail-scenario-panel ${expanded ? "is-expanded" : ""}`} aria-label="Guía opcional del caso">
       <header className="mail-scenario-panel__header">
-        <div>
-          <span className="mail-scenario-panel__eyebrow">Caso práctico guiado</span>
-          <h3>{scenario.title}</h3>
-          {scenario.description && <p>{scenario.description}</p>}
+        <div className="mail-scenario-panel__main">
+          <span className="mail-scenario-panel__eyebrow">Guía opcional</span>
+          <div className="mail-scenario-panel__title-row">
+            <h3>
+              {isFinished
+                ? "Caso completado"
+                : currentStep
+                  ? `Siguiente punto: ${currentStep.title}`
+                  : scenario.title}
+            </h3>
+            <span className="mail-scenario-panel__badge">
+              {ASSIGNMENT_STATUS_LABELS[scenario.assignment_status] || scenario.assignment_status}
+            </span>
+          </div>
+          <p>
+            {scenario.assignment_status === "assigned"
+              ? "Lee primero el correo, interpreta la solicitud y utiliza esta guía solo como apoyo."
+              : isFinished
+                ? scenario.completion_message || "Se han completado todos los puntos previstos."
+                : currentStep?.description || "Continúa con el siguiente punto del caso."}
+          </p>
+          <div className="mail-scenario-panel__meta">
+            <span>{scenario.completed_steps} de {scenario.total_steps} puntos</span>
+            <span>{DIFFICULTY_LABELS[scenario.difficulty] || scenario.difficulty}</span>
+            <strong>{scenario.completion_percentage}%</strong>
+          </div>
         </div>
-        <span className="mail-scenario-panel__badge">
-          {ASSIGNMENT_STATUS_LABELS[scenario.assignment_status] || scenario.assignment_status}
-        </span>
+        <button
+          type="button"
+          className="mail-scenario-toggle"
+          onClick={() => setExpanded((current) => !current)}
+          aria-expanded={expanded}
+        >
+          {expanded ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
+          {expanded ? "Ocultar detalle" : "Ver guía completa"}
+        </button>
       </header>
 
-      <div className="mail-scenario-summary">
-        <div><span>Asignado a</span><strong>{scenario.assignee_name}</strong></div>
-        <div><span>Dificultad</span><strong>{DIFFICULTY_LABELS[scenario.difficulty] || scenario.difficulty}</strong></div>
-        <div><span>Avance</span><strong>{scenario.completed_steps} de {scenario.total_steps} pasos</strong></div>
-      </div>
-
-      <div className="mail-scenario-progress">
-        <div className="mail-scenario-progress__labels">
-          <span>Progreso del ejercicio</span>
-          <strong>{scenario.completion_percentage}%</strong>
-        </div>
-        <div className="mail-scenario-progress__track" aria-label={`Progreso ${scenario.completion_percentage}%`}>
-          <div className="mail-scenario-progress__fill" style={{ width: `${scenario.completion_percentage}%` }} />
-        </div>
+      <div className="mail-scenario-progress__track" aria-label={`Progreso ${scenario.completion_percentage}%`}>
+        <div className="mail-scenario-progress__fill" style={{ width: `${scenario.completion_percentage}%` }} />
       </div>
 
       {error && (
@@ -322,133 +346,117 @@ export default function MailScenarioPanel({ message, onScenarioChanged }) {
 
       {validationNotice && (
         <div className="mail-scenario-validation-notice" role="status">
-          <ShieldCheck size={16} /> {validationNotice}
+          <ShieldCheck size={15} /> {validationNotice}
         </div>
       )}
 
-      <div className="mail-scenario-actions">
-        {scenario.assignment_status === "assigned" && (
+      {scenario.assignment_status === "assigned" && (
+        <div className="mail-scenario-quick-actions">
           <button type="button" className="mail-scenario-primary" onClick={startScenario} disabled={Boolean(busy)}>
             {busy === "start" ? <LoaderCircle className="mail-spinner" size={15} /> : <Play size={15} />}
-            Iniciar caso
+            Iniciar seguimiento
           </button>
-        )}
-        {!isLocked && (
-          <button type="button" onClick={resetProgress} disabled={Boolean(busy)}>
-            {busy === "reset" ? <LoaderCircle className="mail-spinner" size={15} /> : <RotateCcw size={15} />}
-            Reiniciar progreso
-          </button>
-        )}
-      </div>
-
-      {isFinished && (
-        <div className="mail-scenario-complete">
-          <CheckCircle2 size={16} /> {scenario.completion_message || "Todos los pasos obligatorios se han completado."}
         </div>
       )}
 
-      <div className="mail-scenario-steps">
-        <h4>Secuencia de trabajo</h4>
-        {scenario.steps.map((step) => {
-          const isCurrent = currentStep?.task_id === step.task_id;
-          const canEdit = !isLocked && !isFinished && isCurrent && scenario.assignment_status !== "assigned";
-          const automaticChecks = step.validation_result?.mode === "automatic"
-            ? step.validation_result.checks || []
-            : [];
-          return (
-            <article key={step.task_id} className={stepClassName(step, scenario.current_task_order)}>
-              <span className="mail-scenario-step__index">
-                {step.progress_status === "completed" ? <CheckCircle2 size={14} /> : step.task_order}
-              </span>
-              <div className="mail-scenario-step__content">
-                <strong>{step.title}</strong>
-                {step.description && <p>{step.description}</p>}
-                {step.expected_result && <small>Resultado esperado: {step.expected_result}</small>}
-                {automaticChecks.length > 0 && (
-                  <div className="mail-scenario-checks">
-                    {automaticChecks.map((check, index) => (
-                      <span key={`${check.rule_type}-${index}`} className={check.passed ? "is-passed" : "is-pending"}>
-                        {check.message}
-                      </span>
-                    ))}
-                  </div>
-                )}
+      {canAct && (
+        <div className="mail-scenario-current">
+          {currentStep.expected_result && (
+            <small>Referencia: {currentStep.expected_result}</small>
+          )}
+          {automaticChecks.length > 0 && (
+            <div className="mail-scenario-checks">
+              {automaticChecks.map((check, index) => (
+                <span key={`${check.rule_type}-${index}`} className={check.passed ? "is-passed" : "is-pending"}>
+                  {check.message}
+                </span>
+              ))}
+            </div>
+          )}
+          <div className="mail-scenario-quick-actions">
+            <button
+              type="button"
+              className="mail-scenario-primary"
+              onClick={() => openStepModule(currentStep)}
+              disabled={Boolean(busy)}
+            >
+              {busy === `open-${currentStep.task_id}`
+                ? <LoaderCircle className="mail-spinner" size={15} />
+                : <ExternalLink size={15} />}
+              {getCaseActionLabel(currentStep.expected_action, currentStep.module)}
+            </button>
+            <button type="button" onClick={() => validateStep(currentStep)} disabled={Boolean(busy)}>
+              {busy === `validate-${currentStep.task_id}`
+                ? <LoaderCircle className="mail-spinner" size={15} />
+                : <ShieldCheck size={15} />}
+              Comprobar resultado
+            </button>
+            {currentStep.progress_status === "failed" && (
+              <button type="button" onClick={() => updateStep(currentStep, "in_progress")} disabled={Boolean(busy)}>
+                <XCircle size={15} /> Reabrir
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {expanded && (
+        <div className="mail-scenario-details">
+          <h4>Recorrido completo</h4>
+          <div className="mail-scenario-steps">
+            {scenario.steps.map((step) => (
+              <article key={step.task_id} className={stepClassName(step, scenario.current_task_order)}>
+                <span className="mail-scenario-step__index">
+                  {step.progress_status === "completed" ? <CheckCircle2 size={14} /> : step.task_order}
+                </span>
+                <div className="mail-scenario-step__content">
+                  <strong>{step.title}</strong>
+                  {step.description && <p>{step.description}</p>}
+                  {step.expected_result && <small>Resultado de referencia: {step.expected_result}</small>}
+                </div>
+                <span className={`mail-scenario-step__status mail-scenario-step__status--${step.progress_status}`}>
+                  {STEP_STATUS_LABELS[step.progress_status] || step.progress_status}
+                </span>
+              </article>
+            ))}
+          </div>
+
+          {canAct && (
+            <div className="mail-scenario-manual-controls">
+              <h4>Controles auxiliares</h4>
+              <p>Úsalos únicamente cuando la comprobación automática no sea suficiente.</p>
+              <textarea
+                value={notes[currentStep.task_id] || ""}
+                onChange={(event) => setNotes((current) => ({ ...current, [currentStep.task_id]: event.target.value }))}
+                placeholder="Anotación opcional sobre la acción realizada..."
+              />
+              <div className="mail-scenario-quick-actions">
+                <button type="button" onClick={() => updateStep(currentStep, "completed")} disabled={Boolean(busy)}>
+                  {busy === `step-${currentStep.task_id}-completed`
+                    ? <LoaderCircle className="mail-spinner" size={15} />
+                    : <CheckCircle2 size={15} />}
+                  Confirmar manualmente
+                </button>
+                <button type="button" onClick={() => updateStep(currentStep, "failed")} disabled={Boolean(busy)}>
+                  {busy === `step-${currentStep.task_id}-failed`
+                    ? <LoaderCircle className="mail-spinner" size={15} />
+                    : <AlertTriangle size={15} />}
+                  Registrar incidencia
+                </button>
               </div>
-              <span className={`mail-scenario-step__status mail-scenario-step__status--${step.progress_status}`}>
-                {STEP_STATUS_LABELS[step.progress_status] || step.progress_status}
-              </span>
+            </div>
+          )}
 
-              {canEdit && (
-                <div className="mail-scenario-step__editor">
-                  <textarea
-                    value={notes[step.task_id] || ""}
-                    onChange={(event) => setNotes((current) => ({ ...current, [step.task_id]: event.target.value }))}
-                    placeholder="Anotación opcional sobre la acción realizada..."
-                  />
-                  <div className="mail-scenario-step__actions">
-                    <button
-                      type="button"
-                      className="mail-scenario-open-module"
-                      onClick={() => openStepModule(step)}
-                      disabled={Boolean(busy)}
-                    >
-                      {busy === `open-${step.task_id}`
-                        ? <LoaderCircle className="mail-spinner" size={15} />
-                        : <ExternalLink size={15} />}
-                      {getCaseActionLabel(step.expected_action, step.module)}
-                    </button>
-                    <button
-                      type="button"
-                      className="mail-scenario-primary"
-                      onClick={() => validateStep(step)}
-                      disabled={Boolean(busy)}
-                    >
-                      {busy === `validate-${step.task_id}`
-                        ? <LoaderCircle className="mail-spinner" size={15} />
-                        : <ShieldCheck size={15} />}
-                      Validar automáticamente
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => updateStep(step, "completed")}
-                      disabled={Boolean(busy)}
-                    >
-                      {busy === `step-${step.task_id}-completed`
-                        ? <LoaderCircle className="mail-spinner" size={15} />
-                        : <CheckCircle2 size={15} />}
-                      Confirmar manualmente
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => updateStep(step, "failed")}
-                      disabled={Boolean(busy)}
-                    >
-                      {busy === `step-${step.task_id}-failed`
-                        ? <LoaderCircle className="mail-spinner" size={15} />
-                        : <AlertTriangle size={15} />}
-                      Registrar error
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {step.progress_status === "failed" && !isLocked && (
-                <div className="mail-scenario-step__editor">
-                  <div className="mail-scenario-step__actions">
-                    <button
-                      type="button"
-                      onClick={() => updateStep(step, "in_progress")}
-                      disabled={Boolean(busy)}
-                    >
-                      <XCircle size={15} /> Reabrir paso
-                    </button>
-                  </div>
-                </div>
-              )}
-            </article>
-          );
-        })}
-      </div>
+          {!isLocked && scenario.assignment_status !== "assigned" && (
+            <div className="mail-scenario-footer">
+              <button type="button" onClick={resetProgress} disabled={Boolean(busy)}>
+                {busy === "reset" ? <LoaderCircle className="mail-spinner" size={15} /> : <RotateCcw size={15} />}
+                Reiniciar seguimiento
+              </button>
+            </div>
+          )}
+        </div>
+      )}
     </section>
   );
 }
