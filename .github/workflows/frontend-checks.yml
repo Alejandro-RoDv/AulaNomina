@@ -36,7 +36,7 @@ jobs:
           src/components/agreements/AgreementCriteriaWorkspace.jsx
           src/components/agreements/AgreementSeniorityPanel.jsx src/components/agreements/management
           src/tests/convenios-smoke.jsx src/pages/EmbargoCalculatorPage.jsx
-          src/pages/WageGarnishmentManagementPage.jsx src/pages/IncidentsPage.jsx
+          src/pages/WageGarnishmentManagementPage.jsx src/pages/IncidentsPage.jsx src/pages/ContractsPage.jsx
           src/components/incidents src/components/wage-garnishments src/services/incidentApi.js
           src/services/httpClient.js src/services/wageGarnishmentApi.js
           src/utils/headerContextBridge.js src/utils/incidentCategories.js
