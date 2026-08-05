@@ -1,0 +1,46 @@
+.mail-global-launcher {
+  min-height: 31px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 8px 4px 5px;
+  border: 1px solid #111111;
+  background: #ffffff;
+  color: #111111;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.mail-global-launcher:hover {
+  background: #eef8fe;
+  border-color: #087fc4;
+}
+
+.mail-global-launcher:focus-visible {
+  outline: 3px solid rgba(8, 127, 196, 0.28);
+  outline-offset: 2px;
+}
+
+.mail-global-launcher__logo {
+  width: 24px;
+  height: 24px;
+  display: block;
+}
+
+.mail-global-launcher__counter {
+  min-width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  padding: 0 5px;
+  box-sizing: border-box;
+  background: #087fc4;
+  color: #ffffff;
+  font-size: 11px;
+  line-height: 1;
+}
