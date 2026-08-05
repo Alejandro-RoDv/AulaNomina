@@ -1,4 +1,4 @@
-import { apiRequest } from "./httpClient";
+import { apiRequest } from "./httpClient.js";
 
 const CATEGORY_LABELS = {
   payroll: "Nómina",
