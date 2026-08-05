@@ -14,6 +14,7 @@ from app.schemas.mail import (
     MailboxResponse,
     MailboxStatsResponse,
 )
+from app.services.integrated_demo_case_service import ensure_integrated_demo_case
 from app.services.mail_service import (
     attachment_download,
     attachment_preview,
@@ -41,14 +42,20 @@ def get_db():
         db.close()
 
 
+def _prepare_demo_mailbox(db: Session, *, reset: bool = False):
+    mailbox = reset_demo_mailbox(db) if reset else get_demo_mailbox(db)
+    ensure_integrated_demo_case(db, mailbox)
+    return mailbox
+
+
 @router.get("/demo-mailbox", response_model=MailboxResponse)
 def read_demo_mailbox(db: Session = Depends(get_db)):
-    return get_demo_mailbox(db)
+    return _prepare_demo_mailbox(db)
 
 
 @router.post("/demo-mailbox/reset", response_model=MailboxResponse)
 def reset_mailbox(db: Session = Depends(get_db)):
-    return reset_demo_mailbox(db)
+    return _prepare_demo_mailbox(db, reset=True)
 
 
 @router.get("/mailboxes/{mailbox_id}/threads", response_model=list[EmailThreadResponse])
