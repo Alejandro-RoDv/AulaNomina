@@ -49,7 +49,7 @@ jobs:
           src/components/affiliation/AffiliationRemittanceLauncher.jsx
           src/components/cra/CraRoute.jsx src/components/cra/CraValidationPanel.jsx src/pages/CraFilesPage.jsx
           src/components/fie/FieRoute.jsx src/pages/FieInboxPage.jsx
-          src/components/mail src/pages/AffiliationRemittancesPage.jsx src/App.jsx
+          src/components/mail src/services/mailApi.js src/pages/AffiliationRemittancesPage.jsx src/App.jsx
           src/components/reports/ReportsRoute.jsx src/pages/Model111Page.jsx src/services/model111Service.js
           src/components/model190/Model190DeclarationsPanel.jsx
           src/components/model190/Model190AeatModal.jsx src/components/model190/Model190DemoPanel.jsx
