@@ -9,9 +9,37 @@ function queryString(params = {}) {
   return query.toString() ? `?${query.toString()}` : "";
 }
 
+function readFieCaseContext() {
+  if (typeof window === "undefined") return {};
+  const params = new URLSearchParams(window.location.search);
+  const direct = {
+    company_id: params.get("companyId"),
+    employee_id: params.get("employeeId"),
+  };
+  if (direct.company_id || direct.employee_id) return direct;
+  try {
+    const stored = JSON.parse(window.localStorage.getItem("aulanomina:active-case-context") || "null");
+    if (!stored) return {};
+    return {
+      company_id: stored.companyId || null,
+      employee_id: stored.employeeId || null,
+    };
+  } catch {
+    return {};
+  }
+}
+
+export function applyFieCaseContext(filters = {}) {
+  const context = readFieCaseContext();
+  return {
+    ...context,
+    ...filters,
+  };
+}
+
 export async function fetchFieCommunications(filters = {}) {
   return apiRequest(
-    `/fie/communications${queryString(filters)}`,
+    `/fie/communications${queryString(applyFieCaseContext(filters))}`,
     {},
     "Error al cargar la bandeja FIE"
   );
