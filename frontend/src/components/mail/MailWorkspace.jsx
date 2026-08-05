@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
+  AlertCircle,
   Archive,
   ArrowLeft,
   CheckCircle2,
@@ -10,6 +11,7 @@ import {
   Flag,
   Forward,
   Inbox,
+  LoaderCircle,
   Mail,
   MailOpen,
   Menu,
@@ -19,180 +21,26 @@ import {
   RefreshCw,
   Reply,
   ReplyAll,
+  Save,
   Search,
   Send,
   Settings,
   Trash2,
   UserRound,
+  X,
 } from "lucide-react";
 
 import mailLogo from "../../assets/mail-access.svg";
+import {
+  createMailMessage,
+  fetchDemoMailbox,
+  fetchMailboxStats,
+  fetchMailboxThreads,
+  resetDemoMailbox,
+  updateMailThread,
+} from "../../services/mailApi";
 import "./mailWorkspace.css";
-
-const INITIAL_MESSAGES = [
-  {
-    id: 1,
-    folder: "inbox",
-    sender: "María López · Administración",
-    address: "administracion@empresa-demo.es",
-    subject: "Revisión de antigüedad en la nómina de Ana Martín",
-    preview: "La trabajadora indica que su nómina de julio no incluye el complemento de antigüedad...",
-    receivedAt: "Hoy, 08:12",
-    unread: true,
-    priority: "high",
-    category: "Nómina",
-    caseReference: "NOM-2026-014",
-    caseStatus: "pending",
-    attachments: ["Solicitud_Ana_Martin.pdf"],
-    body: [
-      "Buenos días:",
-      "La trabajadora Ana Martín nos comunica que su nómina de julio no incluye el complemento de antigüedad que le corresponde desde el 1 de julio de 2026.",
-      "Revisa su expediente, comprueba la fecha de antigüedad, regulariza el concepto y recalcula la nómina. El caso no debe cerrarse hasta que la diferencia quede correctamente reflejada.",
-      "Gracias.",
-    ],
-    requirements: ["Comprobar la antigüedad del contrato", "Añadir o corregir el concepto", "Recalcular la nómina", "Generar la regularización correspondiente"],
-    contextActions: ["Abrir trabajadora", "Abrir nómina", "Abrir regularizaciones"],
-  },
-  {
-    id: 2,
-    folder: "inbox",
-    sender: "Comunicaciones INSS",
-    address: "fie@inss.aulanomina.local",
-    subject: "FIE disponible: proceso de incapacidad temporal",
-    preview: "Se ha recibido una comunicación FIE relativa a una baja médica con fecha de efectos 03/08/2026...",
-    receivedAt: "Hoy, 07:46",
-    unread: true,
-    priority: "urgent",
-    category: "Seguridad Social",
-    caseReference: "IT-2026-008",
-    caseStatus: "in_progress",
-    attachments: ["FIE_IT_03082026.txt", "Parte_baja_Ana_Martin.pdf"],
-    body: [
-      "Se ha recibido una comunicación FIE relativa a una baja médica con fecha de efectos 03/08/2026.",
-      "Comprueba que la incidencia registrada coincide con el parte adjunto y concilia la comunicación antes de continuar con el cálculo de nómina.",
-    ],
-    requirements: ["Revisar fechas del parte", "Conciliar la comunicación FIE", "Comprobar el impacto en nómina"],
-    contextActions: ["Abrir FIE", "Abrir incidencia", "Abrir nómina"],
-  },
-  {
-    id: 3,
-    folder: "inbox",
-    sender: "Dirección del centro Norte",
-    address: "direccion.norte@empresa-demo.es",
-    subject: "Alta de sustitución por incapacidad temporal",
-    preview: "Necesitamos tramitar la incorporación de Laura Sánchez como sustituta durante la ausencia...",
-    receivedAt: "Ayer, 16:28",
-    unread: true,
-    priority: "normal",
-    category: "Contratación",
-    caseReference: "ALT-2026-021",
-    caseStatus: "pending",
-    attachments: ["Datos_sustituta_Laura_Sanchez.pdf"],
-    body: [
-      "Buenas tardes:",
-      "Necesitamos tramitar la incorporación de Laura Sánchez como sustituta durante la ausencia de Ana Martín.",
-      "Los datos necesarios se encuentran en el documento adjunto. La fecha de alta prevista es el 06/08/2026 y la jornada debe coincidir con la persona sustituida.",
-    ],
-    requirements: ["Crear el expediente", "Registrar el contrato de sustitución", "Preparar el movimiento de alta"],
-    contextActions: ["Nuevo trabajador", "Nuevo contrato", "Abrir afiliación"],
-  },
-  {
-    id: 4,
-    folder: "inbox",
-    sender: "Departamento fiscal",
-    address: "fiscal@empresa-demo.es",
-    subject: "Diferencia detectada en el Modelo 111 del segundo trimestre",
-    preview: "La suma de las retenciones de profesionales no coincide con el importe declarado...",
-    receivedAt: "Lun, 11:03",
-    unread: false,
-    priority: "high",
-    category: "Fiscal",
-    caseReference: "FIS-2026-006",
-    caseStatus: "waiting",
-    attachments: ["Detalle_retenciones_Q2.xlsx"],
-    body: [
-      "La suma de las retenciones de profesionales no coincide con el importe declarado en el Modelo 111 del segundo trimestre.",
-      "Revisa las facturas registradas, identifica la diferencia y prepara una declaración complementaria cuando proceda.",
-    ],
-    requirements: ["Conciliar facturas profesionales", "Recalcular el Modelo 111", "Documentar la corrección"],
-    contextActions: ["Abrir profesionales", "Abrir Modelo 111"],
-  },
-  {
-    id: 5,
-    folder: "inbox",
-    sender: "Archivo laboral",
-    address: "documentos@empresa-demo.es",
-    subject: "Certificado de empresa incorporado al expediente",
-    preview: "El certificado solicitado ha sido generado y está disponible en el gestor documental...",
-    receivedAt: "Vie, 13:20",
-    unread: false,
-    priority: "low",
-    category: "Documentación",
-    caseReference: "DOC-2026-003",
-    caseStatus: "resolved",
-    attachments: ["Certificado_empresa.pdf"],
-    body: [
-      "El certificado solicitado ha sido generado y está disponible en el gestor documental.",
-      "No quedan acciones pendientes. El caso puede mantenerse archivado como evidencia del ejercicio.",
-    ],
-    requirements: ["Documento generado", "Expediente actualizado"],
-    contextActions: ["Abrir documentos"],
-  },
-  {
-    id: 6,
-    folder: "sent",
-    sender: "Alejandro Ros",
-    address: "usuario.demo@aulanomina.local",
-    subject: "Regularización de antigüedad completada",
-    preview: "Se ha revisado el expediente y recalculado la nómina con el complemento correspondiente...",
-    receivedAt: "Ayer, 12:06",
-    unread: false,
-    priority: "normal",
-    category: "Nómina",
-    caseReference: "NOM-2026-009",
-    caseStatus: "resolved",
-    attachments: [],
-    body: ["Se ha revisado el expediente y recalculado la nómina con el complemento correspondiente. Adjunto la trazabilidad de la regularización."],
-    requirements: ["Respuesta enviada"],
-    contextActions: ["Abrir regularización"],
-  },
-  {
-    id: 7,
-    folder: "drafts",
-    sender: "Borrador",
-    address: "usuario.demo@aulanomina.local",
-    subject: "Respuesta pendiente: discrepancia de bases",
-    preview: "He revisado el fichero de respuesta de SILTRA y la diferencia se debe a...",
-    receivedAt: "Ayer, 09:40",
-    unread: false,
-    priority: "normal",
-    category: "Seguridad Social",
-    caseReference: "SS-2026-011",
-    caseStatus: "in_progress",
-    attachments: [],
-    body: ["He revisado el fichero de respuesta de SILTRA y la diferencia se debe a..."],
-    requirements: ["Completar respuesta"],
-    contextActions: ["Abrir SILTRA"],
-  },
-  {
-    id: 8,
-    folder: "archive",
-    sender: "Agencia Tributaria simulada",
-    address: "notificaciones@aeat.aulanomina.local",
-    subject: "Presentación del Modelo 190 aceptada",
-    preview: "La declaración anual ha sido recibida correctamente y se ha generado el justificante...",
-    receivedAt: "31/07/2026",
-    unread: false,
-    priority: "low",
-    category: "Fiscal",
-    caseReference: "FIS-2026-002",
-    caseStatus: "resolved",
-    attachments: ["Justificante_Modelo_190.pdf"],
-    body: ["La declaración anual ha sido recibida correctamente y se ha generado el justificante de presentación."],
-    requirements: ["Presentación aceptada"],
-    contextActions: ["Abrir Modelo 190"],
-  },
-];
+import "./mailWorkspacePersistence.css";
 
 const PRIMARY_FOLDERS = [
   { id: "inbox", label: "Bandeja de entrada", icon: Inbox },
@@ -205,11 +53,13 @@ const PRIMARY_FOLDERS = [
 const CASE_VIEWS = [
   { id: "pending", label: "Casos pendientes", icon: Circle },
   { id: "in_progress", label: "En progreso", icon: Clock3 },
+  { id: "waiting", label: "En espera", icon: Clock3 },
   { id: "resolved", label: "Resueltos", icon: CheckCircle2 },
 ];
 
 const STATUS_LABELS = {
   pending: "Pendiente",
+  open: "Pendiente",
   in_progress: "En progreso",
   waiting: "En espera",
   resolved: "Resuelto",
@@ -222,71 +72,317 @@ const PRIORITY_LABELS = {
   urgent: "Urgente",
 };
 
-function messageMatchesView(message, view) {
-  if (PRIMARY_FOLDERS.some((folder) => folder.id === view)) return message.folder === view;
-  return message.caseStatus === view;
+const EMPTY_STATS = {
+  total: 0,
+  unread: 0,
+  inbox: 0,
+  sent: 0,
+  drafts: 0,
+  archive: 0,
+  trash: 0,
+  pending: 0,
+  in_progress: 0,
+  waiting: 0,
+  resolved: 0,
+};
+
+function filtersForView(view, search) {
+  const filters = {};
+  if (PRIMARY_FOLDERS.some((folder) => folder.id === view)) filters.folder = view;
+  else filters.status = view === "pending" ? "open" : view;
+  if (search) filters.search = search;
+  return filters;
+}
+
+function countForView(stats, viewId) {
+  if (viewId === "inbox") return stats.unread;
+  return stats[viewId] || 0;
+}
+
+function formatMessageDate(value) {
+  if (!value) return "Sin fecha";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Sin fecha";
+  return date.toLocaleString("es-ES", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function splitBody(value) {
+  return String(value || "")
+    .split(/\n\s*\n/)
+    .map((paragraph) => paragraph.trim())
+    .filter(Boolean);
+}
+
+function recipientForReply(message) {
+  const incoming = message?.messages?.find((item) => item.direction === "incoming");
+  if (incoming) {
+    return {
+      name: incoming.sender_name || message.sender,
+      address: incoming.sender_address || message.address,
+    };
+  }
+  return {
+    name: message?.recipientName || "Destinatario simulado",
+    address: message?.recipientAddress || "destinatario@aulanomina.local",
+  };
+}
+
+function latestDraftBody(message) {
+  const draft = [...(message?.messages || [])]
+    .reverse()
+    .find((item) => item.message_type === "draft");
+  return draft?.body_text || "";
 }
 
 export default function MailWorkspace({ onClose }) {
-  const [messages, setMessages] = useState(INITIAL_MESSAGES);
+  const [mailbox, setMailbox] = useState(null);
+  const [messages, setMessages] = useState([]);
+  const [stats, setStats] = useState(EMPTY_STATS);
   const [activeView, setActiveView] = useState("inbox");
-  const [selectedId, setSelectedId] = useState(1);
+  const [selectedId, setSelectedId] = useState(null);
   const [searchText, setSearchText] = useState("");
+  const [appliedSearch, setAppliedSearch] = useState("");
   const [notice, setNotice] = useState("");
-
-  const visibleMessages = useMemo(() => {
-    const query = searchText.trim().toLocaleLowerCase("es");
-    return messages.filter((message) => {
-      if (!messageMatchesView(message, activeView)) return false;
-      if (!query) return true;
-      return [message.sender, message.subject, message.preview, message.caseReference, message.category]
-        .join(" ")
-        .toLocaleLowerCase("es")
-        .includes(query);
-    });
-  }, [activeView, messages, searchText]);
+  const [error, setError] = useState("");
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [listLoading, setListLoading] = useState(false);
+  const [busyAction, setBusyAction] = useState("");
+  const [composer, setComposer] = useState(null);
+  const requestSequence = useRef(0);
 
   const selectedMessage = messages.find((message) => message.id === selectedId) || null;
-  const inboxUnread = messages.filter((message) => message.folder === "inbox" && message.unread).length;
 
   useEffect(() => {
-    if (visibleMessages.some((message) => message.id === selectedId)) return;
-    setSelectedId(visibleMessages[0]?.id || null);
-  }, [selectedId, visibleMessages]);
+    const timer = window.setTimeout(() => setAppliedSearch(searchText.trim()), 280);
+    return () => window.clearTimeout(timer);
+  }, [searchText]);
 
-  const selectMessage = (messageId) => {
-    setSelectedId(messageId);
-    setMessages((current) => current.map((message) => (
-      message.id === messageId ? { ...message, unread: false } : message
+  const publishStatsRefresh = useCallback(() => {
+    window.dispatchEvent(new Event("aulanomina-mail-stats-refresh"));
+  }, []);
+
+  const loadStats = useCallback(async (mailboxId) => {
+    const nextStats = await fetchMailboxStats(mailboxId);
+    setStats(nextStats || EMPTY_STATS);
+    publishStatsRefresh();
+    return nextStats;
+  }, [publishStatsRefresh]);
+
+  const refreshView = useCallback(async ({ silent = false, preferredId = null } = {}) => {
+    if (!mailbox?.id) return;
+    const sequence = ++requestSequence.current;
+    if (!silent) setListLoading(true);
+    setError("");
+
+    try {
+      const [nextMessages, nextStats] = await Promise.all([
+        fetchMailboxThreads(mailbox.id, filtersForView(activeView, appliedSearch)),
+        fetchMailboxStats(mailbox.id),
+      ]);
+      if (sequence !== requestSequence.current) return;
+
+      setMessages(nextMessages);
+      setStats(nextStats || EMPTY_STATS);
+      setSelectedId((current) => {
+        const requested = preferredId || current;
+        if (requested && nextMessages.some((message) => message.id === requested)) return requested;
+        return nextMessages[0]?.id || null;
+      });
+      publishStatsRefresh();
+    } catch (requestError) {
+      if (sequence !== requestSequence.current) return;
+      setError(requestError.message || "No se ha podido sincronizar la bandeja.");
+    } finally {
+      if (sequence === requestSequence.current && !silent) setListLoading(false);
+    }
+  }, [activeView, appliedSearch, mailbox?.id, publishStatsRefresh]);
+
+  const initializeMailbox = useCallback(async () => {
+    setInitialLoading(true);
+    setError("");
+    try {
+      const demoMailbox = await fetchDemoMailbox();
+      setMailbox(demoMailbox);
+    } catch (requestError) {
+      setError(requestError.message || "No se ha podido cargar el correo simulado.");
+    } finally {
+      setInitialLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    initializeMailbox();
+  }, [initializeMailbox]);
+
+  useEffect(() => {
+    if (mailbox?.id) refreshView();
+  }, [mailbox?.id, activeView, appliedSearch, refreshView]);
+
+  const selectMessage = async (message) => {
+    setSelectedId(message.id);
+    setComposer(null);
+    if (!message.unread) return;
+
+    setMessages((current) => current.map((item) => (
+      item.id === message.id ? { ...item, unread: false } : item
     )));
+
+    try {
+      const updated = await updateMailThread(message.id, { is_read: true });
+      setMessages((current) => current.map((item) => (
+        item.id === updated.id ? updated : item
+      )));
+      await loadStats(mailbox.id);
+    } catch (requestError) {
+      setError(requestError.message || "No se ha podido marcar el mensaje como leído.");
+      await refreshView({ silent: true, preferredId: message.id });
+    }
   };
 
-  const countForView = (viewId) => messages.filter((message) => messageMatchesView(message, viewId)).length;
+  const persistSelectedThread = async (payload, successMessage) => {
+    if (!selectedMessage) return;
+    setBusyAction("thread");
+    setError("");
+    try {
+      await updateMailThread(selectedMessage.id, payload);
+      setNotice(successMessage);
+      setComposer(null);
+      await refreshView({ silent: true });
+    } catch (requestError) {
+      setError(requestError.message || "No se ha podido actualizar el mensaje.");
+    } finally {
+      setBusyAction("");
+    }
+  };
 
   const toggleRead = () => {
     if (!selectedMessage) return;
-    setMessages((current) => current.map((message) => (
-      message.id === selectedMessage.id ? { ...message, unread: !message.unread } : message
-    )));
+    persistSelectedThread(
+      { is_read: selectedMessage.unread },
+      selectedMessage.unread ? "Mensaje marcado como leído." : "Mensaje marcado como no leído."
+    );
   };
 
   const archiveSelected = () => {
-    if (!selectedMessage) return;
-    setMessages((current) => current.map((message) => (
-      message.id === selectedMessage.id ? { ...message, folder: "archive", unread: false } : message
-    )));
-    setNotice("Mensaje archivado dentro del entorno simulado.");
+    persistSelectedThread(
+      { folder: "archive", is_read: true },
+      "Mensaje archivado. El cambio se ha guardado en la base de datos."
+    );
   };
 
   const moveToTrash = () => {
-    if (!selectedMessage) return;
-    setMessages((current) => current.map((message) => (
-      message.id === selectedMessage.id ? { ...message, folder: "trash", unread: false } : message
-    )));
-    setNotice("Mensaje movido a la papelera simulada.");
+    persistSelectedThread(
+      { folder: "trash", is_read: true },
+      "Mensaje movido a la papelera. El cambio se ha guardado en la base de datos."
+    );
   };
 
-  const showPlaceholder = (text) => setNotice(`${text}. La acción quedará conectada al motor de casos en los siguientes pasos del split.`);
+  const openComposer = (mode) => {
+    if (!selectedMessage || !mailbox) return;
+    const recipient = recipientForReply(selectedMessage);
+    setComposer({
+      mode,
+      recipientName: mode === "forward" ? "" : recipient.name,
+      recipientAddress: mode === "forward" ? "" : recipient.address,
+      body: selectedMessage.folder === "drafts" ? latestDraftBody(selectedMessage) : "",
+    });
+  };
+
+  const closeComposer = () => setComposer(null);
+
+  const persistComposer = async (messageType) => {
+    if (!selectedMessage || !mailbox || !composer) return;
+    if (!composer.body.trim()) {
+      setError("Escribe el contenido de la respuesta antes de guardarla.");
+      return;
+    }
+    if (!composer.recipientAddress.trim()) {
+      setError("Indica una dirección de destinatario.");
+      return;
+    }
+
+    const isDraft = messageType === "draft";
+    setBusyAction(isDraft ? "draft" : "send");
+    setError("");
+    try {
+      const updated = await createMailMessage(selectedMessage.id, {
+        sender_name: mailbox.display_name,
+        sender_address: mailbox.address,
+        recipient_name: composer.recipientName || null,
+        recipient_address: composer.recipientAddress.trim(),
+        body_text: composer.body.trim(),
+        body_html: null,
+        direction: "outgoing",
+        message_type: isDraft ? "draft" : composer.mode === "forward" ? "forward" : "reply",
+        attachments: [],
+      });
+      setNotice(isDraft
+        ? "Borrador guardado en la base de datos."
+        : "Respuesta enviada dentro del entorno simulado.");
+      setComposer(null);
+      await refreshView({ silent: true, preferredId: updated.id });
+    } catch (requestError) {
+      setError(requestError.message || "No se ha podido guardar la comunicación.");
+    } finally {
+      setBusyAction("");
+    }
+  };
+
+  const resetMailbox = async () => {
+    if (!window.confirm("Se restaurarán los mensajes iniciales del buzón demo. ¿Continuar?")) return;
+    setBusyAction("reset");
+    setError("");
+    try {
+      const demoMailbox = await resetDemoMailbox();
+      setMailbox(demoMailbox);
+      setNotice("Buzón de demostración restaurado.");
+      setComposer(null);
+      setActiveView("inbox");
+      setSearchText("");
+      setAppliedSearch("");
+      await loadStats(demoMailbox.id);
+    } catch (requestError) {
+      setError(requestError.message || "No se ha podido restaurar el buzón.");
+    } finally {
+      setBusyAction("");
+    }
+  };
+
+  const showPlaceholder = (text) => {
+    setNotice(`${text}. Esta acción se conectará al módulo relacionado en el siguiente paso del split.`);
+  };
+
+  if (initialLoading) {
+    return (
+      <div className="mail-shell mail-shell--centered">
+        <LoaderCircle className="mail-spinner" size={36} />
+        <h1>Cargando correo simulado</h1>
+        <p>Preparando el buzón persistente y los casos prácticos.</p>
+      </div>
+    );
+  }
+
+  if (!mailbox) {
+    return (
+      <div className="mail-shell mail-shell--centered">
+        <AlertCircle size={42} />
+        <h1>No se ha podido abrir el correo</h1>
+        <p>{error || "Comprueba que el backend de AulaNomina esté arrancado."}</p>
+        <div className="mail-recovery-actions">
+          <button type="button" onClick={initializeMailbox}>Reintentar</button>
+          <button type="button" onClick={onClose}>Volver a AulaNomina</button>
+        </div>
+      </div>
+    );
+  }
+
+  const viewLabel = [...PRIMARY_FOLDERS, ...CASE_VIEWS].find((item) => item.id === activeView)?.label || "Correo";
 
   return (
     <div className="mail-shell">
@@ -295,7 +391,7 @@ export default function MailWorkspace({ onClose }) {
           <img src={mailLogo} alt="" />
           <div>
             <strong>AulaNomina</strong>
-            <span>Correo educativo</span>
+            <span>Correo educativo persistente</span>
           </div>
         </div>
 
@@ -305,31 +401,43 @@ export default function MailWorkspace({ onClose }) {
             type="search"
             value={searchText}
             onChange={(event) => setSearchText(event.target.value)}
-            placeholder="Buscar mensajes, trabajadores o casos"
+            placeholder="Buscar asuntos, referencias o categorías"
           />
         </label>
 
         <div className="mail-user-actions">
-          <button type="button" title="Configuración del correo" onClick={() => showPlaceholder("Configuración")}> <Settings size={18} /> </button>
+          <span className="mail-sync-badge" title="Sincronizado con la API">API</span>
+          <button type="button" title="Restaurar buzón demo" onClick={resetMailbox} disabled={busyAction === "reset"}>
+            {busyAction === "reset" ? <LoaderCircle className="mail-spinner" size={18} /> : <Settings size={18} />}
+          </button>
           <span className="mail-user-avatar"><UserRound size={18} /></span>
-          <div><strong>Usuario demo</strong><span>Docente</span></div>
+          <div><strong>{mailbox.display_name}</strong><span>{mailbox.role}</span></div>
         </div>
       </header>
 
       <nav className="mail-command-bar" aria-label="Acciones de correo">
-        <button type="button" className="mail-command-primary" onClick={() => showPlaceholder("Nuevo correo")}><PenLine size={16} /> Correo nuevo</button>
+        <button type="button" className="mail-command-primary" onClick={() => showPlaceholder("Nuevo hilo de correo")}><PenLine size={16} /> Correo nuevo</button>
         <span className="mail-command-separator" />
-        <button type="button" onClick={moveToTrash} disabled={!selectedMessage}><Trash2 size={16} /> Eliminar</button>
-        <button type="button" onClick={archiveSelected} disabled={!selectedMessage}><Archive size={16} /> Archivar</button>
-        <button type="button" onClick={toggleRead} disabled={!selectedMessage}>{selectedMessage?.unread ? <MailOpen size={16} /> : <Mail size={16} />} Leído / no leído</button>
-        <button type="button" onClick={() => showPlaceholder("Actualizar bandeja")}><RefreshCw size={16} /> Actualizar</button>
+        <button type="button" onClick={moveToTrash} disabled={!selectedMessage || Boolean(busyAction)}><Trash2 size={16} /> Eliminar</button>
+        <button type="button" onClick={archiveSelected} disabled={!selectedMessage || Boolean(busyAction)}><Archive size={16} /> Archivar</button>
+        <button type="button" onClick={toggleRead} disabled={!selectedMessage || Boolean(busyAction)}>{selectedMessage?.unread ? <MailOpen size={16} /> : <Mail size={16} />} Leído / no leído</button>
+        <button type="button" onClick={() => refreshView()} disabled={listLoading || Boolean(busyAction)}>
+          <RefreshCw className={listLoading ? "mail-spinner" : ""} size={16} /> Actualizar
+        </button>
         <span className="mail-command-spacer" />
         <button type="button" onClick={onClose}><ArrowLeft size={16} /> Volver a AulaNomina</button>
         <button type="button" aria-label="Más acciones" onClick={() => showPlaceholder("Más acciones")}><MoreHorizontal size={18} /></button>
       </nav>
 
+      {error && (
+        <div className="mail-notice mail-notice--error" role="alert">
+          <span>{error}</span>
+          <button type="button" onClick={() => setError("")}>Cerrar</button>
+        </div>
+      )}
+
       {notice && (
-        <div className="mail-notice" role="status">
+        <div className="mail-notice mail-notice--success" role="status">
           <span>{notice}</span>
           <button type="button" onClick={() => setNotice("")}>Cerrar</button>
         </div>
@@ -337,11 +445,11 @@ export default function MailWorkspace({ onClose }) {
 
       <main className="mail-workspace">
         <aside className="mail-folder-pane">
-          <button type="button" className="mail-folder-pane__compose" onClick={() => showPlaceholder("Nuevo correo")}><PenLine size={17} /> Nueva comunicación</button>
+          <button type="button" className="mail-folder-pane__compose" onClick={() => showPlaceholder("Nueva comunicación")}><PenLine size={17} /> Nueva comunicación</button>
 
           <div className="mail-folder-account">
             <span className="mail-folder-account__avatar">AN</span>
-            <div><strong>Correo AulaNomina</strong><span>usuario.demo@aulanomina.local</span></div>
+            <div><strong>{mailbox.display_name}</strong><span>{mailbox.address}</span></div>
             <ChevronDown size={16} />
           </div>
 
@@ -349,13 +457,16 @@ export default function MailWorkspace({ onClose }) {
             <h2>Carpetas</h2>
             {PRIMARY_FOLDERS.map((folder) => {
               const Icon = folder.icon;
-              const count = folder.id === "inbox" ? inboxUnread : countForView(folder.id);
+              const count = countForView(stats, folder.id);
               return (
                 <button
                   type="button"
                   key={folder.id}
                   className={activeView === folder.id ? "mail-folder-button is-active" : "mail-folder-button"}
-                  onClick={() => setActiveView(folder.id)}
+                  onClick={() => {
+                    setComposer(null);
+                    setActiveView(folder.id);
+                  }}
                 >
                   <Icon size={17} />
                   <span>{folder.label}</span>
@@ -374,11 +485,14 @@ export default function MailWorkspace({ onClose }) {
                   type="button"
                   key={view.id}
                   className={activeView === view.id ? "mail-folder-button is-active" : "mail-folder-button"}
-                  onClick={() => setActiveView(view.id)}
+                  onClick={() => {
+                    setComposer(null);
+                    setActiveView(view.id);
+                  }}
                 >
                   <Icon size={17} />
                   <span>{view.label}</span>
-                  <strong>{countForView(view.id)}</strong>
+                  <strong>{countForView(stats, view.id)}</strong>
                 </button>
               );
             })}
@@ -389,24 +503,32 @@ export default function MailWorkspace({ onClose }) {
           <div className="mail-message-list__header">
             <div>
               <button type="button" aria-label="Mostrar navegación"><Menu size={18} /></button>
-              <h1>{[...PRIMARY_FOLDERS, ...CASE_VIEWS].find((item) => item.id === activeView)?.label}</h1>
+              <h1>{viewLabel}</h1>
             </div>
-            <button type="button" onClick={() => showPlaceholder("Ordenar y filtrar")}>Filtrar <ChevronDown size={15} /></button>
+            <button type="button" onClick={() => showPlaceholder("Filtros avanzados")}>Filtrar <ChevronDown size={15} /></button>
           </div>
 
           <div className="mail-message-list__summary">
-            <span>{visibleMessages.length} mensajes</span>
-            <span>{visibleMessages.filter((message) => message.unread).length} sin leer</span>
+            <span>{messages.length} conversaciones</span>
+            <span>{messages.filter((message) => message.unread).length} sin leer</span>
           </div>
 
-          <div className="mail-message-scroll">
-            {visibleMessages.length === 0 && <div className="mail-empty-list">No hay mensajes en esta vista.</div>}
-            {visibleMessages.map((message) => (
+          <div className="mail-message-scroll" aria-busy={listLoading}>
+            {listLoading && (
+              <div className="mail-list-loading"><LoaderCircle className="mail-spinner" size={22} /> Sincronizando bandeja...</div>
+            )}
+            {!listLoading && messages.length === 0 && (
+              <div className="mail-empty-list">
+                <p>No hay mensajes en esta vista.</p>
+                <button type="button" onClick={() => refreshView()}>Actualizar</button>
+              </div>
+            )}
+            {!listLoading && messages.map((message) => (
               <button
                 type="button"
                 key={message.id}
                 className={`mail-message-card ${message.unread ? "is-unread" : ""} ${selectedId === message.id ? "is-selected" : ""}`}
-                onClick={() => selectMessage(message.id)}
+                onClick={() => selectMessage(message)}
               >
                 <div className="mail-message-card__top">
                   <strong>{message.sender}</strong>
@@ -418,7 +540,7 @@ export default function MailWorkspace({ onClose }) {
                 </div>
                 <p>{message.preview}</p>
                 <div className="mail-message-card__meta">
-                  <span>{message.caseReference}</span>
+                  <span>{message.caseReference || "SIN-REFERENCIA"}</span>
                   <span className={`mail-case-status mail-case-status--${message.caseStatus}`}>{STATUS_LABELS[message.caseStatus]}</span>
                   {message.attachments.length > 0 && <Paperclip size={14} aria-label="Con adjuntos" />}
                 </div>
@@ -428,14 +550,16 @@ export default function MailWorkspace({ onClose }) {
         </section>
 
         <section className="mail-reading-pane" aria-label="Lectura del mensaje">
-          {!selectedMessage && <div className="mail-reading-empty"><Mail size={42} /><h2>Selecciona un mensaje</h2><p>El contenido y las acciones del caso aparecerán aquí.</p></div>}
+          {!selectedMessage && (
+            <div className="mail-reading-empty"><Mail size={42} /><h2>Selecciona un mensaje</h2><p>El contenido y las acciones del caso aparecerán aquí.</p></div>
+          )}
 
           {selectedMessage && (
             <>
               <div className="mail-reading-toolbar">
-                <button type="button" onClick={() => showPlaceholder("Responder")}><Reply size={16} /> Responder</button>
-                <button type="button" onClick={() => showPlaceholder("Responder a todos")}><ReplyAll size={16} /> Responder a todos</button>
-                <button type="button" onClick={() => showPlaceholder("Reenviar")}><Forward size={16} /> Reenviar</button>
+                <button type="button" onClick={() => openComposer("reply")}><Reply size={16} /> Responder</button>
+                <button type="button" onClick={() => openComposer("reply-all")}><ReplyAll size={16} /> Responder a todos</button>
+                <button type="button" onClick={() => openComposer("forward")}><Forward size={16} /> Reenviar</button>
                 <button type="button" aria-label="Más opciones" onClick={() => showPlaceholder("Más opciones")}><MoreHorizontal size={18} /></button>
               </div>
 
@@ -450,26 +574,100 @@ export default function MailWorkspace({ onClose }) {
 
                 <div className="mail-sender-row">
                   <span className="mail-sender-avatar">{selectedMessage.sender.slice(0, 2).toUpperCase()}</span>
-                  <div><strong>{selectedMessage.sender}</strong><span>{selectedMessage.address}</span><small>Para: usuario.demo@aulanomina.local</small></div>
+                  <div><strong>{selectedMessage.sender}</strong><span>{selectedMessage.address}</span><small>Para: {selectedMessage.recipientAddress || mailbox.address}</small></div>
                   <time>{selectedMessage.receivedAt}</time>
                 </div>
 
                 <div className="mail-case-banner">
-                  <div><span>Caso práctico</span><strong>{selectedMessage.caseReference}</strong></div>
+                  <div><span>Caso práctico</span><strong>{selectedMessage.caseReference || "Sin referencia"}</strong></div>
                   <div><span>Estado</span><strong>{STATUS_LABELS[selectedMessage.caseStatus]}</strong></div>
                   <div><span>Área</span><strong>{selectedMessage.category}</strong></div>
                 </div>
 
-                <div className="mail-body-copy">
-                  {selectedMessage.body.map((paragraph) => <p key={paragraph}>{paragraph}</p>)}
-                </div>
+                <section className="mail-conversation">
+                  <h3>Conversación</h3>
+                  {(selectedMessage.messages || []).map((threadMessage) => (
+                    <article
+                      key={threadMessage.id}
+                      className={`mail-conversation-item mail-conversation-item--${threadMessage.direction} ${threadMessage.message_type === "draft" ? "is-draft" : ""}`}
+                    >
+                      <header>
+                        <div>
+                          <strong>{threadMessage.sender_name}</strong>
+                          <span>{threadMessage.sender_address}</span>
+                        </div>
+                        <div>
+                          {threadMessage.message_type === "draft" && <span className="mail-draft-label">Borrador</span>}
+                          <time>{formatMessageDate(threadMessage.sent_at)}</time>
+                        </div>
+                      </header>
+                      <div className="mail-conversation-item__body">
+                        {splitBody(threadMessage.body_text).map((paragraph) => <p key={paragraph}>{paragraph}</p>)}
+                      </div>
+                      {threadMessage.attachments?.length > 0 && (
+                        <div className="mail-conversation-item__attachments">
+                          {threadMessage.attachments.map((attachment) => (
+                            <button type="button" key={attachment.id} onClick={() => showPlaceholder(`Abrir ${attachment.filename}`)}>
+                              <Paperclip size={14} /> {attachment.filename}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </article>
+                  ))}
+                </section>
 
-                {selectedMessage.attachments.length > 0 && (
+                {composer && (
+                  <section className="mail-composer">
+                    <header className="mail-composer__header">
+                      <div>
+                        <strong>{composer.mode === "forward" ? "Reenviar comunicación" : "Responder al hilo"}</strong>
+                        <span>La comunicación se guardará únicamente dentro de AulaNomina.</span>
+                      </div>
+                      <button type="button" onClick={closeComposer} aria-label="Cerrar editor"><X size={18} /></button>
+                    </header>
+                    <label className="mail-composer__field">
+                      <span>Destinatario</span>
+                      <input
+                        value={composer.recipientAddress}
+                        onChange={(event) => setComposer((current) => ({ ...current, recipientAddress: event.target.value }))}
+                        placeholder="destinatario@aulanomina.local"
+                      />
+                    </label>
+                    <label className="mail-composer__field">
+                      <span>Nombre</span>
+                      <input
+                        value={composer.recipientName}
+                        onChange={(event) => setComposer((current) => ({ ...current, recipientName: event.target.value }))}
+                        placeholder="Destinatario simulado"
+                      />
+                    </label>
+                    <label className="mail-composer__field mail-composer__field--body">
+                      <span>Mensaje</span>
+                      <textarea
+                        value={composer.body}
+                        onChange={(event) => setComposer((current) => ({ ...current, body: event.target.value }))}
+                        placeholder="Escribe la respuesta del alumno..."
+                      />
+                    </label>
+                    <footer className="mail-composer__actions">
+                      <button type="button" className="mail-composer__send" onClick={() => persistComposer("send")} disabled={Boolean(busyAction)}>
+                        {busyAction === "send" ? <LoaderCircle className="mail-spinner" size={16} /> : <Send size={16} />} Enviar
+                      </button>
+                      <button type="button" onClick={() => persistComposer("draft")} disabled={Boolean(busyAction)}>
+                        {busyAction === "draft" ? <LoaderCircle className="mail-spinner" size={16} /> : <Save size={16} />} Guardar borrador
+                      </button>
+                      <button type="button" onClick={closeComposer} disabled={Boolean(busyAction)}>Cancelar</button>
+                    </footer>
+                  </section>
+                )}
+
+                {!composer && selectedMessage.attachments.length > 0 && (
                   <section className="mail-attachments">
                     <h3><Paperclip size={16} /> {selectedMessage.attachments.length} adjunto{selectedMessage.attachments.length > 1 ? "s" : ""}</h3>
                     <div>
-                      {selectedMessage.attachments.map((attachment) => (
-                        <button type="button" key={attachment} onClick={() => showPlaceholder(`Abrir ${attachment}`)}><FileText size={20} /><span>{attachment}<small>Documento simulado</small></span></button>
+                      {selectedMessage.attachmentRecords.map((attachment) => (
+                        <button type="button" key={attachment.id} onClick={() => showPlaceholder(`Abrir ${attachment.filename}`)}><FileText size={20} /><span>{attachment.filename}<small>Documento simulado</small></span></button>
                       ))}
                     </div>
                   </section>
