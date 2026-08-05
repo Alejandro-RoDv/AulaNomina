@@ -1,55 +1,81 @@
-const API_URL = "http://127.0.0.1:8000";
+import { apiRequest } from "./httpClient.js";
 
-async function request(path, options = {}) {
-  const response = await fetch(`${API_URL}${path}`, {
-    headers: {
-      "Content-Type": "application/json",
-      ...(options.headers || {}),
-    },
-    ...options,
+
+function buildQuery(filters = {}) {
+  const params = new URLSearchParams();
+  Object.entries(filters).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== "") params.set(key, String(value));
   });
-
-  if (!response.ok) {
-    let message = "Error en la petición";
-    try {
-      const data = await response.json();
-      message = data.detail || message;
-    } catch {
-      // keep default message
-    }
-    throw new Error(message);
-  }
-
-  if (response.status === 204) return null;
-  return response.json();
+  const query = params.toString();
+  return query ? `?${query}` : "";
 }
+
 
 export function fetchCaseAssignments() {
-  return request("/case-assignments");
+  return apiRequest("/case-assignments", {}, "Error al cargar asignaciones");
 }
+
 
 export function createCaseAssignment(payload) {
-  return request("/case-assignments", {
-    method: "POST",
-    body: JSON.stringify(payload),
-  });
+  return apiRequest(
+    "/case-assignments",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    },
+    "Error al crear asignación"
+  );
 }
+
 
 export function updateCaseAssignment(assignmentId, payload) {
-  return request(`/case-assignments/${assignmentId}`, {
-    method: "PUT",
-    body: JSON.stringify(payload),
-  });
+  return apiRequest(
+    `/case-assignments/${assignmentId}`,
+    {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    },
+    "Error al actualizar asignación"
+  );
 }
+
 
 export function deleteCaseAssignment(assignmentId) {
-  return request(`/case-assignments/${assignmentId}`, {
-    method: "DELETE",
-  });
+  return apiRequest(
+    `/case-assignments/${assignmentId}`,
+    { method: "DELETE" },
+    "Error al eliminar asignación"
+  );
 }
 
+
 export function seedDemoCaseAssignments() {
-  return request("/case-assignments/seed-demo", {
-    method: "POST",
-  });
+  return apiRequest(
+    "/case-assignments/seed-demo",
+    { method: "POST" },
+    "Error al cargar asignaciones demo"
+  );
 }
+
+
+export function fetchTeacherCaseDashboard(filters = {}) {
+  return apiRequest(
+    `/case-assignments/teacher-dashboard${buildQuery(filters)}`,
+    {},
+    "No se ha podido cargar la trazabilidad de los casos"
+  );
+}
+
+
+export function fetchTeacherCaseDetail(assignmentId) {
+  return apiRequest(
+    `/case-assignments/${assignmentId}/teacher-detail`,
+    {},
+    "No se ha podido cargar el detalle docente del caso"
+  );
+}
+
+
+export { buildQuery };
