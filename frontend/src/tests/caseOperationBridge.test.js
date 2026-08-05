@@ -201,13 +201,13 @@ test("publica que una operación externa ha generado una comunicación", async (
 
 
 test("la bandeja FIE aplica trabajador y empresa del contexto activo", () => {
-  const previousWindow = global.window;
+  const previousWindow = globalThis.window;
   const storage = new MemoryStorage();
   storage.setItem("aulanomina:active-case-context", JSON.stringify({
     employeeId: 22,
     companyId: 4,
   }));
-  global.window = {
+  globalThis.window = {
     location: { search: "", hash: "#fie-inbox" },
     localStorage: storage,
   };
@@ -223,7 +223,7 @@ test("la bandeja FIE aplica trabajador y empresa del contexto activo", () => {
       employee_id: 99,
     });
   } finally {
-    global.window = previousWindow;
+    globalThis.window = previousWindow;
   }
 });
 
