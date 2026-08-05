@@ -96,3 +96,45 @@ def test_archiving_and_replying_persist_the_conversation():
         assert reloaded.messages[-1].direction == "outgoing"
         assert reloaded.preview.startswith("Alta y contrato revisados")
         assert reloaded.status == "in_progress"
+
+
+def test_draft_and_send_move_thread_between_persistent_folders():
+    with TestingSession() as db:
+        mailbox = get_demo_mailbox(db)
+        thread = list_threads(db, mailbox.id, search="NOM-2026-014")[0]
+
+        drafted = create_thread_message(
+            db,
+            thread,
+            EmailMessageCreate(
+                sender_name="Usuario demo",
+                sender_address="usuario.demo@aulanomina.local",
+                recipient_name="Administración",
+                recipient_address="administracion@empresa-demo.es",
+                body_text="He revisado la antigüedad y estoy preparando la regularización.",
+                message_type="draft",
+            ),
+        )
+
+        assert drafted.folder == "drafts"
+        assert drafted.status == "in_progress"
+        assert drafted.messages[-1].message_type == "draft"
+        assert mailbox_stats(db, mailbox.id)["drafts"] == 2
+
+        sent = create_thread_message(
+            db,
+            drafted,
+            EmailMessageCreate(
+                sender_name="Usuario demo",
+                sender_address="usuario.demo@aulanomina.local",
+                recipient_name="Administración",
+                recipient_address="administracion@empresa-demo.es",
+                body_text="La antigüedad ha sido corregida y la nómina recalculada.",
+                message_type="reply",
+            ),
+        )
+
+        assert sent.folder == "sent"
+        assert sent.messages[-1].message_type == "reply"
+        assert sent.preview.startswith("La antigüedad ha sido corregida")
+        assert mailbox_stats(db, mailbox.id)["sent"] == 2
