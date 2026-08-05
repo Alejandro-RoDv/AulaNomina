@@ -115,6 +115,8 @@ class EmailThreadResponse(BaseModel):
     mailbox_id: int
     company_id: Optional[int] = None
     case_study_id: Optional[int] = None
+    case_assignment_id: Optional[int] = None
+    case_task_id: Optional[int] = None
     subject: str
     preview: Optional[str] = None
     folder: str
