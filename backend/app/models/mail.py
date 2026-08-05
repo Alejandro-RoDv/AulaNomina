@@ -32,6 +32,8 @@ class EmailThread(Base):
     mailbox_id = Column(Integer, ForeignKey("mailboxes.id"), nullable=False, index=True)
     company_id = Column(Integer, ForeignKey("companies.id"), nullable=True, index=True)
     case_study_id = Column(Integer, ForeignKey("case_studies.id"), nullable=True, index=True)
+    case_assignment_id = Column(Integer, ForeignKey("case_assignments.id"), nullable=True, index=True)
+    case_task_id = Column(Integer, ForeignKey("case_tasks.id"), nullable=True, index=True)
     subject = Column(String, nullable=False)
     preview = Column(Text, nullable=True)
     folder = Column(String, default="inbox", nullable=False, index=True)
@@ -46,6 +48,9 @@ class EmailThread(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False, index=True)
 
     mailbox = relationship("Mailbox", back_populates="threads")
+    case_study = relationship("CaseStudy")
+    case_assignment = relationship("CaseAssignment", back_populates="email_threads")
+    case_task = relationship("CaseTask")
     messages = relationship(
         "EmailMessage",
         back_populates="thread",
