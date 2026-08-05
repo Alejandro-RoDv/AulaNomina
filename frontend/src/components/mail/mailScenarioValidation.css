@@ -1,0 +1,53 @@
+.mail-scenario-validation-notice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 16px 14px;
+  border: 1px solid #8dbbd5;
+  border-radius: 5px;
+  padding: 10px 12px;
+  background: #edf8fe;
+  color: #175d84;
+  font-size: 10px;
+  font-weight: 750;
+  line-height: 1.45;
+}
+
+.mail-scenario-step__actions .mail-scenario-open-module {
+  border-color: #334155;
+  background: #ffffff;
+  color: #26364a;
+}
+
+.mail-scenario-step__actions .mail-scenario-open-module:hover {
+  background: #eef2f6;
+}
+
+.mail-scenario-checks {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 8px;
+}
+
+.mail-scenario-checks span {
+  display: block;
+  border-left: 3px solid #d19a35;
+  padding: 4px 7px;
+  background: #fff8e8;
+  color: #76521c;
+  font-size: 9px;
+  line-height: 1.4;
+}
+
+.mail-scenario-checks span.is-passed {
+  border-left-color: #3f9b62;
+  background: #edf8f1;
+  color: #24663d;
+}
+
+.mail-scenario-checks span.is-pending {
+  border-left-color: #c16b5e;
+  background: #fff2f0;
+  color: #873e35;
+}
