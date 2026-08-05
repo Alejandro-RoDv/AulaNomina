@@ -14,6 +14,7 @@ from app.schemas.mail import (
     MailboxResponse,
     MailboxStatsResponse,
 )
+from app.services.case_scenario_service import reset_assignment_progress
 from app.services.integrated_demo_case_service import ensure_integrated_demo_case
 from app.services.integrated_demo_process_seed import ensure_integrated_fie_communication
 from app.services.mail_service import (
@@ -46,7 +47,9 @@ def get_db():
 def _prepare_demo_mailbox(db: Session, *, reset: bool = False):
     mailbox = reset_demo_mailbox(db) if reset else get_demo_mailbox(db)
     ensure_integrated_fie_communication(db, reset=reset)
-    ensure_integrated_demo_case(db, mailbox)
+    integrated_thread = ensure_integrated_demo_case(db, mailbox)
+    if reset and integrated_thread.case_assignment_id:
+        reset_assignment_progress(db, integrated_thread.case_assignment_id)
     return mailbox
 
 
