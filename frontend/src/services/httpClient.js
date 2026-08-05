@@ -1,3 +1,5 @@
+import { emitCaseOperationEvent } from "../utils/caseOperationBridge.js";
+
 export const API_BASE_URL = import.meta.env?.VITE_API_BASE_URL || "http://127.0.0.1:8000";
 
 export class ApiRequestError extends Error {
@@ -27,6 +29,25 @@ function resolveCompatibilityPath(path) {
   return path === "/demo/reset" ? "/demo/clear" : path;
 }
 
+async function publishCaseOperation({
+  path,
+  options,
+  operationStatus,
+  responseData,
+  responseSummary,
+  httpStatus,
+}) {
+  await emitCaseOperationEvent({
+    apiBaseUrl: API_BASE_URL,
+    path,
+    method: options.method || "GET",
+    operationStatus,
+    responseData,
+    responseSummary,
+    httpStatus,
+  });
+}
+
 export async function apiRequest(path, options = {}, fallbackMessage = "Error de comunicación con la API") {
   let response;
   const resolvedPath = resolveCompatibilityPath(path);
@@ -46,11 +67,29 @@ export async function apiRequest(path, options = {}, fallbackMessage = "Error de
 
   if (!response.ok) {
     const detail = data?.detail ?? null;
+    const errorMessage = messageFromDetail(detail, fallbackMessage, response.status);
+    await publishCaseOperation({
+      path: resolvedPath,
+      options,
+      operationStatus: "error",
+      responseData: data,
+      responseSummary: errorMessage,
+      httpStatus: response.status,
+    });
     throw new ApiRequestError(
-      messageFromDetail(detail, fallbackMessage, response.status),
+      errorMessage,
       { status: response.status, detail, path: resolvedPath }
     );
   }
+
+  await publishCaseOperation({
+    path: resolvedPath,
+    options,
+    operationStatus: "success",
+    responseData: data,
+    responseSummary: fallbackMessage.replace(/^Error al\s+/i, "").replace(/^Error de\s+/i, ""),
+    httpStatus: response.status,
+  });
 
   return data;
 }
