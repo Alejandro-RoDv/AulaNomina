@@ -24,7 +24,7 @@ from app.services.case_validation_service import (
     record_assignment_event,
     validate_assignment_step,
 )
-from app.services.mail_service import create_operational_response
+from app.services.professional_response_service import create_professional_response
 from app.services.teacher_case_dashboard_service import (
     get_teacher_case_dashboard,
     get_teacher_case_detail,
@@ -125,13 +125,14 @@ def record_assignment_event_endpoint(
     try:
         result = record_assignment_event(db, assignment_id, payload)
         event_id = str((payload.metadata or {}).get("event_id") or "").strip() or None
-        result["professional_message_id"] = create_operational_response(
+        result["professional_message_id"] = create_professional_response(
             db,
             assignment_id,
             action_code=payload.action_code,
             operation_status=payload.operation_status,
             event_id=event_id,
             validation=result.get("validation"),
+            metadata=payload.metadata,
         )
         return result
     except CaseScenarioError as error:
