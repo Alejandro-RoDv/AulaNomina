@@ -50,6 +50,7 @@ class CaseTask(Base):
     trigger_condition = Column(JSON, default=dict, nullable=False)
     validation_rules = Column(JSON, default=list, nullable=False)
     message_template = Column(Text, nullable=True)
+    feedback_config = Column(JSON, default=dict, nullable=False)
     task_order = Column(Integer, default=1, nullable=False)
     is_required = Column(Boolean, default=True, nullable=False)
     blocking = Column(Boolean, default=True, nullable=False)
