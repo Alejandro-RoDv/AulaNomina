@@ -137,7 +137,7 @@ def test_integrated_demo_case_is_created_once_with_complete_workflow():
         assert "siltra" in first_thread.context_actions
 
 
-def test_integrated_fie_is_seeded_and_matches_existing_it():
+def test_integrated_fie_is_seeded_matches_existing_it_and_can_reset():
     with TestingSession() as db:
         employee, incident = _create_javier_process(db)
 
@@ -154,6 +154,15 @@ def test_integrated_fie_is_seeded_and_matches_existing_it():
         assert compared.status == "MATCHED"
         assert compared.incident_id == incident.id
         assert compared.reconciliation_result["checks"]
+
+        restored = ensure_integrated_fie_communication(db, reset=True)
+        assert restored.id == first.id
+        assert restored.status == "RECEIVED"
+        assert restored.read_at is None
+        assert restored.incident_id is None
+        assert restored.reconciliation_result == {}
+        assert len(restored.events) == 1
+        assert restored.events[0].event_type == "RECEIVED"
 
 
 def test_siltra_response_uses_domain_status_and_is_idempotent():
