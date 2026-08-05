@@ -3,9 +3,18 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from app.db import Base
-from app.schemas.mail import EmailMessageCreate, EmailThreadUpdate
+from app.schemas.mail import (
+    EmailAttachmentCreate,
+    EmailMessageCreate,
+    EmailThreadCreate,
+    EmailThreadUpdate,
+)
 from app.services.mail_service import (
+    attachment_download,
+    attachment_preview,
+    create_thread,
     create_thread_message,
+    get_attachment,
     get_demo_mailbox,
     get_thread,
     list_threads,
@@ -101,6 +110,7 @@ def test_archiving_and_replying_persist_the_conversation():
                 sender_address="usuario.demo@aulanomina.local",
                 recipient_name="Dirección del centro Norte",
                 recipient_address="direccion.norte@empresa-demo.es",
+                cc_address="administracion@empresa-demo.es",
                 body_text="Alta y contrato revisados. El movimiento queda preparado para afiliación.",
             ),
         )
@@ -108,6 +118,7 @@ def test_archiving_and_replying_persist_the_conversation():
         reloaded = get_thread(db, replied.id)
         assert len(reloaded.messages) == 2
         assert reloaded.messages[-1].direction == "outgoing"
+        assert reloaded.messages[-1].cc_address == "administracion@empresa-demo.es"
         assert reloaded.preview.startswith("Alta y contrato revisados")
         assert reloaded.status == "in_progress"
 
@@ -152,3 +163,66 @@ def test_draft_and_send_move_thread_between_persistent_folders():
         assert sent.messages[-1].message_type == "reply"
         assert sent.preview.startswith("La antigüedad ha sido corregida")
         assert mailbox_stats(db, mailbox.id)["sent"] == 2
+
+
+def test_new_thread_can_be_sent_or_saved_as_draft_with_relations():
+    with TestingSession() as db:
+        mailbox = get_demo_mailbox(db)
+
+        sent = create_thread(
+            db,
+            mailbox,
+            EmailThreadCreate(
+                recipient_name="Administración",
+                recipient_address="administracion@empresa-demo.es",
+                cc_address="rrhh@empresa-demo.es",
+                subject="Consulta de expediente",
+                body_text="Se adjunta el detalle revisado.",
+                category="document",
+                case_reference="DOC-LOCAL-001",
+                related_entity_type="employee_record",
+                related_entity_id=17,
+                attachments=[
+                    EmailAttachmentCreate(
+                        filename="detalle.txt",
+                        content_type="text/plain",
+                        content_text="Contenido del expediente",
+                    )
+                ],
+            ),
+        )
+
+        assert sent.folder == "sent"
+        assert sent.related_entity_type == "employee_record"
+        assert sent.related_entity_id == 17
+        assert sent.messages[0].cc_address == "rrhh@empresa-demo.es"
+        assert sent.messages[0].attachments[0].content_text == "Contenido del expediente"
+
+        drafted = create_thread(
+            db,
+            mailbox,
+            EmailThreadCreate(
+                recipient_address="direccion@empresa-demo.es",
+                subject="Borrador",
+                body_text="Pendiente de completar.",
+                save_as_draft=True,
+            ),
+        )
+        assert drafted.folder == "drafts"
+        assert drafted.messages[0].message_type == "draft"
+
+
+def test_demo_attachments_have_preview_and_real_download_payload():
+    with TestingSession() as db:
+        mailbox = get_demo_mailbox(db)
+        thread = list_threads(db, mailbox.id, search="NOM-2026-014")[0]
+        attachment_id = thread.messages[0].attachments[0].id
+        attachment = get_attachment(db, attachment_id)
+
+        preview = attachment_preview(attachment)
+        pdf_bytes, media_type = attachment_download(attachment)
+
+        assert "Ana Martín" in preview["content_text"]
+        assert preview["preview_supported"] is True
+        assert media_type == "application/pdf"
+        assert pdf_bytes.startswith(b"%PDF-1.4")
