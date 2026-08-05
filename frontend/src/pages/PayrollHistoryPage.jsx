@@ -32,6 +32,36 @@ function getMonthLabel(month) {
   return labels[Number(month)] || month;
 }
 
+function filtersFromCaseContext(context = {}) {
+  const period = String(context.period || "");
+  const [year = "", month = ""] = period.includes("-") ? period.split("-", 2) : ["", ""];
+  return {
+    employee: context.employeeName || context.employeeId || "",
+    company: context.companyId || "",
+    year,
+    month: month ? String(Number(month)) : "",
+    status: "",
+  };
+}
+
+function getInitialFilters() {
+  if (typeof window === "undefined") return filtersFromCaseContext();
+  const params = new URLSearchParams(window.location.search);
+  const urlContext = {
+    employeeName: params.get("employee"),
+    employeeId: params.get("employeeId"),
+    companyId: params.get("companyId"),
+    period: params.get("period"),
+  };
+  if (Object.values(urlContext).some(Boolean)) return filtersFromCaseContext(urlContext);
+  try {
+    const stored = JSON.parse(window.sessionStorage.getItem("aulanomina:active-case-context") || "null");
+    return filtersFromCaseContext(stored || {});
+  } catch {
+    return filtersFromCaseContext();
+  }
+}
+
 export default function PayrollHistoryPage({
   loading,
   payrolls = [],
@@ -46,17 +76,21 @@ export default function PayrollHistoryPage({
   const [localPayrolls, setLocalPayrolls] = useState(payrolls);
   const [refreshingPayrolls, setRefreshingPayrolls] = useState(false);
   const [refreshMessage, setRefreshMessage] = useState("");
-  const [filters, setFilters] = useState({
-    employee: "",
-    company: "",
-    year: "",
-    month: "",
-    status: "",
-  });
+  const [filters, setFilters] = useState(getInitialFilters);
 
   useEffect(() => {
     setLocalPayrolls(payrolls);
   }, [payrolls]);
+
+  useEffect(() => {
+    const applyCaseContext = (event) => {
+      const context = event.detail || {};
+      if (context.page !== "payroll-history") return;
+      setFilters(filtersFromCaseContext(context));
+    };
+    window.addEventListener("aulanomina-case-context", applyCaseContext);
+    return () => window.removeEventListener("aulanomina-case-context", applyCaseContext);
+  }, []);
 
   async function refreshPayrollList() {
     try {
@@ -132,7 +166,7 @@ export default function PayrollHistoryPage({
         <div style={styles.filtersBox}>
           <div style={styles.filtersHeader}>
             <h3 style={styles.blockTitle}>Filtros</h3>
-            <div style={styles.actions}> 
+            <div style={styles.actions}>
               <button type="button" onClick={refreshPayrollList} style={styles.secondaryButton}>{refreshingPayrolls ? "Actualizando..." : "Actualizar"}</button>
               <button type="button" onClick={clearFilters} style={styles.clearButton}>Limpiar filtros</button>
             </div>

@@ -44,6 +44,27 @@ function getInitialMode() {
   return window.sessionStorage.getItem(INCIDENTS_MODE_KEY) || "list";
 }
 
+function readCaseContext() {
+  if (typeof window === "undefined") return {};
+  const params = new URLSearchParams(window.location.search);
+  const context = {
+    page: params.get("page"),
+    employeeId: params.get("employeeId"),
+    startDate: params.get("startDate"),
+    incidentCategory: params.get("incidentCategory"),
+  };
+  if (Object.values(context).some(Boolean)) return context;
+  try {
+    return JSON.parse(window.sessionStorage.getItem("aulanomina:active-case-context") || "{}") || {};
+  } catch {
+    return {};
+  }
+}
+
+function getInitialCategory() {
+  return readCaseContext().incidentCategory || "all";
+}
+
 function publishHeader(mode) {
   const detail = mode === "embargo"
     ? { title: "Embargos judiciales", subtitle: "Gestión, cálculo y seguimiento de retenciones judiciales" }
@@ -80,7 +101,7 @@ export default function IncidentsPage({
   onDataChanged,
 }) {
   const [activeMode, setActiveMode] = useState(getInitialMode);
-  const [activeCategory, setActiveCategory] = useState("all");
+  const [activeCategory, setActiveCategory] = useState(getInitialCategory);
   const activeTab = getIncidentCategory(activeCategory);
 
   useEffect(() => {
@@ -143,13 +164,31 @@ export default function IncidentsPage({
 
   const openCategory = (value) => {
     const tab = getIncidentCategory(value);
-    if (tab.value === activeCategory) return;
-    setActiveCategory(tab.value);
+    if (tab.value !== activeCategory) setActiveCategory(tab.value);
     const updates = getCategoryFormUpdates(tab, incidentForm.incident_type);
     Object.entries(updates).forEach(([name, valueToApply]) => {
       onIncidentChange({ target: { name, value: valueToApply, type: "select-one" } });
     });
   };
+
+  useEffect(() => {
+    const applyContext = (context) => {
+      if (!context || context.page !== "incidents") return;
+      const category = context.incidentCategory || "medical";
+      openCategory(category);
+      if (context.employeeId) {
+        onIncidentChange({ target: { name: "employee_id", value: String(context.employeeId), type: "select-one" } });
+      }
+      if (context.startDate) {
+        onIncidentChange({ target: { name: "start_date", value: context.startDate, type: "date" } });
+      }
+    };
+
+    applyContext(readCaseContext());
+    const handleCaseContext = (event) => applyContext(event.detail);
+    window.addEventListener("aulanomina-case-context", handleCaseContext);
+    return () => window.removeEventListener("aulanomina-case-context", handleCaseContext);
+  }, []);
 
   if (activeMode === "embargo") {
     return <WageGarnishmentManagementPage

@@ -1,0 +1,167 @@
+.mail-scenario-panel {
+  margin-top: 18px;
+  border-top: 1px solid #e4e8ed;
+  padding-top: 15px;
+  color: #344054;
+}
+
+.mail-scenario-panel--loading,
+.mail-scenario-panel--error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #667085;
+  font-size: 11px;
+}
+
+.mail-scenario-panel--error {
+  justify-content: space-between;
+  color: #9f2f29;
+}
+
+.mail-scenario-panel--error button {
+  border: 1px solid #c9d2dc;
+  border-radius: 3px;
+  padding: 6px 9px;
+  background: #ffffff;
+  cursor: pointer;
+}
+
+.mail-scenario-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.mail-scenario-panel__header > div {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.mail-scenario-panel__eyebrow {
+  color: #667085;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.mail-scenario-panel__header strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #263244;
+  font-size: 12px;
+}
+
+.mail-scenario-panel__badge {
+  flex: 0 0 auto;
+  border-radius: 999px;
+  padding: 3px 7px;
+  background: #eef3f7;
+  color: #526176;
+  font-size: 8px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.mail-scenario-panel__intro {
+  max-width: 760px;
+  margin: 8px 0 11px;
+  color: #697586;
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.mail-scenario-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.mail-scenario-actions button {
+  min-height: 31px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px solid #c4ced8;
+  border-radius: 3px;
+  padding: 6px 10px;
+  background: #ffffff;
+  color: #344054;
+  font-size: 10px;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.mail-scenario-actions button:hover {
+  background: #f5f8fa;
+}
+
+.mail-scenario-actions button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.mail-scenario-actions .mail-scenario-primary {
+  border-color: #087fc4;
+  background: #087fc4;
+  color: #ffffff;
+}
+
+.mail-scenario-actions .mail-scenario-primary:hover {
+  background: #066fae;
+}
+
+.mail-scenario-hint {
+  max-width: 760px;
+  margin-top: 10px;
+  border-left: 3px solid #d6a900;
+  padding: 8px 10px;
+  background: #fffbea;
+}
+
+.mail-scenario-hint strong {
+  color: #6f5500;
+  font-size: 10px;
+}
+
+.mail-scenario-hint p {
+  margin: 3px 0 0;
+  color: #5f5740;
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.mail-scenario-validation-notice,
+.mail-scenario-complete,
+.mail-scenario-error {
+  max-width: 760px;
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  margin: 8px 0 10px;
+  border-radius: 3px;
+  padding: 8px 10px;
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.mail-scenario-validation-notice {
+  background: #eef7fc;
+  color: #165f88;
+}
+
+.mail-scenario-complete {
+  background: #eef9f2;
+  color: #246a3d;
+}
+
+.mail-scenario-error {
+  background: #fff1f0;
+  color: #9f2f29;
+}

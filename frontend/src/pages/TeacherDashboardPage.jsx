@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 
+import TeacherCaseTraceabilityPanel from "../components/case-studies/TeacherCaseTraceabilityPanel.jsx";
 import { fetchCaseAssignments } from "../services/caseAssignmentApi";
 import { fetchCaseStudies } from "../services/caseStudyApi";
 import { fetchCorrections } from "../services/correctionApi";
@@ -175,6 +176,8 @@ export default function TeacherDashboardPage() {
         <div style={styles.smallMetric}><span>Fuera de plazo</span><strong>{metrics.overdue}</strong></div>
         <div style={styles.smallMetric}><span>Alumnos / grupos</span><strong>{metrics.students}/{metrics.groups}</strong></div>
       </section>
+
+      <TeacherCaseTraceabilityPanel />
 
       <section style={styles.contentGrid}>
         <div style={styles.card}>

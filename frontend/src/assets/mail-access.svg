@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title desc">
+  <title id="title">Correo AulaNomina</title>
+  <desc id="desc">Sobre blanco dentro de un círculo azul</desc>
+  <circle cx="32" cy="32" r="30" fill="#087fc4"/>
+  <path d="M16 20.5c0-2.49 2.01-4.5 4.5-4.5h23c2.49 0 4.5 2.01 4.5 4.5v2.15L32 35.05 16 22.65V20.5Z" fill="#fff"/>
+  <path d="m16 27.5 10.25 8.12L16 44V27.5Zm32 0V44l-10.25-8.38L48 27.5Z" fill="#fff"/>
+  <path d="m28.55 37.44 3.45 2.65 3.45-2.65L46.62 46H17.38l11.17-8.56Z" fill="#fff"/>
+</svg>

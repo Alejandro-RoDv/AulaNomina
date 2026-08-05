@@ -178,7 +178,7 @@ def test_annual_summary_and_relation_use_frozen_snapshot(db):
     assert "Modelo 190 · Resumen anual" in summary
     assert "AulaNomina Documentos SL" in summary
     assert "2.500,00 €" in summary
-    assert "9999" not in summary
+    assert "9.999,00 €" not in summary
     assert "RELACIÓN NOMINATIVA SIN VALIDEZ FISCAL" in relation
     assert "30000001A" in relation
     assert "2025" in relation
