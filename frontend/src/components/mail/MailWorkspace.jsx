@@ -39,6 +39,9 @@ import {
   resetDemoMailbox,
   updateMailThread,
 } from "../../services/mailApi";
+import { openCaseModule } from "../../utils/caseNavigation.js";
+import MailAttachmentViewer from "./MailAttachmentViewer.jsx";
+import MailNewMessageComposer from "./MailNewMessageComposer.jsx";
 import MailScenarioPanel from "./MailScenarioPanel";
 import "./mailWorkspace.css";
 import "./mailWorkspacePersistence.css";
@@ -121,7 +124,7 @@ function splitBody(value) {
 }
 
 function recipientForReply(message) {
-  const incoming = message?.messages?.find((item) => item.direction === "incoming");
+  const incoming = [...(message?.messages || [])].reverse().find((item) => item.direction === "incoming");
   if (incoming) {
     return {
       name: incoming.sender_name || message.sender,
@@ -135,9 +138,7 @@ function recipientForReply(message) {
 }
 
 function latestDraftBody(message) {
-  const draft = [...(message?.messages || [])]
-    .reverse()
-    .find((item) => item.message_type === "draft");
+  const draft = [...(message?.messages || [])].reverse().find((item) => item.message_type === "draft");
   return draft?.body_text || "";
 }
 
@@ -155,6 +156,8 @@ export default function MailWorkspace({ onClose }) {
   const [listLoading, setListLoading] = useState(false);
   const [busyAction, setBusyAction] = useState("");
   const [composer, setComposer] = useState(null);
+  const [newMessageOpen, setNewMessageOpen] = useState(false);
+  const [attachmentViewer, setAttachmentViewer] = useState(null);
   const requestSequence = useRef(0);
 
   const mailboxId = mailbox?.id;
@@ -181,14 +184,12 @@ export default function MailWorkspace({ onClose }) {
     const sequence = ++requestSequence.current;
     if (!silent) setListLoading(true);
     setError("");
-
     try {
       const [nextMessages, nextStats] = await Promise.all([
         fetchMailboxThreads(mailboxId, filtersForView(activeView, appliedSearch)),
         fetchMailboxStats(mailboxId),
       ]);
       if (sequence !== requestSequence.current) return;
-
       setMessages(nextMessages);
       setStats(nextStats || EMPTY_STATS);
       setSelectedId((current) => {
@@ -209,8 +210,7 @@ export default function MailWorkspace({ onClose }) {
     setInitialLoading(true);
     setError("");
     try {
-      const demoMailbox = await fetchDemoMailbox();
-      setMailbox(demoMailbox);
+      setMailbox(await fetchDemoMailbox());
     } catch (requestError) {
       setError(requestError.message || "No se ha podido cargar el correo simulado.");
     } finally {
@@ -230,16 +230,10 @@ export default function MailWorkspace({ onClose }) {
     setSelectedId(message.id);
     setComposer(null);
     if (!message.unread) return;
-
-    setMessages((current) => current.map((item) => (
-      item.id === message.id ? { ...item, unread: false } : item
-    )));
-
+    setMessages((current) => current.map((item) => item.id === message.id ? { ...item, unread: false } : item));
     try {
       const updated = await updateMailThread(message.id, { is_read: true });
-      setMessages((current) => current.map((item) => (
-        item.id === updated.id ? updated : item
-      )));
+      setMessages((current) => current.map((item) => item.id === updated.id ? updated : item));
       await loadStats(mailboxId);
     } catch (requestError) {
       setError(requestError.message || "No se ha podido marcar el mensaje como leído.");
@@ -263,28 +257,6 @@ export default function MailWorkspace({ onClose }) {
     }
   };
 
-  const toggleRead = () => {
-    if (!selectedMessage) return;
-    persistSelectedThread(
-      { is_read: selectedMessage.unread },
-      selectedMessage.unread ? "Mensaje marcado como leído." : "Mensaje marcado como no leído."
-    );
-  };
-
-  const archiveSelected = () => {
-    persistSelectedThread(
-      { folder: "archive", is_read: true },
-      "Mensaje archivado. El cambio se ha guardado en la base de datos."
-    );
-  };
-
-  const moveToTrash = () => {
-    persistSelectedThread(
-      { folder: "trash", is_read: true },
-      "Mensaje movido a la papelera. El cambio se ha guardado en la base de datos."
-    );
-  };
-
   const openComposer = (mode) => {
     if (!selectedMessage || !mailbox) return;
     const recipient = recipientForReply(selectedMessage);
@@ -292,23 +264,17 @@ export default function MailWorkspace({ onClose }) {
       mode,
       recipientName: mode === "forward" ? "" : recipient.name,
       recipientAddress: mode === "forward" ? "" : recipient.address,
+      ccAddress: "",
       body: selectedMessage.folder === "drafts" ? latestDraftBody(selectedMessage) : "",
     });
   };
 
-  const closeComposer = () => setComposer(null);
-
   const persistComposer = async (messageType) => {
     if (!selectedMessage || !mailbox || !composer) return;
-    if (!composer.body.trim()) {
-      setError("Escribe el contenido de la respuesta antes de guardarla.");
+    if (!composer.body.trim() || !composer.recipientAddress.trim()) {
+      setError("Indica destinatario y contenido antes de guardar la comunicación.");
       return;
     }
-    if (!composer.recipientAddress.trim()) {
-      setError("Indica una dirección de destinatario.");
-      return;
-    }
-
     const isDraft = messageType === "draft";
     setBusyAction(isDraft ? "draft" : "send");
     setError("");
@@ -318,15 +284,14 @@ export default function MailWorkspace({ onClose }) {
         sender_address: mailbox.address,
         recipient_name: composer.recipientName || null,
         recipient_address: composer.recipientAddress.trim(),
+        cc_address: composer.ccAddress.trim() || null,
         body_text: composer.body.trim(),
         body_html: null,
         direction: "outgoing",
         message_type: isDraft ? "draft" : composer.mode === "forward" ? "forward" : "reply",
         attachments: [],
       });
-      setNotice(isDraft
-        ? "Borrador guardado en la base de datos."
-        : "Respuesta enviada dentro del entorno simulado.");
+      setNotice(isDraft ? "Borrador guardado." : "Respuesta enviada dentro del entorno simulado.");
       setComposer(null);
       await refreshView({ silent: true, preferredId: updated.id });
     } catch (requestError) {
@@ -342,20 +307,13 @@ export default function MailWorkspace({ onClose }) {
     setError("");
     try {
       const demoMailbox = await resetDemoMailbox();
-      const [nextMessages, nextStats] = await Promise.all([
-        fetchMailboxThreads(demoMailbox.id, { folder: "inbox" }),
-        fetchMailboxStats(demoMailbox.id),
-      ]);
       setMailbox(demoMailbox);
-      setMessages(nextMessages);
-      setStats(nextStats || EMPTY_STATS);
-      setSelectedId(nextMessages[0]?.id || null);
-      setNotice("Buzón de demostración restaurado.");
-      setComposer(null);
       setActiveView("inbox");
       setSearchText("");
       setAppliedSearch("");
-      publishStatsRefresh();
+      setComposer(null);
+      setNotice("Buzón de demostración restaurado.");
+      await refreshView({ preferredId: null });
     } catch (requestError) {
       setError(requestError.message || "No se ha podido restaurar el buzón.");
     } finally {
@@ -363,23 +321,36 @@ export default function MailWorkspace({ onClose }) {
     }
   };
 
+  const handleNewThreadCreated = async (created, savedAsDraft) => {
+    setNewMessageOpen(false);
+    setNotice(savedAsDraft ? "Correo guardado como borrador." : "Correo enviado.");
+    setActiveView(savedAsDraft ? "drafts" : "sent");
+    window.setTimeout(() => refreshView({ silent: true, preferredId: created.id }), 0);
+  };
+
   const handleScenarioChanged = async (_scenario, successMessage) => {
     if (successMessage) setNotice(successMessage);
     await refreshView({ silent: true, preferredId: selectedMessage?.id || null });
   };
 
-  const showPlaceholder = (text) => {
-    setNotice(`${text}. Esta acción se conectará al módulo relacionado en el siguiente paso del split.`);
+  const openContextAction = (action) => {
+    if (!selectedMessage) return;
+    const opened = openCaseModule({
+      actionCode: action,
+      moduleCode: selectedMessage.categoryCode,
+      assignmentId: selectedMessage.caseAssignmentId,
+      taskId: selectedMessage.caseTaskId,
+      scenarioCode: selectedMessage.caseReference,
+      employeeId: selectedMessage.employeeId,
+      companyId: selectedMessage.companyId,
+      relatedEntityType: selectedMessage.relatedEntityType,
+      relatedEntityId: selectedMessage.relatedEntityId,
+    });
+    if (!opened) setError("El navegador ha bloqueado la apertura del proceso relacionado.");
   };
 
   if (initialLoading) {
-    return (
-      <div className="mail-shell mail-shell--centered">
-        <LoaderCircle className="mail-spinner" size={36} />
-        <h1>Cargando correo simulado</h1>
-        <p>Preparando el buzón persistente y los casos prácticos.</p>
-      </div>
-    );
+    return <div className="mail-shell mail-shell--centered"><LoaderCircle className="mail-spinner" size={36} /><h1>Cargando correo simulado</h1></div>;
   }
 
   if (!mailbox) {
@@ -388,10 +359,7 @@ export default function MailWorkspace({ onClose }) {
         <AlertCircle size={42} />
         <h1>No se ha podido abrir el correo</h1>
         <p>{error || "Comprueba que el backend de AulaNomina esté arrancado."}</p>
-        <div className="mail-recovery-actions">
-          <button type="button" onClick={initializeMailbox}>Reintentar</button>
-          <button type="button" onClick={onClose}>Volver a AulaNomina</button>
-        </div>
+        <div className="mail-recovery-actions"><button type="button" onClick={initializeMailbox}>Reintentar</button><button type="button" onClick={onClose}>Volver</button></div>
       </div>
     );
   }
@@ -401,316 +369,98 @@ export default function MailWorkspace({ onClose }) {
   return (
     <div className="mail-shell">
       <header className="mail-app-bar">
-        <div className="mail-brand">
-          <img src={mailLogo} alt="" />
-          <div>
-            <strong>AulaNomina</strong>
-            <span>Correo educativo persistente</span>
-          </div>
-        </div>
-
-        <label className="mail-search">
-          <Search size={17} aria-hidden="true" />
-          <input
-            type="search"
-            value={searchText}
-            onChange={(event) => setSearchText(event.target.value)}
-            placeholder="Buscar asuntos, referencias o categorías"
-          />
-        </label>
-
-        <div className="mail-user-actions">
-          <span className="mail-sync-badge" title="Sincronizado con la API">API</span>
-          <button type="button" title="Restaurar buzón demo" onClick={resetMailbox} disabled={busyAction === "reset"}>
-            {busyAction === "reset" ? <LoaderCircle className="mail-spinner" size={18} /> : <Settings size={18} />}
-          </button>
-          <span className="mail-user-avatar"><UserRound size={18} /></span>
-          <div><strong>{mailbox.display_name}</strong><span>{mailbox.role}</span></div>
-        </div>
+        <div className="mail-brand"><img src={mailLogo} alt="" /><div><strong>AulaNomina</strong><span>Correo simulado</span></div></div>
+        <label className="mail-search"><Search size={17} /><input type="search" value={searchText} onChange={(event) => setSearchText(event.target.value)} placeholder="Buscar asuntos o referencias" /></label>
+        <div className="mail-user-actions"><button type="button" title="Restaurar buzón demo" onClick={resetMailbox} disabled={busyAction === "reset"}>{busyAction === "reset" ? <LoaderCircle className="mail-spinner" size={18} /> : <Settings size={18} />}</button><span className="mail-user-avatar"><UserRound size={18} /></span><div><strong>{mailbox.display_name}</strong><span>{mailbox.role}</span></div></div>
       </header>
 
       <nav className="mail-command-bar" aria-label="Acciones de correo">
-        <button type="button" className="mail-command-primary" onClick={() => showPlaceholder("Nuevo hilo de correo")}><PenLine size={16} /> Correo nuevo</button>
+        <button type="button" className="mail-command-primary" onClick={() => setNewMessageOpen(true)}><PenLine size={16} /> Correo nuevo</button>
         <span className="mail-command-separator" />
-        <button type="button" onClick={moveToTrash} disabled={!selectedMessage || Boolean(busyAction)}><Trash2 size={16} /> Eliminar</button>
-        <button type="button" onClick={archiveSelected} disabled={!selectedMessage || Boolean(busyAction)}><Archive size={16} /> Archivar</button>
-        <button type="button" onClick={toggleRead} disabled={!selectedMessage || Boolean(busyAction)}>{selectedMessage?.unread ? <MailOpen size={16} /> : <Mail size={16} />} Leído / no leído</button>
-        <button type="button" onClick={() => refreshView()} disabled={listLoading || Boolean(busyAction)}>
-          <RefreshCw className={listLoading ? "mail-spinner" : ""} size={16} /> Actualizar
-        </button>
+        <button type="button" onClick={() => persistSelectedThread({ folder: "trash", is_read: true }, "Mensaje movido a la papelera.")} disabled={!selectedMessage || Boolean(busyAction)}><Trash2 size={16} /> Eliminar</button>
+        <button type="button" onClick={() => persistSelectedThread({ folder: "archive", is_read: true }, "Mensaje archivado.")} disabled={!selectedMessage || Boolean(busyAction)}><Archive size={16} /> Archivar</button>
+        <button type="button" onClick={() => persistSelectedThread({ is_read: selectedMessage?.unread }, selectedMessage?.unread ? "Mensaje marcado como leído." : "Mensaje marcado como no leído.")} disabled={!selectedMessage || Boolean(busyAction)}>{selectedMessage?.unread ? <MailOpen size={16} /> : <Mail size={16} />} Leído / no leído</button>
+        <button type="button" onClick={() => refreshView()} disabled={listLoading}><RefreshCw className={listLoading ? "mail-spinner" : ""} size={16} /> Actualizar</button>
         <span className="mail-command-spacer" />
         <button type="button" onClick={onClose}><ArrowLeft size={16} /> Volver a AulaNomina</button>
-        <button type="button" aria-label="Más acciones" onClick={() => showPlaceholder("Más acciones")}><MoreHorizontal size={18} /></button>
       </nav>
 
-      {error && (
-        <div className="mail-notice mail-notice--error" role="alert">
-          <span>{error}</span>
-          <button type="button" onClick={() => setError("")}>Cerrar</button>
-        </div>
-      )}
-
-      {notice && (
-        <div className="mail-notice mail-notice--success" role="status">
-          <span>{notice}</span>
-          <button type="button" onClick={() => setNotice("")}>Cerrar</button>
-        </div>
-      )}
+      {error && <div className="mail-notice mail-notice--error" role="alert"><span>{error}</span><button type="button" onClick={() => setError("")}>Cerrar</button></div>}
+      {notice && <div className="mail-notice mail-notice--success" role="status"><span>{notice}</span><button type="button" onClick={() => setNotice("")}>Cerrar</button></div>}
 
       <main className="mail-workspace">
         <aside className="mail-folder-pane">
-          <button type="button" className="mail-folder-pane__compose" onClick={() => showPlaceholder("Nueva comunicación")}><PenLine size={17} /> Nueva comunicación</button>
-
-          <div className="mail-folder-account">
-            <span className="mail-folder-account__avatar">AN</span>
-            <div><strong>{mailbox.display_name}</strong><span>{mailbox.address}</span></div>
-            <ChevronDown size={16} />
-          </div>
-
-          <section className="mail-folder-group">
-            <h2>Carpetas</h2>
-            {PRIMARY_FOLDERS.map((folder) => {
-              const Icon = folder.icon;
-              const count = countForView(stats, folder.id);
-              return (
-                <button
-                  type="button"
-                  key={folder.id}
-                  className={activeView === folder.id ? "mail-folder-button is-active" : "mail-folder-button"}
-                  onClick={() => {
-                    setComposer(null);
-                    setActiveView(folder.id);
-                  }}
-                >
-                  <Icon size={17} />
-                  <span>{folder.label}</span>
-                  {count > 0 && <strong>{count}</strong>}
-                </button>
-              );
-            })}
-          </section>
-
-          <section className="mail-folder-group">
-            <h2>Casos prácticos</h2>
-            {CASE_VIEWS.map((view) => {
-              const Icon = view.icon;
-              return (
-                <button
-                  type="button"
-                  key={view.id}
-                  className={activeView === view.id ? "mail-folder-button is-active" : "mail-folder-button"}
-                  onClick={() => {
-                    setComposer(null);
-                    setActiveView(view.id);
-                  }}
-                >
-                  <Icon size={17} />
-                  <span>{view.label}</span>
-                  <strong>{countForView(stats, view.id)}</strong>
-                </button>
-              );
-            })}
-          </section>
+          <button type="button" className="mail-folder-pane__compose" onClick={() => setNewMessageOpen(true)}><PenLine size={17} /> Nueva comunicación</button>
+          <div className="mail-folder-account"><span className="mail-folder-account__avatar">AN</span><div><strong>{mailbox.display_name}</strong><span>{mailbox.address}</span></div><ChevronDown size={16} /></div>
+          <section className="mail-folder-group"><h2>Carpetas</h2>{PRIMARY_FOLDERS.map((folder) => { const Icon = folder.icon; const count = countForView(stats, folder.id); return <button type="button" key={folder.id} className={activeView === folder.id ? "mail-folder-button is-active" : "mail-folder-button"} onClick={() => { setComposer(null); setActiveView(folder.id); }}><Icon size={17} /><span>{folder.label}</span>{count > 0 && <strong>{count}</strong>}</button>; })}</section>
+          <section className="mail-folder-group"><h2>Casos prácticos</h2>{CASE_VIEWS.map((view) => { const Icon = view.icon; return <button type="button" key={view.id} className={activeView === view.id ? "mail-folder-button is-active" : "mail-folder-button"} onClick={() => { setComposer(null); setActiveView(view.id); }}><Icon size={17} /><span>{view.label}</span><strong>{countForView(stats, view.id)}</strong></button>; })}</section>
         </aside>
 
         <section className="mail-message-list" aria-label="Lista de mensajes">
-          <div className="mail-message-list__header">
-            <div>
-              <button type="button" aria-label="Mostrar navegación"><Menu size={18} /></button>
-              <h1>{viewLabel}</h1>
-            </div>
-            <button type="button" onClick={() => showPlaceholder("Filtros avanzados")}>Filtrar <ChevronDown size={15} /></button>
-          </div>
-
-          <div className="mail-message-list__summary">
-            <span>{messages.length} conversaciones</span>
-            <span>{messages.filter((message) => message.unread).length} sin leer</span>
-          </div>
-
+          <div className="mail-message-list__header"><div><button type="button" aria-label="Mostrar navegación"><Menu size={18} /></button><h1>{viewLabel}</h1></div><button type="button">Filtrar <ChevronDown size={15} /></button></div>
+          <div className="mail-message-list__summary"><span>{messages.length} conversaciones</span><span>{messages.filter((message) => message.unread).length} sin leer</span></div>
           <div className="mail-message-scroll" aria-busy={listLoading}>
-            {listLoading && (
-              <div className="mail-list-loading"><LoaderCircle className="mail-spinner" size={22} /> Sincronizando bandeja...</div>
-            )}
-            {!listLoading && messages.length === 0 && (
-              <div className="mail-empty-list">
-                <p>No hay mensajes en esta vista.</p>
-                <button type="button" onClick={() => refreshView()}>Actualizar</button>
-              </div>
-            )}
+            {listLoading && <div className="mail-list-loading"><LoaderCircle className="mail-spinner" size={22} /> Sincronizando bandeja...</div>}
+            {!listLoading && messages.length === 0 && <div className="mail-empty-list"><p>No hay mensajes en esta vista.</p><button type="button" onClick={() => refreshView()}>Actualizar</button></div>}
             {!listLoading && messages.map((message) => (
-              <button
-                type="button"
-                key={message.id}
-                className={`mail-message-card ${message.unread ? "is-unread" : ""} ${selectedId === message.id ? "is-selected" : ""}`}
-                onClick={() => selectMessage(message)}
-              >
-                <div className="mail-message-card__top">
-                  <strong>{message.sender}</strong>
-                  <time>{message.receivedAt}</time>
-                </div>
-                <div className="mail-message-card__subject">
-                  {message.priority === "urgent" || message.priority === "high" ? <Flag size={14} aria-label={`Prioridad ${PRIORITY_LABELS[message.priority]}`} /> : null}
-                  <span>{message.subject}</span>
-                </div>
+              <button type="button" key={message.id} className={`mail-message-card ${message.unread ? "is-unread" : ""} ${selectedId === message.id ? "is-selected" : ""}`} onClick={() => selectMessage(message)}>
+                <div className="mail-message-card__top"><strong>{message.sender}</strong><time>{message.receivedAt}</time></div>
+                <div className="mail-message-card__subject">{["urgent", "high"].includes(message.priority) && <Flag size={14} />}<span>{message.subject}</span></div>
                 <p>{message.preview}</p>
-                <div className="mail-message-card__meta">
-                  <span>{message.caseReference || "SIN-REFERENCIA"}</span>
-                  <span className={`mail-case-status mail-case-status--${message.caseStatus}`}>{STATUS_LABELS[message.caseStatus]}</span>
-                  {message.attachments.length > 0 && <Paperclip size={14} aria-label="Con adjuntos" />}
-                </div>
+                <div className="mail-message-card__meta"><span>{message.caseReference || "SIN-REFERENCIA"}</span><span className={`mail-case-status mail-case-status--${message.caseStatus}`}>{STATUS_LABELS[message.caseStatus]}</span>{message.attachments.length > 0 && <Paperclip size={14} />}</div>
               </button>
             ))}
           </div>
         </section>
 
         <section className="mail-reading-pane" aria-label="Lectura del mensaje">
-          {!selectedMessage && (
-            <div className="mail-reading-empty"><Mail size={42} /><h2>Selecciona un mensaje</h2><p>El contenido y las acciones del caso aparecerán aquí.</p></div>
-          )}
-
+          {!selectedMessage && <div className="mail-reading-empty"><Mail size={42} /><h2>Selecciona un mensaje</h2></div>}
           {selectedMessage && (
             <>
-              <div className="mail-reading-toolbar">
-                <button type="button" onClick={() => openComposer("reply")}><Reply size={16} /> Responder</button>
-                <button type="button" onClick={() => openComposer("reply-all")}><ReplyAll size={16} /> Responder a todos</button>
-                <button type="button" onClick={() => openComposer("forward")}><Forward size={16} /> Reenviar</button>
-                <button type="button" aria-label="Más opciones" onClick={() => showPlaceholder("Más opciones")}><MoreHorizontal size={18} /></button>
-              </div>
-
+              <div className="mail-reading-toolbar"><button type="button" onClick={() => openComposer("reply")}><Reply size={16} /> Responder</button><button type="button" onClick={() => openComposer("reply-all")}><ReplyAll size={16} /> Responder a todos</button><button type="button" onClick={() => openComposer("forward")}><Forward size={16} /> Reenviar</button><button type="button" aria-label="Más opciones"><MoreHorizontal size={18} /></button></div>
               <article className="mail-reading-content">
-                <div className="mail-reading-title-row">
-                  <div>
-                    <span className="mail-reading-category">{selectedMessage.category}</span>
-                    <h2>{selectedMessage.subject}</h2>
-                  </div>
-                  <span className={`mail-priority mail-priority--${selectedMessage.priority}`}>Prioridad {PRIORITY_LABELS[selectedMessage.priority]}</span>
-                </div>
-
-                <div className="mail-sender-row">
-                  <span className="mail-sender-avatar">{selectedMessage.sender.slice(0, 2).toUpperCase()}</span>
-                  <div><strong>{selectedMessage.sender}</strong><span>{selectedMessage.address}</span><small>Para: {selectedMessage.recipientAddress || mailbox.address}</small></div>
-                  <time>{selectedMessage.receivedAt}</time>
-                </div>
-
-                <div className="mail-case-banner">
-                  <div><span>Caso práctico</span><strong>{selectedMessage.caseReference || "Sin referencia"}</strong></div>
-                  <div><span>Estado</span><strong>{STATUS_LABELS[selectedMessage.caseStatus]}</strong></div>
-                  <div><span>Área</span><strong>{selectedMessage.category}</strong></div>
-                </div>
-
-                <MailScenarioPanel
-                  key={`${selectedMessage.id}-${selectedMessage.caseAssignmentId || "unlinked"}`}
-                  message={selectedMessage}
-                  onScenarioChanged={handleScenarioChanged}
-                />
+                <div className="mail-reading-title-row"><div><span className="mail-reading-category">{selectedMessage.category}</span><h2>{selectedMessage.subject}</h2></div><span className={`mail-priority mail-priority--${selectedMessage.priority}`}>Prioridad {PRIORITY_LABELS[selectedMessage.priority]}</span></div>
+                <div className="mail-sender-row"><span className="mail-sender-avatar">{selectedMessage.sender.slice(0, 2).toUpperCase()}</span><div><strong>{selectedMessage.sender}</strong><span>{selectedMessage.address}</span><small>Para: {selectedMessage.recipientAddress}{selectedMessage.ccAddress ? ` · CC: ${selectedMessage.ccAddress}` : ""}</small></div><time>{selectedMessage.receivedAt}</time></div>
 
                 <section className="mail-conversation">
                   <h3>Conversación</h3>
                   {(selectedMessage.messages || []).map((threadMessage) => (
-                    <article
-                      key={threadMessage.id}
-                      className={`mail-conversation-item mail-conversation-item--${threadMessage.direction} ${threadMessage.message_type === "draft" ? "is-draft" : ""}`}
-                    >
-                      <header>
-                        <div>
-                          <strong>{threadMessage.sender_name}</strong>
-                          <span>{threadMessage.sender_address}</span>
-                        </div>
-                        <div>
-                          {threadMessage.message_type === "draft" && <span className="mail-draft-label">Borrador</span>}
-                          <time>{formatMessageDate(threadMessage.sent_at)}</time>
-                        </div>
-                      </header>
-                      <div className="mail-conversation-item__body">
-                        {splitBody(threadMessage.body_text).map((paragraph) => <p key={paragraph}>{paragraph}</p>)}
-                      </div>
-                      {threadMessage.attachments?.length > 0 && (
-                        <div className="mail-conversation-item__attachments">
-                          {threadMessage.attachments.map((attachment) => (
-                            <button type="button" key={attachment.id} onClick={() => showPlaceholder(`Abrir ${attachment.filename}`)}>
-                              <Paperclip size={14} /> {attachment.filename}
-                            </button>
-                          ))}
-                        </div>
-                      )}
+                    <article key={threadMessage.id} className={`mail-conversation-item mail-conversation-item--${threadMessage.direction} ${threadMessage.message_type === "draft" ? "is-draft" : ""}`}>
+                      <header><div><strong>{threadMessage.sender_name}</strong><span>{threadMessage.sender_address}</span></div><div>{threadMessage.message_type === "draft" && <span className="mail-draft-label">Borrador</span>}<time>{formatMessageDate(threadMessage.sent_at)}</time></div></header>
+                      <div className="mail-conversation-item__body">{splitBody(threadMessage.body_text).map((paragraph, index) => <p key={`${threadMessage.id}-${index}`}>{paragraph}</p>)}</div>
+                      {threadMessage.attachments?.length > 0 && <div className="mail-conversation-item__attachments">{threadMessage.attachments.map((attachment) => <button type="button" key={attachment.id} onClick={() => setAttachmentViewer(attachment)}><Paperclip size={14} /> {attachment.filename}</button>)}</div>}
                     </article>
                   ))}
                 </section>
 
+                {selectedMessage.attachmentRecords.length > 0 && (
+                  <section className="mail-attachments"><h3><Paperclip size={16} /> Adjuntos</h3><div>{selectedMessage.attachmentRecords.map((attachment) => <button type="button" key={attachment.id} onClick={() => setAttachmentViewer(attachment)}><FileText size={20} /><span>{attachment.filename}<small>Abrir vista previa</small></span></button>)}</div></section>
+                )}
+
+                {selectedMessage.caseReference && <div className="mail-case-banner"><div><span>Referencia</span><strong>{selectedMessage.caseReference}</strong></div><div><span>Estado</span><strong>{STATUS_LABELS[selectedMessage.caseStatus]}</strong></div><div><span>Área</span><strong>{selectedMessage.category}</strong></div></div>}
+
+                <MailScenarioPanel key={`${selectedMessage.id}-${selectedMessage.caseAssignmentId || "unlinked"}`} message={selectedMessage} onScenarioChanged={handleScenarioChanged} />
+
+                <section className="mail-context-actions"><h3>Abrir proceso relacionado</h3><div>{selectedMessage.contextActions.map((action) => <button type="button" key={action} onClick={() => openContextAction(action)}>{action}</button>)}</div></section>
+
                 {composer && (
                   <section className="mail-composer">
-                    <header className="mail-composer__header">
-                      <div>
-                        <strong>{composer.mode === "forward" ? "Reenviar comunicación" : "Responder al hilo"}</strong>
-                        <span>La comunicación se guardará únicamente dentro de AulaNomina.</span>
-                      </div>
-                      <button type="button" onClick={closeComposer} aria-label="Cerrar editor"><X size={18} /></button>
-                    </header>
-                    <label className="mail-composer__field">
-                      <span>Destinatario</span>
-                      <input
-                        value={composer.recipientAddress}
-                        onChange={(event) => setComposer((current) => ({ ...current, recipientAddress: event.target.value }))}
-                        placeholder="destinatario@aulanomina.local"
-                      />
-                    </label>
-                    <label className="mail-composer__field">
-                      <span>Nombre</span>
-                      <input
-                        value={composer.recipientName}
-                        onChange={(event) => setComposer((current) => ({ ...current, recipientName: event.target.value }))}
-                        placeholder="Destinatario simulado"
-                      />
-                    </label>
-                    <label className="mail-composer__field mail-composer__field--body">
-                      <span>Mensaje</span>
-                      <textarea
-                        value={composer.body}
-                        onChange={(event) => setComposer((current) => ({ ...current, body: event.target.value }))}
-                        placeholder="Escribe la respuesta del alumno..."
-                      />
-                    </label>
-                    <footer className="mail-composer__actions">
-                      <button type="button" className="mail-composer__send" onClick={() => persistComposer("send")} disabled={Boolean(busyAction)}>
-                        {busyAction === "send" ? <LoaderCircle className="mail-spinner" size={16} /> : <Send size={16} />} Enviar
-                      </button>
-                      <button type="button" onClick={() => persistComposer("draft")} disabled={Boolean(busyAction)}>
-                        {busyAction === "draft" ? <LoaderCircle className="mail-spinner" size={16} /> : <Save size={16} />} Guardar borrador
-                      </button>
-                      <button type="button" onClick={closeComposer} disabled={Boolean(busyAction)}>Cancelar</button>
-                    </footer>
+                    <header className="mail-composer__header"><div><strong>{composer.mode === "forward" ? "Reenviar comunicación" : "Responder al hilo"}</strong><span>La comunicación se guarda dentro de AulaNomina.</span></div><button type="button" onClick={() => setComposer(null)} aria-label="Cerrar editor"><X size={18} /></button></header>
+                    <label className="mail-composer__field"><span>Destinatario</span><input value={composer.recipientAddress} onChange={(event) => setComposer((current) => ({ ...current, recipientAddress: event.target.value }))} /></label>
+                    <label className="mail-composer__field"><span>Nombre</span><input value={composer.recipientName} onChange={(event) => setComposer((current) => ({ ...current, recipientName: event.target.value }))} /></label>
+                    <label className="mail-composer__field"><span>CC</span><input value={composer.ccAddress} onChange={(event) => setComposer((current) => ({ ...current, ccAddress: event.target.value }))} /></label>
+                    <label className="mail-composer__field mail-composer__field--body"><span>Mensaje</span><textarea value={composer.body} onChange={(event) => setComposer((current) => ({ ...current, body: event.target.value }))} /></label>
+                    <footer className="mail-composer__actions"><button type="button" className="mail-composer__send" onClick={() => persistComposer("send")} disabled={Boolean(busyAction)}>{busyAction === "send" ? <LoaderCircle className="mail-spinner" size={16} /> : <Send size={16} />} Enviar</button><button type="button" onClick={() => persistComposer("draft")} disabled={Boolean(busyAction)}>{busyAction === "draft" ? <LoaderCircle className="mail-spinner" size={16} /> : <Save size={16} />} Guardar borrador</button><button type="button" onClick={() => setComposer(null)}>Cancelar</button></footer>
                   </section>
                 )}
-
-                {!composer && selectedMessage.attachments.length > 0 && (
-                  <section className="mail-attachments">
-                    <h3><Paperclip size={16} /> {selectedMessage.attachments.length} adjunto{selectedMessage.attachments.length > 1 ? "s" : ""}</h3>
-                    <div>
-                      {selectedMessage.attachmentRecords.map((attachment) => (
-                        <button type="button" key={attachment.id} onClick={() => showPlaceholder(`Abrir ${attachment.filename}`)}><FileText size={20} /><span>{attachment.filename}<small>Documento simulado</small></span></button>
-                      ))}
-                    </div>
-                  </section>
-                )}
-
-                {!selectedMessage.caseAssignmentId && (
-                  <section className="mail-case-checklist">
-                    <h3>Acciones esperadas</h3>
-                    {selectedMessage.requirements.map((requirement) => <div key={requirement}><Circle size={15} /><span>{requirement}</span></div>)}
-                  </section>
-                )}
-
-                <section className="mail-context-actions">
-                  <h3>Abrir proceso relacionado</h3>
-                  <div>
-                    {selectedMessage.contextActions.map((action) => <button type="button" key={action} onClick={() => showPlaceholder(action)}>{action}</button>)}
-                  </div>
-                </section>
               </article>
             </>
           )}
         </section>
       </main>
+
+      {newMessageOpen && <MailNewMessageComposer mailbox={mailbox} onClose={() => setNewMessageOpen(false)} onCreated={handleNewThreadCreated} />}
+      {attachmentViewer && <MailAttachmentViewer attachment={attachmentViewer} onClose={() => setAttachmentViewer(null)} />}
     </div>
   );
 }
