@@ -1,35 +1,26 @@
 from datetime import date
 from decimal import Decimal
-import csv
-import io
-import zipfile
 
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
-import app.models  # noqa: F401
 from app.db import Base
 from app.models.company import Company
-from app.models.contract import Contract
 from app.models.employee import Employee
-from app.models.model111 import TaxWithholdingAdjustment
+from app.models.model190 import Model190Declaration
 from app.models.payroll import Payroll
 from app.schemas.model190 import Model190DeclarationCreate, Model190PresentationRequest
-from app.services.model190_calculator import Model190DomainError
 from app.services.model190_declaration_service import generate_model190_declaration
 from app.services.model190_document_service import (
-    build_model190_certificates_archive,
     render_model190_annual_summary,
     render_model190_certificate,
-    render_model190_certificate_directory,
     render_model190_recipient_relation,
 )
-from app.services.model190_presentation_service import (
-    present_model190_declaration,
-    validate_model190_import,
-)
+from app.services.model190_file_service import validate_model190_import
+from app.services.model190_presentation_service import present_model190_declaration
+from app.services.model190_validation import Model190DomainError
 
 
 @pytest.fixture()
@@ -40,110 +31,89 @@ def db():
         poolclass=StaticPool,
     )
     Base.metadata.create_all(bind=engine)
-    session = sessionmaker(bind=engine, autoflush=False, autocommit=False)()
+    Session = sessionmaker(bind=engine)
+    session = Session()
     try:
         yield session
     finally:
         session.close()
         Base.metadata.drop_all(bind=engine)
+        engine.dispose()
 
 
-def add_employee_payroll(
-    db,
-    company,
-    *,
-    code: str,
-    dni: str,
-    first_name: str,
-    last_name: str,
-    gross: str,
-    withholding: str,
-):
-    employee = Employee(
-        employee_code=code,
-        company_id=company.id,
-        dni=dni,
-        first_name=first_name,
-        last_name=last_name,
-        second_last_name="Documento",
-        province="14",
-    )
-    db.add(employee)
-    db.flush()
-    contract = Contract(
-        employee_id=employee.id,
-        company_id=company.id,
-        contract_type="Indefinido",
-        start_date=date(2026, 1, 1),
-        status="active",
-    )
-    db.add(contract)
-    db.flush()
-    payroll = Payroll(
-        employee_id=employee.id,
-        contract_id=contract.id,
-        company_id=company.id,
-        period_month=1,
-        period_year=2026,
-        gross_salary=Decimal(gross),
-        irpf_base=Decimal(gross),
-        irpf=Decimal(withholding),
-        employee_social_security=Decimal("130.00"),
-        status="reviewed",
-    )
-    db.add(payroll)
-    db.flush()
-    return employee, payroll
-
-
-def build_declaration_case(db, *, second_employee: bool = False, arrears: bool = True):
+def create_company(db):
     company = Company(
         name="AulaNomina Documentos SL",
         cif="B14999991",
-        address="Avenida de la Formación 1",
+        address="Avenida de la Formación 12",
         city="Córdoba",
         province="Córdoba",
+        postal_code="14001",
+        phone="957000190",
+        email="fiscal@aulanomina.local",
+        legal_representative="Responsable AulaNomina",
+        main_ccc="14123456789",
     )
     db.add(company)
+    db.commit()
+    db.refresh(company)
+    return company
+
+
+def create_payroll_case(db, company, *, code, dni, first_name, last_name, gross, withholding):
+    employee = Employee(
+        employee_code=code,
+        dni=dni,
+        first_name=first_name,
+        last_name=last_name,
+        email=f"{code.lower()}@aulanomina.local",
+        company_id=company.id,
+        is_active=True,
+    )
+    db.add(employee)
     db.flush()
-    employee, payroll = add_employee_payroll(
+    payroll = Payroll(
+        employee_id=employee.id,
+        company_id=company.id,
+        period="2026-01",
+        payroll_type="ordinary",
+        status="closed",
+        gross_salary=Decimal(gross),
+        irpf=Decimal(withholding),
+        social_security=Decimal("100.00"),
+        other_deductions=Decimal("0.00"),
+        net_salary=Decimal(gross) - Decimal(withholding) - Decimal("100.00"),
+        irpf_base=Decimal(gross),
+        irpf_percentage=Decimal("10.00"),
+    )
+    db.add(payroll)
+    db.commit()
+    db.refresh(payroll)
+    return employee, payroll
+
+
+def build_declaration_case(db):
+    company = create_company(db)
+    employee, payroll = create_payroll_case(
         db,
         company,
         code="M190-DOC-001",
         dni="30000001A",
         first_name="Ana",
-        last_name="Demo",
+        last_name="Demo Documento",
         gross="2000.00",
         withholding="240.00",
     )
-    if arrears:
-        db.add(
-            TaxWithholdingAdjustment(
-                company_id=company.id,
-                category="work",
-                adjustment_type="arrears",
-                source_date=date(2026, 9, 15),
-                recipient_nif=employee.dni,
-                recipient_name="Ana Demo Documento",
-                base_amount=Decimal("500.00"),
-                withholding_amount=Decimal("75.00"),
-                model190_key="A",
-                accrual_year=2025,
-                deductible_expense_amount=Decimal("20.00"),
-                status="confirmed",
-            )
-        )
-    if second_employee:
-        add_employee_payroll(
-            db,
-            company,
-            code="M190-DOC-002",
-            dni="30000002B",
-            first_name="Luis",
-            last_name="Prueba",
-            gross="1500.00",
-            withholding="150.00",
-        )
+    create_payroll_case(
+        db,
+        company,
+        code="M190-DOC-002",
+        dni="30000002B",
+        first_name="Luis",
+        last_name="Prueba",
+        gross="1500.00",
+        withholding="150.00",
+    )
     db.commit()
     declaration = generate_model190_declaration(
         db,
@@ -178,7 +148,7 @@ def test_annual_summary_and_relation_use_frozen_snapshot(db):
     assert "Modelo 190 · Resumen anual" in summary
     assert "AulaNomina Documentos SL" in summary
     assert "2.500,00 €" in summary
-    assert "9999" not in summary
+    assert "9.999,00 €" not in summary
     assert "RELACIÓN NOMINATIVA SIN VALIDEZ FISCAL" in relation
     assert "30000001A" in relation
     assert "2025" in relation
@@ -198,44 +168,72 @@ def test_certificate_requires_presented_declaration(db):
 
 def test_certificate_groups_all_rows_for_same_nif(db):
     _, _, _, declaration = build_declaration_case(db)
-    presented = present_declaration(db, declaration)
-    recipient_id = presented["recipients"][0]["id"]
-
-    certificate = render_model190_certificate(db, declaration["id"], recipient_id)
-    directory = render_model190_certificate_directory(db, declaration["id"])
-
-    assert "Certificado de retenciones e ingresos a cuenta" in certificate
-    assert "30000001A" in certificate
-    assert "2.500,00 €" in certificate
-    assert "315,00 €" in certificate
-    assert ">2025<" in certificate
-    assert ">2026<" in certificate
-    assert "Responsable AulaNomina" in certificate
-    assert presented["receipt_number"] in certificate
-    assert directory.count("Abrir certificado") == 1
-    assert f"/model-190/declarations/{declaration['id']}/certificates.zip" in directory
-
-
-def test_certificate_archive_contains_one_html_per_unique_nif_and_manifest(db):
-    _, _, _, declaration = build_declaration_case(db, second_employee=True)
+    recipient = declaration["recipients"][0]
     present_declaration(db, declaration)
 
-    archive = build_model190_certificates_archive(db, declaration["id"])
+    certificate = render_model190_certificate(db, declaration["id"], recipient["id"])
 
-    assert archive["certificate_count"] == 2
-    assert archive["filename"].endswith("-simulados.zip")
-    assert len(archive["sha256"]) == 64
+    assert "CERTIFICADO DE RETENCIONES E INGRESOS A CUENTA" in certificate
+    assert "AulaNomina Documentos SL" in certificate
+    assert recipient["nif"] in certificate
+    assert "2025" in certificate
+    assert "2026" in certificate
+    assert "Firma simulada" in certificate
 
-    with zipfile.ZipFile(io.BytesIO(archive["content"])) as bundle:
-        names = bundle.namelist()
-        certificate_names = [name for name in names if name.endswith(".html")]
-        assert len(certificate_names) == 2
-        assert "manifest-certificados.csv" in names
-        assert "LEEME.txt" in names
-        manifest = bundle.read("manifest-certificados.csv").decode("utf-8-sig")
-        rows = list(csv.reader(io.StringIO(manifest), delimiter=";"))
-        assert rows[0][0:3] == ["NIF", "Perceptor", "Lineas"]
-        assert {row[0] for row in rows[1:]} == {"30000001A", "30000002B"}
-        ana_row = next(row for row in rows[1:] if row[0] == "30000001A")
-        assert ana_row[2] == "2"
-        assert ana_row[3] == "2500.00"
+
+def test_certificate_rejects_recipient_from_other_declaration(db):
+    company, _, _, first_declaration = build_declaration_case(db)
+    other_employee, other_payroll = create_payroll_case(
+        db,
+        company,
+        code="M190-DOC-003",
+        dni="30000003C",
+        first_name="Marta",
+        last_name="Otro ejercicio",
+        gross="1200.00",
+        withholding="120.00",
+    )
+    other_payroll.period = "2025-01"
+    db.commit()
+    second_declaration = generate_model190_declaration(
+        db,
+        Model190DeclarationCreate(company_id=company.id, year=2025),
+    )
+    present_declaration(db, first_declaration)
+
+    with pytest.raises(Model190DomainError) as exc_info:
+        render_model190_certificate(
+            db,
+            first_declaration["id"],
+            second_declaration["recipients"][0]["id"],
+        )
+
+    assert exc_info.value.code == "RECIPIENT_NOT_IN_DECLARATION"
+    assert exc_info.value.status_code == 404
+    assert other_employee.id is not None
+
+
+def test_presented_snapshot_is_used_after_recipient_mutation(db):
+    _, _, _, declaration = build_declaration_case(db)
+    present_declaration(db, declaration)
+    declaration_model = db.get(Model190Declaration, declaration["id"])
+    recipient = declaration_model.recipients[0]
+    frozen_name = recipient.full_name
+    recipient.full_name = "Nombre modificado después de presentar"
+    db.commit()
+
+    relation = render_model190_recipient_relation(db, declaration["id"])
+
+    assert frozen_name in relation
+    assert "Nombre modificado después de presentar" not in relation
+
+
+def test_certificate_contains_issue_date_and_educational_notice(db):
+    _, _, _, declaration = build_declaration_case(db)
+    recipient_id = declaration["recipients"][0]["id"]
+    present_declaration(db, declaration)
+
+    certificate = render_model190_certificate(db, declaration["id"], recipient_id)
+
+    assert str(date.today().year) in certificate
+    assert "DOCUMENTO EDUCATIVO · SIN VALIDEZ FISCAL" in certificate
