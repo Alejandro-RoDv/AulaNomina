@@ -1,6 +1,7 @@
 from sqlalchemy import inspect, text
 
 from app.agreement_extra_pay_schema_patch import add_missing_agreement_extra_pay_accrual_columns
+from app.case_scenario_schema_patch import add_missing_case_scenario_columns
 from app.db import engine
 
 
@@ -23,6 +24,8 @@ AGREEMENT_SALARY_CONCEPT_COLUMNS = {
 
 
 def add_missing_collective_agreement_header_columns() -> None:
+    add_missing_case_scenario_columns()
+
     inspector = inspect(engine)
     table_names = inspector.get_table_names()
     if "collective_agreements" not in table_names:
