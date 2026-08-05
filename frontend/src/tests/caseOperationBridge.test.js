@@ -40,6 +40,13 @@ test("clasifica únicamente operaciones mutables relevantes", () => {
     method: "POST",
     path: "/model-111/declarations/4/present",
   });
+  assert.deepEqual(classifyCaseOperation("/incidents/42", "PATCH"), {
+    moduleCode: "incidents",
+    actionCode: "create_incident",
+    label: "Incidencia revisada",
+    method: "PATCH",
+    path: "/incidents/42",
+  });
   assert.equal(classifyCaseOperation("/employees", "GET"), null);
   assert.equal(classifyCaseOperation("/case-assignments/4/events", "POST"), null);
 });
@@ -106,6 +113,58 @@ test("emite el evento, solicita validación y publica el feedback", async () => 
   assert.equal(result.feedbackMessageId, 91);
   assert.equal(result.feedbackNotice, "Paso completado");
   assert.equal(JSON.parse(storage.getItem(LAST_CASE_FEEDBACK_KEY)).assignmentId, 12);
+});
+
+
+test("conserva el resultado de dominio de una respuesta SILTRA", async () => {
+  const storage = new MemoryStorage();
+  storage.setItem(ACTIVE_CASE_CONTEXT_KEY, JSON.stringify({
+    assignmentId: 21,
+    taskId: 90,
+    actionCode: "submit_siltra",
+    moduleCode: "siltra",
+    scenarioCode: "LAB-2026-001",
+    employeeId: 2,
+    employeeName: "Javier Romero Sánchez",
+    companyId: 1,
+    period: "2026-05",
+  }));
+
+  let requestPayload = null;
+  await emitCaseOperationEvent({
+    apiBaseUrl: "http://127.0.0.1:8000",
+    path: "/communication-submissions/15/process",
+    method: "POST",
+    operationStatus: "success",
+    responseData: {
+      id: 15,
+      status: "REJECTED",
+      response_code: "R9501",
+      response_message: "El NAF es obligatorio.",
+      submission_number: "SILTRA-SIM-2026-000015",
+    },
+    httpStatus: 200,
+    storage,
+    fetchImpl: async (_url, options) => {
+      requestPayload = JSON.parse(options.body);
+      return {
+        ok: true,
+        json: async () => ({
+          feedback_message_id: null,
+          professional_message_id: 201,
+          validation: { passed: false, message: "Revisa la respuesta de SILTRA" },
+          scenario: { assignment_id: 21 },
+        }),
+      };
+    },
+  });
+
+  assert.equal(requestPayload.metadata.domain_status, "REJECTED");
+  assert.equal(requestPayload.metadata.response_code, "R9501");
+  assert.equal(requestPayload.metadata.response_message, "El NAF es obligatorio.");
+  assert.equal(requestPayload.metadata.submission_number, "SILTRA-SIM-2026-000015");
+  assert.equal(requestPayload.metadata.employee_name, "Javier Romero Sánchez");
+  assert.equal(requestPayload.metadata.period, "2026-05");
 });
 
 
