@@ -13,6 +13,7 @@ from app.catalogs.red_catalogs import (
     WORKING_DAY_TYPES,
 )
 from app.affiliation_remittance_routes import router as affiliation_remittance_router
+from app.case_scenario_routes import router as case_scenario_router
 from app.communication_file_routes import router as communication_file_router
 from app.communication_submission_routes import router as communication_submission_router
 from app.cra_routes import router as cra_router
@@ -27,6 +28,7 @@ from app.wage_garnishment_routes import router as wage_garnishment_router
 
 router = APIRouter(tags=["catalogs"])
 router.include_router(affiliation_remittance_router)
+router.include_router(case_scenario_router)
 router.include_router(communication_file_router)
 router.include_router(communication_submission_router)
 router.include_router(cra_router)
