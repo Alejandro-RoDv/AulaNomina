@@ -92,8 +92,10 @@ def test_archiving_and_replying_persist_the_conversation():
         )
 
         reloaded = get_thread(db, replied.id)
+        latest_message = max(reloaded.messages, key=lambda message: message.id)
         assert len(reloaded.messages) == 2
-        assert reloaded.messages[-1].direction == "outgoing"
+        assert latest_message.direction == "outgoing"
+        assert latest_message.message_type == "reply"
         assert reloaded.preview.startswith("Alta y contrato revisados")
         assert reloaded.status == "in_progress"
 
@@ -116,9 +118,11 @@ def test_draft_and_send_move_thread_between_persistent_folders():
             ),
         )
 
+        latest_draft = max(drafted.messages, key=lambda message: message.id)
         assert drafted.folder == "drafts"
         assert drafted.status == "in_progress"
-        assert drafted.messages[-1].message_type == "draft"
+        assert latest_draft.message_type == "draft"
+        assert latest_draft.body_text.startswith("He revisado la antigüedad")
         assert mailbox_stats(db, mailbox.id)["drafts"] == 2
 
         sent = create_thread_message(
@@ -134,7 +138,9 @@ def test_draft_and_send_move_thread_between_persistent_folders():
             ),
         )
 
+        latest_reply = max(sent.messages, key=lambda message: message.id)
         assert sent.folder == "sent"
-        assert sent.messages[-1].message_type == "reply"
+        assert latest_reply.message_type == "reply"
+        assert latest_reply.body_text.startswith("La antigüedad ha sido corregida")
         assert sent.preview.startswith("La antigüedad ha sido corregida")
         assert mailbox_stats(db, mailbox.id)["sent"] == 2
