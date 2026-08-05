@@ -17,6 +17,7 @@ from app.services.mail_service import (
     list_threads,
     mailbox_stats,
     reset_demo_mailbox,
+    update_thread,
 )
 
 
