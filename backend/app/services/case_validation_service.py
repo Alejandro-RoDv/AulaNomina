@@ -18,6 +18,7 @@ from app.models.payroll import Payroll
 from app.models.payroll_salary_structure import ContractPayrollConcept, PayrollConcept
 from app.models.social_security_registration import SocialSecurityRegistration
 from app.schemas.case_scenario import CaseContextEventCreate, CaseTaskProgressUpdate
+from app.services.case_feedback_service import render_configured_feedback
 from app.services.case_scenario_service import (
     CaseScenarioError,
     ensure_assignment_progress,
@@ -426,26 +427,28 @@ def _feedback_text(
 ) -> str:
     action_label = payload.response_summary or payload.action_code or task.title
     if payload.operation_status == "error":
-        return (
+        fallback = (
             f"La operación «{action_label}» no se ha completado correctamente. "
             "El intento se ha registrado en el caso. Revisa el mensaje mostrado por el módulo, corrige los datos y vuelve a intentarlo."
         )
-    if validation and validation["passed"]:
-        return (
+    elif validation and validation["passed"]:
+        fallback = (
             f"La operación «{action_label}» se ha comprobado correctamente. "
             f"El paso «{task.title}» queda completado y el caso avanza al siguiente punto."
         )
-    if validation and validation["manual_required"]:
-        return (
+    elif validation and validation["manual_required"]:
+        fallback = (
             f"La operación «{action_label}» ha quedado registrada. "
             "Este paso todavía requiere confirmación manual porque no existe una comprobación automática suficientemente fiable."
         )
-    failed_checks = [item["message"] for item in (validation or {}).get("checks", []) if not item["passed"]]
-    detail = " ".join(failed_checks[:2])
-    return (
-        f"La operación «{action_label}» se ha ejecutado, pero el paso «{task.title}» aún no cumple todas las condiciones. "
-        f"{detail or 'Revisa los datos del módulo relacionado y vuelve a validar.'}"
-    )
+    else:
+        failed_checks = [item["message"] for item in (validation or {}).get("checks", []) if not item["passed"]]
+        detail = " ".join(failed_checks[:2])
+        fallback = (
+            f"La operación «{action_label}» se ha ejecutado, pero el paso «{task.title}» aún no cumple todas las condiciones. "
+            f"{detail or 'Revisa los datos del módulo relacionado y vuelve a validar.'}"
+        )
+    return render_configured_feedback(task, payload, validation, fallback)
 
 
 def _create_feedback_message(
