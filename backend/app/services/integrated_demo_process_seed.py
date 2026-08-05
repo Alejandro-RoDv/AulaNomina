@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from app.models.contract import Contract
 from app.models.employee import Employee
 from app.models.fie import FieCommunication, FieProcessingEvent
+from app.models.incident import Incident
 
 
 INTEGRATED_FIE_MESSAGE_ID = "FIE-LAB-2026-001"
@@ -37,11 +38,27 @@ def _find_employee(db: Session, expected_name: str) -> Employee | None:
     )
 
 
+def _canonicalize_integrated_incident(db: Session, employee: Employee) -> Incident | None:
+    incident = (
+        db.query(Incident)
+        .filter(
+            Incident.employee_id == employee.id,
+            Incident.start_date == date(2026, 5, 6),
+        )
+        .order_by(Incident.id.asc())
+        .first()
+    )
+    if incident and "it" in _normalize(incident.incident_type).split():
+        incident.incident_type = "IT"
+    return incident
+
+
 def ensure_integrated_fie_communication(db: Session) -> FieCommunication | None:
     employee = _find_employee(db, "Javier Romero Sánchez")
     if employee is None or employee.company_id is None:
         return None
 
+    _canonicalize_integrated_incident(db, employee)
     communication = (
         db.query(FieCommunication)
         .filter(FieCommunication.external_message_id == INTEGRATED_FIE_MESSAGE_ID)
@@ -85,6 +102,7 @@ def ensure_integrated_fie_communication(db: Session) -> FieCommunication | None:
         "raw_content": {
             "format": "AULANOMINA_FIE_V1",
             "simulation": True,
+            "simulation_scenario": "AUTO",
             "scenario_code": "LAB-2026-001",
             "worker": {
                 "employee_id": employee.id,
