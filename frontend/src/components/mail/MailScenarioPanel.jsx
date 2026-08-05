@@ -19,6 +19,7 @@ import {
   validateAssignmentScenarioStep,
 } from "../../services/caseScenarioApi.js";
 import { getCaseActionLabel, openCaseModule } from "../../utils/caseNavigation.js";
+import { LAST_CASE_FEEDBACK_KEY } from "../../utils/caseOperationBridge.js";
 import "./mailScenario.css";
 
 
@@ -89,6 +90,44 @@ export default function MailScenarioPanel({ message, onScenarioChanged }) {
     setValidationNotice("");
     loadScenario();
   }, [loadScenario]);
+
+  useEffect(() => {
+    if (!assignmentId) return undefined;
+
+    const applyFeedback = (detail) => {
+      if (Number(detail?.assignmentId) !== Number(assignmentId)) return;
+      if (detail.scenario) setScenario(detail.scenario);
+      if (detail.validation?.message) setValidationNotice(detail.validation.message);
+      else if (detail.operationStatus === "error") {
+        setValidationNotice("El tutor automático ha registrado el error y ha enviado una respuesta al hilo.");
+      }
+      if (detail.scenario && onScenarioChanged) {
+        void onScenarioChanged(
+          detail.scenario,
+          detail.operationStatus === "error"
+            ? "Operación registrada con error. Revisa la respuesta automática."
+            : "Operación comprobada por el tutor automático."
+        );
+      }
+    };
+
+    const handleFeedback = (event) => applyFeedback(event.detail);
+    const handleStorage = (event) => {
+      if (event.key !== LAST_CASE_FEEDBACK_KEY || !event.newValue) return;
+      try {
+        applyFeedback(JSON.parse(event.newValue));
+      } catch {
+        // Ignora mensajes de sincronización corruptos.
+      }
+    };
+
+    window.addEventListener("aulanomina-case-operation-feedback", handleFeedback);
+    window.addEventListener("storage", handleStorage);
+    return () => {
+      window.removeEventListener("aulanomina-case-operation-feedback", handleFeedback);
+      window.removeEventListener("storage", handleStorage);
+    };
+  }, [assignmentId, onScenarioChanged]);
 
   const currentStep = useMemo(() => {
     if (!scenario) return null;
@@ -168,14 +207,16 @@ export default function MailScenarioPanel({ message, onScenarioChanged }) {
 
     setBusy(`open-${step.task_id}`);
     try {
-      const nextScenario = await recordAssignmentContextEvent(assignmentId, {
+      const result = await recordAssignmentContextEvent(assignmentId, {
         task_id: step.task_id,
         event_type: "module_opened",
         action_code: step.expected_action,
         target: step.module,
+        operation_status: "opened",
+        auto_validate: false,
         metadata: { source: "mail", scenario_code: scenario.scenario_code },
       });
-      setScenario(nextScenario);
+      setScenario(result.scenario);
     } catch (requestError) {
       setError(requestError.message || "El módulo se ha abierto, pero no se ha podido registrar la navegación.");
     } finally {
