@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session, joinedload, selectinload
 
 from app.models.case_assignment import CaseAssignment
 from app.models.case_progress import CaseTaskProgress
-from app.models.case_study import CaseTask
+from app.models.case_study import CaseStudy, CaseTask
 from app.schemas.case_scenario import CaseTaskProgressUpdate
 
 
@@ -18,7 +18,7 @@ class CaseScenarioError(Exception):
 
 def _assignment_query(db: Session):
     return db.query(CaseAssignment).options(
-        joinedload(CaseAssignment.case_study).selectinload("tasks"),
+        joinedload(CaseAssignment.case_study).selectinload(CaseStudy.tasks),
         joinedload(CaseAssignment.student),
         joinedload(CaseAssignment.group),
         selectinload(CaseAssignment.progress_entries).joinedload(CaseTaskProgress.task),
@@ -250,7 +250,8 @@ def reset_assignment_progress(db: Session, assignment_id: int) -> dict:
         thread.updated_at = datetime.utcnow()
     db.commit()
 
-    return build_assignment_scenario(db, ensure_assignment_progress(db, assignment_id).id)
+    ensure_assignment_progress(db, assignment_id)
+    return build_assignment_scenario(db, assignment_id)
 
 
 def build_assignment_scenario(db: Session, assignment_id: int) -> dict:
