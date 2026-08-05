@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field, field_validator
 
 
 STEP_PROGRESS_STATUSES = {"pending", "in_progress", "completed", "failed"}
+CASE_OPERATION_STATUSES = {"opened", "success", "error"}
 
 
 class CaseTaskProgressUpdate(BaseModel):
@@ -25,6 +26,9 @@ class CaseContextEventCreate(BaseModel):
     event_type: str
     action_code: Optional[str] = None
     target: Optional[str] = None
+    operation_status: str = "opened"
+    response_summary: Optional[str] = None
+    auto_validate: bool = True
     metadata: dict[str, Any] = Field(default_factory=dict)
 
     @field_validator("event_type")
@@ -33,6 +37,13 @@ class CaseContextEventCreate(BaseModel):
         if not value or not value.strip():
             raise ValueError("El tipo de evento es obligatorio")
         return value.strip()
+
+    @field_validator("operation_status")
+    @classmethod
+    def validate_operation_status(cls, value):
+        if value not in CASE_OPERATION_STATUSES:
+            raise ValueError("Estado de operacion no valido")
+        return value
 
 
 class CaseScenarioStepResponse(BaseModel):
@@ -87,4 +98,11 @@ class CaseStepValidationResponse(BaseModel):
     manual_required: bool = False
     message: str
     checks: list[dict[str, Any]] = Field(default_factory=list)
+    scenario: CaseScenarioResponse
+
+
+class CaseOperationEventResponse(BaseModel):
+    event_recorded: bool = True
+    feedback_message_id: Optional[int] = None
+    validation: Optional[CaseStepValidationResponse] = None
     scenario: CaseScenarioResponse
