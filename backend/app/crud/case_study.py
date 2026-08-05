@@ -3,6 +3,13 @@ from sqlalchemy.orm import Session, joinedload
 
 from app.models.case_study import CaseStudy, CaseTask
 from app.schemas.case_study import CaseStudyCreate, CaseStudyUpdate, CaseTaskCreate, CaseTaskUpdate
+from app.services.case_feedback_service import normalized_feedback_config
+
+
+def _task_data(task: CaseTaskCreate) -> dict:
+    data = task.model_dump()
+    data["feedback_config"] = normalized_feedback_config(data.get("feedback_config"))
+    return data
 
 
 def create_case_study(db: Session, case_study: CaseStudyCreate):
@@ -12,7 +19,7 @@ def create_case_study(db: Session, case_study: CaseStudyCreate):
     db.flush()
 
     for task in case_study.tasks:
-        db.add(CaseTask(case_study_id=db_case.id, **task.model_dump()))
+        db.add(CaseTask(case_study_id=db_case.id, **_task_data(task)))
 
     db.commit()
     return get_case_study(db, db_case.id)
@@ -63,7 +70,7 @@ def create_case_task(db: Session, case_study_id: int, task: CaseTaskCreate):
     if not db_case:
         raise HTTPException(status_code=404, detail="Caso practico no encontrado")
 
-    db_task = CaseTask(case_study_id=case_study_id, **task.model_dump())
+    db_task = CaseTask(case_study_id=case_study_id, **_task_data(task))
     db.add(db_task)
     db.commit()
     db.refresh(db_task)
@@ -75,7 +82,10 @@ def update_case_task(db: Session, task_id: int, data: CaseTaskUpdate):
     if not db_task:
         return None
 
-    for key, value in data.model_dump(exclude_unset=True).items():
+    values = data.model_dump(exclude_unset=True)
+    if "feedback_config" in values:
+        values["feedback_config"] = normalized_feedback_config(values["feedback_config"])
+    for key, value in values.items():
         setattr(db_task, key, value)
 
     db.commit()
@@ -214,6 +224,6 @@ def seed_demo_case_studies(db: Session):
 
         if not existing.tasks:
             for task in definition.tasks:
-                db.add(CaseTask(case_study_id=existing.id, **task.model_dump()))
+                db.add(CaseTask(case_study_id=existing.id, **_task_data(task)))
 
         db.commit()
