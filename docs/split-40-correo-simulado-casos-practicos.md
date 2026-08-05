@@ -15,7 +15,7 @@ Esta rama incorpora la base visual del módulo:
 - columna de mensajes;
 - panel de lectura y acciones contextuales;
 - mensajes de demostración relacionados con nómina, IT/FIE, contratación, fiscalidad y documentación;
-- búsqueda, selección, leído/no leído, archivado y papelera en estado local;
+- búsqueda, selección, leído/no leído, archivado y papelera;
 - adjuntos simulados y lista de acciones esperadas del ejercicio.
 
 ## Segunda entrega: dominio persistente y API
@@ -32,10 +32,9 @@ Se ha añadido la base backend del correo simulado:
 - búsqueda y filtrado por carpeta, estado y texto;
 - lectura/no lectura, archivado, papelera y actualización de prioridad;
 - creación de respuestas y borradores dentro de un hilo;
-- contadores del buzón y reinicio independiente de los datos demo;
-- cliente frontend preparado para consumir y adaptar la API al formato visual actual.
+- contadores del buzón y reinicio independiente de los datos demo.
 
-### Endpoints disponibles
+### Endpoints del correo
 
 - `GET /mail/demo-mailbox`
 - `POST /mail/demo-mailbox/reset`
@@ -61,10 +60,64 @@ La bandeja React ya trabaja contra la API del correo:
 - envío simulado de respuestas dentro del hilo;
 - restauración del buzón demo desde la interfaz;
 - tratamiento visible de carga, errores de API y reintentos;
-- contador global de no leídos sincronizado con el backend;
-- pruebas frontend para la adaptación de hilos al formato visual.
+- contador global de no leídos sincronizado con el backend.
 
-El correo deja de depender de los mensajes estáticos definidos en React. Al recargar la pestaña se mantienen la lectura, las carpetas, los borradores y las respuestas realizadas.
+El correo deja de depender de mensajes estáticos definidos en React. Al recargar la pestaña se mantienen la lectura, las carpetas, los borradores y las respuestas realizadas.
+
+## Cuarta entrega: escenarios guiados y progreso por asignación
+
+No se ha creado un segundo dominio docente paralelo. Se reutilizan y amplían las entidades existentes `CaseStudy`, `CaseTask` y `CaseAssignment`:
+
+- `CaseStudy` actúa como definición del escenario;
+- `CaseTask` actúa como paso ordenado del escenario;
+- `CaseAssignment` representa el ejercicio asignado a un alumno o grupo;
+- `CaseTaskProgress` registra el estado independiente de cada paso para cada asignación.
+
+Los casos pueden almacenar ahora:
+
+- código de escenario relacionado con el correo;
+- categoría y dificultad;
+- estado inicial del ejercicio;
+- reglas de validación declarativas;
+- mensaje de finalización;
+- acción esperada por paso;
+- tipo y condición de activación;
+- reglas de validación específicas;
+- condición bloqueante respecto a pasos anteriores.
+
+El progreso incluye:
+
+- pendiente, en curso, completado o con error;
+- intentos realizados;
+- anotaciones del alumno;
+- resultado de validación;
+- fecha de inicio y finalización;
+- porcentaje agregado de la asignación;
+- paso actual.
+
+Los pasos bloqueantes deben completarse en orden. Al completar un paso, el siguiente se activa automáticamente. Cuando todos los pasos obligatorios terminan, la asignación pasa a entregada y el hilo relacionado queda resuelto.
+
+### Endpoints de escenarios
+
+- `GET /case-assignments/{assignment_id}/scenario`
+- `POST /case-assignments/{assignment_id}/start`
+- `PATCH /case-assignments/{assignment_id}/steps/{task_id}`
+- `POST /case-assignments/{assignment_id}/reset-progress`
+
+### Integración en el correo
+
+Los mensajes demo de antigüedad, incapacidad temporal y sustitución quedan vinculados a casos y asignaciones reales. Dentro del panel de lectura, el alumno puede:
+
+- consultar el título, dificultad, destinatario y porcentaje del ejercicio;
+- iniciar el caso;
+- seguir la secuencia de pasos;
+- añadir una anotación;
+- confirmar manualmente un paso en esta fase inicial;
+- registrar un error y reabrirlo;
+- reiniciar el progreso;
+- comprobar cómo cambia el estado del hilo y de la asignación.
+
+La confirmación manual se identifica como modo educativo de demostración. Las reglas ya están estructuradas, pero su comprobación automática contra trabajadores, contratos, incidencias, nóminas, FIE o SILTRA corresponde al siguiente bloque.
 
 ## Decisiones de interfaz
 
@@ -72,15 +125,15 @@ La aplicación de correo ocupa toda la pestaña para mantener una separación cl
 
 1. carpetas y estados de casos;
 2. bandeja de mensajes;
-3. lectura, conversación, documentación y accesos al proceso relacionado.
+3. lectura, conversación, progreso del ejercicio, documentación y accesos al proceso relacionado.
 
 La identidad visual utiliza el azul del icono de correo y la marca AulaNomina, evitando copiar logos, nombres o recursos de Microsoft Outlook.
 
 ## Siguientes pasos
 
-1. Definir `CaseScenario` y `CaseScenarioStep` sobre la base docente existente.
-2. Vincular hilos y mensajes a escenarios, pasos y asignaciones de alumnos.
-3. Activar enlaces reales hacia trabajador, contrato, nómina, incidencia, FIE, SILTRA y modelos fiscales.
-4. Incorporar motor de validación de acciones y respuestas automáticas.
-5. Añadir panel básico de profesor y trazabilidad del alumno.
+1. Activar los enlaces reales hacia trabajador, contrato, nómina, incidencia, FIE, SILTRA y modelos fiscales.
+2. Registrar eventos de los módulos del ERP y evaluarlos contra las reglas declarativas de cada paso.
+3. Generar respuestas automáticas distintas para aciertos y errores.
+4. Adaptar la vista de alumno y el panel docente al progreso por asignación.
+5. Añadir trazabilidad detallada de acciones, intentos y tiempos.
 6. Construir el caso demo integral de baja médica, sustitución, nómina y discrepancia FIE.
