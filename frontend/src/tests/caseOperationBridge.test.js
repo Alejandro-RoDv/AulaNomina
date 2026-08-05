@@ -33,6 +33,13 @@ test("clasifica únicamente operaciones mutables relevantes", () => {
     method: "POST",
     path: "/employees",
   });
+  assert.deepEqual(classifyCaseOperation("/model-111/declarations/4/present", "POST"), {
+    moduleCode: "tax",
+    actionCode: "present_model_111",
+    label: "Modelo 111 presentado",
+    method: "POST",
+    path: "/model-111/declarations/4/present",
+  });
   assert.equal(classifyCaseOperation("/employees", "GET"), null);
   assert.equal(classifyCaseOperation("/case-assignments/4/events", "POST"), null);
 });
@@ -70,6 +77,7 @@ test("emite el evento, solicita validación y publica el feedback", async () => 
       async json() {
         return {
           feedback_message_id: 91,
+          professional_message_id: null,
           validation: { passed: true, message: "Paso completado" },
           scenario: { assignment_id: 12, completion_percentage: 33 },
         };
@@ -96,7 +104,39 @@ test("emite el evento, solicita validación y publica el feedback", async () => 
   assert.equal(requestPayload.auto_validate, true);
   assert.equal(requestPayload.metadata.resource_id, 77);
   assert.equal(result.feedbackMessageId, 91);
+  assert.equal(result.feedbackNotice, "Paso completado");
   assert.equal(JSON.parse(storage.getItem(LAST_CASE_FEEDBACK_KEY)).assignmentId, 12);
+});
+
+
+test("publica que una operación externa ha generado una comunicación", async () => {
+  const storage = new MemoryStorage();
+  storage.setItem(ACTIVE_CASE_CONTEXT_KEY, JSON.stringify({
+    assignmentId: 8,
+    taskId: 19,
+    actionCode: "present_model_111",
+    moduleCode: "tax",
+  }));
+
+  const result = await emitCaseOperationEvent({
+    apiBaseUrl: "http://127.0.0.1:8000",
+    path: "/model-111/declarations/4/present",
+    method: "POST",
+    operationStatus: "success",
+    storage,
+    fetchImpl: async () => ({
+      ok: true,
+      json: async () => ({
+        feedback_message_id: null,
+        professional_message_id: 120,
+        validation: null,
+        scenario: { assignment_id: 8 },
+      }),
+    }),
+  });
+
+  assert.equal(result.professionalMessageId, 120);
+  assert.match(result.feedbackNotice, /nueva comunicación/i);
 });
 
 
