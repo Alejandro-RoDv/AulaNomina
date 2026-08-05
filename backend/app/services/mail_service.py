@@ -3,6 +3,12 @@ from datetime import datetime
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session, selectinload
 
+from app.crud.case_assignment import seed_demo_case_assignments
+from app.crud.case_study import seed_demo_case_studies
+from app.crud.student import seed_demo_students
+from app.crud.student_group import seed_demo_student_groups
+from app.models.case_assignment import CaseAssignment
+from app.models.case_study import CaseStudy, CaseTask
 from app.models.mail import EmailAttachment, EmailMessage, EmailThread, Mailbox
 from app.schemas.mail import EmailMessageCreate, EmailThreadUpdate
 
@@ -218,11 +224,53 @@ def get_mailbox(db: Session, mailbox_id: int) -> Mailbox | None:
     return db.query(Mailbox).filter(Mailbox.id == mailbox_id).first()
 
 
+def _seed_demo_teaching_context(db: Session) -> None:
+    seed_demo_student_groups(db)
+    seed_demo_students(db)
+    seed_demo_case_studies(db)
+    seed_demo_case_assignments(db)
+
+
+def _resolve_case_link(db: Session, case_reference: str | None) -> tuple[int | None, int | None, int | None]:
+    if not case_reference:
+        return None, None, None
+
+    case_study = db.query(CaseStudy).filter(CaseStudy.scenario_code == case_reference).first()
+    if not case_study:
+        return None, None, None
+
+    assignment = (
+        db.query(CaseAssignment)
+        .filter(CaseAssignment.case_study_id == case_study.id)
+        .order_by(CaseAssignment.id.asc())
+        .first()
+    )
+    task = (
+        db.query(CaseTask)
+        .filter(CaseTask.case_study_id == case_study.id)
+        .order_by(CaseTask.task_order.asc(), CaseTask.id.asc())
+        .first()
+    )
+    return case_study.id, assignment.id if assignment else None, task.id if task else None
+
+
+def _assignment_thread_status(assignment: CaseAssignment | None, fallback: str) -> str:
+    if not assignment:
+        return fallback
+    if assignment.status in {"submitted", "reviewed", "approved"}:
+        return "resolved"
+    if assignment.status in {"in_progress", "needs_revision"}:
+        return "in_progress"
+    return "open"
+
+
 def get_demo_mailbox(db: Session, seed_if_empty: bool = True) -> Mailbox:
+    _seed_demo_teaching_context(db)
+
     mailbox = db.query(Mailbox).filter(Mailbox.address == DEMO_MAILBOX_ADDRESS).first()
     if mailbox is None:
         mailbox = Mailbox(
-            role="teacher",
+            role="student",
             display_name=DEMO_MAILBOX_NAME,
             address=DEMO_MAILBOX_ADDRESS,
         )
@@ -232,6 +280,8 @@ def get_demo_mailbox(db: Session, seed_if_empty: bool = True) -> Mailbox:
     thread_count = db.query(func.count(EmailThread.id)).filter(EmailThread.mailbox_id == mailbox.id).scalar() or 0
     if seed_if_empty and thread_count == 0:
         _create_demo_threads(db, mailbox)
+    else:
+        _link_existing_demo_threads(db, mailbox)
 
     db.commit()
     db.refresh(mailbox)
@@ -246,14 +296,33 @@ def reset_demo_mailbox(db: Session) -> Mailbox:
     return get_demo_mailbox(db, seed_if_empty=True)
 
 
+def _link_existing_demo_threads(db: Session, mailbox: Mailbox) -> None:
+    threads = db.query(EmailThread).filter(EmailThread.mailbox_id == mailbox.id).all()
+    for thread in threads:
+        case_study_id, case_assignment_id, case_task_id = _resolve_case_link(db, thread.case_reference)
+        if not case_study_id:
+            continue
+        thread.case_study_id = case_study_id
+        thread.case_assignment_id = case_assignment_id
+        if not thread.case_task_id:
+            thread.case_task_id = case_task_id
+        assignment = db.query(CaseAssignment).filter(CaseAssignment.id == case_assignment_id).first() if case_assignment_id else None
+        thread.status = _assignment_thread_status(assignment, thread.status)
+
+
 def _create_demo_threads(db: Session, mailbox: Mailbox) -> None:
     for row in DEMO_THREADS:
+        case_study_id, case_assignment_id, case_task_id = _resolve_case_link(db, row["case_reference"])
+        assignment = db.query(CaseAssignment).filter(CaseAssignment.id == case_assignment_id).first() if case_assignment_id else None
         thread = EmailThread(
             mailbox_id=mailbox.id,
+            case_study_id=case_study_id,
+            case_assignment_id=case_assignment_id,
+            case_task_id=case_task_id,
             subject=row["subject"],
             preview=row["preview"],
             folder=row["folder"],
-            status=row["status"],
+            status=_assignment_thread_status(assignment, row["status"]),
             priority=row["priority"],
             category=row["category"],
             case_reference=row["case_reference"],
