@@ -149,19 +149,24 @@ def _ensure_demo_assignment(
     existing = query.first()
     if existing:
         ensure_assignment_progress(db, existing.id)
+        if status == "in_progress" and existing.status == "assigned":
+            start_assignment(db, existing.id)
         return existing
 
-    return create_case_assignment(
+    created = create_case_assignment(
         db,
         CaseAssignmentCreate(
             case_study_id=case_study.id,
             student_id=student.id if student else None,
             group_id=group.id if group else None,
             assigned_by="Profesor demo",
-            status=status,
+            status="assigned" if status == "in_progress" else status,
             notes=notes,
         ),
     )
+    if status == "in_progress":
+        start_assignment(db, created.id)
+    return created
 
 
 def seed_demo_case_assignments(db: Session):
