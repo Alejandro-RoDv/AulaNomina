@@ -3,10 +3,15 @@ const LAST_CASE_FEEDBACK_KEY = "aulanomina:last-case-operation-feedback";
 const MUTATING_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
 const OPERATION_RULES = [
+  { pattern: /^\/communication-submissions\/\d+\/(?:send|process)(?:\?|$)/, moduleCode: "siltra", actionCode: "submit_siltra", label: "Envío procesado en SILTRA" },
+  { pattern: /^\/communications\/\d+\/submit(?:\?|$)/, moduleCode: "siltra", actionCode: "submit_siltra", label: "Fichero enviado a SILTRA" },
+  { pattern: /^\/model-111\/declarations\/\d+\/present(?:\?|$)/, moduleCode: "tax", actionCode: "present_model_111", label: "Modelo 111 presentado" },
+  { pattern: /^\/model-190\/declarations\/\d+\/present(?:\?|$)/, moduleCode: "tax", actionCode: "present_model_190", label: "Modelo 190 presentado" },
   { pattern: /^\/payrolls\/\d+\/regularizations\/apply(?:\?|$)/, moduleCode: "regularizations", actionCode: "create_regularization", label: "Regularización aplicada" },
   { pattern: /^\/contracts\/\d+\/payroll-concepts(?:\?|$)/, moduleCode: "payrolls", actionCode: "update_payroll_concept", label: "Concepto salarial asociado" },
   { pattern: /^\/contract-payroll-concepts\/\d+(?:\/deactivate)?(?:\?|$)/, moduleCode: "payrolls", actionCode: "update_payroll_concept", label: "Concepto salarial actualizado" },
   { pattern: /^\/contracts\/\d+\/social-security-registration(?:\?|$)/, moduleCode: "affiliations", actionCode: "prepare_affiliation", label: "Alta de afiliación preparada" },
+  { pattern: /^\/affiliation-remittances\/\d+\/(?:submit|send|process)(?:\?|$)/, moduleCode: "affiliations", actionCode: "submit_affiliation", label: "Fichero de afiliación enviado" },
   { pattern: /^\/affiliation-remittances(?:\/.*)?(?:\?|$)/, moduleCode: "affiliations", actionCode: "prepare_affiliation", label: "Movimiento de afiliación preparado" },
   { pattern: /^\/fie\/communications\/\d+\/read(?:\?|$)/, moduleCode: "fie", actionCode: "review_fie", label: "Comunicación FIE revisada" },
   { pattern: /^\/fie\/communications\/\d+\/(?:compare|resolve|apply)(?:\?|$)/, moduleCode: "fie", actionCode: "reconcile_fie", label: "Comunicación FIE conciliada" },
@@ -91,6 +96,13 @@ function extractResourceId(data) {
   return data.id || data.payroll_id || data.contract_id || data.employee_id || data.incident_id || null;
 }
 
+function feedbackNotice(result, operationStatus) {
+  if (result?.validation?.message) return result.validation.message;
+  if (operationStatus === "error") return "La operación no se ha completado. Revisa los datos e inténtalo de nuevo.";
+  if (result?.professional_message_id) return "La operación se ha procesado y ha generado una nueva comunicación.";
+  return "La operación se ha registrado en el seguimiento del caso.";
+}
+
 function publishFeedback(storage, detail) {
   if (!storage || !detail) return;
   try {
@@ -162,6 +174,8 @@ export async function emitCaseOperationEvent({
       operationStatus,
       actionCode: operation.actionCode,
       feedbackMessageId: result.feedback_message_id || null,
+      professionalMessageId: result.professional_message_id || null,
+      feedbackNotice: feedbackNotice(result, operationStatus),
       validation: result.validation || null,
       scenario: result.scenario || null,
     };
