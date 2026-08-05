@@ -104,5 +104,6 @@ class CaseStepValidationResponse(BaseModel):
 class CaseOperationEventResponse(BaseModel):
     event_recorded: bool = True
     feedback_message_id: Optional[int] = None
+    professional_message_id: Optional[int] = None
     validation: Optional[CaseStepValidationResponse] = None
     scenario: CaseScenarioResponse
