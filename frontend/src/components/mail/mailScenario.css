@@ -1,5 +1,21 @@
+.mail-reading-content {
+  display: flex;
+  flex-direction: column;
+}
+
+.mail-reading-title-row { order: 1; }
+.mail-sender-row { order: 2; }
+.mail-conversation { order: 3; }
+.mail-composer { order: 4; }
+.mail-attachments { order: 5; }
+.mail-case-banner { order: 6; }
+.mail-scenario-panel,
+.mail-scenario-loading,
+.mail-scenario-error { order: 7; }
+.mail-case-checklist { order: 8; }
+.mail-context-actions { order: 9; }
+
 .mail-scenario-panel {
-  order: 7;
   margin-top: 14px;
   border: 1px solid #cfdde7;
   border-radius: 5px;
@@ -386,7 +402,6 @@
 
 .mail-scenario-loading,
 .mail-scenario-error {
-  order: 7;
   margin-top: 14px;
   border: 1px solid #d6e2ea;
   border-radius: 5px;
