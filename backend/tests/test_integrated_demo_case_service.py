@@ -1,3 +1,5 @@
+from datetime import date
+
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
@@ -6,11 +8,18 @@ import app.models  # noqa: F401
 from app.db import Base
 from app.models.case_assignment import CaseAssignment
 from app.models.case_study import CaseStudy
+from app.models.company import Company
+from app.models.contract import Contract
+from app.models.employee import Employee
+from app.models.fie import FieCommunication
+from app.models.incident import Incident
 from app.models.mail import EmailMessage, EmailThread
+from app.services.fie_case_service import compare_fie_case_communication
 from app.services.integrated_demo_case_service import (
     INTEGRATED_SCENARIO_CODE,
     ensure_integrated_demo_case,
 )
+from app.services.integrated_demo_process_seed import ensure_integrated_fie_communication
 from app.services.mail_service import get_demo_mailbox
 from app.services.professional_response_service import create_professional_response
 
@@ -40,6 +49,46 @@ def _integrated_assignment(db):
         .one()
     )
     return case_study, assignment
+
+
+def _create_javier_process(db):
+    company = Company(name="Fundación AulaNomina", cif="G14999999", ccc="14000000001")
+    db.add(company)
+    db.flush()
+    employee = Employee(
+        employee_code="1.2",
+        dni="10000002B",
+        naf="141000000002",
+        first_name="Javier",
+        last_name="Romero Sánchez",
+        company_id=company.id,
+        is_active=True,
+        status="active",
+    )
+    db.add(employee)
+    db.flush()
+    contract = Contract(
+        employee_id=employee.id,
+        company_id=company.id,
+        contract_type="Temporal",
+        start_date=date(2026, 1, 8),
+        end_date=date(2026, 6, 30),
+        status="active",
+    )
+    db.add(contract)
+    db.flush()
+    incident = Incident(
+        employee_id=employee.id,
+        contract_id=contract.id,
+        company_id=company.id,
+        incident_type="IT común",
+        start_date=date(2026, 5, 6),
+        end_date=date(2026, 5, 13),
+        status="closed",
+    )
+    db.add(incident)
+    db.commit()
+    return employee, incident
 
 
 def test_integrated_demo_case_is_created_once_with_complete_workflow():
@@ -86,6 +135,25 @@ def test_integrated_demo_case_is_created_once_with_complete_workflow():
         assert first_thread.messages[0].attachments[0].content_text
         assert "fie-inbox" in first_thread.context_actions
         assert "siltra" in first_thread.context_actions
+
+
+def test_integrated_fie_is_seeded_and_matches_existing_it():
+    with TestingSession() as db:
+        employee, incident = _create_javier_process(db)
+
+        first = ensure_integrated_fie_communication(db)
+        second = ensure_integrated_fie_communication(db)
+        compared = compare_fie_case_communication(db, first.id, actor="Usuario demo")
+
+        db.refresh(incident)
+        assert first.id == second.id
+        assert db.query(FieCommunication).count() == 1
+        assert first.employee_id == employee.id
+        assert first.sick_leave_date == date(2026, 5, 6)
+        assert incident.incident_type == "IT"
+        assert compared.status == "MATCHED"
+        assert compared.incident_id == incident.id
+        assert compared.reconciliation_result["checks"]
 
 
 def test_siltra_response_uses_domain_status_and_is_idempotent():
