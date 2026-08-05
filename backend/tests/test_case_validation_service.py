@@ -219,3 +219,40 @@ def test_failed_module_operation_marks_attempt_and_sends_feedback(db):
     assert step["progress_status"] == "failed"
     assert step["attempts"] == 1
     assert "no se ha completado correctamente" in feedback.body_text
+
+
+def test_task_can_use_compact_custom_tutor_message(db):
+    assignment, task = build_assignment(db)
+    task.feedback_config = {
+        "criteria": ["Trabajador correcto", "Alta activa"],
+        "success": "{accion} completada en {paso}.",
+    }
+    db.add(
+        Employee(
+            employee_code="9003",
+            dni="00000003A",
+            first_name="Laura",
+            last_name="Sánchez",
+            is_active=True,
+        )
+    )
+    db.commit()
+    start_assignment(db, assignment.id)
+
+    result = record_assignment_event(
+        db,
+        assignment.id,
+        CaseContextEventCreate(
+            task_id=task.id,
+            event_type="module_operation",
+            action_code="create_employee",
+            target="/employees",
+            operation_status="success",
+            response_summary="Alta de Laura Sánchez",
+            metadata={"event_id": "employee-custom-feedback-001", "resource_id": 9003},
+        ),
+    )
+
+    feedback = db.query(EmailMessage).filter(EmailMessage.id == result["feedback_message_id"]).one()
+    assert feedback.body_text == "Alta de Laura Sánchez completada en Paso comprobable."
+    assert task.feedback_config["criteria"] == ["Trabajador correcto", "Alta activa"]
