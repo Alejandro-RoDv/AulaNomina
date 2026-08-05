@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app.db import SessionLocal
@@ -8,6 +8,10 @@ from app.schemas.case_scenario import (
     CaseScenarioResponse,
     CaseStepValidationResponse,
     CaseTaskProgressUpdate,
+)
+from app.schemas.teacher_case_dashboard import (
+    TeacherCaseDashboardResponse,
+    TeacherCaseDetailResponse,
 )
 from app.services.case_scenario_service import (
     CaseScenarioError,
@@ -19,6 +23,10 @@ from app.services.case_scenario_service import (
 from app.services.case_validation_service import (
     record_assignment_event,
     validate_assignment_step,
+)
+from app.services.teacher_case_dashboard_service import (
+    get_teacher_case_dashboard,
+    get_teacher_case_detail,
 )
 
 
@@ -38,6 +46,29 @@ def _translate_error(error: CaseScenarioError):
         status_code=error.status_code,
         detail={"code": error.code, "message": error.message},
     ) from error
+
+
+@router.get("/teacher-dashboard", response_model=TeacherCaseDashboardResponse)
+def read_teacher_case_dashboard(
+    status: str | None = Query(default=None),
+    assignee_type: str | None = Query(default=None),
+    search: str | None = Query(default=None),
+    db: Session = Depends(get_db),
+):
+    return get_teacher_case_dashboard(
+        db,
+        status=status,
+        assignee_type=assignee_type,
+        search=search,
+    )
+
+
+@router.get("/{assignment_id}/teacher-detail", response_model=TeacherCaseDetailResponse)
+def read_teacher_case_detail(assignment_id: int, db: Session = Depends(get_db)):
+    try:
+        return get_teacher_case_detail(db, assignment_id)
+    except CaseScenarioError as error:
+        _translate_error(error)
 
 
 @router.get("/{assignment_id}/scenario", response_model=CaseScenarioResponse)
