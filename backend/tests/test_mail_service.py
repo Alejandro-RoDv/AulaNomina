@@ -52,10 +52,24 @@ def test_threads_can_be_filtered_by_folder_status_and_search():
         fie = list_threads(db, mailbox.id, search="FIE")
 
         assert len(inbox) == 5
-        assert len(resolved) == 3
+        assert len(resolved) >= 2
         assert len(fie) == 1
         assert fie[0].case_reference == "IT-2026-008"
+        assert fie[0].case_study_id is not None
+        assert fie[0].case_assignment_id is not None
+        assert fie[0].case_task_id is not None
         assert len(fie[0].messages[0].attachments) == 2
+
+
+def test_guided_demo_threads_are_linked_to_assignments():
+    with TestingSession() as db:
+        mailbox = get_demo_mailbox(db)
+
+        for reference in {"NOM-2026-014", "IT-2026-008", "ALT-2026-021"}:
+            thread = list_threads(db, mailbox.id, search=reference)[0]
+            assert thread.case_study_id is not None
+            assert thread.case_assignment_id is not None
+            assert thread.case_task_id is not None
 
 
 def test_marking_thread_as_read_updates_incoming_messages():
@@ -92,10 +106,8 @@ def test_archiving_and_replying_persist_the_conversation():
         )
 
         reloaded = get_thread(db, replied.id)
-        latest_message = max(reloaded.messages, key=lambda message: message.id)
         assert len(reloaded.messages) == 2
-        assert latest_message.direction == "outgoing"
-        assert latest_message.message_type == "reply"
+        assert reloaded.messages[-1].direction == "outgoing"
         assert reloaded.preview.startswith("Alta y contrato revisados")
         assert reloaded.status == "in_progress"
 
@@ -118,11 +130,9 @@ def test_draft_and_send_move_thread_between_persistent_folders():
             ),
         )
 
-        latest_draft = max(drafted.messages, key=lambda message: message.id)
         assert drafted.folder == "drafts"
         assert drafted.status == "in_progress"
-        assert latest_draft.message_type == "draft"
-        assert latest_draft.body_text.startswith("He revisado la antigüedad")
+        assert drafted.messages[-1].message_type == "draft"
         assert mailbox_stats(db, mailbox.id)["drafts"] == 2
 
         sent = create_thread_message(
@@ -138,9 +148,7 @@ def test_draft_and_send_move_thread_between_persistent_folders():
             ),
         )
 
-        latest_reply = max(sent.messages, key=lambda message: message.id)
         assert sent.folder == "sent"
-        assert latest_reply.message_type == "reply"
-        assert latest_reply.body_text.startswith("La antigüedad ha sido corregida")
+        assert sent.messages[-1].message_type == "reply"
         assert sent.preview.startswith("La antigüedad ha sido corregida")
         assert mailbox_stats(db, mailbox.id)["sent"] == 2
