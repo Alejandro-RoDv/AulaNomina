@@ -15,8 +15,9 @@ const OPERATION_RULES = [
   { pattern: /^\/affiliation-remittances(?:\/.*)?(?:\?|$)/, moduleCode: "affiliations", actionCode: "prepare_affiliation", label: "Movimiento de afiliación preparado" },
   { pattern: /^\/fie\/communications\/\d+\/read(?:\?|$)/, moduleCode: "fie", actionCode: "review_fie", label: "Comunicación FIE revisada" },
   { pattern: /^\/fie\/communications\/\d+\/(?:compare|resolve|apply)(?:\?|$)/, moduleCode: "fie", actionCode: "reconcile_fie", label: "Comunicación FIE conciliada" },
-  { pattern: /^\/incidents(?:\?|$)/, moduleCode: "incidents", actionCode: "create_incident", label: "Incidencia registrada", methods: new Set(["POST"]) },
   { pattern: /^\/incidents\/payrolls\/\d+\/process(?:\?|$)/, moduleCode: "payrolls", actionCode: "recalculate_payroll", label: "Incidencias aplicadas a nómina" },
+  { pattern: /^\/incidents(?:\?|$)/, moduleCode: "incidents", actionCode: "create_incident", label: "Incidencia registrada", methods: new Set(["POST"]) },
+  { pattern: /^\/incidents\/\d+(?:\?|$)/, moduleCode: "incidents", actionCode: "create_incident", label: "Incidencia revisada", methods: new Set(["PUT", "PATCH"]) },
   { pattern: /^\/payrolls(?:\/\d+)?(?:\?|$)/, moduleCode: "payrolls", actionCode: "recalculate_payroll", label: "Nómina recalculada", methods: new Set(["POST", "PUT"]) },
   { pattern: /^\/employees(?:\?|$)/, moduleCode: "employees", actionCode: "create_employee", label: "Trabajador creado", methods: new Set(["POST"]) },
   { pattern: /^\/contracts(?:\?|$)/, moduleCode: "contracts", actionCode: "create_contract", label: "Contrato creado", methods: new Set(["POST"]) },
@@ -90,10 +91,50 @@ function createEventId() {
   return `case-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
+function responseObject(data) {
+  if (!data || typeof data !== "object") return {};
+  if (Array.isArray(data)) return data[0] && typeof data[0] === "object" ? data[0] : {};
+  return data;
+}
+
+function firstObject(...values) {
+  return values.find((value) => value && typeof value === "object" && !Array.isArray(value)) || {};
+}
+
 function extractResourceId(data) {
-  if (!data || typeof data !== "object") return null;
-  if (Array.isArray(data)) return data[0]?.id || null;
-  return data.id || data.payroll_id || data.contract_id || data.employee_id || data.incident_id || null;
+  const item = responseObject(data);
+  const nested = firstObject(item.submission, item.result, item.response, item.item);
+  return item.id
+    || item.payroll_id
+    || item.contract_id
+    || item.employee_id
+    || item.incident_id
+    || nested.id
+    || null;
+}
+
+function textValue(value) {
+  if (value === undefined || value === null || value === "") return null;
+  return typeof value === "string" ? value : String(value);
+}
+
+function extractDomainMetadata(data) {
+  const item = responseObject(data);
+  const nested = firstObject(item.submission, item.result, item.response, item.item);
+  const responseFile = firstObject(item.response_file, nested.response_file);
+  return {
+    domain_status: textValue(item.status || nested.status || item.result_status),
+    response_status: textValue(item.response_status || nested.response_status || responseFile.status),
+    response_code: textValue(item.response_code || nested.response_code || responseFile.response_code),
+    response_message: textValue(
+      item.response_message
+      || nested.response_message
+      || responseFile.response_message
+      || item.message
+      || nested.message
+    ),
+    submission_number: textValue(item.submission_number || nested.submission_number),
+  };
 }
 
 function feedbackNotice(result, operationStatus) {
@@ -154,6 +195,11 @@ export async function emitCaseOperationEvent({
       http_status: httpStatus,
       resource_id: extractResourceId(responseData),
       scenario_code: context.scenarioCode || null,
+      employee_id: context.employeeId || null,
+      employee_name: context.employeeName || null,
+      company_id: context.companyId || null,
+      period: context.period || null,
+      ...extractDomainMetadata(responseData),
     },
   };
 
