@@ -8,6 +8,7 @@ from app.db import Base
 from app.models.case_assignment import CaseAssignment
 from app.models.case_study import CaseStudy, CaseTask
 from app.models.employee import Employee
+from app.models.mail import EmailMessage, EmailThread, Mailbox
 from app.models.student import Student
 from app.schemas.case_scenario import CaseContextEventCreate
 from app.services.case_scenario_service import start_assignment
@@ -70,7 +71,30 @@ def build_assignment(db, *, expected_action="create_employee", validation_rules=
         assigned_by="Profesor prueba",
         status="assigned",
     )
-    db.add(assignment)
+    mailbox = Mailbox(
+        role="student",
+        display_name="Alumno Validación",
+        address=f"mail-{expected_action}@aulanomina.local",
+    )
+    db.add_all([assignment, mailbox])
+    db.flush()
+
+    thread = EmailThread(
+        mailbox_id=mailbox.id,
+        case_study_id=case_study.id,
+        case_assignment_id=assignment.id,
+        case_task_id=task.id,
+        subject="Caso automático",
+        preview="Caso pendiente",
+        folder="inbox",
+        status="open",
+        priority="normal",
+        category="contract",
+        case_reference=case_study.scenario_code,
+        expected_actions=[task.title],
+        context_actions=[expected_action],
+    )
+    db.add(thread)
     db.commit()
     return assignment, task
 
@@ -114,7 +138,7 @@ def test_module_open_event_is_persisted_in_step_evidence(db):
     assignment, task = build_assignment(db)
     start_assignment(db, assignment.id)
 
-    scenario = record_assignment_event(
+    result = record_assignment_event(
         db,
         assignment.id,
         CaseContextEventCreate(
@@ -122,11 +146,76 @@ def test_module_open_event_is_persisted_in_step_evidence(db):
             event_type="module_opened",
             action_code="create_employee",
             target="employees",
+            operation_status="opened",
+            auto_validate=False,
             metadata={"source": "mail"},
         ),
     )
 
-    validation_result = scenario["steps"][0]["validation_result"]
+    validation_result = result["scenario"]["steps"][0]["validation_result"]
+    assert result["feedback_message_id"] is None
     assert validation_result["events"][0]["event_type"] == "module_opened"
     assert validation_result["events"][0]["action_code"] == "create_employee"
     assert validation_result["events"][0]["metadata"]["source"] == "mail"
+
+
+def test_successful_module_operation_validates_and_sends_feedback(db):
+    assignment, task = build_assignment(db)
+    db.add(
+        Employee(
+            employee_code="9002",
+            dni="00000002W",
+            first_name="Laura",
+            last_name="Sánchez",
+            is_active=True,
+        )
+    )
+    db.commit()
+    start_assignment(db, assignment.id)
+
+    result = record_assignment_event(
+        db,
+        assignment.id,
+        CaseContextEventCreate(
+            task_id=task.id,
+            event_type="module_operation",
+            action_code="create_employee",
+            target="/employees",
+            operation_status="success",
+            response_summary="Alta de Laura Sánchez",
+            metadata={"event_id": "employee-success-001", "resource_id": 9002},
+        ),
+    )
+
+    feedback = db.query(EmailMessage).filter(EmailMessage.id == result["feedback_message_id"]).one()
+    assert result["validation"]["passed"] is True
+    assert result["scenario"]["completion_percentage"] == 100
+    assert feedback.direction == "system"
+    assert feedback.message_type == "automatic"
+    assert "se ha comprobado correctamente" in feedback.body_text
+
+
+def test_failed_module_operation_marks_attempt_and_sends_feedback(db):
+    assignment, task = build_assignment(db)
+    start_assignment(db, assignment.id)
+
+    result = record_assignment_event(
+        db,
+        assignment.id,
+        CaseContextEventCreate(
+            task_id=task.id,
+            event_type="module_operation",
+            action_code="create_employee",
+            target="/employees",
+            operation_status="error",
+            response_summary="Alta rechazada por datos incompletos",
+            metadata={"event_id": "employee-error-001", "http_status": 422},
+        ),
+    )
+
+    feedback = db.query(EmailMessage).filter(EmailMessage.id == result["feedback_message_id"]).one()
+    step = result["scenario"]["steps"][0]
+    assert result["validation"] is None
+    assert step["progress_status"] == "failed"
+    assert step["attempts"] == 1
+    assert "no se ha completado correctamente" in feedback.body_text
