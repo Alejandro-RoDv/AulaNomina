@@ -27,6 +27,30 @@ const ASSIGNMENT_STATUS_LABELS = {
   needs_revision: "Requiere revisión",
 };
 
+const SUBSTITUTE_ACTIONS = new Set([
+  "create_employee",
+  "create_contract",
+  "prepare_affiliation",
+  "submit_affiliation",
+]);
+
+function workerContextForStep(scenario, step, message) {
+  const state = scenario?.initial_state || {};
+  const usesSubstitute = SUBSTITUTE_ACTIONS.has(step?.expected_action);
+  if (usesSubstitute) {
+    return {
+      employeeName: state.substitute || null,
+      employeeId: state.substitute_id || null,
+      startDate: state.start_date || null,
+    };
+  }
+  return {
+    employeeName: state.employee || state.substitute || null,
+    employeeId: message?.employeeId || state.employee_id || null,
+    startDate: state.leave_start || state.start_date || null,
+  };
+}
+
 
 export default function MailScenarioPanel({ message, onScenarioChanged }) {
   const assignmentId = message?.caseAssignmentId || null;
@@ -119,17 +143,18 @@ export default function MailScenarioPanel({ message, onScenarioChanged }) {
     if (!assignmentId || !scenario || !currentStep) return;
     setError("");
 
+    const workerContext = workerContextForStep(scenario, currentStep, message);
     const context = {
       actionCode: currentStep.expected_action,
       moduleCode: currentStep.module,
       assignmentId,
       taskId: currentStep.task_id,
       scenarioCode: scenario.scenario_code,
-      employeeName: scenario.initial_state?.employee || scenario.initial_state?.substitute || null,
-      employeeId: message?.employeeId || scenario.initial_state?.employee_id || null,
+      employeeName: workerContext.employeeName,
+      employeeId: workerContext.employeeId,
       companyId: message?.companyId || scenario.initial_state?.company_id || null,
       period: scenario.initial_state?.payroll_period || scenario.initial_state?.period || null,
-      startDate: scenario.initial_state?.leave_start || scenario.initial_state?.start_date || null,
+      startDate: workerContext.startDate,
       relatedEntityType: message?.relatedEntityType || null,
       relatedEntityId: message?.relatedEntityId || null,
     };
@@ -148,7 +173,13 @@ export default function MailScenarioPanel({ message, onScenarioChanged }) {
         target: currentStep.module,
         operation_status: "opened",
         auto_validate: false,
-        metadata: { source: "mail", scenario_code: scenario.scenario_code },
+        metadata: {
+          source: "mail",
+          scenario_code: scenario.scenario_code,
+          employee_name: workerContext.employeeName,
+          employee_id: workerContext.employeeId,
+          period: context.period,
+        },
       });
       setScenario(result.scenario);
     } catch (requestError) {
