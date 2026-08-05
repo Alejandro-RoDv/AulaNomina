@@ -53,7 +53,22 @@ def _canonicalize_integrated_incident(db: Session, employee: Employee) -> Incide
     return incident
 
 
-def ensure_integrated_fie_communication(db: Session) -> FieCommunication | None:
+def _received_event(communication_id: int) -> FieProcessingEvent:
+    return FieProcessingEvent(
+        communication_id=communication_id,
+        event_type="RECEIVED",
+        actor="INSS simulado",
+        detail="Comunicación FIE recibida para el caso integral LAB-2026-001.",
+        payload={"scenario_code": "LAB-2026-001"},
+        created_at=datetime(2026, 5, 6, 8, 45),
+    )
+
+
+def ensure_integrated_fie_communication(
+    db: Session,
+    *,
+    reset: bool = False,
+) -> FieCommunication | None:
     employee = _find_employee(db, "Javier Romero Sánchez")
     if employee is None or employee.company_id is None:
         return None
@@ -130,16 +145,14 @@ def ensure_integrated_fie_communication(db: Session) -> FieCommunication | None:
         )
         db.add(communication)
         db.flush()
-        db.add(
-            FieProcessingEvent(
-                communication_id=communication.id,
-                event_type="RECEIVED",
-                actor="INSS simulado",
-                detail="Comunicación FIE recibida para el caso integral LAB-2026-001.",
-                payload={"scenario_code": "LAB-2026-001"},
-                created_at=datetime(2026, 5, 6, 8, 45),
-            )
-        )
+        db.add(_received_event(communication.id))
+    elif reset:
+        db.query(FieProcessingEvent).filter(
+            FieProcessingEvent.communication_id == communication.id
+        ).delete(synchronize_session=False)
+        for field, value in values.items():
+            setattr(communication, field, value)
+        db.add(_received_event(communication.id))
     elif communication.status == "RECEIVED" and communication.read_at is None:
         for field, value in values.items():
             setattr(communication, field, value)
