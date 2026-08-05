@@ -1,192 +1,105 @@
-# Split 40 — Correo simulado y casos prácticos guiados
+# Split 40 — Correo simulado y casos prácticos
 
 ## Objetivo
 
-Convertir el correo interno en el punto de entrada de los ejercicios de AulaNomina. El alumno recibe una comunicación, revisa la documentación, abre el proceso relacionado y resuelve el caso mediante acciones reales del ERP educativo.
+Incorporar a AulaNomina un correo interno persistente que funcione como entrada realista a los procesos del ERP. El alumno debe interpretar comunicaciones laborales, revisar documentación y actuar en los módulos relacionados. La orientación educativa se mantiene como ayuda secundaria y no como elemento dominante.
 
-## Primera entrega: acceso y bandeja visual
+## Correo persistente
 
-Esta rama incorpora la base visual del módulo:
+El dominio utiliza:
 
-- acceso **Correo** en la cabecera, situado junto a SILTRA;
-- apertura en una pestaña nueva mediante la ruta `#mail`;
-- interfaz de escritorio inspirada en un cliente de correo profesional, sin reproducir Outlook de forma literal;
-- columna de carpetas y vistas de casos;
-- columna de mensajes;
-- panel de lectura y acciones contextuales;
-- mensajes de demostración relacionados con nómina, IT/FIE, contratación, fiscalidad y documentación;
-- búsqueda, selección, leído/no leído, archivado y papelera;
-- adjuntos simulados y lista de acciones esperadas del ejercicio.
+- `Mailbox` para el buzón del usuario;
+- `EmailThread` para conversaciones y su relación con empresa, trabajador, expediente o caso;
+- `EmailMessage` para mensajes recibidos, enviados, borradores y comunicaciones automáticas;
+- `EmailAttachment` para adjuntos simulados o vinculados al gestor documental.
 
-## Segunda entrega: dominio persistente y API
+La API permite listar, buscar, filtrar, leer, archivar, eliminar, responder, reenviar, guardar borradores y crear nuevos hilos. Los adjuntos disponen de vista previa y descarga educativa en formatos habituales.
 
-Se ha añadido la base backend del correo simulado:
+## Relación con casos
 
-- entidades `Mailbox`, `EmailThread`, `EmailMessage` y `EmailAttachment`;
-- relaciones y eliminación en cascada entre buzón, hilos, mensajes y adjuntos;
-- carpetas persistentes: entrada, enviados, borradores, archivados y papelera;
-- estados de caso: abierto, en progreso, en espera y resuelto;
-- prioridades y categorías laborales;
-- acciones esperadas y accesos contextuales asociados al hilo;
-- buzón demo autocreado con ocho conversaciones educativas;
-- búsqueda y filtrado por carpeta, estado y texto;
-- lectura/no lectura, archivado, papelera y actualización de prioridad;
-- creación de respuestas y borradores dentro de un hilo;
-- contadores del buzón y reinicio independiente de los datos demo.
+No se ha creado un dominio docente paralelo. Se reutilizan:
 
-### Endpoints del correo
+- `CaseStudy` como definición del escenario;
+- `CaseTask` como operación ordenada;
+- `CaseAssignment` como asignación al alumno o grupo;
+- `CaseTaskProgress` como progreso independiente por asignación.
 
-- `GET /mail/demo-mailbox`
-- `POST /mail/demo-mailbox/reset`
-- `GET /mail/mailboxes/{mailbox_id}/threads`
-- `GET /mail/mailboxes/{mailbox_id}/stats`
-- `GET /mail/threads/{thread_id}`
-- `PATCH /mail/threads/{thread_id}`
-- `POST /mail/threads/{thread_id}/messages`
+El caso se inicia al abrir por primera vez un correo vinculado. Los pasos bloqueantes avanzan en orden y las operaciones compatibles se validan contra la información almacenada en el ERP.
 
-## Tercera entrega: interfaz conectada y operaciones persistentes
+## Jerarquía de uso
 
-La bandeja React ya trabaja contra la API del correo:
+La lectura profesional tiene prioridad:
 
-- carga automática del buzón demo persistente;
-- filtrado remoto por carpeta y estado del caso;
-- búsqueda remota con espera breve para evitar llamadas por cada pulsación;
-- selección de mensajes y marcado persistente como leído;
-- marcado leído/no leído desde la barra superior;
-- archivado y envío a papelera guardados en base de datos;
-- conversación completa con mensajes entrantes, salientes y borradores;
-- editor integrado para responder, responder a todos y reenviar;
-- guardado persistente de borradores;
-- envío simulado de respuestas dentro del hilo;
-- restauración del buzón demo desde la interfaz;
-- tratamiento visible de carga, errores de API y reintentos;
-- contador global de no leídos sincronizado con el backend.
+1. asunto y remitente;
+2. contenido de la conversación;
+3. adjuntos;
+4. acciones de correo;
+5. referencia del expediente;
+6. ayuda opcional.
 
-El correo deja de depender de mensajes estáticos definidos en React. Al recargar la pestaña se mantienen la lectura, las carpetas, los borradores y las respuestas realizadas.
+La ayuda visible se limita al siguiente proceso, una pista opcional y el acceso al módulo relacionado. Los controles técnicos, reinicios y comprobaciones manuales quedan ocultos salvo cuando una validación automática no resulte posible.
 
-## Cuarta entrega: escenarios guiados y progreso por asignación
+## Navegación contextual
 
-No se ha creado un segundo dominio docente paralelo. Se reutilizan y amplían las entidades existentes `CaseStudy`, `CaseTask` y `CaseAssignment`:
+El contexto conserva, cuando está disponible:
 
-- `CaseStudy` actúa como definición del escenario;
-- `CaseTask` actúa como paso ordenado del escenario;
-- `CaseAssignment` representa el ejercicio asignado a un alumno o grupo;
-- `CaseTaskProgress` registra el estado independiente de cada paso para cada asignación.
+- empresa y trabajador;
+- periodo de nómina;
+- fecha de efectos;
+- expediente relacionado;
+- asignación y paso activo;
+- acción esperada.
 
-Los casos pueden almacenar ahora:
+Se han conectado filtros y preselecciones en nóminas, incidencias, contratos y FIE. Los pasos correspondientes a la sustitución utilizan a la persona sustituta; FIE, IT y nómina mantienen como referencia al trabajador ausente.
 
-- código de escenario relacionado con el correo;
-- categoría y dificultad;
-- estado inicial del ejercicio;
-- reglas de validación declarativas;
-- mensaje de finalización;
-- acción esperada por paso;
-- tipo y condición de activación;
-- reglas de validación específicas;
-- condición bloqueante respecto a pasos anteriores.
+## Caso comercial integral `LAB-2026-001`
 
-El progreso incluye:
+El recorrido **Baja médica, sustitución y cierre de comunicaciones** conecta:
 
-- pendiente, en curso, completado o con error;
-- intentos realizados;
-- anotaciones del alumno;
-- resultado de validación;
-- fecha de inicio y finalización;
-- porcentaje agregado de la asignación;
-- paso actual.
+1. lectura de una comunicación FIE;
+2. comprobación de la incapacidad temporal;
+3. conciliación FIE con la incidencia;
+4. alta de la persona sustituta;
+5. contrato de sustitución;
+6. preparación del movimiento de afiliación;
+7. envío de afiliación mediante SILTRA;
+8. recálculo de la nómina afectada;
+9. envío de la liquidación en SILTRA;
+10. respuesta final a la dirección del centro.
 
-Los pasos bloqueantes deben completarse en orden. Al completar un paso, el siguiente se activa automáticamente. Cuando todos los pasos obligatorios terminan, la asignación pasa a entregada y el hilo relacionado queda resuelto.
+El correo incorpora un parte médico, una comunicación FIE, la ficha de la sustituta y las condiciones contractuales. Los documentos contienen datos coherentes y utilizables durante el recorrido.
 
-### Endpoints de escenarios
+La demo prepara una comunicación FIE real en la base de datos para Javier Romero Sánchez. La IT demo se normaliza al código compatible con la conciliación y la bandeja FIE se filtra por el trabajador del caso. Al restaurar el buzón se reinician también la comunicación FIE y el progreso del recorrido integral.
 
+## Respuestas profesionales
+
+Las operaciones externas generan comunicaciones dentro del hilo desde remitentes simulados:
+
+- INSS para conciliaciones FIE;
+- SILTRA para afiliación y liquidaciones;
+- AEAT para modelos 111 y 190;
+- control de nómina y administración para recálculos y regularizaciones.
+
+Las respuestas distinguen aceptación, resultado pendiente y rechazo. El cliente conserva códigos, mensajes y referencias devueltos por el proceso. El identificador del evento impide duplicar comunicaciones.
+
+## Trazabilidad
+
+El cliente HTTP registra únicamente operaciones compatibles con el paso activo. Cada evento incluye acción, módulo, ruta, código HTTP, recurso, trabajador, empresa, periodo y resultado de dominio. La validación puede completar el paso, mantenerlo pendiente o registrar un error.
+
+La ampliación del panel docente queda congelada para el MVP. El módulo debe seguir comportándose como un simulador ERP y no como un LMS.
+
+## API principal
+
+- `POST /mail/mailboxes/{mailbox_id}/threads`
+- `GET /mail/attachments/{attachment_id}/preview`
+- `GET /mail/attachments/{attachment_id}/download`
 - `GET /case-assignments/{assignment_id}/scenario`
-- `POST /case-assignments/{assignment_id}/start`
-- `PATCH /case-assignments/{assignment_id}/steps/{task_id}`
-- `POST /case-assignments/{assignment_id}/reset-progress`
-
-### Integración en el correo
-
-Los mensajes demo de antigüedad, incapacidad temporal y sustitución quedan vinculados a casos y asignaciones reales. Dentro del panel de lectura, el alumno puede:
-
-- consultar el título, dificultad, destinatario y porcentaje del ejercicio;
-- iniciar el caso;
-- seguir la secuencia de pasos;
-- añadir una anotación;
-- confirmar manualmente un paso;
-- registrar un error y reabrirlo;
-- reiniciar el progreso;
-- comprobar cómo cambia el estado del hilo y de la asignación.
-
-## Quinta entrega: navegación, validación y tutor automático
-
-Cada paso puede abrir su módulo real manteniendo el contexto del ejercicio entre pestañas. El cliente HTTP central detecta las operaciones relevantes realizadas por el alumno y las relaciona con el paso activo.
-
-Las operaciones iniciales instrumentadas incluyen:
-
-- alta de trabajadores;
-- creación o actualización de contratos;
-- registro de incidencias;
-- cálculo y actualización de nóminas;
-- conceptos salariales permanentes;
-- regularizaciones;
-- afiliación;
-- lectura y conciliación FIE;
-- gestión documental.
-
-El backend evalúa los datos reales después de la operación. Una acción correcta completa el paso y activa el siguiente. Una acción incompleta mantiene el paso abierto y explica qué condición falta. Los errores de API se registran como intentos fallidos.
-
-Cada resultado genera un nuevo mensaje del **Tutor automático de AulaNomina** dentro del hilo. La respuesta puede confirmar el acierto, detallar comprobaciones pendientes, solicitar confirmación manual o indicar que debe corregirse un error.
-
-La pestaña de correo escucha los cambios producidos desde la pestaña ERP y actualiza automáticamente:
-
-- la conversación;
-- el estado del paso;
-- el porcentaje del ejercicio;
-- el estado y contador del hilo.
-
-### Endpoints de validación y eventos
-
-- `POST /case-assignments/{assignment_id}/steps/{task_id}/validate`
 - `POST /case-assignments/{assignment_id}/events`
+- `POST /case-assignments/{assignment_id}/steps/{task_id}/validate`
 
-## Sexta entrega: configuración mínima del tutor
+## Pendiente posterior
 
-Cada `CaseTask` puede guardar una configuración opcional y compacta en `feedback_config`:
-
-- criterios internos de revisión;
-- mensaje cuando la comprobación es correcta;
-- mensaje cuando todavía quedan condiciones pendientes;
-- mensaje cuando la operación del ERP falla;
-- mensaje cuando el paso requiere confirmación manual.
-
-Los mensajes aceptan tres sustituciones sencillas:
-
-- `{accion}`: operación realizada;
-- `{paso}`: título del paso;
-- `{detalle}`: primeras condiciones de validación pendientes.
-
-La configuración se edita desde un bloque avanzado dentro de la tarea existente. No se ha creado otra pantalla docente ni un sistema de rúbricas separado.
-
-Este alcance queda deliberadamente limitado. No incluye puntuaciones, pesos, calificaciones, libro de notas, competencias ni automatización académica. Los criterios se conservan como referencia interna para una futura revisión del enfoque docente.
-
-## Decisiones de interfaz
-
-La aplicación de correo ocupa toda la pestaña para mantener una separación clara respecto al ERP principal. Conserva un patrón reconocible de tres columnas:
-
-1. carpetas y estados de casos;
-2. bandeja de mensajes;
-3. lectura, conversación, progreso del ejercicio, documentación y accesos al proceso relacionado.
-
-La identidad visual utiliza el azul del icono de correo y la marca AulaNomina, evitando copiar logos, nombres o recursos de Microsoft Outlook.
-
-## Alcance congelado de docencia
-
-El módulo docente queda estabilizado en su estado actual. Durante el MVP solo se realizarán correcciones necesarias para que los casos demo y el correo funcionen, sin ampliar el producto hacia un LMS.
-
-Los siguientes desarrollos deben volver a priorizar:
-
-1. procesos ERP y ficheros laborales pendientes;
-2. simuladores SILTRA y AEAT;
-3. caso demo integral de baja médica, sustitución, nómina y discrepancia FIE;
-4. creación de nuevos hilos, adjuntos simulados y navegación efectiva desde el correo;
-5. validaciones de documentos, SILTRA y modelos fiscales únicamente cuando aporten valor a la demostración comercial.
+- revisión gráfica y responsive del correo;
+- ejecución manual completa del recorrido comercial en navegador;
+- incorporación de nuevas respuestas solo cuando se añadan procesos ERP relevantes;
+- replanteamiento futuro de la capa docente.
