@@ -1,4 +1,4 @@
-import { apiRequest } from "./httpClient.js";
+import { API_BASE_URL, apiRequest } from "./httpClient.js";
 
 const CATEGORY_LABELS = {
   payroll: "Nómina",
@@ -40,9 +40,17 @@ function formatReceivedAt(value) {
   });
 }
 
+function isTutorNotice(message) {
+  return message.direction === "system"
+    && message.message_type === "automatic"
+    && message.sender_address === "tutor@aulanomina.local";
+}
+
 export function mapThreadToWorkspaceMessage(thread) {
-  const messages = thread.messages || [];
-  const latestMessage = messages[messages.length - 1] || {};
+  const allMessages = thread.messages || [];
+  const tutorNotices = allMessages.filter(isTutorNotice);
+  const messages = allMessages.filter((message) => !isTutorNotice(message));
+  const latestMessage = messages[messages.length - 1] || allMessages[allMessages.length - 1] || {};
   const initialMessage = messages[0] || latestMessage;
   const attachments = messages.flatMap((message) => message.attachments || []);
 
@@ -53,6 +61,7 @@ export function mapThreadToWorkspaceMessage(thread) {
     address: initialMessage.sender_address || "correo@aulanomina.local",
     recipientName: initialMessage.recipient_name || "Usuario demo",
     recipientAddress: initialMessage.recipient_address || "usuario.demo@aulanomina.local",
+    ccAddress: initialMessage.cc_address || "",
     subject: thread.subject,
     preview: thread.preview || latestMessage.body_text || "",
     receivedAt: formatReceivedAt(thread.updated_at),
@@ -60,6 +69,10 @@ export function mapThreadToWorkspaceMessage(thread) {
     priority: thread.priority,
     category: CATEGORY_LABELS[thread.category] || thread.category,
     categoryCode: thread.category,
+    companyId: thread.company_id || null,
+    employeeId: thread.employee_id || null,
+    relatedEntityType: thread.related_entity_type || null,
+    relatedEntityId: thread.related_entity_id || null,
     caseReference: thread.case_reference,
     caseStudyId: thread.case_study_id || null,
     caseAssignmentId: thread.case_assignment_id || null,
@@ -71,6 +84,8 @@ export function mapThreadToWorkspaceMessage(thread) {
     body: (initialMessage.body_text || "").split(/\n\s*\n/).filter(Boolean),
     requirements: thread.expected_actions || [],
     contextActions: thread.context_actions || [],
+    tutorNotices,
+    latestTutorNotice: tutorNotices[tutorNotices.length - 1]?.body_text || "",
     messages,
   };
 }
@@ -94,6 +109,19 @@ export async function fetchMailboxThreads(mailboxId, filters = {}) {
     "No se han podido cargar los mensajes"
   );
   return (data || []).map(mapThreadToWorkspaceMessage);
+}
+
+export async function createMailThread(mailboxId, payload) {
+  const data = await apiRequest(
+    `/mail/mailboxes/${mailboxId}/threads`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    },
+    "No se ha podido crear el correo"
+  );
+  return mapThreadToWorkspaceMessage(data);
 }
 
 export async function fetchMailboxStats(mailboxId) {
@@ -128,4 +156,16 @@ export async function createMailMessage(threadId, payload) {
     "No se ha podido guardar la respuesta"
   );
   return mapThreadToWorkspaceMessage(data);
+}
+
+export async function fetchMailAttachmentPreview(attachmentId) {
+  return apiRequest(
+    `/mail/attachments/${attachmentId}/preview`,
+    {},
+    "No se ha podido abrir el adjunto"
+  );
+}
+
+export function getMailAttachmentDownloadUrl(attachmentId) {
+  return `${API_BASE_URL}/mail/attachments/${attachmentId}/download`;
 }
