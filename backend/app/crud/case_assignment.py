@@ -2,10 +2,12 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session, joinedload
 
 from app.models.case_assignment import CaseAssignment
+from app.models.case_progress import CaseTaskProgress
 from app.models.case_study import CaseStudy
 from app.models.student import Student
 from app.models.student_group import StudentGroup
 from app.schemas.case_assignment import CaseAssignmentCreate, CaseAssignmentUpdate
+from app.services.case_scenario_service import ensure_assignment_progress, start_assignment
 
 
 def _validate_case_study(db: Session, case_study_id: int):
@@ -50,6 +52,7 @@ def create_case_assignment(db: Session, assignment: CaseAssignmentCreate):
     db_assignment = CaseAssignment(**data)
     db.add(db_assignment)
     db.commit()
+    ensure_assignment_progress(db, db_assignment.id)
     return get_case_assignment(db, db_assignment.id)
 
 
@@ -95,10 +98,27 @@ def update_case_assignment(db: Session, assignment_id: int, data: CaseAssignment
     _validate_student(db, student_id)
     _validate_group(db, group_id)
 
+    changed_case_study = case_study_id != db_assignment.case_study_id
+    requested_status = update_data.get("status")
+
     for key, value in update_data.items():
         setattr(db_assignment, key, value)
 
+    if changed_case_study:
+        db.query(CaseTaskProgress).filter(CaseTaskProgress.assignment_id == assignment_id).delete(
+            synchronize_session=False
+        )
+        db_assignment.current_task_order = 1
+        db_assignment.completion_percentage = 0
+        db_assignment.started_at = None
+        db_assignment.completed_at = None
+
     db.commit()
+    ensure_assignment_progress(db, assignment_id)
+
+    if requested_status == "in_progress":
+        start_assignment(db, assignment_id)
+
     return get_case_assignment(db, assignment_id)
 
 
@@ -112,51 +132,80 @@ def delete_case_assignment(db: Session, assignment_id: int):
     return db_assignment
 
 
-def seed_demo_case_assignments(db: Session):
-    if db.query(CaseAssignment).count() > 0:
-        return
+def _ensure_demo_assignment(
+    db: Session,
+    case_study: CaseStudy,
+    *,
+    student: Student | None = None,
+    group: StudentGroup | None = None,
+    status: str = "assigned",
+    notes: str,
+):
+    query = db.query(CaseAssignment).filter(CaseAssignment.case_study_id == case_study.id)
+    if student:
+        query = query.filter(CaseAssignment.student_id == student.id)
+    elif group:
+        query = query.filter(CaseAssignment.group_id == group.id)
+    existing = query.first()
+    if existing:
+        ensure_assignment_progress(db, existing.id)
+        return existing
 
+    return create_case_assignment(
+        db,
+        CaseAssignmentCreate(
+            case_study_id=case_study.id,
+            student_id=student.id if student else None,
+            group_id=group.id if group else None,
+            assigned_by="Profesor demo",
+            status=status,
+            notes=notes,
+        ),
+    )
+
+
+def seed_demo_case_assignments(db: Session):
     case_studies = db.query(CaseStudy).order_by(CaseStudy.id.asc()).all()
     students = db.query(Student).order_by(Student.id.asc()).all()
     groups = db.query(StudentGroup).order_by(StudentGroup.id.asc()).all()
 
-    if not case_studies:
+    if not case_studies or (not students and not groups):
         return
 
-    demo_assignments = []
+    first_student = students[0] if students else None
+    first_group = groups[0] if groups else None
+    second_group = groups[1] if len(groups) > 1 else first_group
 
-    if groups:
-        demo_assignments.append(
-            CaseAssignmentCreate(
-                case_study_id=case_studies[0].id,
-                group_id=groups[0].id,
-                assigned_by="Profesor demo",
+    for case_study in case_studies:
+        if case_study.scenario_code == "IT-2026-008" and second_group:
+            _ensure_demo_assignment(
+                db,
+                case_study,
+                group=second_group,
+                status="in_progress",
+                notes="Caso guiado de IT, FIE y nómina iniciado desde el correo simulado.",
+            )
+        elif case_study.scenario_code in {"ALT-2026-021", "NOM-2026-014"} and first_student:
+            _ensure_demo_assignment(
+                db,
+                case_study,
+                student=first_student,
+                status="assigned",
+                notes="Caso individual vinculado al buzón simulado.",
+            )
+        elif case_study.title == "Alta completa de trabajador" and first_group:
+            _ensure_demo_assignment(
+                db,
+                case_study,
+                group=first_group,
                 status="assigned",
                 notes="Asignacion demo para trabajar el alta completa de trabajador.",
             )
-        )
-
-    if len(case_studies) > 1 and len(groups) > 1:
-        demo_assignments.append(
-            CaseAssignmentCreate(
-                case_study_id=case_studies[1].id,
-                group_id=groups[1].id,
-                assigned_by="Profesor demo",
-                status="in_progress",
-                notes="Asignacion demo para practicar IT y nomina.",
-            )
-        )
-
-    if len(case_studies) > 2 and students:
-        demo_assignments.append(
-            CaseAssignmentCreate(
-                case_study_id=case_studies[2].id,
-                student_id=students[0].id,
-                assigned_by="Profesor demo",
+        elif case_study.title == "Expediente documental incompleto" and first_student:
+            _ensure_demo_assignment(
+                db,
+                case_study,
+                student=first_student,
                 status="submitted",
                 notes="Asignacion individual demo con entrega pendiente de revisar.",
             )
-        )
-
-    for assignment in demo_assignments:
-        create_case_assignment(db, assignment)
