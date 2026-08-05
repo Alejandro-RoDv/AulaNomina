@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from app.db import SessionLocal
 from app.schemas.case_scenario import (
     CaseContextEventCreate,
+    CaseOperationEventResponse,
     CaseScenarioResponse,
     CaseStepValidationResponse,
     CaseTaskProgressUpdate,
@@ -83,7 +84,7 @@ def validate_assignment_step_endpoint(
         _translate_error(error)
 
 
-@router.post("/{assignment_id}/events", response_model=CaseScenarioResponse)
+@router.post("/{assignment_id}/events", response_model=CaseOperationEventResponse)
 def record_assignment_event_endpoint(
     assignment_id: int,
     payload: CaseContextEventCreate,
