@@ -18,6 +18,7 @@ CASE_TASK_COLUMNS = {
     "trigger_condition": "JSON",
     "validation_rules": "JSON",
     "message_template": "TEXT",
+    "feedback_config": "JSON",
     "blocking": "BOOLEAN DEFAULT TRUE",
 }
 
@@ -136,6 +137,7 @@ def add_missing_case_scenario_columns() -> None:
                         SET trigger_type = COALESCE(trigger_type, 'manual'),
                             trigger_condition = COALESCE(trigger_condition, '{}'::json),
                             validation_rules = COALESCE(validation_rules, '[]'::json),
+                            feedback_config = COALESCE(feedback_config, '{}'::json),
                             blocking = COALESCE(blocking, TRUE)
                         """
                     )
@@ -148,6 +150,7 @@ def add_missing_case_scenario_columns() -> None:
                         SET trigger_type = COALESCE(trigger_type, 'manual'),
                             trigger_condition = COALESCE(trigger_condition, '{}'),
                             validation_rules = COALESCE(validation_rules, '[]'),
+                            feedback_config = COALESCE(feedback_config, '{}'),
                             blocking = COALESCE(blocking, 1)
                         """
                     )
