@@ -45,6 +45,7 @@ class CaseTaskBase(BaseModel):
     trigger_condition: dict[str, Any] = Field(default_factory=dict)
     validation_rules: list[dict[str, Any]] = Field(default_factory=list)
     message_template: Optional[str] = None
+    feedback_config: dict[str, Any] = Field(default_factory=dict)
     task_order: int = 1
     is_required: bool = True
     blocking: bool = True
@@ -86,6 +87,7 @@ class CaseTaskUpdate(BaseModel):
     trigger_condition: Optional[dict[str, Any]] = None
     validation_rules: Optional[list[dict[str, Any]]] = None
     message_template: Optional[str] = None
+    feedback_config: Optional[dict[str, Any]] = None
     task_order: Optional[int] = None
     is_required: Optional[bool] = None
     blocking: Optional[bool] = None
