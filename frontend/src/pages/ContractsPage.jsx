@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import PageCard from "../components/layout/PageCard";
 import ContractForm from "../components/ContractFormProfessional";
@@ -24,6 +24,8 @@ function readInitialCaseContext() {
     return {
       page: "contracts",
       actionCode: params.get("caseAction"),
+      assignmentId: params.get("caseAssignmentId"),
+      taskId: params.get("caseTaskId"),
       employeeId: params.get("employeeId"),
       employeeName: params.get("employee"),
       companyId: params.get("companyId"),
@@ -55,6 +57,7 @@ export default function ContractsPage({
   contractSubmitting,
 }) {
   const [contractMode, setContractMode] = useState(getStoredMode);
+  const appliedContextRef = useRef("");
 
   useEffect(() => {
     const syncContractMode = () => setContractMode(getStoredMode());
@@ -65,6 +68,14 @@ export default function ContractsPage({
   useEffect(() => {
     const applyContext = (context) => {
       if (!context || context.page !== "contracts" || context.actionCode !== "create_contract") return;
+      const contextKey = [
+        context.assignmentId || "",
+        context.taskId || "",
+        context.employeeId || context.employeeName || "",
+        context.startDate || "",
+      ].join(":");
+      if (contextKey && appliedContextRef.current === contextKey) return;
+
       const expectedName = normalize(context.employeeName);
       const employee = employees.find((item) => (
         (context.employeeId && String(item.id) === String(context.employeeId))
@@ -82,10 +93,10 @@ export default function ContractsPage({
       if (context.startDate) onContractChange({ target: { name: "start_date", value: context.startDate } });
       onContractChange({ target: { name: "contract_type", value: "sustitucion" } });
       onContractChange({ target: { name: "status", value: "active" } });
+      appliedContextRef.current = contextKey;
     };
 
-    const initialContext = readInitialCaseContext();
-    applyContext(initialContext);
+    applyContext(readInitialCaseContext());
     const handleContext = (event) => applyContext(event.detail);
     window.addEventListener("aulanomina-case-context", handleContext);
     return () => window.removeEventListener("aulanomina-case-context", handleContext);
