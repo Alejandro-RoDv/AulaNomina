@@ -15,6 +15,7 @@ from app.schemas.mail import (
     MailboxStatsResponse,
 )
 from app.services.integrated_demo_case_service import ensure_integrated_demo_case
+from app.services.integrated_demo_process_seed import ensure_integrated_fie_communication
 from app.services.mail_service import (
     attachment_download,
     attachment_preview,
@@ -44,6 +45,7 @@ def get_db():
 
 def _prepare_demo_mailbox(db: Session, *, reset: bool = False):
     mailbox = reset_demo_mailbox(db) if reset else get_demo_mailbox(db)
+    ensure_integrated_fie_communication(db)
     ensure_integrated_demo_case(db, mailbox)
     return mailbox
 
