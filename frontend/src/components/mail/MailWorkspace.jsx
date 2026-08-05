@@ -39,6 +39,7 @@ import {
   resetDemoMailbox,
   updateMailThread,
 } from "../../services/mailApi";
+import MailScenarioPanel from "./MailScenarioPanel";
 import "./mailWorkspace.css";
 import "./mailWorkspacePersistence.css";
 
@@ -362,6 +363,11 @@ export default function MailWorkspace({ onClose }) {
     }
   };
 
+  const handleScenarioChanged = async (_scenario, successMessage) => {
+    if (successMessage) setNotice(successMessage);
+    await refreshView({ silent: true, preferredId: selectedMessage?.id || null });
+  };
+
   const showPlaceholder = (text) => {
     setNotice(`${text}. Esta acción se conectará al módulo relacionado en el siguiente paso del split.`);
   };
@@ -592,6 +598,12 @@ export default function MailWorkspace({ onClose }) {
                   <div><span>Área</span><strong>{selectedMessage.category}</strong></div>
                 </div>
 
+                <MailScenarioPanel
+                  key={`${selectedMessage.id}-${selectedMessage.caseAssignmentId || "unlinked"}`}
+                  message={selectedMessage}
+                  onScenarioChanged={handleScenarioChanged}
+                />
+
                 <section className="mail-conversation">
                   <h3>Conversación</h3>
                   {(selectedMessage.messages || []).map((threadMessage) => (
@@ -681,10 +693,12 @@ export default function MailWorkspace({ onClose }) {
                   </section>
                 )}
 
-                <section className="mail-case-checklist">
-                  <h3>Acciones esperadas</h3>
-                  {selectedMessage.requirements.map((requirement) => <div key={requirement}><Circle size={15} /><span>{requirement}</span></div>)}
-                </section>
+                {!selectedMessage.caseAssignmentId && (
+                  <section className="mail-case-checklist">
+                    <h3>Acciones esperadas</h3>
+                    {selectedMessage.requirements.map((requirement) => <div key={requirement}><Circle size={15} /><span>{requirement}</span></div>)}
+                  </section>
+                )}
 
                 <section className="mail-context-actions">
                   <h3>Abrir proceso relacionado</h3>
