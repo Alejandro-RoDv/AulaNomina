@@ -3,7 +3,9 @@ from sqlalchemy.orm import Session
 
 from app.db import SessionLocal
 from app.schemas.case_scenario import (
+    CaseContextEventCreate,
     CaseScenarioResponse,
+    CaseStepValidationResponse,
     CaseTaskProgressUpdate,
 )
 from app.services.case_scenario_service import (
@@ -12,6 +14,10 @@ from app.services.case_scenario_service import (
     reset_assignment_progress,
     start_assignment,
     update_assignment_step,
+)
+from app.services.case_validation_service import (
+    record_assignment_event,
+    validate_assignment_step,
 )
 
 
@@ -58,6 +64,33 @@ def patch_assignment_step(
 ):
     try:
         return update_assignment_step(db, assignment_id, task_id, payload)
+    except CaseScenarioError as error:
+        _translate_error(error)
+
+
+@router.post(
+    "/{assignment_id}/steps/{task_id}/validate",
+    response_model=CaseStepValidationResponse,
+)
+def validate_assignment_step_endpoint(
+    assignment_id: int,
+    task_id: int,
+    db: Session = Depends(get_db),
+):
+    try:
+        return validate_assignment_step(db, assignment_id, task_id)
+    except CaseScenarioError as error:
+        _translate_error(error)
+
+
+@router.post("/{assignment_id}/events", response_model=CaseScenarioResponse)
+def record_assignment_event_endpoint(
+    assignment_id: int,
+    payload: CaseContextEventCreate,
+    db: Session = Depends(get_db),
+):
+    try:
+        return record_assignment_event(db, assignment_id, payload)
     except CaseScenarioError as error:
         _translate_error(error)
 
