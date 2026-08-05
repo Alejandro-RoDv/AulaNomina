@@ -45,7 +45,7 @@ def get_db():
 
 def _prepare_demo_mailbox(db: Session, *, reset: bool = False):
     mailbox = reset_demo_mailbox(db) if reset else get_demo_mailbox(db)
-    ensure_integrated_fie_communication(db)
+    ensure_integrated_fie_communication(db, reset=reset)
     ensure_integrated_demo_case(db, mailbox)
     return mailbox
 
