@@ -13,6 +13,9 @@ test("mapThreadToWorkspaceMessage adapta un hilo persistente a la bandeja", () =
     priority: "high",
     category: "payroll",
     case_reference: "NOM-2026-014",
+    case_study_id: 5,
+    case_assignment_id: 12,
+    case_task_id: 41,
     status: "open",
     is_read: false,
     expected_actions: ["Recalcular nómina"],
@@ -46,6 +49,9 @@ test("mapThreadToWorkspaceMessage adapta un hilo persistente a la bandeja", () =
   assert.equal(mapped.categoryCode, "payroll");
   assert.equal(mapped.caseStatus, "pending");
   assert.equal(mapped.backendStatus, "open");
+  assert.equal(mapped.caseStudyId, 5);
+  assert.equal(mapped.caseAssignmentId, 12);
+  assert.equal(mapped.caseTaskId, 41);
   assert.equal(mapped.sender, "Administración");
   assert.equal(mapped.recipientAddress, "usuario.demo@aulanomina.local");
   assert.deepEqual(mapped.body, ["Buenos días.", "Revisa la nómina de la trabajadora."]);
@@ -65,6 +71,9 @@ test("mapThreadToWorkspaceMessage conserva la conversación y los borradores", (
     priority: "normal",
     category: "social_security",
     case_reference: "SS-2026-011",
+    case_study_id: null,
+    case_assignment_id: null,
+    case_task_id: null,
     status: "in_progress",
     is_read: true,
     expected_actions: [],
@@ -102,6 +111,7 @@ test("mapThreadToWorkspaceMessage conserva la conversación y los borradores", (
   assert.equal(mapped.unread, false);
   assert.equal(mapped.category, "Seguridad Social");
   assert.equal(mapped.caseStatus, "in_progress");
+  assert.equal(mapped.caseAssignmentId, null);
   assert.equal(mapped.messages.length, 2);
   assert.equal(mapped.messages[1].message_type, "draft");
 });
