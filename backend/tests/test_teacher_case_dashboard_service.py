@@ -118,6 +118,9 @@ def build_teacher_case(db):
 
     scenario = start_assignment(db, assignment.id)
     progress = assignment.progress_entries[0]
+    started_at = datetime.utcnow() - timedelta(minutes=90)
+    assignment.started_at = started_at
+    progress.started_at = started_at
     progress.validation_result = {
         "mode": "automatic",
         "validated_at": (datetime.utcnow() - timedelta(minutes=18)).isoformat(),
