@@ -26,6 +26,8 @@ class EmailAttachmentCreate(BaseModel):
     content_type: str = "application/octet-stream"
     storage_reference: Optional[str] = None
     document_type: Optional[str] = None
+    content_text: Optional[str] = None
+    linked_document_id: Optional[int] = None
     size_bytes: int = 0
 
 
@@ -37,11 +39,22 @@ class EmailAttachmentResponse(EmailAttachmentCreate):
         from_attributes = True
 
 
+class EmailAttachmentPreviewResponse(BaseModel):
+    id: int
+    filename: str
+    content_type: str
+    document_type: Optional[str] = None
+    content_text: str
+    linked_document_id: Optional[int] = None
+    preview_supported: bool = True
+
+
 class EmailMessageCreate(BaseModel):
     sender_name: str
     sender_address: str
     recipient_name: Optional[str] = None
     recipient_address: str
+    cc_address: Optional[str] = None
     body_html: Optional[str] = None
     body_text: str
     direction: str = "outgoing"
@@ -63,6 +76,41 @@ class EmailMessageCreate(BaseModel):
         return value
 
 
+class EmailThreadCreate(BaseModel):
+    recipient_name: Optional[str] = None
+    recipient_address: str
+    cc_address: Optional[str] = None
+    subject: str
+    body_text: str
+    body_html: Optional[str] = None
+    priority: str = "normal"
+    category: str = "general"
+    company_id: Optional[int] = None
+    employee_id: Optional[int] = None
+    case_study_id: Optional[int] = None
+    case_assignment_id: Optional[int] = None
+    case_task_id: Optional[int] = None
+    case_reference: Optional[str] = None
+    related_entity_type: Optional[str] = None
+    related_entity_id: Optional[int] = None
+    attachments: list[EmailAttachmentCreate] = Field(default_factory=list)
+    save_as_draft: bool = False
+
+    @field_validator("priority")
+    @classmethod
+    def validate_priority(cls, value):
+        if value not in MAIL_PRIORITIES:
+            raise ValueError("Prioridad no valida")
+        return value
+
+    @field_validator("category")
+    @classmethod
+    def validate_category(cls, value):
+        if value not in MAIL_CATEGORIES:
+            raise ValueError("Categoria no valida")
+        return value
+
+
 class EmailMessageResponse(BaseModel):
     id: int
     thread_id: int
@@ -70,6 +118,7 @@ class EmailMessageResponse(BaseModel):
     sender_address: str
     recipient_name: Optional[str] = None
     recipient_address: str
+    cc_address: Optional[str] = None
     body_html: Optional[str] = None
     body_text: str
     sent_at: datetime
@@ -114,9 +163,12 @@ class EmailThreadResponse(BaseModel):
     id: int
     mailbox_id: int
     company_id: Optional[int] = None
+    employee_id: Optional[int] = None
     case_study_id: Optional[int] = None
     case_assignment_id: Optional[int] = None
     case_task_id: Optional[int] = None
+    related_entity_type: Optional[str] = None
+    related_entity_id: Optional[int] = None
     subject: str
     preview: Optional[str] = None
     folder: str
