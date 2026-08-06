@@ -1,41 +1,41 @@
-export default function PageCard({ title, subtitle, children }) {
+import "./page.css";
+
+function joinClassNames(...classNames) {
+  return classNames.filter(Boolean).join(" ");
+}
+
+export default function PageCard({
+  as: Component = "section",
+  title,
+  subtitle,
+  actions = null,
+  children,
+  variant = "default",
+  padding = "default",
+  className = "",
+  ...props
+}) {
   return (
-    <section style={styles.card}>
-      {(title || subtitle) && (
-        <div style={styles.header}>
-          {title && <h2 style={styles.title}>{title}</h2>}
-          {subtitle && <p style={styles.subtitle}>{subtitle}</p>}
-        </div>
+    <Component
+      className={joinClassNames(
+        "an-page-card",
+        variant !== "default" && `an-page-card--${variant}`,
+        padding !== "default" && `an-page-card--${padding}`,
+        className,
+      )}
+      {...props}
+    >
+      {(title || subtitle || actions) && (
+        <header className="an-page-card__header">
+          <div className="an-page-card__heading">
+            {title && <h2 className="an-page-card__title">{title}</h2>}
+            {subtitle && <p className="an-page-card__subtitle">{subtitle}</p>}
+          </div>
+          {actions && <div className="an-page-card__actions">{actions}</div>}
+        </header>
       )}
 
       {children}
-    </section>
+    </Component>
   );
 }
-
-const styles = {
-  card: {
-    backgroundColor: "#ffffff",
-    padding: "22px",
-    borderRadius: "0",
-    border: "2px solid #111111",
-    boxShadow: "5px 5px 0 #f5ef9c",
-  },
-  header: {
-    marginBottom: "16px",
-    borderBottom: "1px solid #e6d85c",
-    paddingBottom: "10px",
-  },
-  title: {
-    margin: 0,
-    fontSize: "18px",
-    fontWeight: 900,
-    color: "#111111",
-  },
-  subtitle: {
-    margin: "4px 0 0",
-    fontSize: "13px",
-    color: "#5f6368",
-    fontWeight: 600,
-  },
-};

@@ -8,15 +8,34 @@ El shell global define la estructura compartida de la aplicación:
 - pie discreto;
 - espaciado responsive basado en los tokens `--an-*`.
 
-## Navegación
+## Navegación progresiva
 
-La sidebar utiliza revelado progresivo para evitar mostrar toda la arquitectura del ERP al mismo tiempo:
+La navegación funciona como un acordeón de dos niveles:
 
-- solo puede permanecer abierto un grupo principal;
-- dentro del grupo, solo se despliega un submódulo con hijos;
-- el grupo y el submódulo correspondientes a la página activa se abren automáticamente;
-- el estado se conserva en `localStorage`;
-- la etiqueta del submódulo navega a su panel y el chevrón controla únicamente el desplegable;
-- los iconos se reservan para los grupos principales y no compiten con las opciones operativas.
+- solo un grupo principal permanece abierto;
+- dentro de cada grupo solo un submódulo mantiene visibles sus opciones;
+- la ruta activa abre automáticamente su grupo y submódulo;
+- el estado se conserva entre recargas;
+- los iconos se reservan para categorías principales.
 
-Los módulos internos todavía conservan sus componentes actuales. Su migración se realizará de forma progresiva sin volver a definir el shell.
+## Sistema común de páginas
+
+Las páginas nuevas deben componerse con los elementos exportados por `layout/index.js`:
+
+```jsx
+import {
+  Page,
+  PageCard,
+  PageGrid,
+  PageSection,
+  PageToolbar,
+} from "../components/layout";
+```
+
+- `Page`: controla anchura máxima y ritmo vertical.
+- `PageSection`: agrupa contenido relacionado y normaliza título, descripción y acciones.
+- `PageToolbar`: contiene búsqueda, filtros y la acción principal del bloque.
+- `PageGrid`: crea rejillas responsive sin anchuras arbitrarias.
+- `PageCard`: superficie estándar para información, formularios y listados.
+
+Los módulos internos todavía conservan parte de sus estilos históricos. Su migración se realizará progresivamente reutilizando estos componentes, sin volver a definir el shell ni los patrones de página.
