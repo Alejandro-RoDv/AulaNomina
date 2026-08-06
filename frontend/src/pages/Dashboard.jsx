@@ -4,7 +4,8 @@ import {
   ArrowRight,
   BookOpen,
   Building2,
-  Check,
+  CalendarDays,
+  Clock3,
   FileText,
   MapPin,
   Receipt,
@@ -13,19 +14,60 @@ import {
 
 import { Page } from "../components/layout";
 import "./Dashboard.css";
+import "./DashboardCalendar.css";
 
-function formatMoney(value) {
-  return new Intl.NumberFormat("es-ES", {
-    style: "currency",
-    currency: "EUR",
-    maximumFractionDigits: 0,
-  }).format(Number(value || 0));
-}
+const INCIDENT_TYPE_LABELS = {
+  IT: "Incapacidad temporal",
+  RECAIDA: "Recaída",
+  NACIMIENTO_CUIDADO: "Nacimiento y cuidado",
+  RIESGO_EMBARAZO: "Riesgo durante el embarazo",
+  RIESGO_LACTANCIA: "Riesgo durante la lactancia",
+  CUIDADO_MENOR: "Cuidado de menor",
+  VACACIONES: "Vacaciones",
+  AUSENCIA: "Ausencia",
+  PERMISO_RETRIBUIDO: "Permiso retribuido",
+  PERMISO_NO_RETRIBUIDO: "Permiso no retribuido",
+  SUSPENSION: "Suspensión",
+  SANCION: "Sanción",
+  HORAS_EXTRA: "Horas extraordinarias",
+  MOVIMIENTO: "Movimiento laboral",
+};
 
 function getPayrollPeriod(payroll) {
   if (!payroll) return "Sin generar";
   if (payroll.period_label) return payroll.period_label;
   return `${String(payroll.period_month || "").padStart(2, "0")}/${payroll.period_year || ""}`;
+}
+
+function parseLocalDate(value) {
+  if (!value) return null;
+  const match = String(value).slice(0, 10).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return null;
+  const [, year, month, day] = match;
+  const date = new Date(Number(year), Number(month) - 1, Number(day));
+  date.setHours(0, 0, 0, 0);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function isSameMonth(date, reference) {
+  return date
+    && date.getFullYear() === reference.getFullYear()
+    && date.getMonth() === reference.getMonth();
+}
+
+function formatMonthLabel(date) {
+  const label = new Intl.DateTimeFormat("es-ES", {
+    month: "long",
+    year: "numeric",
+  }).format(date);
+  return label.charAt(0).toUpperCase() + label.slice(1);
+}
+
+function formatWeekday(date) {
+  return new Intl.DateTimeFormat("es-ES", { weekday: "short" })
+    .format(date)
+    .replace(".", "")
+    .toUpperCase();
 }
 
 function clearCurrentHash() {
@@ -75,11 +117,6 @@ export default function Dashboard({
   const pendingPayrolls = payrolls.filter((payroll) =>
     ["draft", "pending", "calculated"].includes(payroll.status)
   ).length;
-  const closedPayrolls = payrolls.filter((payroll) => payroll.status === "closed").length;
-  const totalNetPayroll = payrolls.reduce(
-    (accumulator, payroll) => accumulator + Number(payroll.net_salary || 0),
-    0,
-  );
   const latestPayroll = [...payrolls].sort((leftPayroll, rightPayroll) => {
     const left = Number(
       `${leftPayroll.period_year || 0}${String(leftPayroll.period_month || 0).padStart(2, "0")}`,
@@ -89,6 +126,13 @@ export default function Dashboard({
     );
     return right - left;
   })[0];
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const currentYear = today.getFullYear();
+  const currentMonth = today.getMonth();
+  const lastDayOfMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+  const monthlyDate = (day) => new Date(currentYear, currentMonth, Math.min(day, lastDayOfMonth));
 
   const quickActions = [
     {
@@ -179,16 +223,120 @@ export default function Dashboard({
     },
   ];
 
-  const readinessChecks = [
-    { label: "Empresa disponible", done: activeCompanies > 0 },
-    { label: "Centro de trabajo configurado", done: activeCenters > 0 },
-    { label: "Trabajadores cargados", done: activeEmployees > 0 },
-    { label: "Contratos activos", done: activeContracts > 0 },
-    { label: "Convenio colectivo disponible", done: activeAgreements > 0 },
-    { label: "Nóminas generadas", done: payrolls.length > 0 },
+  const contractEvents = activeContractRecords
+    .map((contract) => ({ contract, date: parseLocalDate(contract.end_date) }))
+    .filter(({ date }) => isSameMonth(date, today))
+    .map(({ contract, date }) => ({
+      id: `contract-${contract.id}`,
+      date,
+      title: "Fin de contrato",
+      description: contract.employee_name || contract.contract_code_description || "Contrato activo",
+      category: "Contrato",
+      tone: "warning",
+      onClick: () => openPage("contracts", { modeGroup: "contracts", modeValue: "history" }),
+    }));
+
+  const incidentEvents = incidents
+    .filter((incident) => incident.status !== "cancelled")
+    .flatMap((incident) => {
+      const label = INCIDENT_TYPE_LABELS[incident.incident_type] || "Incidencia laboral";
+      const employee = incident.employee_name || `Trabajador ${incident.employee_id || ""}`.trim();
+      const events = [];
+      const startDate = parseLocalDate(incident.start_date);
+      const endDate = parseLocalDate(incident.end_date);
+
+      if (isSameMonth(startDate, today)) {
+        events.push({
+          id: `incident-start-${incident.id}`,
+          date: startDate,
+          title: `Inicio de ${label.toLowerCase()}`,
+          description: employee,
+          category: "Incidencia",
+          tone: "info",
+          onClick: () => openPage("incidents", { modeGroup: "incidents", modeValue: "list" }),
+        });
+      }
+
+      if (isSameMonth(endDate, today)) {
+        events.push({
+          id: `incident-end-${incident.id}`,
+          date: endDate,
+          title: `Fin previsto de ${label.toLowerCase()}`,
+          description: employee,
+          category: "Incidencia",
+          tone: "success",
+          onClick: () => openPage("incidents", { modeGroup: "incidents", modeValue: "list" }),
+        });
+      }
+
+      return events;
+    });
+
+  const operationalEvents = [
+    {
+      id: "monthly-incidents-cutoff",
+      date: monthlyDate(5),
+      title: "Revisión de incidencias del periodo",
+      description: "Comprueba bajas, ausencias, vacaciones y permisos.",
+      category: "Incidencias",
+      tone: "info",
+      onClick: () => openPage("incidents", { modeGroup: "incidents", modeValue: "list" }),
+    },
+    {
+      id: "monthly-payroll-opening",
+      date: monthlyDate(15),
+      title: "Preparación de nómina mensual",
+      description: pendingPayrolls > 0
+        ? `${pendingPayrolls} nómina${pendingPayrolls === 1 ? "" : "s"} pendiente${pendingPayrolls === 1 ? "" : "s"} de revisión.`
+        : "Abre o revisa el periodo mensual.",
+      category: "Nómina",
+      tone: pendingPayrolls > 0 ? "warning" : "info",
+      onClick: () => openPage("payroll-monthly-preparation"),
+    },
+    {
+      id: "monthly-cra-review",
+      date: monthlyDate(20),
+      title: "Revisión de ficheros CRA",
+      description: "Valida los conceptos retributivos antes del cierre.",
+      category: "Seguridad Social",
+      tone: "neutral",
+      onClick: () => openPage("social-security-dashboard", { hash: "#cra-files" }),
+    },
+    {
+      id: "monthly-payroll-review",
+      date: monthlyDate(25),
+      title: "Revisión y cálculo de nóminas",
+      description: "Comprueba resultados, incidencias e importes calculados.",
+      category: "Nómina",
+      tone: "warning",
+      onClick: () => openPage("payroll-monthly-preparation"),
+    },
+    {
+      id: "monthly-close",
+      date: monthlyDate(lastDayOfMonth),
+      title: "Cierre del periodo mensual",
+      description: "Revisa los procesos pendientes antes de cerrar el mes.",
+      category: "Cierre mensual",
+      tone: "neutral",
+      onClick: () => openPage("payroll-monthly-preparation"),
+    },
   ];
-  const completedReadiness = readinessChecks.filter((item) => item.done).length;
-  const readinessPercent = Math.round((completedReadiness / readinessChecks.length) * 100);
+
+  const actualEvents = [...contractEvents, ...incidentEvents]
+    .sort((left, right) => left.date - right.date)
+    .slice(0, 3);
+  const operationalSlots = Math.max(0, 5 - actualEvents.length);
+  const selectedOperationalEvents = [...operationalEvents]
+    .sort((left, right) => {
+      const leftPast = left.date < today;
+      const rightPast = right.date < today;
+      if (leftPast !== rightPast) return leftPast ? 1 : -1;
+      return leftPast ? right.date - left.date : left.date - right.date;
+    })
+    .slice(0, operationalSlots);
+  const calendarEvents = [...actualEvents, ...selectedOperationalEvents]
+    .sort((left, right) => left.date - right.date);
+  const upcomingEvents = calendarEvents.filter((event) => event.date >= today).length;
 
   return (
     <Page className="an-dashboard" spacing="default">
@@ -281,40 +429,52 @@ export default function Dashboard({
           </div>
         </section>
 
-        <aside className="an-dashboard__panel an-dashboard__readiness" aria-labelledby="dashboard-readiness-title">
-          <div className="an-dashboard__panel-heading">
+        <aside className="an-dashboard__panel an-dashboard__calendar" aria-labelledby="dashboard-calendar-title">
+          <div className="an-dashboard__panel-heading an-dashboard__calendar-heading">
             <div>
-              <p className="an-dashboard__section-label">Estado general</p>
-              <h2 id="dashboard-readiness-title">Configuración del entorno</h2>
-              <span>{completedReadiness} de {readinessChecks.length} elementos preparados.</span>
+              <p className="an-dashboard__section-label">Agenda mensual</p>
+              <h2 id="dashboard-calendar-title">Fechas clave</h2>
+              <span>Hitos laborales y administrativos del mes.</span>
             </div>
-            <strong className="an-dashboard__readiness-value">{readinessPercent}%</strong>
+            <span className="an-dashboard__calendar-month">
+              <CalendarDays aria-hidden="true" />
+              {formatMonthLabel(today)}
+            </span>
           </div>
 
-          <div className="an-dashboard__progress" aria-label={`Configuración del entorno: ${readinessPercent}%`}>
-            <span style={{ width: `${readinessPercent}%` }} />
+          <div className="an-dashboard__calendar-list">
+            {calendarEvents.map((event) => {
+              const isPast = event.date < today;
+              return (
+                <button
+                  key={event.id}
+                  type="button"
+                  className={`an-dashboard__calendar-event an-dashboard__calendar-event--${event.tone}${isPast ? " is-past" : ""}`}
+                  onClick={event.onClick}
+                  aria-label={`${event.date.getDate()} de ${formatMonthLabel(event.date)}: ${event.title}`}
+                >
+                  <span className="an-dashboard__calendar-date" aria-hidden="true">
+                    <strong>{String(event.date.getDate()).padStart(2, "0")}</strong>
+                    <small>{formatWeekday(event.date)}</small>
+                  </span>
+                  <span className="an-dashboard__calendar-copy">
+                    <strong>{event.title}</strong>
+                    <small>{event.description}</small>
+                  </span>
+                  <span className="an-dashboard__calendar-category">{event.category}</span>
+                  <ArrowRight aria-hidden="true" />
+                </button>
+              );
+            })}
           </div>
 
-          <div className="an-dashboard__readiness-list">
-            {readinessChecks.map((item) => (
-              <div key={item.label} className="an-dashboard__readiness-item">
-                <span className={`an-dashboard__readiness-check${item.done ? " is-complete" : ""}`} aria-hidden="true">
-                  {item.done && <Check />}
-                </span>
-                <span>{item.label}</span>
-              </div>
-            ))}
-          </div>
-
-          <div className="an-dashboard__payroll-summary">
-            <div>
-              <span>Neto acumulado</span>
-              <strong>{formatMoney(totalNetPayroll)}</strong>
-            </div>
-            <div>
-              <span>Nóminas cerradas</span>
-              <strong>{closedPayrolls}</strong>
-            </div>
+          <div className="an-dashboard__calendar-footer">
+            <Clock3 aria-hidden="true" />
+            <span>
+              {upcomingEvents > 0
+                ? `${upcomingEvents} fecha${upcomingEvents === 1 ? "" : "s"} todavía por llegar este mes.`
+                : "No quedan fechas programadas este mes."}
+            </span>
           </div>
         </aside>
       </div>
