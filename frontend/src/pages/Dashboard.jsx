@@ -6,14 +6,12 @@ import {
   Building2,
   Check,
   FileText,
-  GraduationCap,
   MapPin,
   Receipt,
   Users,
 } from "lucide-react";
 
 import { Page } from "../components/layout";
-import { Badge } from "../components/ui";
 import "./Dashboard.css";
 
 function formatMoney(value) {
@@ -201,14 +199,14 @@ export default function Dashboard({
       <section className="an-dashboard__welcome">
         <div className="an-dashboard__welcome-copy">
           <span className="an-dashboard__welcome-icon" aria-hidden="true">
-            <GraduationCap />
+            <Building2 />
           </span>
           <div>
-            <Badge tone="brand">Demo docente</Badge>
+            <p className="an-dashboard__section-label">AulaNomina</p>
             <h2>Bienvenido a AulaNomina</h2>
             <p>
-              Tu laboratorio de simulación laboral está preparado para practicar altas,
-              contratos, incidencias, nóminas y procesos administrativos reales.
+              Consulta y gestiona empresas, trabajadores, contratos, incidencias y nóminas
+              desde un único espacio de trabajo.
             </p>
             <div className="an-dashboard__welcome-meta">
               <span className="an-dashboard__availability">Entorno disponible</span>
@@ -267,7 +265,7 @@ export default function Dashboard({
         <section className="an-dashboard__panel" aria-labelledby="dashboard-attention-title">
           <div className="an-dashboard__panel-heading">
             <div>
-              <p className="an-dashboard__section-label">Trabajo del entorno</p>
+              <p className="an-dashboard__section-label">Trabajo pendiente</p>
               <h2 id="dashboard-attention-title">Qué requiere atención</h2>
               <span>Accede directamente a los procesos que necesitan revisión.</span>
             </div>
@@ -299,14 +297,14 @@ export default function Dashboard({
         <aside className="an-dashboard__panel an-dashboard__readiness" aria-labelledby="dashboard-readiness-title">
           <div className="an-dashboard__panel-heading">
             <div>
-              <p className="an-dashboard__section-label">Entorno de práctica</p>
-              <h2 id="dashboard-readiness-title">Preparación de la demo</h2>
+              <p className="an-dashboard__section-label">Estado general</p>
+              <h2 id="dashboard-readiness-title">Configuración del entorno</h2>
               <span>{completedReadiness} de {readinessChecks.length} elementos preparados.</span>
             </div>
             <strong className="an-dashboard__readiness-value">{readinessPercent}%</strong>
           </div>
 
-          <div className="an-dashboard__progress" aria-label={`Preparación de la demo: ${readinessPercent}%`}>
+          <div className="an-dashboard__progress" aria-label={`Configuración del entorno: ${readinessPercent}%`}>
             <span style={{ width: `${readinessPercent}%` }} />
           </div>
 

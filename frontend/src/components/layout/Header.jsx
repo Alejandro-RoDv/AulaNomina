@@ -170,8 +170,8 @@ export default function Header({
             <Menu aria-hidden="true" />
           </button>
           <div className="an-header__user">
-            <span className="an-header__context">Entorno educativo</span>
-            <strong>Usuario demo · Docente</strong>
+            <span className="an-header__context">Sesión activa</span>
+            <strong>Docente</strong>
           </div>
         </div>
 
@@ -249,7 +249,6 @@ export default function Header({
             )}
           </div>
 
-          <span className="an-header__demo">Demo educativa</span>
           <button type="button" className="an-header__action-button" onClick={onOpenSettings}>
             <Settings aria-hidden="true" />
             <span className="an-header__action-label">Ajustes</span>

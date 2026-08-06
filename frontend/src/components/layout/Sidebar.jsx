@@ -396,7 +396,6 @@ export default function Sidebar({ activePage, setActivePage }) {
         <div className="an-sidebar__brand">
           <div className="an-sidebar__brand-copy">
             <img src={logo} alt="AulaNomina" className="an-sidebar__logo" />
-            <span className="an-sidebar__descriptor">ERP laboral educativo</span>
           </div>
           <button
             type="button"
