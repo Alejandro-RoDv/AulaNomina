@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   Activity,
   AlertTriangle,
@@ -5,6 +6,7 @@ import {
   BookOpen,
   Building2,
   CalendarDays,
+  ChevronDown,
   Clock3,
   FileText,
   MapPin,
@@ -15,6 +17,7 @@ import {
 import { Page } from "../components/layout";
 import "./Dashboard.css";
 import "./DashboardCalendar.css";
+import "./DashboardCompact.css";
 
 const INCIDENT_TYPE_LABELS = {
   IT: "Incapacidad temporal",
@@ -99,6 +102,8 @@ export default function Dashboard({
   payrolls = [],
   collectiveAgreements = [],
 }) {
+  const [showAllCalendarEvents, setShowAllCalendarEvents] = useState(false);
+
   const activeCompanies = companies.filter((company) => company.is_active !== false).length;
   const activeCenters = workCenters.filter((center) => center.is_active !== false).length;
   const activeEmployees = employees.filter((employee) => employee.is_active !== false).length;
@@ -196,28 +201,28 @@ export default function Dashboard({
     {
       title: "Nóminas pendientes",
       count: pendingPayrolls,
-      description: "Borradores, cálculos o periodos todavía sin cerrar.",
+      description: "Borradores, cálculos o periodos sin cerrar.",
       icon: Receipt,
       onClick: () => openPage("payroll-monthly-preparation"),
     },
     {
       title: "Incidencias abiertas",
       count: openIncidents,
-      description: "Revisa bajas, ausencias, vacaciones y permisos activos.",
+      description: "Bajas, ausencias, vacaciones y permisos activos.",
       icon: Activity,
       onClick: () => openPage("incidents", { modeGroup: "incidents", modeValue: "list" }),
     },
     {
       title: "Contratos sin convenio",
       count: contractsWithoutAgreement,
-      description: "Contratos activos sin referencia de convenio colectivo.",
+      description: "Relaciones activas sin convenio colectivo.",
       icon: BookOpen,
       onClick: () => openPage("contracts", { modeGroup: "contracts", modeValue: "history" }),
     },
     {
       title: "Contratos sin salario base",
       count: contractsWithoutSalary,
-      description: "Datos necesarios para una simulación salarial coherente.",
+      description: "Dato necesario para calcular la nómina.",
       icon: AlertTriangle,
       onClick: () => openPage("contracts", { modeGroup: "contracts", modeValue: "history" }),
     },
@@ -276,8 +281,8 @@ export default function Dashboard({
     {
       id: "monthly-incidents-cutoff",
       date: monthlyDate(5),
-      title: "Revisión de incidencias del periodo",
-      description: "Comprueba bajas, ausencias, vacaciones y permisos.",
+      title: "Revisión de incidencias",
+      description: "Comprueba bajas, ausencias y permisos.",
       category: "Incidencias",
       tone: "info",
       onClick: () => openPage("incidents", { modeGroup: "incidents", modeValue: "list" }),
@@ -285,9 +290,9 @@ export default function Dashboard({
     {
       id: "monthly-payroll-opening",
       date: monthlyDate(15),
-      title: "Preparación de nómina mensual",
+      title: "Preparación de nómina",
       description: pendingPayrolls > 0
-        ? `${pendingPayrolls} nómina${pendingPayrolls === 1 ? "" : "s"} pendiente${pendingPayrolls === 1 ? "" : "s"} de revisión.`
+        ? `${pendingPayrolls} nómina${pendingPayrolls === 1 ? "" : "s"} pendiente${pendingPayrolls === 1 ? "" : "s"}.`
         : "Abre o revisa el periodo mensual.",
       category: "Nómina",
       tone: pendingPayrolls > 0 ? "warning" : "info",
@@ -297,7 +302,7 @@ export default function Dashboard({
       id: "monthly-cra-review",
       date: monthlyDate(20),
       title: "Revisión de ficheros CRA",
-      description: "Valida los conceptos retributivos antes del cierre.",
+      description: "Valida los conceptos retributivos.",
       category: "Seguridad Social",
       tone: "neutral",
       onClick: () => openPage("social-security-dashboard", { hash: "#cra-files" }),
@@ -305,8 +310,8 @@ export default function Dashboard({
     {
       id: "monthly-payroll-review",
       date: monthlyDate(25),
-      title: "Revisión y cálculo de nóminas",
-      description: "Comprueba resultados, incidencias e importes calculados.",
+      title: "Revisión de nóminas",
+      description: "Comprueba resultados e importes.",
       category: "Nómina",
       tone: "warning",
       onClick: () => openPage("payroll-monthly-preparation"),
@@ -315,7 +320,7 @@ export default function Dashboard({
       id: "monthly-close",
       date: monthlyDate(lastDayOfMonth),
       title: "Cierre del periodo mensual",
-      description: "Revisa los procesos pendientes antes de cerrar el mes.",
+      description: "Revisa los procesos antes del cierre.",
       category: "Cierre mensual",
       tone: "neutral",
       onClick: () => openPage("payroll-monthly-preparation"),
@@ -336,7 +341,14 @@ export default function Dashboard({
     .slice(0, operationalSlots);
   const calendarEvents = [...actualEvents, ...selectedOperationalEvents]
     .sort((left, right) => left.date - right.date);
-  const upcomingEvents = calendarEvents.filter((event) => event.date >= today).length;
+  const upcomingCalendarEvents = calendarEvents.filter((event) => event.date >= today);
+  const pastCalendarEvents = calendarEvents.filter((event) => event.date < today);
+  const defaultCalendarEvents = upcomingCalendarEvents.length > 0
+    ? upcomingCalendarEvents.slice(0, 4)
+    : pastCalendarEvents.slice(-4);
+  const visibleCalendarEvents = showAllCalendarEvents ? calendarEvents : defaultCalendarEvents;
+  const hiddenCalendarEvents = Math.max(0, calendarEvents.length - defaultCalendarEvents.length);
+  const upcomingEvents = upcomingCalendarEvents.length;
 
   return (
     <Page className="an-dashboard" spacing="default">
@@ -443,7 +455,7 @@ export default function Dashboard({
           </div>
 
           <div className="an-dashboard__calendar-list">
-            {calendarEvents.map((event) => {
+            {visibleCalendarEvents.map((event) => {
               const isPast = event.date < today;
               return (
                 <button
@@ -469,12 +481,25 @@ export default function Dashboard({
           </div>
 
           <div className="an-dashboard__calendar-footer">
-            <Clock3 aria-hidden="true" />
-            <span>
-              {upcomingEvents > 0
-                ? `${upcomingEvents} fecha${upcomingEvents === 1 ? "" : "s"} todavía por llegar este mes.`
-                : "No quedan fechas programadas este mes."}
+            <span className="an-dashboard__calendar-footer-copy">
+              <Clock3 aria-hidden="true" />
+              <span>
+                {upcomingEvents > 0
+                  ? `${upcomingEvents} fecha${upcomingEvents === 1 ? "" : "s"} todavía por llegar este mes.`
+                  : "No quedan fechas programadas este mes."}
+              </span>
             </span>
+            {hiddenCalendarEvents > 0 && (
+              <button
+                type="button"
+                className="an-dashboard__calendar-toggle"
+                onClick={() => setShowAllCalendarEvents((current) => !current)}
+                aria-expanded={showAllCalendarEvents}
+              >
+                {showAllCalendarEvents ? "Mostrar próximas" : `Ver todas (${calendarEvents.length})`}
+                <ChevronDown aria-hidden="true" />
+              </button>
+            )}
           </div>
         </aside>
       </div>

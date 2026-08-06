@@ -1,0 +1,210 @@
+/* Ajustes compactos del Panel: métricas, pendientes y agenda */
+
+.an-dashboard__metrics {
+  gap: var(--an-space-3);
+}
+
+.an-dashboard__metric {
+  min-height: 108px;
+  align-items: center;
+  gap: 14px;
+  padding: 18px 20px;
+}
+
+.an-dashboard__metric > div {
+  min-height: 70px;
+}
+
+.an-dashboard__metric-icon {
+  width: 34px;
+  height: 34px;
+}
+
+.an-dashboard__metric-icon svg {
+  width: 17px;
+  height: 17px;
+}
+
+.an-dashboard__metric strong {
+  margin-top: var(--an-space-1);
+  font-size: 1.75rem;
+}
+
+.an-dashboard__metric div > span {
+  padding-top: var(--an-space-2);
+  font-size: 0.75rem;
+  line-height: 1.4;
+}
+
+.an-dashboard__main-grid {
+  grid-template-columns: minmax(0, 1.2fr) minmax(24rem, 0.8fr);
+  gap: var(--an-space-5);
+}
+
+.an-dashboard__panel {
+  padding: var(--an-space-5);
+}
+
+.an-dashboard__attention-list {
+  margin-top: var(--an-space-4);
+}
+
+.an-dashboard__attention-item {
+  grid-template-columns: 34px minmax(0, 1fr) auto 16px;
+  min-height: 64px;
+  gap: var(--an-space-3);
+  padding: 10px 0;
+}
+
+.an-dashboard__attention-icon {
+  width: 34px;
+  height: 34px;
+}
+
+.an-dashboard__attention-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.an-dashboard__attention-copy small {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+}
+
+.an-dashboard__calendar-list {
+  margin-top: var(--an-space-3);
+}
+
+.an-dashboard__calendar-event {
+  grid-template-columns: 42px minmax(0, 1fr) auto 16px;
+  min-height: 64px;
+  gap: 10px;
+  padding: 9px 0;
+}
+
+.an-dashboard__calendar-date {
+  width: 42px;
+  height: 42px;
+  border-radius: var(--an-radius-md);
+}
+
+.an-dashboard__calendar-date strong {
+  font-size: var(--an-font-size-md);
+}
+
+.an-dashboard__calendar-date small {
+  margin-top: 3px;
+  font-size: 0.5625rem;
+}
+
+.an-dashboard__calendar-copy strong {
+  font-size: 0.8125rem;
+  line-height: 1.3;
+}
+
+.an-dashboard__calendar-copy small {
+  margin-top: 2px;
+  font-size: 0.6875rem;
+  line-height: 1.35;
+}
+
+.an-dashboard__calendar-category {
+  min-height: 22px;
+  padding: 0 7px;
+  font-size: 0.625rem;
+}
+
+.an-dashboard__calendar-footer {
+  justify-content: space-between;
+  gap: var(--an-space-3);
+  margin-top: var(--an-space-3);
+  padding-top: var(--an-space-3);
+}
+
+.an-dashboard__calendar-footer-copy {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--an-space-2);
+}
+
+.an-dashboard__calendar-toggle {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: var(--an-space-1);
+  min-height: 30px;
+  padding: 0 var(--an-space-2);
+  border: 0;
+  border-radius: var(--an-radius-md);
+  background: transparent;
+  color: var(--an-color-text-link);
+  font: inherit;
+  font-size: var(--an-font-size-xs);
+  font-weight: var(--an-font-weight-semibold);
+  cursor: pointer;
+}
+
+.an-dashboard__calendar-toggle:hover {
+  background: var(--an-color-primary-50);
+}
+
+.an-dashboard__calendar-toggle:focus-visible {
+  outline: 2px solid rgb(37 99 235 / 36%);
+  outline-offset: 2px;
+}
+
+.an-dashboard__calendar-toggle svg {
+  width: 14px;
+  height: 14px;
+  transition: transform var(--an-duration-fast) var(--an-ease-standard);
+}
+
+.an-dashboard__calendar-toggle[aria-expanded="true"] svg {
+  transform: rotate(180deg);
+}
+
+@media (max-width: 78rem) {
+  .an-dashboard__main-grid {
+    grid-template-columns: minmax(0, 1.1fr) minmax(21rem, 0.9fr);
+  }
+
+  .an-dashboard__calendar-event {
+    grid-template-columns: 40px minmax(0, 1fr) 16px;
+  }
+
+  .an-dashboard__calendar-date {
+    width: 40px;
+    height: 40px;
+  }
+}
+
+@media (max-width: 68rem) {
+  .an-dashboard__main-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 48rem) {
+  .an-dashboard__metric {
+    min-height: 100px;
+    padding: var(--an-space-4);
+  }
+
+  .an-dashboard__panel {
+    padding: var(--an-space-4);
+  }
+
+  .an-dashboard__calendar-footer {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .an-dashboard__calendar-toggle svg {
+    transition: none;
+  }
+}
