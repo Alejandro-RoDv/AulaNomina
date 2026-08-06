@@ -1,4 +1,22 @@
-import PageCard from "../components/layout/PageCard";
+import {
+  Activity,
+  BookOpen,
+  Building2,
+  Check,
+  Database,
+  FileText,
+  Landmark,
+  MapPin,
+  Minus,
+  Network,
+  Receipt,
+  UserCheck,
+  Users,
+} from "lucide-react";
+
+import { Page, PageGrid } from "../components/layout";
+import { Badge, ContentCard, StatCard, StatusCard } from "../components/ui";
+import "./Dashboard.css";
 
 function formatMoney(value) {
   return new Intl.NumberFormat("es-ES", {
@@ -20,6 +38,16 @@ function getStatusLevel(done, warning = false) {
   return "pending";
 }
 
+function getStatusTone(status) {
+  if (status === "ok") return "success";
+  if (status === "warning") return "warning";
+  return "neutral";
+}
+
+function getProcessTone(status) {
+  return status.includes("Pendiente") || status.includes("Sin") ? "neutral" : "success";
+}
+
 export default function Dashboard({
   companies = [],
   workCenters = [],
@@ -35,14 +63,29 @@ export default function Dashboard({
   const activeContracts = contracts.filter((contract) => contract.status === "active").length;
   const openIncidents = incidents.filter((incident) => incident.status === "open").length;
   const activeAgreements = collectiveAgreements.filter((agreement) => agreement.is_active !== false).length;
-  const contractsWithAgreement = contracts.filter((contract) => contract.collective_agreement_id || contract.collective_agreement_code).length;
-  const contractsWithSalary = contracts.filter((contract) => contract.salary_base !== null && contract.salary_base !== undefined && contract.salary_base !== "").length;
-  const pendingPayrolls = payrolls.filter((payroll) => ["draft", "pending", "calculated"].includes(payroll.status)).length;
+  const contractsWithAgreement = contracts.filter(
+    (contract) => contract.collective_agreement_id || contract.collective_agreement_code,
+  ).length;
+  const contractsWithSalary = contracts.filter(
+    (contract) => contract.salary_base !== null
+      && contract.salary_base !== undefined
+      && contract.salary_base !== "",
+  ).length;
+  const pendingPayrolls = payrolls.filter((payroll) =>
+    ["draft", "pending", "calculated"].includes(payroll.status)
+  ).length;
   const closedPayrolls = payrolls.filter((payroll) => payroll.status === "closed").length;
-  const totalNetPayroll = payrolls.reduce((acc, payroll) => acc + Number(payroll.net_salary || 0), 0);
-  const latestPayroll = [...payrolls].sort((a, b) => {
-    const left = Number(`${a.period_year || 0}${String(a.period_month || 0).padStart(2, "0")}`);
-    const right = Number(`${b.period_year || 0}${String(b.period_month || 0).padStart(2, "0")}`);
+  const totalNetPayroll = payrolls.reduce(
+    (accumulator, payroll) => accumulator + Number(payroll.net_salary || 0),
+    0,
+  );
+  const latestPayroll = [...payrolls].sort((leftPayroll, rightPayroll) => {
+    const left = Number(
+      `${leftPayroll.period_year || 0}${String(leftPayroll.period_month || 0).padStart(2, "0")}`,
+    );
+    const right = Number(
+      `${rightPayroll.period_year || 0}${String(rightPayroll.period_month || 0).padStart(2, "0")}`,
+    );
     return right - left;
   })[0];
 
@@ -51,31 +94,43 @@ export default function Dashboard({
       label: "Empresas activas",
       value: activeCompanies,
       description: "Entidades disponibles para simulación",
+      icon: Building2,
+      tone: "info",
     },
     {
       label: "Centros activos",
       value: activeCenters,
       description: "Colegios, sedes o centros de trabajo",
+      icon: MapPin,
+      tone: "neutral",
     },
     {
       label: "Trabajadores activos",
       value: activeEmployees,
       description: "Personas disponibles en el flujo laboral",
+      icon: Users,
+      tone: "info",
     },
     {
       label: "Contratos activos",
       value: activeContracts,
       description: "Relaciones laborales vigentes",
+      icon: FileText,
+      tone: "neutral",
     },
     {
       label: "Convenios activos",
       value: activeAgreements,
       description: "Parámetros didácticos de convenio",
+      icon: BookOpen,
+      tone: "brand",
     },
     {
       label: "Nóminas pendientes",
       value: pendingPayrolls,
       description: "Borrador, pendiente o calculada",
+      icon: Receipt,
+      tone: pendingPayrolls > 0 ? "warning" : "success",
     },
   ];
 
@@ -84,26 +139,31 @@ export default function Dashboard({
       title: "Base organizativa",
       status: activeCompanies > 0 && activeCenters > 0 ? "Operativa" : "Pendiente",
       description: "Empresas y centros preparados para trabajar con datos demo.",
+      icon: Building2,
     },
     {
       title: "Ciclo laboral",
       status: activeEmployees > 0 && activeContracts > 0 ? "Operativo" : "Pendiente",
       description: "Trabajadores vinculados a contratos y centros.",
+      icon: UserCheck,
     },
     {
       title: "Convenios",
       status: activeAgreements > 0 ? "Con datos" : "Sin datos",
-      description: "Convenios disponibles como referencia para contratos y casos prácticos.",
+      description: "Referencias disponibles para contratos y casos prácticos.",
+      icon: BookOpen,
     },
     {
       title: "Incidencias",
       status: incidents.length > 0 ? "Con datos" : "Sin datos",
       description: "Registro de bajas, ausencias, vacaciones y permisos.",
+      icon: Activity,
     },
     {
       title: "Nómina simulada",
       status: payrolls.length > 0 ? "Con nóminas" : "Sin nóminas",
       description: "Preparación mensual y consulta de importes simulados.",
+      icon: Receipt,
     },
   ];
 
@@ -124,352 +184,135 @@ export default function Dashboard({
       status: getStatusLevel(companies.length + employees.length + contracts.length + payrolls.length > 0),
       value: `${companies.length + employees.length + contracts.length + payrolls.length} registros base`,
       hint: "Si queda a cero tras reset demo, revisar endpoints base.",
+      icon: Database,
     },
     {
       label: "Estructura empresa-centro",
       status: getStatusLevel(activeCompanies > 0 && activeCenters > 0),
       value: `${activeCompanies} empresas · ${activeCenters} centros`,
       hint: "Necesario para crear trabajadores y contratos coherentes.",
+      icon: Network,
     },
     {
       label: "Trabajadores y contratos",
       status: getStatusLevel(activeEmployees > 0 && contracts.length > 0),
       value: `${activeEmployees} trabajadores · ${contracts.length} contratos`,
       hint: "Base del ciclo laboral del MVP.",
+      icon: UserCheck,
     },
     {
       label: "Convenios",
       status: getStatusLevel(activeAgreements > 0),
       value: `${activeAgreements} convenios · ${contractsWithAgreement} contratos vinculados`,
       hint: "Debe existir al menos el convenio demo SIM-ADM-2026.",
+      icon: Landmark,
     },
     {
       label: "Nómina e incidencias",
       status: getStatusLevel(payrolls.length > 0 || incidents.length > 0, true),
       value: `${payrolls.length} nóminas · ${incidents.length} incidencias`,
       hint: "No bloquea la demo, pero conviene tener datos visibles.",
+      icon: Activity,
     },
   ];
 
   return (
-    <div style={styles.wrapper}>
-      <section style={styles.hero}>
-        <div>
-          <p style={styles.kicker}>Demo comercial AulaNomina</p>
-          <h2 style={styles.heroTitle}>Panel ERP de simulación laboral</h2>
-          <p style={styles.heroText}>
-            Vista rápida del entorno docente: estructura empresarial, trabajadores, contratos, convenios, incidencias y nóminas simuladas.
+    <Page className="an-dashboard" spacing="relaxed">
+      <section className="an-dashboard__hero">
+        <div className="an-dashboard__hero-copy">
+          <Badge tone="brand">Demo comercial</Badge>
+          <h2 className="an-dashboard__hero-title">Entorno de simulación laboral listo para trabajar</h2>
+          <p className="an-dashboard__hero-description">
+            Consulta la estructura empresarial, los trabajadores, contratos, convenios,
+            incidencias y nóminas desde una vista operativa y orientada a la docencia.
           </p>
+          <div className="an-dashboard__hero-context">
+            <span>Sistema disponible</span>
+            <span>{openIncidents} incidencias abiertas</span>
+            <span>{pendingPayrolls} nóminas pendientes</span>
+          </div>
         </div>
-        <div style={styles.heroMetrics}>
-          <div style={styles.heroMetricBox}>
+
+        <div className="an-dashboard__summary" aria-label="Resumen de nómina">
+          <div className="an-dashboard__summary-row">
             <span>Última nómina</span>
             <strong>{latestPayroll ? getPayrollPeriod(latestPayroll) : "Sin generar"}</strong>
           </div>
-          <div style={styles.heroMetricBox}>
+          <div className="an-dashboard__summary-row">
             <span>Neto acumulado</span>
             <strong>{formatMoney(totalNetPayroll)}</strong>
           </div>
-          <div style={styles.heroMetricBox}>
+          <div className="an-dashboard__summary-row">
             <span>Nóminas cerradas</span>
             <strong>{closedPayrolls}</strong>
           </div>
         </div>
       </section>
 
-      <div style={styles.grid}>
+      <PageGrid columns={3}>
         {stats.map((stat) => (
-          <PageCard key={stat.label}>
-            <p style={styles.label}>{stat.label}</p>
-            <p style={styles.value}>{stat.value}</p>
-            <p style={styles.description}>{stat.description}</p>
-          </PageCard>
+          <StatCard key={stat.label} {...stat} />
         ))}
-      </div>
+      </PageGrid>
 
-      <PageCard title="Estado del sistema" subtitle="Control rápido de regresión antes de enseñar la demo">
-        <div style={styles.systemGrid}>
+      <ContentCard
+        title="Estado del sistema"
+        description="Control rápido de regresión antes de enseñar la demo."
+      >
+        <div className="an-dashboard__system-grid">
           {systemChecks.map((item) => (
-            <div key={item.label} style={styles.systemItem}>
-              <div style={styles.systemHeader}>
-                <span style={styles.systemLabel}>{item.label}</span>
-                <span style={item.status === "ok" ? styles.okBadge : item.status === "warning" ? styles.warningBadge : styles.neutralBadge}>
-                  {item.status === "ok" ? "OK" : item.status === "warning" ? "Revisar" : "Pendiente"}
-                </span>
-              </div>
-              <strong style={styles.systemValue}>{item.value}</strong>
-              <p style={styles.systemHint}>{item.hint}</p>
-            </div>
+            <StatusCard
+              key={item.label}
+              title={item.label}
+              value={item.value}
+              description={item.hint}
+              status={item.status === "ok" ? "OK" : item.status === "warning" ? "Revisar" : "Pendiente"}
+              tone={getStatusTone(item.status)}
+              icon={item.icon}
+            />
           ))}
         </div>
-      </PageCard>
+      </ContentCard>
 
-      <div style={styles.columns}>
-        <PageCard title="Estado del flujo principal" subtitle="Lectura rápida de la demo funcional">
-          <div style={styles.processList}>
+      <div className="an-dashboard__columns">
+        <ContentCard
+          title="Estado del flujo principal"
+          description="Lectura rápida de la demo funcional."
+        >
+          <div className="an-dashboard__process-list">
             {processHealth.map((process) => (
-              <div key={process.title} style={styles.processItem}>
-                <div style={styles.processMarker} />
-                <div style={styles.processContent}>
-                  <div style={styles.processHeader}>
-                    <p style={styles.processTitle}>{process.title}</p>
-                    <span style={process.status.includes("Pendiente") || process.status.includes("Sin") ? styles.neutralBadge : styles.okBadge}>
-                      {process.status}
-                    </span>
-                  </div>
-                  <p style={styles.processDescription}>{process.description}</p>
-                </div>
-              </div>
+              <StatusCard
+                key={process.title}
+                title={process.title}
+                description={process.description}
+                status={process.status}
+                tone={getProcessTone(process.status)}
+                icon={process.icon}
+                compact
+              />
             ))}
           </div>
-        </PageCard>
+        </ContentCard>
 
-        <PageCard title="Checklist demo" subtitle="Preparación para enseñar el producto">
-          <div style={styles.checklist}>
-            {demoChecklist.map((item) => (
-              <div key={item.label} style={styles.checkItem}>
-                <span style={item.done ? styles.checkDone : styles.checkPending}>{item.done ? "✓" : "·"}</span>
-                <span>{item.label}</span>
-              </div>
-            ))}
+        <ContentCard
+          title="Checklist demo"
+          description="Preparación para enseñar el producto."
+        >
+          <div className="an-dashboard__checklist">
+            {demoChecklist.map((item) => {
+              const Icon = item.done ? Check : Minus;
+              return (
+                <div key={item.label} className="an-dashboard__check-item">
+                  <span className={`an-dashboard__check-icon${item.done ? " is-complete" : ""}`}>
+                    <Icon aria-hidden="true" />
+                  </span>
+                  <span>{item.label}</span>
+                </div>
+              );
+            })}
           </div>
-        </PageCard>
+        </ContentCard>
       </div>
-    </div>
+    </Page>
   );
 }
-
-const styles = {
-  wrapper: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "22px",
-  },
-  hero: {
-    display: "grid",
-    gridTemplateColumns: "minmax(0, 1.5fr) minmax(320px, 0.9fr)",
-    gap: "18px",
-    alignItems: "stretch",
-    border: "2px solid #111111",
-    borderRadius: "16px",
-    padding: "24px",
-    background: "linear-gradient(135deg, #ffffff 0%, #fefce8 62%, #e6d85c 100%)",
-    boxShadow: "6px 6px 0 #111111",
-  },
-  kicker: {
-    margin: 0,
-    color: "#9a7b00",
-    fontSize: "12px",
-    fontWeight: 900,
-    letterSpacing: "0.08em",
-    textTransform: "uppercase",
-  },
-  heroTitle: {
-    margin: "8px 0 0",
-    color: "#111827",
-    fontSize: "34px",
-    lineHeight: 1.05,
-    fontWeight: 950,
-  },
-  heroText: {
-    margin: "10px 0 0",
-    maxWidth: "720px",
-    color: "#374151",
-    fontSize: "15px",
-    lineHeight: 1.5,
-    fontWeight: 650,
-  },
-  heroMetrics: {
-    display: "grid",
-    gridTemplateColumns: "1fr",
-    gap: "10px",
-  },
-  heroMetricBox: {
-    backgroundColor: "rgba(255, 255, 255, 0.78)",
-    border: "1px solid rgba(17, 17, 17, 0.28)",
-    borderRadius: "12px",
-    padding: "12px 14px",
-    display: "flex",
-    justifyContent: "space-between",
-    gap: "12px",
-    alignItems: "baseline",
-  },
-  grid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(6, minmax(0, 1fr))",
-    gap: "14px",
-  },
-  label: {
-    margin: 0,
-    minHeight: "34px",
-    fontSize: "12px",
-    color: "#6b7280",
-    fontWeight: 800,
-    textTransform: "uppercase",
-    letterSpacing: "0.03em",
-  },
-  value: {
-    margin: "8px 0 0",
-    fontSize: "34px",
-    lineHeight: 1,
-    fontWeight: 950,
-    color: "#111827",
-  },
-  description: {
-    margin: "10px 0 0",
-    fontSize: "12px",
-    color: "#6b7280",
-    lineHeight: 1.35,
-  },
-  systemGrid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(5, minmax(0, 1fr))",
-    gap: "12px",
-  },
-  systemItem: {
-    border: "1px solid #e5e7eb",
-    borderRadius: "12px",
-    padding: "13px",
-    backgroundColor: "#f9fafb",
-  },
-  systemHeader: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    gap: "8px",
-    marginBottom: "8px",
-  },
-  systemLabel: {
-    color: "#374151",
-    fontSize: "12px",
-    fontWeight: 900,
-    textTransform: "uppercase",
-    letterSpacing: "0.03em",
-  },
-  systemValue: {
-    display: "block",
-    color: "#111827",
-    fontSize: "15px",
-    fontWeight: 900,
-  },
-  systemHint: {
-    margin: "6px 0 0",
-    color: "#6b7280",
-    fontSize: "12px",
-    lineHeight: 1.35,
-    fontWeight: 650,
-  },
-  columns: {
-    display: "grid",
-    gridTemplateColumns: "2fr 1fr",
-    gap: "16px",
-    alignItems: "start",
-  },
-  processList: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "12px",
-  },
-  processItem: {
-    display: "flex",
-    gap: "12px",
-    padding: "14px",
-    border: "1px solid #e5e7eb",
-    borderRadius: "12px",
-    backgroundColor: "#fafafa",
-  },
-  processMarker: {
-    width: "10px",
-    height: "10px",
-    borderRadius: "999px",
-    backgroundColor: "#e6d85c",
-    marginTop: "7px",
-    flexShrink: 0,
-  },
-  processContent: {
-    flex: 1,
-    minWidth: 0,
-  },
-  processHeader: {
-    display: "flex",
-    justifyContent: "space-between",
-    gap: "12px",
-    alignItems: "center",
-  },
-  processTitle: {
-    margin: 0,
-    fontWeight: 900,
-    color: "#111827",
-  },
-  processDescription: {
-    margin: "6px 0 0",
-    fontSize: "13px",
-    color: "#6b7280",
-    lineHeight: 1.4,
-  },
-  okBadge: {
-    backgroundColor: "#dcfce7",
-    color: "#166534",
-    border: "1px solid #bbf7d0",
-    borderRadius: "999px",
-    padding: "4px 9px",
-    fontSize: "11px",
-    fontWeight: 900,
-    whiteSpace: "nowrap",
-  },
-  warningBadge: {
-    backgroundColor: "#fef3c7",
-    color: "#92400e",
-    border: "1px solid #fde68a",
-    borderRadius: "999px",
-    padding: "4px 9px",
-    fontSize: "11px",
-    fontWeight: 900,
-    whiteSpace: "nowrap",
-  },
-  neutralBadge: {
-    backgroundColor: "#f3f4f6",
-    color: "#374151",
-    border: "1px solid #d1d5db",
-    borderRadius: "999px",
-    padding: "4px 9px",
-    fontSize: "11px",
-    fontWeight: 900,
-    whiteSpace: "nowrap",
-  },
-  checklist: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "11px",
-  },
-  checkItem: {
-    display: "flex",
-    alignItems: "center",
-    gap: "10px",
-    color: "#111827",
-    fontSize: "14px",
-    fontWeight: 750,
-  },
-  checkDone: {
-    width: "22px",
-    height: "22px",
-    borderRadius: "999px",
-    backgroundColor: "#dcfce7",
-    color: "#166534",
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    fontWeight: 950,
-  },
-  checkPending: {
-    width: "22px",
-    height: "22px",
-    borderRadius: "999px",
-    backgroundColor: "#f3f4f6",
-    color: "#6b7280",
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    fontWeight: 950,
-  },
-};

@@ -1,0 +1,206 @@
+/* Dashboard AulaNomina — primera pantalla migrada al sistema de tarjetas */
+
+.an-dashboard__hero {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(18rem, 0.75fr);
+  gap: var(--an-space-8);
+  overflow: hidden;
+  padding: var(--an-space-8);
+  border: 1px solid var(--an-color-border);
+  border-radius: var(--an-radius-xl);
+  background:
+    radial-gradient(circle at 100% 0%, var(--an-color-brand-100), transparent 38%),
+    var(--an-color-surface);
+  box-shadow: var(--an-shadow-sm);
+}
+
+.an-dashboard__hero::before {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  background: var(--an-color-brand-400);
+  content: "";
+}
+
+.an-dashboard__hero-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+}
+
+.an-dashboard__hero-title {
+  max-width: 20ch;
+  margin: var(--an-space-4) 0 0;
+  color: var(--an-color-text-primary);
+  font-size: clamp(1.75rem, 3vw, 2.5rem);
+  font-weight: var(--an-font-weight-bold);
+  letter-spacing: var(--an-letter-spacing-tight);
+  line-height: 1.08;
+}
+
+.an-dashboard__hero-description {
+  max-width: 68ch;
+  margin: var(--an-space-4) 0 0;
+  color: var(--an-color-text-secondary);
+  font-size: var(--an-font-size-md);
+  line-height: var(--an-line-height-relaxed);
+}
+
+.an-dashboard__hero-context {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--an-space-3);
+  margin-top: var(--an-space-6);
+  color: var(--an-color-text-muted);
+  font-size: var(--an-font-size-sm);
+}
+
+.an-dashboard__hero-context span {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--an-space-2);
+}
+
+.an-dashboard__hero-context span::before {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--an-radius-pill);
+  background: var(--an-color-neutral-300);
+  content: "";
+}
+
+.an-dashboard__hero-context span:first-child::before {
+  background: var(--an-color-success-500);
+}
+
+.an-dashboard__summary {
+  display: flex;
+  flex-direction: column;
+  align-self: stretch;
+  justify-content: center;
+  overflow: hidden;
+  border: 1px solid var(--an-color-border);
+  border-radius: var(--an-radius-lg);
+  background: rgb(255 255 255 / 84%);
+  backdrop-filter: blur(8px);
+}
+
+.an-dashboard__summary-row {
+  display: flex;
+  min-height: 64px;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--an-space-4);
+  padding: var(--an-space-4) var(--an-space-5);
+}
+
+.an-dashboard__summary-row + .an-dashboard__summary-row {
+  border-top: 1px solid var(--an-color-border);
+}
+
+.an-dashboard__summary-row span {
+  color: var(--an-color-text-muted);
+  font-size: var(--an-font-size-sm);
+}
+
+.an-dashboard__summary-row strong {
+  color: var(--an-color-text-primary);
+  font-size: var(--an-font-size-md);
+  font-weight: var(--an-font-weight-bold);
+  text-align: right;
+}
+
+.an-dashboard__system-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: var(--an-space-3);
+}
+
+.an-dashboard__columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(18rem, 0.8fr);
+  gap: var(--an-space-6);
+  align-items: start;
+}
+
+.an-dashboard__process-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--an-space-3);
+}
+
+.an-dashboard__checklist {
+  display: flex;
+  flex-direction: column;
+}
+
+.an-dashboard__check-item {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  gap: var(--an-space-3);
+  color: var(--an-color-text-secondary);
+  font-size: var(--an-font-size-sm);
+  font-weight: var(--an-font-weight-medium);
+}
+
+.an-dashboard__check-item + .an-dashboard__check-item {
+  border-top: 1px solid var(--an-color-border);
+}
+
+.an-dashboard__check-icon {
+  display: inline-flex;
+  width: 24px;
+  height: 24px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--an-radius-pill);
+  background: var(--an-color-surface-muted);
+  color: var(--an-color-text-muted);
+}
+
+.an-dashboard__check-icon svg {
+  width: 14px;
+  height: 14px;
+}
+
+.an-dashboard__check-icon.is-complete {
+  background: var(--an-color-success-100);
+  color: var(--an-color-success-700);
+}
+
+@media (max-width: 75rem) {
+  .an-dashboard__system-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 64rem) {
+  .an-dashboard__hero,
+  .an-dashboard__columns {
+    grid-template-columns: 1fr;
+  }
+
+  .an-dashboard__process-list {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 48rem) {
+  .an-dashboard__hero {
+    gap: var(--an-space-6);
+    padding: var(--an-space-6);
+  }
+
+  .an-dashboard__hero-title {
+    font-size: 1.75rem;
+  }
+
+  .an-dashboard__system-grid {
+    grid-template-columns: 1fr;
+  }
+}

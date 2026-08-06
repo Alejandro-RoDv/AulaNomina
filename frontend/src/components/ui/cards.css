@@ -1,0 +1,354 @@
+/* AulaNomina Design System — patrones de tarjetas */
+
+.an-pattern-card {
+  min-width: 0;
+  border: 1px solid var(--an-color-border);
+  border-radius: var(--an-radius-lg);
+  background: var(--an-color-surface);
+  box-shadow: var(--an-shadow-xs);
+}
+
+.an-pattern-card__icon {
+  display: inline-flex;
+  width: 36px;
+  height: 36px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--an-radius-md);
+  background: var(--an-color-surface-muted);
+  color: var(--an-color-text-secondary);
+}
+
+.an-pattern-card__icon svg {
+  width: 18px;
+  height: 18px;
+  stroke-width: 1.8;
+}
+
+.an-pattern-card--brand .an-pattern-card__icon {
+  background: var(--an-color-brand-50);
+  color: var(--an-color-brand-700);
+}
+
+.an-pattern-card--info .an-pattern-card__icon {
+  background: var(--an-color-info-50);
+  color: var(--an-color-info-700);
+}
+
+.an-pattern-card--success .an-pattern-card__icon {
+  background: var(--an-color-success-50);
+  color: var(--an-color-success-700);
+}
+
+.an-pattern-card--warning .an-pattern-card__icon {
+  background: var(--an-color-warning-50);
+  color: var(--an-color-warning-700);
+}
+
+.an-pattern-card--danger .an-pattern-card__icon {
+  background: var(--an-color-danger-50);
+  color: var(--an-color-danger-700);
+}
+
+/* Stat card */
+
+.an-stat-card {
+  display: flex;
+  min-height: 156px;
+  flex-direction: column;
+  padding: var(--an-space-5);
+  transition: border-color var(--an-duration-normal) var(--an-ease-standard),
+    box-shadow var(--an-duration-normal) var(--an-ease-standard),
+    transform var(--an-duration-normal) var(--an-ease-standard);
+}
+
+.an-stat-card:hover {
+  border-color: var(--an-color-border-strong);
+  box-shadow: var(--an-shadow-sm);
+  transform: translateY(-1px);
+}
+
+.an-stat-card__top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--an-space-3);
+}
+
+.an-stat-card__label {
+  max-width: 18ch;
+  margin: 0;
+  color: var(--an-color-text-muted);
+  font-size: 0.6875rem;
+  font-weight: var(--an-font-weight-bold);
+  letter-spacing: 0.065em;
+  line-height: 1.45;
+  text-transform: uppercase;
+}
+
+.an-stat-card__value {
+  margin: var(--an-space-5) 0 0;
+  color: var(--an-color-text-primary);
+  font-size: clamp(1.75rem, 2.5vw, 2.25rem);
+  font-weight: var(--an-font-weight-bold);
+  letter-spacing: var(--an-letter-spacing-tight);
+  line-height: 1;
+}
+
+.an-stat-card__description {
+  margin: var(--an-space-3) 0 0;
+  color: var(--an-color-text-muted);
+  font-size: var(--an-font-size-xs);
+  line-height: var(--an-line-height-body);
+}
+
+.an-stat-card__meta {
+  margin-top: auto;
+  padding-top: var(--an-space-4);
+  color: var(--an-color-text-secondary);
+  font-size: var(--an-font-size-xs);
+  font-weight: var(--an-font-weight-medium);
+}
+
+/* Content card */
+
+.an-content-card {
+  padding: var(--an-space-6);
+}
+
+.an-content-card--compact {
+  padding: var(--an-space-5);
+}
+
+.an-content-card__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--an-space-5);
+  margin-bottom: var(--an-space-5);
+}
+
+.an-content-card__heading {
+  min-width: 0;
+}
+
+.an-content-card__title {
+  margin: 0;
+  color: var(--an-color-text-primary);
+  font-size: var(--an-font-size-lg);
+  font-weight: var(--an-font-weight-bold);
+  line-height: var(--an-line-height-heading);
+}
+
+.an-content-card__description {
+  max-width: 72ch;
+  margin: var(--an-space-1) 0 0;
+  color: var(--an-color-text-muted);
+  font-size: var(--an-font-size-sm);
+  line-height: var(--an-line-height-body);
+}
+
+.an-content-card__actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: var(--an-space-2);
+}
+
+.an-content-card__body {
+  min-width: 0;
+}
+
+/* Action card */
+
+.an-action-card {
+  display: flex;
+  min-height: 132px;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--an-space-5);
+  padding: var(--an-space-5);
+}
+
+.an-action-card.is-disabled {
+  opacity: 0.6;
+}
+
+.an-action-card__copy {
+  display: flex;
+  min-width: 0;
+  align-items: flex-start;
+  gap: var(--an-space-4);
+}
+
+.an-action-card__title {
+  margin: 0;
+  color: var(--an-color-text-primary);
+  font-size: var(--an-font-size-md);
+  font-weight: var(--an-font-weight-bold);
+}
+
+.an-action-card__description {
+  max-width: 46ch;
+  margin: var(--an-space-2) 0 0;
+  color: var(--an-color-text-muted);
+  font-size: var(--an-font-size-sm);
+  line-height: var(--an-line-height-body);
+}
+
+.an-action-card__button {
+  display: inline-flex;
+  min-height: var(--an-control-height-md);
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: var(--an-space-2);
+  padding: 0 var(--an-space-4);
+  border: 1px solid var(--an-color-border);
+  border-radius: var(--an-radius-md);
+  background: var(--an-color-surface);
+  color: var(--an-color-text-secondary);
+  font-size: var(--an-font-size-sm);
+  font-weight: var(--an-font-weight-semibold);
+  cursor: pointer;
+}
+
+.an-action-card__button:hover:not(:disabled) {
+  border-color: var(--an-color-primary-200);
+  background: var(--an-color-primary-50);
+  color: var(--an-color-primary-700);
+}
+
+.an-action-card__button svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* Status card */
+
+.an-status-card {
+  padding: var(--an-space-4);
+  border-left-width: 3px;
+  border-left-color: var(--an-color-neutral-300);
+  background: var(--an-color-surface-subtle);
+}
+
+.an-status-card--compact {
+  padding: var(--an-space-3) var(--an-space-4);
+}
+
+.an-status-card.an-pattern-card--brand {
+  border-left-color: var(--an-color-brand-400);
+}
+
+.an-status-card.an-pattern-card--info {
+  border-left-color: var(--an-color-info-600);
+}
+
+.an-status-card.an-pattern-card--success {
+  border-left-color: var(--an-color-success-500);
+}
+
+.an-status-card.an-pattern-card--warning {
+  border-left-color: var(--an-color-warning-500);
+}
+
+.an-status-card.an-pattern-card--danger {
+  border-left-color: var(--an-color-danger-500);
+}
+
+.an-status-card__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--an-space-3);
+}
+
+.an-status-card__title-row {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--an-space-3);
+}
+
+.an-status-card__title-row .an-pattern-card__icon {
+  width: 30px;
+  height: 30px;
+}
+
+.an-status-card__title-row .an-pattern-card__icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.an-status-card__title {
+  margin: 0;
+  color: var(--an-color-text-secondary);
+  font-size: var(--an-font-size-xs);
+  font-weight: var(--an-font-weight-bold);
+  letter-spacing: 0.035em;
+  line-height: 1.4;
+  text-transform: uppercase;
+}
+
+.an-status-card__badge {
+  display: inline-flex;
+  min-height: 24px;
+  flex: 0 0 auto;
+  align-items: center;
+  padding: 0 var(--an-space-2);
+  border-radius: var(--an-radius-pill);
+  background: var(--an-color-surface-muted);
+  color: var(--an-color-text-secondary);
+  font-size: 0.6875rem;
+  font-weight: var(--an-font-weight-bold);
+}
+
+.an-pattern-card--success .an-status-card__badge {
+  background: var(--an-color-success-100);
+  color: var(--an-color-success-700);
+}
+
+.an-pattern-card--warning .an-status-card__badge {
+  background: var(--an-color-warning-100);
+  color: var(--an-color-warning-700);
+}
+
+.an-pattern-card--danger .an-status-card__badge {
+  background: var(--an-color-danger-100);
+  color: var(--an-color-danger-700);
+}
+
+.an-pattern-card--info .an-status-card__badge {
+  background: var(--an-color-info-100);
+  color: var(--an-color-info-700);
+}
+
+.an-status-card__value {
+  display: block;
+  margin-top: var(--an-space-3);
+  color: var(--an-color-text-primary);
+  font-size: var(--an-font-size-md);
+  font-weight: var(--an-font-weight-bold);
+  line-height: var(--an-line-height-heading);
+}
+
+.an-status-card__description {
+  margin: var(--an-space-2) 0 0;
+  color: var(--an-color-text-muted);
+  font-size: var(--an-font-size-xs);
+  line-height: var(--an-line-height-body);
+}
+
+@media (max-width: 48rem) {
+  .an-action-card,
+  .an-content-card__header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .an-action-card__button {
+    width: 100%;
+  }
+}

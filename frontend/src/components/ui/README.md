@@ -5,8 +5,24 @@ Biblioteca visual compartida por los módulos del frontend.
 ## Importación
 
 ```jsx
-import { Button, Card, Field, Input } from "./components/ui/index.js";
+import {
+  Button,
+  ContentCard,
+  Field,
+  Input,
+  StatCard,
+  StatusCard,
+} from "./components/ui/index.js";
 ```
+
+## Patrones de tarjetas
+
+- `StatCard`: indicador numérico o KPI. No debe contener formularios ni acciones complejas.
+- `ContentCard`: superficie principal para secciones de contenido.
+- `ActionCard`: acceso directo a una tarea concreta, con una única acción dominante.
+- `StatusCard`: estado operativo, validación o comprobación con tono semántico.
+
+Los cuatro patrones comparten borde, radio, sombra, tipografía y espaciado. No se deben crear variantes visuales específicas dentro de cada módulo.
 
 ## Criterios
 
