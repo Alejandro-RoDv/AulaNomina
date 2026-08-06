@@ -1,21 +1,19 @@
 import {
   Activity,
+  AlertTriangle,
+  ArrowRight,
   BookOpen,
   Building2,
   Check,
-  Database,
   FileText,
-  Landmark,
+  GraduationCap,
   MapPin,
-  Minus,
-  Network,
   Receipt,
-  UserCheck,
   Users,
 } from "lucide-react";
 
-import { Page, PageGrid } from "../components/layout";
-import { Badge, ContentCard, StatCard, StatusCard } from "../components/ui";
+import { Page } from "../components/layout";
+import { Badge } from "../components/ui";
 import "./Dashboard.css";
 
 function formatMoney(value) {
@@ -27,25 +25,29 @@ function formatMoney(value) {
 }
 
 function getPayrollPeriod(payroll) {
-  if (!payroll) return "-";
+  if (!payroll) return "Sin generar";
   if (payroll.period_label) return payroll.period_label;
   return `${String(payroll.period_month || "").padStart(2, "0")}/${payroll.period_year || ""}`;
 }
 
-function getStatusLevel(done, warning = false) {
-  if (done) return "ok";
-  if (warning) return "warning";
-  return "pending";
+function clearCurrentHash() {
+  if (!window.location.hash) return;
+  window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
 }
 
-function getStatusTone(status) {
-  if (status === "ok") return "success";
-  if (status === "warning") return "warning";
-  return "neutral";
-}
+function openPage(page, { hash = "", modeGroup = "", modeValue = "" } = {}) {
+  if (hash) window.location.hash = hash;
+  else clearCurrentHash();
 
-function getProcessTone(status) {
-  return status.includes("Pendiente") || status.includes("Sin") ? "neutral" : "success";
+  if (modeGroup && modeValue) {
+    window.sessionStorage.setItem(`aulanomina:${modeGroup}Mode`, modeValue);
+  }
+
+  if (modeGroup === "contracts") window.dispatchEvent(new Event("aulanomina-contract-mode"));
+  if (modeGroup === "incidents") window.dispatchEvent(new Event("aulanomina-incidents-mode"));
+  if (hash) window.dispatchEvent(new Event("aulanomina-route-change"));
+
+  window.dispatchEvent(new CustomEvent("aulanomina-open-page", { detail: { page } }));
 }
 
 export default function Dashboard({
@@ -60,16 +62,17 @@ export default function Dashboard({
   const activeCompanies = companies.filter((company) => company.is_active !== false).length;
   const activeCenters = workCenters.filter((center) => center.is_active !== false).length;
   const activeEmployees = employees.filter((employee) => employee.is_active !== false).length;
-  const activeContracts = contracts.filter((contract) => contract.status === "active").length;
+  const activeContractRecords = contracts.filter((contract) => contract.status === "active");
+  const activeContracts = activeContractRecords.length;
   const openIncidents = incidents.filter((incident) => incident.status === "open").length;
   const activeAgreements = collectiveAgreements.filter((agreement) => agreement.is_active !== false).length;
-  const contractsWithAgreement = contracts.filter(
-    (contract) => contract.collective_agreement_id || contract.collective_agreement_code,
+  const contractsWithoutAgreement = activeContractRecords.filter(
+    (contract) => !contract.collective_agreement_id && !contract.collective_agreement_code,
   ).length;
-  const contractsWithSalary = contracts.filter(
-    (contract) => contract.salary_base !== null
-      && contract.salary_base !== undefined
-      && contract.salary_base !== "",
+  const contractsWithoutSalary = activeContractRecords.filter(
+    (contract) => contract.salary_base === null
+      || contract.salary_base === undefined
+      || contract.salary_base === "",
   ).length;
   const pendingPayrolls = payrolls.filter((payroll) =>
     ["draft", "pending", "calculated"].includes(payroll.status)
@@ -89,25 +92,42 @@ export default function Dashboard({
     return right - left;
   })[0];
 
-  const stats = [
+  const quickActions = [
     {
-      label: "Empresas activas",
-      value: activeCompanies,
-      description: "Entidades disponibles para simulación",
+      label: "Nueva empresa",
+      description: "Crear estructura",
       icon: Building2,
-      tone: "info",
+      onClick: () => openPage("companies", {
+        hash: "#company-companies",
+        modeGroup: "companies",
+        modeValue: "new",
+      }),
     },
     {
-      label: "Centros activos",
-      value: activeCenters,
-      description: "Colegios, sedes o centros de trabajo",
-      icon: MapPin,
-      tone: "neutral",
+      label: "Nuevo trabajador",
+      description: "Dar de alta",
+      icon: Users,
+      onClick: () => openPage("employees"),
     },
+    {
+      label: "Nuevo contrato",
+      description: "Iniciar relación",
+      icon: FileText,
+      onClick: () => openPage("contracts", { modeGroup: "contracts", modeValue: "new" }),
+    },
+    {
+      label: "Preparar nómina",
+      description: "Abrir periodo",
+      icon: Receipt,
+      onClick: () => openPage("payroll-monthly-preparation"),
+    },
+  ];
+
+  const metrics = [
     {
       label: "Trabajadores activos",
       value: activeEmployees,
-      description: "Personas disponibles en el flujo laboral",
+      description: "Personas disponibles en el entorno",
       icon: Users,
       tone: "info",
     },
@@ -119,200 +139,207 @@ export default function Dashboard({
       tone: "neutral",
     },
     {
-      label: "Convenios activos",
-      value: activeAgreements,
-      description: "Parámetros didácticos de convenio",
-      icon: BookOpen,
-      tone: "brand",
-    },
-    {
       label: "Nóminas pendientes",
       value: pendingPayrolls,
-      description: "Borrador, pendiente o calculada",
+      description: pendingPayrolls > 0 ? "Requieren revisión o cierre" : "No hay trabajo pendiente",
       icon: Receipt,
       tone: pendingPayrolls > 0 ? "warning" : "success",
     },
-  ];
-
-  const processHealth = [
     {
-      title: "Base organizativa",
-      status: activeCompanies > 0 && activeCenters > 0 ? "Operativa" : "Pendiente",
-      description: "Empresas y centros preparados para trabajar con datos demo.",
-      icon: Building2,
-    },
-    {
-      title: "Ciclo laboral",
-      status: activeEmployees > 0 && activeContracts > 0 ? "Operativo" : "Pendiente",
-      description: "Trabajadores vinculados a contratos y centros.",
-      icon: UserCheck,
-    },
-    {
-      title: "Convenios",
-      status: activeAgreements > 0 ? "Con datos" : "Sin datos",
-      description: "Referencias disponibles para contratos y casos prácticos.",
-      icon: BookOpen,
-    },
-    {
-      title: "Incidencias",
-      status: incidents.length > 0 ? "Con datos" : "Sin datos",
-      description: "Registro de bajas, ausencias, vacaciones y permisos.",
+      label: "Incidencias abiertas",
+      value: openIncidents,
+      description: openIncidents > 0 ? "Bajas, ausencias o permisos" : "Sin incidencias por revisar",
       icon: Activity,
-    },
-    {
-      title: "Nómina simulada",
-      status: payrolls.length > 0 ? "Con nóminas" : "Sin nóminas",
-      description: "Preparación mensual y consulta de importes simulados.",
-      icon: Receipt,
+      tone: openIncidents > 0 ? "warning" : "success",
     },
   ];
 
-  const demoChecklist = [
-    { label: "Empresa demo cargada", done: activeCompanies > 0 },
-    { label: "Centros configurados", done: activeCenters > 0 },
-    { label: "Trabajadores disponibles", done: activeEmployees > 0 },
+  const attentionItems = [
+    {
+      title: "Nóminas pendientes",
+      count: pendingPayrolls,
+      description: "Borradores, cálculos o periodos todavía sin cerrar.",
+      icon: Receipt,
+      onClick: () => openPage("payroll-monthly-preparation"),
+    },
+    {
+      title: "Incidencias abiertas",
+      count: openIncidents,
+      description: "Revisa bajas, ausencias, vacaciones y permisos activos.",
+      icon: Activity,
+      onClick: () => openPage("incidents", { modeGroup: "incidents", modeValue: "list" }),
+    },
+    {
+      title: "Contratos sin convenio",
+      count: contractsWithoutAgreement,
+      description: "Contratos activos sin referencia de convenio colectivo.",
+      icon: BookOpen,
+      onClick: () => openPage("contracts", { modeGroup: "contracts", modeValue: "history" }),
+    },
+    {
+      title: "Contratos sin salario base",
+      count: contractsWithoutSalary,
+      description: "Datos necesarios para una simulación salarial coherente.",
+      icon: AlertTriangle,
+      onClick: () => openPage("contracts", { modeGroup: "contracts", modeValue: "history" }),
+    },
+  ];
+
+  const readinessChecks = [
+    { label: "Empresa disponible", done: activeCompanies > 0 },
+    { label: "Centro de trabajo configurado", done: activeCenters > 0 },
+    { label: "Trabajadores cargados", done: activeEmployees > 0 },
     { label: "Contratos activos", done: activeContracts > 0 },
-    { label: "Convenio demo cargado", done: activeAgreements > 0 },
-    { label: "Contratos con salario base", done: contractsWithSalary > 0 },
-    { label: "Incidencias registradas", done: incidents.length > 0 },
+    { label: "Convenio colectivo disponible", done: activeAgreements > 0 },
     { label: "Nóminas generadas", done: payrolls.length > 0 },
   ];
-
-  const systemChecks = [
-    {
-      label: "Carga global de datos",
-      status: getStatusLevel(companies.length + employees.length + contracts.length + payrolls.length > 0),
-      value: `${companies.length + employees.length + contracts.length + payrolls.length} registros base`,
-      hint: "Si queda a cero tras reset demo, revisar endpoints base.",
-      icon: Database,
-    },
-    {
-      label: "Estructura empresa-centro",
-      status: getStatusLevel(activeCompanies > 0 && activeCenters > 0),
-      value: `${activeCompanies} empresas · ${activeCenters} centros`,
-      hint: "Necesario para crear trabajadores y contratos coherentes.",
-      icon: Network,
-    },
-    {
-      label: "Trabajadores y contratos",
-      status: getStatusLevel(activeEmployees > 0 && contracts.length > 0),
-      value: `${activeEmployees} trabajadores · ${contracts.length} contratos`,
-      hint: "Base del ciclo laboral del MVP.",
-      icon: UserCheck,
-    },
-    {
-      label: "Convenios",
-      status: getStatusLevel(activeAgreements > 0),
-      value: `${activeAgreements} convenios · ${contractsWithAgreement} contratos vinculados`,
-      hint: "Debe existir al menos el convenio demo SIM-ADM-2026.",
-      icon: Landmark,
-    },
-    {
-      label: "Nómina e incidencias",
-      status: getStatusLevel(payrolls.length > 0 || incidents.length > 0, true),
-      value: `${payrolls.length} nóminas · ${incidents.length} incidencias`,
-      hint: "No bloquea la demo, pero conviene tener datos visibles.",
-      icon: Activity,
-    },
-  ];
+  const completedReadiness = readinessChecks.filter((item) => item.done).length;
+  const readinessPercent = Math.round((completedReadiness / readinessChecks.length) * 100);
 
   return (
-    <Page className="an-dashboard" spacing="relaxed">
-      <section className="an-dashboard__hero">
-        <div className="an-dashboard__hero-copy">
-          <Badge tone="brand">Demo comercial</Badge>
-          <h2 className="an-dashboard__hero-title">Entorno de simulación laboral listo para trabajar</h2>
-          <p className="an-dashboard__hero-description">
-            Consulta la estructura empresarial, los trabajadores, contratos, convenios,
-            incidencias y nóminas desde una vista operativa y orientada a la docencia.
-          </p>
-          <div className="an-dashboard__hero-context">
-            <span>Sistema disponible</span>
-            <span>{openIncidents} incidencias abiertas</span>
-            <span>{pendingPayrolls} nóminas pendientes</span>
+    <Page className="an-dashboard" spacing="default">
+      <section className="an-dashboard__welcome">
+        <div className="an-dashboard__welcome-copy">
+          <span className="an-dashboard__welcome-icon" aria-hidden="true">
+            <GraduationCap />
+          </span>
+          <div>
+            <Badge tone="brand">Demo docente</Badge>
+            <h2>Bienvenido a AulaNomina</h2>
+            <p>
+              Tu laboratorio de simulación laboral está preparado para practicar altas,
+              contratos, incidencias, nóminas y procesos administrativos reales.
+            </p>
+            <div className="an-dashboard__welcome-meta">
+              <span className="an-dashboard__availability">Entorno disponible</span>
+              <span>Última nómina: {getPayrollPeriod(latestPayroll)}</span>
+            </div>
           </div>
         </div>
 
-        <div className="an-dashboard__summary" aria-label="Resumen de nómina">
-          <div className="an-dashboard__summary-row">
-            <span>Última nómina</span>
-            <strong>{latestPayroll ? getPayrollPeriod(latestPayroll) : "Sin generar"}</strong>
-          </div>
-          <div className="an-dashboard__summary-row">
-            <span>Neto acumulado</span>
-            <strong>{formatMoney(totalNetPayroll)}</strong>
-          </div>
-          <div className="an-dashboard__summary-row">
-            <span>Nóminas cerradas</span>
-            <strong>{closedPayrolls}</strong>
+        <div className="an-dashboard__quick-area">
+          <p className="an-dashboard__section-label">Acciones rápidas</p>
+          <div className="an-dashboard__quick-grid">
+            {quickActions.map((action) => {
+              const Icon = action.icon;
+              return (
+                <button key={action.label} type="button" className="an-dashboard__quick-action" onClick={action.onClick}>
+                  <span className="an-dashboard__quick-icon" aria-hidden="true"><Icon /></span>
+                  <span>
+                    <strong>{action.label}</strong>
+                    <small>{action.description}</small>
+                  </span>
+                  <ArrowRight aria-hidden="true" />
+                </button>
+              );
+            })}
           </div>
         </div>
       </section>
 
-      <PageGrid columns={3}>
-        {stats.map((stat) => (
-          <StatCard key={stat.label} {...stat} />
-        ))}
-      </PageGrid>
-
-      <ContentCard
-        title="Estado del sistema"
-        description="Control rápido de regresión antes de enseñar la demo."
-      >
-        <div className="an-dashboard__system-grid">
-          {systemChecks.map((item) => (
-            <StatusCard
-              key={item.label}
-              title={item.label}
-              value={item.value}
-              description={item.hint}
-              status={item.status === "ok" ? "OK" : item.status === "warning" ? "Revisar" : "Pendiente"}
-              tone={getStatusTone(item.status)}
-              icon={item.icon}
-            />
-          ))}
-        </div>
-      </ContentCard>
-
-      <div className="an-dashboard__columns">
-        <ContentCard
-          title="Estado del flujo principal"
-          description="Lectura rápida de la demo funcional."
-        >
-          <div className="an-dashboard__process-list">
-            {processHealth.map((process) => (
-              <StatusCard
-                key={process.title}
-                title={process.title}
-                description={process.description}
-                status={process.status}
-                tone={getProcessTone(process.status)}
-                icon={process.icon}
-                compact
-              />
-            ))}
+      <section className="an-dashboard__overview" aria-labelledby="dashboard-overview-title">
+        <div className="an-dashboard__section-heading">
+          <div>
+            <p className="an-dashboard__section-label">Vista general</p>
+            <h2 id="dashboard-overview-title">Situación actual</h2>
           </div>
-        </ContentCard>
+          <p>{activeCompanies} empresas · {activeCenters} centros · {activeAgreements} convenios</p>
+        </div>
 
-        <ContentCard
-          title="Checklist demo"
-          description="Preparación para enseñar el producto."
-        >
-          <div className="an-dashboard__checklist">
-            {demoChecklist.map((item) => {
-              const Icon = item.done ? Check : Minus;
-              return (
-                <div key={item.label} className="an-dashboard__check-item">
-                  <span className={`an-dashboard__check-icon${item.done ? " is-complete" : ""}`}>
-                    <Icon aria-hidden="true" />
-                  </span>
-                  <span>{item.label}</span>
+        <div className="an-dashboard__metrics">
+          {metrics.map((metric) => {
+            const Icon = metric.icon;
+            return (
+              <article key={metric.label} className={`an-dashboard__metric an-dashboard__metric--${metric.tone}`}>
+                <span className="an-dashboard__metric-icon" aria-hidden="true"><Icon /></span>
+                <div>
+                  <p>{metric.label}</p>
+                  <strong>{metric.value}</strong>
+                  <span>{metric.description}</span>
                 </div>
+              </article>
+            );
+          })}
+        </div>
+      </section>
+
+      <div className="an-dashboard__main-grid">
+        <section className="an-dashboard__panel" aria-labelledby="dashboard-attention-title">
+          <div className="an-dashboard__panel-heading">
+            <div>
+              <p className="an-dashboard__section-label">Trabajo del entorno</p>
+              <h2 id="dashboard-attention-title">Qué requiere atención</h2>
+              <span>Accede directamente a los procesos que necesitan revisión.</span>
+            </div>
+          </div>
+
+          <div className="an-dashboard__attention-list">
+            {attentionItems.map((item) => {
+              const Icon = item.icon;
+              const isPending = item.count > 0;
+              return (
+                <button key={item.title} type="button" className="an-dashboard__attention-item" onClick={item.onClick}>
+                  <span className={`an-dashboard__attention-icon${isPending ? " is-pending" : ""}`} aria-hidden="true">
+                    <Icon />
+                  </span>
+                  <span className="an-dashboard__attention-copy">
+                    <strong>{item.title}</strong>
+                    <small>{item.description}</small>
+                  </span>
+                  <span className={`an-dashboard__attention-status${isPending ? " is-pending" : ""}`}>
+                    {isPending ? item.count : "Al día"}
+                  </span>
+                  <ArrowRight className="an-dashboard__attention-arrow" aria-hidden="true" />
+                </button>
               );
             })}
           </div>
-        </ContentCard>
+        </section>
+
+        <aside className="an-dashboard__panel an-dashboard__readiness" aria-labelledby="dashboard-readiness-title">
+          <div className="an-dashboard__panel-heading">
+            <div>
+              <p className="an-dashboard__section-label">Entorno de práctica</p>
+              <h2 id="dashboard-readiness-title">Preparación de la demo</h2>
+              <span>{completedReadiness} de {readinessChecks.length} elementos preparados.</span>
+            </div>
+            <strong className="an-dashboard__readiness-value">{readinessPercent}%</strong>
+          </div>
+
+          <div className="an-dashboard__progress" aria-label={`Preparación de la demo: ${readinessPercent}%`}>
+            <span style={{ width: `${readinessPercent}%` }} />
+          </div>
+
+          <div className="an-dashboard__readiness-list">
+            {readinessChecks.map((item) => (
+              <div key={item.label} className="an-dashboard__readiness-item">
+                <span className={`an-dashboard__readiness-check${item.done ? " is-complete" : ""}`} aria-hidden="true">
+                  {item.done && <Check />}
+                </span>
+                <span>{item.label}</span>
+              </div>
+            ))}
+          </div>
+
+          <div className="an-dashboard__payroll-summary">
+            <div>
+              <span>Neto acumulado</span>
+              <strong>{formatMoney(totalNetPayroll)}</strong>
+            </div>
+            <div>
+              <span>Nóminas cerradas</span>
+              <strong>{closedPayrolls}</strong>
+            </div>
+          </div>
+        </aside>
       </div>
+
+      <footer className="an-dashboard__context-strip" aria-label="Resumen estructural del entorno">
+        <span><Building2 aria-hidden="true" /> {activeCompanies} empresas</span>
+        <span><MapPin aria-hidden="true" /> {activeCenters} centros</span>
+        <span><Users aria-hidden="true" /> {activeEmployees} trabajadores</span>
+        <span><FileText aria-hidden="true" /> {activeContracts} contratos activos</span>
+      </footer>
     </Page>
   );
 }
