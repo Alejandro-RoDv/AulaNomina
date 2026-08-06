@@ -2,14 +2,20 @@ import { useMemo, useState } from "react";
 import { MoreVertical } from "lucide-react";
 
 import {
+  Alert,
   Badge,
   Button,
+  ConfirmDialog,
   DataTable,
   DataTableFilter,
   DataTableSearch,
   DataTableSummary,
   DataTableToolbar,
+  Dialog,
   EmptyState,
+  Field,
+  FormGrid,
+  Input,
   LoadingState,
   NoResultsState,
   Table,
@@ -27,6 +33,7 @@ import { nextSortConfig, sortRows } from "../../utils/tableSorting";
 import "./companyWorkspace.css";
 
 const EMPTY_FILTERS = { search: "", status: "", company_type: "", province: "" };
+const EMPTY_DUPLICATE_FORM = { name: "", cif: "", ccc_regime: "0111", ccc_code: "" };
 
 function normalizeText(value) {
   return String(value || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -73,7 +80,7 @@ export default function CompanyDirectory({
   const [openMenuId, setOpenMenuId] = useState(null);
   const [duplicateCompany, setDuplicateCompany] = useState(null);
   const [deleteCompany, setDeleteCompany] = useState(null);
-  const [duplicateForm, setDuplicateForm] = useState({ name: "", cif: "", ccc_regime: "0111", ccc_code: "" });
+  const [duplicateForm, setDuplicateForm] = useState(EMPTY_DUPLICATE_FORM);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -124,6 +131,19 @@ export default function CompanyDirectory({
   const sortDirection = (key) => sortConfig.key === key ? sortConfig.direction : null;
   const sortBy = (key) => setSortConfig((current) => nextSortConfig(current, key));
 
+  const closeDuplicate = () => {
+    if (submitting) return;
+    setDuplicateCompany(null);
+    setDuplicateForm(EMPTY_DUPLICATE_FORM);
+    setError("");
+  };
+
+  const closeDelete = () => {
+    if (submitting) return;
+    setDeleteCompany(null);
+    setError("");
+  };
+
   const openDuplicate = (company) => {
     setOpenMenuId(null);
     setDuplicateCompany(company);
@@ -143,6 +163,7 @@ export default function CompanyDirectory({
     try {
       await createCompany(buildDuplicatePayload(duplicateCompany, duplicateForm));
       setDuplicateCompany(null);
+      setDuplicateForm(EMPTY_DUPLICATE_FORM);
       onCreated?.();
     } catch (err) {
       setError(err.message || "No se pudo duplicar la empresa");
@@ -361,44 +382,79 @@ export default function CompanyDirectory({
         )}
       </DataTable>
 
-      {duplicateCompany && (
-        <div className="company-modal-backdrop">
-          <div className="company-confirm-modal">
-            <div className="company-modal-header">
-              <div><h3>Duplicar empresa</h3><p>Origen: {duplicateCompany.name}</p></div>
-              <button type="button" onClick={() => setDuplicateCompany(null)}>×</button>
-            </div>
-            <form onSubmit={submitDuplicate} className="company-modal-form">
-              <label>Nuevo nombre<input value={duplicateForm.name} onChange={(event) => setDuplicateForm((current) => ({ ...current, name: event.target.value }))} required /></label>
-              <label>Nuevo CIF<input value={duplicateForm.cif} onChange={(event) => setDuplicateForm((current) => ({ ...current, cif: event.target.value }))} required /></label>
-              <label>CCC régimen<input value={duplicateForm.ccc_regime} onChange={(event) => setDuplicateForm((current) => ({ ...current, ccc_regime: event.target.value }))} /></label>
-              <label>CCC código<input value={duplicateForm.ccc_code} onChange={(event) => setDuplicateForm((current) => ({ ...current, ccc_code: event.target.value }))} /></label>
-              {error && <div className="company-form-error">{error}</div>}
-              <div className="company-modal-actions">
-                <button type="button" className="company-button-ghost" onClick={() => setDuplicateCompany(null)}>Cancelar</button>
-                <button type="submit" className="company-button-primary" disabled={submitting}>{submitting ? "Creando..." : "Crear duplicado"}</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      <Dialog
+        open={Boolean(duplicateCompany)}
+        onClose={closeDuplicate}
+        title="Duplicar empresa"
+        description={duplicateCompany ? `Se creará una copia independiente de ${duplicateCompany.name}.` : ""}
+        size="md"
+        closeOnBackdrop={!submitting}
+        closeOnEscape={!submitting}
+        footer={(
+          <>
+            <Button variant="ghost" onClick={closeDuplicate} disabled={submitting}>Cancelar</Button>
+            <Button
+              type="submit"
+              form="duplicate-company-form"
+              loading={submitting}
+            >
+              Crear duplicado
+            </Button>
+          </>
+        )}
+      >
+        <form id="duplicate-company-form" onSubmit={submitDuplicate}>
+          <FormGrid columns={2}>
+            <Field label="Nuevo nombre" required className="an-form-field--wide">
+              <Input
+                value={duplicateForm.name}
+                onChange={(event) => setDuplicateForm((current) => ({ ...current, name: event.target.value }))}
+              />
+            </Field>
+            <Field label="Nuevo CIF" required>
+              <Input
+                value={duplicateForm.cif}
+                onChange={(event) => setDuplicateForm((current) => ({ ...current, cif: event.target.value }))}
+              />
+            </Field>
+            <Field label="Régimen CCC">
+              <Input
+                value={duplicateForm.ccc_regime}
+                onChange={(event) => setDuplicateForm((current) => ({ ...current, ccc_regime: event.target.value }))}
+              />
+            </Field>
+            <Field label="Código CCC" className="an-form-field--wide">
+              <Input
+                value={duplicateForm.ccc_code}
+                onChange={(event) => setDuplicateForm((current) => ({ ...current, ccc_code: event.target.value }))}
+              />
+            </Field>
+          </FormGrid>
+          {error && (
+            <Alert title="No se pudo duplicar la empresa" tone="danger" className="company-dialog-alert">
+              {error}
+            </Alert>
+          )}
+        </form>
+      </Dialog>
 
-      {deleteCompany && (
-        <div className="company-modal-backdrop">
-          <div className="company-confirm-modal">
-            <div className="company-modal-header">
-              <div><h3>Eliminar empresa</h3><p>{deleteCompany.name}</p></div>
-              <button type="button" onClick={() => setDeleteCompany(null)}>×</button>
-            </div>
-            <p>Se eliminarán también las relaciones bancarias vinculadas. Esta acción requiere confirmación.</p>
-            {error && <div className="company-form-error">{error}</div>}
-            <div className="company-modal-actions">
-              <button type="button" className="company-button-ghost" onClick={() => setDeleteCompany(null)}>Cancelar</button>
-              <button type="button" className="company-button-danger" onClick={confirmDelete} disabled={submitting}>{submitting ? "Eliminando..." : "Confirmar eliminación"}</button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmDialog
+        open={Boolean(deleteCompany)}
+        onClose={closeDelete}
+        onConfirm={confirmDelete}
+        title="Eliminar empresa"
+        description={deleteCompany ? `Vas a eliminar ${deleteCompany.name} del entorno de simulación.` : ""}
+        confirmLabel="Eliminar empresa"
+        loading={submitting}
+        tone="danger"
+      >
+        <p>También se eliminarán las relaciones bancarias vinculadas a la empresa.</p>
+        {error && (
+          <Alert title="No se pudo eliminar" tone="danger">
+            {error}
+          </Alert>
+        )}
+      </ConfirmDialog>
     </>
   );
 }

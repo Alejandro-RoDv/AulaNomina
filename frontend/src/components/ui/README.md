@@ -7,9 +7,12 @@ Biblioteca visual compartida por los módulos del frontend.
 ```jsx
 import {
   Button,
+  ConfirmDialog,
   ContentCard,
   DataTable,
   DataTableSearch,
+  Dialog,
+  Drawer,
   EmptyState,
   ErrorState,
   Field,
@@ -77,6 +80,14 @@ Las tablas deben priorizar la lectura. La primera columna identifica el registro
 - `StatePanel`: base común para estados específicos no contemplados por los componentes anteriores.
 
 Los estados de pantalla sustituyen al contenido principal y no deben confundirse con `Alert`, que comunica mensajes breves dentro de un flujo ya visible. Todos admiten tamaño `compact`, `default` o `spacious` y una única zona de acciones.
+
+## Diálogos y paneles
+
+- `Dialog`: tarea breve que requiere mantener el contexto de la pantalla original.
+- `ConfirmDialog`: confirmación explícita para operaciones sensibles o destructivas.
+- `Drawer`: consulta o edición contextual con más contenido del que cabe razonablemente en un diálogo.
+
+Los tres componentes bloquean el scroll de fondo, restauran el foco al cerrar, permiten cerrar con `Escape`, mantienen el foco dentro del overlay y se adaptan a móvil. Las acciones se colocan siempre en el pie: cancelar primero y confirmar después. No deben utilizarse para sustituir una página completa.
 
 ## Criterios
 

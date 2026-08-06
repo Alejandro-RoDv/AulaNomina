@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   AlertCircle,
   ArrowLeft,
@@ -17,9 +18,13 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
+  ConfirmDialog,
+  Dialog,
+  Drawer,
   EmptyState,
   ErrorState,
   Field,
+  FormGrid,
   Input,
   LoadingState,
   NoResultsState,
@@ -40,6 +45,9 @@ const SWATCHES = [
 
 export default function DesignSystemPreview() {
   const returnPath = window.location.pathname || "/";
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   return (
     <div className="an-preview">
@@ -49,7 +57,7 @@ export default function DesignSystemPreview() {
             <ArrowLeft aria-hidden="true" />
             Volver a AulaNomina
           </a>
-          <Badge tone="brand">Paso 41.9</Badge>
+          <Badge tone="brand">Paso 41.10</Badge>
         </div>
       </header>
 
@@ -228,6 +236,20 @@ export default function DesignSystemPreview() {
           </div>
         </section>
 
+        <section className="an-preview__section" aria-labelledby="preview-dialogs">
+          <div className="an-preview__section-heading">
+            <h2 id="preview-dialogs">Diálogos y paneles</h2>
+            <p>Las tareas breves usan diálogo; las confirmaciones destructivas se aíslan y el contexto extenso se abre en un panel lateral.</p>
+          </div>
+          <Card>
+            <div className="an-preview__component-row">
+              <Button onClick={() => setDialogOpen(true)}>Abrir diálogo</Button>
+              <Button variant="danger" onClick={() => setConfirmOpen(true)}>Abrir confirmación</Button>
+              <Button variant="secondary" onClick={() => setDrawerOpen(true)}>Abrir panel lateral</Button>
+            </div>
+          </Card>
+        </section>
+
         <section className="an-preview__section" aria-labelledby="preview-alerts">
           <div className="an-preview__section-heading">
             <h2 id="preview-alerts">Mensajes del sistema</h2>
@@ -249,6 +271,72 @@ export default function DesignSystemPreview() {
           </div>
         </section>
       </main>
+
+      <Dialog
+        open={dialogOpen}
+        onClose={() => setDialogOpen(false)}
+        title="Registrar incidencia"
+        description="Añade la información mínima para incorporarla al flujo laboral."
+        footer={(
+          <>
+            <Button variant="ghost" onClick={() => setDialogOpen(false)}>Cancelar</Button>
+            <Button onClick={() => setDialogOpen(false)}>Guardar incidencia</Button>
+          </>
+        )}
+      >
+        <FormGrid columns={2}>
+          <Field label="Trabajador" required>
+            <Select defaultValue="">
+              <option value="" disabled>Seleccionar trabajador</option>
+              <option value="1">Ana Martín López</option>
+            </Select>
+          </Field>
+          <Field label="Tipo" required>
+            <Select defaultValue="vacation">
+              <option value="vacation">Vacaciones</option>
+              <option value="it">Incapacidad temporal</option>
+              <option value="absence">Ausencia</option>
+            </Select>
+          </Field>
+          <Field label="Observaciones" className="an-form-field--wide">
+            <Textarea placeholder="Contexto de la incidencia..." />
+          </Field>
+        </FormGrid>
+      </Dialog>
+
+      <ConfirmDialog
+        open={confirmOpen}
+        onClose={() => setConfirmOpen(false)}
+        onConfirm={() => setConfirmOpen(false)}
+        title="Eliminar trabajador"
+        description="Vas a retirar este trabajador del entorno de simulación."
+        confirmLabel="Eliminar trabajador"
+      >
+        <p>Los contratos y documentos asociados deberán revisarse después de la eliminación.</p>
+      </ConfirmDialog>
+
+      <Drawer
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        title="Detalle de alerta"
+        description="Información contextual sin abandonar la pantalla actual."
+        footer={(
+          <>
+            <Button variant="ghost" onClick={() => setDrawerOpen(false)}>Cerrar</Button>
+            <Button onClick={() => setDrawerOpen(false)}>Revisar expediente</Button>
+          </>
+        )}
+      >
+        <Alert title="Contrato próximo a vencer" tone="warning" icon={<TriangleAlert />}>
+          El contrato de Ana Martín López finaliza dentro de siete días.
+        </Alert>
+        <div className="an-preview__drawer-copy">
+          <h3>Acción recomendada</h3>
+          <p>Revisa la modalidad contractual, la fecha de baja prevista y la comunicación que debe recibir el alumno.</p>
+          <h3>Contexto docente</h3>
+          <p>La alerta puede vincularse a un caso práctico para que el alumno tramite la renovación o la extinción.</p>
+        </div>
+      </Drawer>
     </div>
   );
 }

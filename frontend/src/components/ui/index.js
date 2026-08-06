@@ -15,6 +15,7 @@ export {
   StatCard,
   StatusCard,
 } from "./Cards.jsx";
+export { ConfirmDialog, Dialog, Drawer } from "./Dialog.jsx";
 export { Field, Input, Select, Textarea } from "./FormControls.jsx";
 export {
   Form,
