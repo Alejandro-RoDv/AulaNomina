@@ -1,0 +1,149 @@
+/* AulaNomina Design System — navegación jerárquica */
+
+.an-sidebar__group + .an-sidebar__group {
+  margin-top: var(--an-space-1);
+}
+
+.an-sidebar__group-label {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--an-space-2);
+}
+
+.an-sidebar__group-label svg {
+  width: 15px;
+  height: 15px;
+  flex: 0 0 auto;
+  stroke-width: 1.9;
+}
+
+.an-sidebar__group-label span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.an-sidebar__group-toggle {
+  min-height: 40px;
+}
+
+.an-sidebar__group-toggle.is-active {
+  background: transparent;
+  color: var(--an-color-text-primary);
+}
+
+.an-sidebar__group-toggle.is-active .an-sidebar__group-label svg {
+  color: var(--an-color-primary-600);
+}
+
+.an-sidebar__group-items {
+  animation: an-navigation-reveal var(--an-duration-normal) var(--an-ease-standard);
+}
+
+.an-sidebar__item-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 34px;
+  align-items: stretch;
+  border-radius: var(--an-radius-md);
+  transition:
+    background-color var(--an-duration-fast) var(--an-ease-standard),
+    color var(--an-duration-fast) var(--an-ease-standard);
+}
+
+.an-sidebar__item-row:hover {
+  background: var(--an-color-surface-muted);
+}
+
+.an-sidebar__item-row.is-active,
+.an-sidebar__item-row.is-active:hover {
+  background: var(--an-color-primary-50);
+}
+
+.an-sidebar__item-row .an-sidebar__item,
+.an-sidebar__item-row .an-sidebar__item:hover,
+.an-sidebar__item-row .an-sidebar__item.is-active {
+  background: transparent;
+}
+
+.an-sidebar__item-row .an-sidebar__item.is-active {
+  color: var(--an-color-primary-700);
+}
+
+.an-sidebar__item--with-toggle {
+  border-radius: var(--an-radius-md) 0 0 var(--an-radius-md);
+  padding-right: var(--an-space-1);
+}
+
+.an-sidebar__item-toggle {
+  display: inline-flex;
+  min-width: 34px;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 0 var(--an-radius-md) var(--an-radius-md) 0;
+  background: transparent;
+  color: var(--an-color-text-muted);
+  cursor: pointer;
+}
+
+.an-sidebar__item-toggle:hover {
+  color: var(--an-color-text-primary);
+}
+
+.an-sidebar__item-toggle svg {
+  width: 14px;
+  height: 14px;
+  transition: transform var(--an-duration-normal) var(--an-ease-standard);
+}
+
+.an-sidebar__item-toggle.is-open svg {
+  transform: rotate(180deg);
+}
+
+.an-sidebar__subitems {
+  margin-top: var(--an-space-1);
+  animation: an-navigation-reveal var(--an-duration-normal) var(--an-ease-standard);
+}
+
+.an-sidebar__subitem {
+  min-height: 34px;
+}
+
+.an-sidebar__subitem.is-active {
+  font-weight: var(--an-font-weight-semibold);
+}
+
+.an-sidebar__item-row:focus-within,
+.an-sidebar__group-toggle:focus-visible,
+.an-sidebar__panel:focus-visible,
+.an-sidebar__item:focus-visible,
+.an-sidebar__subitem:focus-visible,
+.an-sidebar__item-toggle:focus-visible {
+  outline: 2px solid rgb(59 130 246 / 38%);
+  outline-offset: 1px;
+}
+
+.an-sidebar__item-row:focus-within .an-sidebar__item:focus-visible,
+.an-sidebar__item-row:focus-within .an-sidebar__item-toggle:focus-visible {
+  outline: 0;
+}
+
+@keyframes an-navigation-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(-3px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .an-sidebar__group-items,
+  .an-sidebar__subitems {
+    animation: none;
+  }
+}

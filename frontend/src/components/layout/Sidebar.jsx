@@ -1,16 +1,29 @@
 import { useEffect, useState } from "react";
-import { ChevronDown, LayoutDashboard, X } from "lucide-react";
+import {
+  Building2,
+  Calculator,
+  ChevronDown,
+  FileCheck2,
+  GraduationCap,
+  Landmark,
+  LayoutDashboard,
+  UsersRound,
+  X,
+} from "lucide-react";
 
 import logo from "../../assets/aulanomina-logo.svg";
 import "./layout.css";
+import "./navigation.css";
 
-const SIDEBAR_STORAGE_KEY = "aulanomina:sidebarExpandedGroups";
+const ACTIVE_GROUP_STORAGE_KEY = "aulanomina:sidebarActiveGroup";
+const EXPANDED_PARENTS_STORAGE_KEY = "aulanomina:sidebarExpandedParents";
 const panelItem = { id: "dashboard", label: "Panel", enabled: true };
 
 const groups = [
   {
     id: "master-data",
     title: "Datos empresa",
+    icon: Building2,
     items: [
       {
         id: "companies-dashboard",
@@ -33,6 +46,7 @@ const groups = [
   {
     id: "labor-management",
     title: "Gestión de personal",
+    icon: UsersRound,
     items: [
       {
         id: "workers-dashboard",
@@ -72,6 +86,7 @@ const groups = [
   {
     id: "payroll",
     title: "Nómina",
+    icon: Calculator,
     items: [
       { id: "payroll-monthly-preparation", label: "Preparación mensual", enabled: true },
       { id: "payroll-individual", label: "Nómina individual", enabled: true },
@@ -102,6 +117,7 @@ const groups = [
   {
     id: "tax-management",
     title: "Fiscalidad",
+    icon: Landmark,
     items: [
       { id: "reports", label: "Modelo 111", enabled: true, hash: "#model-111" },
       { id: "reports", label: "Modelo 190", enabled: true, hash: "#model-190" },
@@ -110,6 +126,7 @@ const groups = [
   {
     id: "document-control",
     title: "Documentación y control",
+    icon: FileCheck2,
     items: [
       { id: "documents", label: "Documentos", enabled: true, hash: "#documents" },
       { id: "alerts", label: "Alertas laborales", enabled: true, hash: "#alerts" },
@@ -119,6 +136,7 @@ const groups = [
   {
     id: "teaching",
     title: "Docencia",
+    icon: GraduationCap,
     items: [
       { id: "teacher-dashboard", label: "Panel docente", enabled: true, hash: "#teacher-dashboard" },
       { id: "case-studies", label: "Casos prácticos", enabled: true, hash: "#case-studies" },
@@ -175,17 +193,30 @@ function getInitialActiveKey(activePage) {
   return activePage;
 }
 
-function getStoredExpandedGroups() {
+function getStoredExpandedParents() {
   if (typeof window === "undefined") return {};
   try {
-    return JSON.parse(window.localStorage.getItem(SIDEBAR_STORAGE_KEY) || "{}");
+    return JSON.parse(window.localStorage.getItem(EXPANDED_PARENTS_STORAGE_KEY) || "{}");
   } catch {
     return {};
   }
 }
 
-function storeExpandedGroups(value) {
-  if (typeof window !== "undefined") window.localStorage.setItem(SIDEBAR_STORAGE_KEY, JSON.stringify(value));
+function storeExpandedParents(value) {
+  if (typeof window !== "undefined") {
+    window.localStorage.setItem(EXPANDED_PARENTS_STORAGE_KEY, JSON.stringify(value));
+  }
+}
+
+function getStoredActiveGroup() {
+  if (typeof window === "undefined") return null;
+  return window.localStorage.getItem(ACTIVE_GROUP_STORAGE_KEY);
+}
+
+function storeActiveGroup(groupId) {
+  if (typeof window === "undefined") return;
+  if (groupId) window.localStorage.setItem(ACTIVE_GROUP_STORAGE_KEY, groupId);
+  else window.localStorage.removeItem(ACTIVE_GROUP_STORAGE_KEY);
 }
 
 function clearHashIfNeeded(item) {
@@ -234,13 +265,50 @@ function findGroupIdForPage(activePage, activeNavKey) {
   return groups.find((group) => groupContainsActiveItem(group, activePage, activeNavKey))?.id || null;
 }
 
+function findParentKeyForPage(groupId, activePage, activeNavKey) {
+  const group = groups.find((candidate) => candidate.id === groupId);
+  const parent = group?.items.find(
+    (item) => item.children?.some((child) => itemMatchesPage(child, activePage, activeNavKey))
+      || (item.children && itemMatchesPage(item, activePage, activeNavKey))
+  );
+  return parent ? getItemKey(parent) : null;
+}
+
 export default function Sidebar({ activePage, setActivePage }) {
-  const [activeNavKey, setActiveNavKey] = useState(() => getInitialActiveKey(activePage));
-  const [expandedGroups, setExpandedGroups] = useState(getStoredExpandedGroups);
+  const initialNavKey = getInitialActiveKey(activePage);
+  const initialGroupId = findGroupIdForPage(activePage, initialNavKey);
+  const initialParentKey = initialGroupId
+    ? findParentKeyForPage(initialGroupId, activePage, initialNavKey)
+    : null;
+
+  const [activeNavKey, setActiveNavKey] = useState(initialNavKey);
+  const [expandedGroupId, setExpandedGroupId] = useState(
+    initialGroupId || getStoredActiveGroup
+  );
+  const [expandedParents, setExpandedParents] = useState(() => {
+    const stored = getStoredExpandedParents();
+    if (!initialGroupId || !initialParentKey) return stored;
+    return { ...stored, [initialGroupId]: initialParentKey };
+  });
   const [mobileOpen, setMobileOpen] = useState(false);
 
   useEffect(() => {
-    setActiveNavKey(getInitialActiveKey(activePage));
+    const nextActiveKey = getInitialActiveKey(activePage);
+    const nextGroupId = findGroupIdForPage(activePage, nextActiveKey);
+    setActiveNavKey(nextActiveKey);
+
+    if (nextGroupId) {
+      setExpandedGroupId(nextGroupId);
+      storeActiveGroup(nextGroupId);
+      const nextParentKey = findParentKeyForPage(nextGroupId, activePage, nextActiveKey);
+      if (nextParentKey) {
+        setExpandedParents((previous) => {
+          const next = { ...previous, [nextGroupId]: nextParentKey };
+          storeExpandedParents(next);
+          return next;
+        });
+      }
+    }
   }, [activePage]);
 
   useEffect(() => {
@@ -263,15 +331,26 @@ export default function Sidebar({ activePage, setActivePage }) {
     };
   }, [mobileOpen]);
 
-  const toggleGroup = (groupId, currentValue) => {
-    setExpandedGroups((previous) => {
-      const next = { ...previous, [groupId]: !currentValue };
-      storeExpandedGroups(next);
+  const toggleGroup = (groupId) => {
+    const nextGroupId = expandedGroupId === groupId ? null : groupId;
+    setExpandedGroupId(nextGroupId);
+    storeActiveGroup(nextGroupId);
+  };
+
+  const toggleParent = (groupId, parentKey) => {
+    setExpandedGroupId(groupId);
+    storeActiveGroup(groupId);
+    setExpandedParents((previous) => {
+      const next = {
+        ...previous,
+        [groupId]: previous[groupId] === parentKey ? null : parentKey,
+      };
+      storeExpandedParents(next);
       return next;
     });
   };
 
-  const handleNavClick = (item) => {
+  const handleNavClick = (item, groupId = null, parentKey = null) => {
     if (!item.enabled) return;
     applyItemNavigation(item);
     if (item.launchEvent) return;
@@ -281,11 +360,17 @@ export default function Sidebar({ activePage, setActivePage }) {
     setActivePage(item.id);
     setMobileOpen(false);
 
-    const groupId = findGroupIdForPage(item.id, itemKey);
-    if (groupId) {
-      setExpandedGroups((previous) => {
-        const next = { ...previous, [groupId]: true };
-        storeExpandedGroups(next);
+    const resolvedGroupId = groupId || findGroupIdForPage(item.id, itemKey);
+    if (!resolvedGroupId) return;
+
+    setExpandedGroupId(resolvedGroupId);
+    storeActiveGroup(resolvedGroupId);
+
+    const resolvedParentKey = parentKey || (item.children ? itemKey : null);
+    if (resolvedParentKey) {
+      setExpandedParents((previous) => {
+        const next = { ...previous, [resolvedGroupId]: resolvedParentKey };
+        storeExpandedParents(next);
         return next;
       });
     }
@@ -334,18 +419,22 @@ export default function Sidebar({ activePage, setActivePage }) {
           </button>
 
           {groups.map((group) => {
+            const GroupIcon = group.icon;
             const isGroupActive = groupContainsActiveItem(group, activePage, activeNavKey);
-            const isExpanded = expandedGroups[group.id] ?? isGroupActive;
+            const isExpanded = expandedGroupId === group.id;
 
             return (
               <section key={group.id} className="an-sidebar__group">
                 <button
                   type="button"
                   className={`an-sidebar__group-toggle${isGroupActive ? " is-active" : ""}`}
-                  onClick={() => toggleGroup(group.id, isExpanded)}
+                  onClick={() => toggleGroup(group.id)}
                   aria-expanded={isExpanded}
                 >
-                  <span>{group.title}</span>
+                  <span className="an-sidebar__group-label">
+                    <GroupIcon aria-hidden="true" />
+                    <span>{group.title}</span>
+                  </span>
                   <span className={`an-sidebar__chevron${isExpanded ? " is-open" : ""}`}>
                     <ChevronDown size={15} aria-hidden="true" />
                   </span>
@@ -353,34 +442,63 @@ export default function Sidebar({ activePage, setActivePage }) {
 
                 {isExpanded && (
                   <div className="an-sidebar__group-items">
-                    {group.items.map((item) => (
-                      <div key={`${item.id}-${item.label}`} className="an-sidebar__item-block">
-                        <button
-                          type="button"
-                          disabled={!item.enabled}
-                          onClick={() => handleNavClick(item)}
-                          className={`an-sidebar__item${isParentActive(item) ? " is-active" : ""}`}
-                        >
-                          {item.label}
-                        </button>
+                    {group.items.map((item) => {
+                      const itemKey = getItemKey(item);
+                      const hasChildren = Boolean(item.children?.length);
+                      const parentActive = isParentActive(item);
+                      const parentExpanded = expandedParents[group.id] === itemKey;
 
-                        {item.children && (
-                          <div className="an-sidebar__subitems">
-                            {item.children.map((child) => (
+                      return (
+                        <div key={`${item.id}-${item.label}`} className="an-sidebar__item-block">
+                          {hasChildren ? (
+                            <div className={`an-sidebar__item-row${parentActive ? " is-active" : ""}`}>
                               <button
-                                key={`${child.id}-${child.label}`}
                                 type="button"
-                                disabled={!child.enabled}
-                                onClick={() => handleNavClick(child)}
-                                className={`an-sidebar__subitem${isItemActive(child) ? " is-active" : ""}`}
+                                disabled={!item.enabled}
+                                onClick={() => handleNavClick(item, group.id, itemKey)}
+                                className={`an-sidebar__item an-sidebar__item--with-toggle${parentActive ? " is-active" : ""}`}
                               >
-                                {child.label}
+                                {item.label}
                               </button>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    ))}
+                              <button
+                                type="button"
+                                className={`an-sidebar__item-toggle${parentExpanded ? " is-open" : ""}`}
+                                onClick={() => toggleParent(group.id, itemKey)}
+                                aria-expanded={parentExpanded}
+                                aria-label={`${parentExpanded ? "Contraer" : "Desplegar"} ${item.label}`}
+                              >
+                                <ChevronDown aria-hidden="true" />
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              type="button"
+                              disabled={!item.enabled}
+                              onClick={() => handleNavClick(item, group.id)}
+                              className={`an-sidebar__item${parentActive ? " is-active" : ""}`}
+                            >
+                              {item.label}
+                            </button>
+                          )}
+
+                          {hasChildren && parentExpanded && (
+                            <div className="an-sidebar__subitems">
+                              {item.children.map((child) => (
+                                <button
+                                  key={`${child.id}-${child.label}`}
+                                  type="button"
+                                  disabled={!child.enabled}
+                                  onClick={() => handleNavClick(child, group.id, itemKey)}
+                                  className={`an-sidebar__subitem${isItemActive(child) ? " is-active" : ""}`}
+                                >
+                                  {child.label}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </section>
