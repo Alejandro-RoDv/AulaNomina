@@ -4,6 +4,10 @@
   gap: var(--an-space-5);
 }
 
+.an-dashboard__context-strip {
+  display: none;
+}
+
 .an-dashboard__intro {
   padding-top: 0;
   padding-bottom: var(--an-space-3);
