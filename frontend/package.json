@@ -7,6 +7,8 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
+    "design-system:audit": "node scripts/audit-design-system.mjs",
+    "validate": "npm run design-system:audit && npm run lint && npm run build",
     "test": "npm run test:convenios && npm run test:embargos && npm run test:incidencias && npm run test:seguridad-social && npm run test:siltra && npm run test:model190 && npm run test:mail",
     "test:convenios": "node scripts/run-convenios-tests.mjs",
     "test:embargos": "node --test src/tests/embargoCalculator.test.js",

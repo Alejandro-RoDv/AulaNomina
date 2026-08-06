@@ -14,9 +14,11 @@ radios, sombras, tamaños de control, movimiento o criterios de accesibilidad.
   necesiten estilos inline.
 - `ACCESSIBILITY.md`: reglas de teclado, foco, semántica, formularios, estados y diálogos.
 - `MOTION.md`: duraciones, patrones y límites del movimiento de interfaz.
+- `MIGRATION.md`: estado actual, definición de pantalla migrada y orden de los próximos módulos.
 - `DesignSystemPreview.jsx` y `preview.css`: catálogo técnico temporal para
   revisar visualmente los componentes antes de migrar módulos completos.
 - `../components/ui/`: biblioteca de componentes React reutilizables.
+- `../components/layout/`: shell, navegación y sistema común de páginas.
 - `../components/accessibility/`: capa global de navegación accesible y anuncios de ruta.
 - `../components/motion/`: transiciones globales y reinicio de entrada al cambiar de módulo.
 
@@ -33,12 +35,24 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
+  ConfirmDialog,
   Dialog,
   Drawer,
   EmptyState,
+  ErrorState,
   Field,
+  Form,
+  FormActions,
+  FormGrid,
+  FormSection,
   Input,
+  LoadingState,
+  NoResultsState,
   Select,
+  StatCard,
+  StatusCard,
+  SuccessState,
+  Table,
   Textarea,
 } from "../components/ui/index.js";
 ```
@@ -54,6 +68,22 @@ Por ejemplo, con Vite en local:
 ```text
 http://localhost:5173/?design-system=1
 ```
+
+## Validación
+
+```bash
+npm run design-system:audit
+npm run lint
+npm run build
+```
+
+O todo seguido:
+
+```bash
+npm run validate
+```
+
+La auditoría comprueba la estructura obligatoria y muestra la deuda de migración ordenada por estilos inline, colores directos y usos de `!important`. Esas métricas sirven para priorizar módulos; solo la ausencia de una pieza estructural provoca un fallo.
 
 ## Reglas de uso
 
@@ -73,6 +103,7 @@ http://localhost:5173/?design-system=1
 10. Toda pantalla migrada debe superar la comprobación manual definida en `ACCESSIBILITY.md`.
 11. Las transiciones habituales no deben superar 300 ms ni bloquear la interacción.
 12. Toda animación debe respetar `prefers-reduced-motion` y las reglas de `MOTION.md`.
+13. La migración de cada módulo debe seguir la definición de terminado de `MIGRATION.md`.
 
 ## Ejemplo CSS
 
@@ -102,4 +133,4 @@ import { Button, Card, CardContent, CardHeader, CardTitle } from "../components/
 
 Los alias antiguos (`--text`, `--accent`, `--border`, etc.) se mantienen de
 forma temporal para que la migración pueda hacerse módulo a módulo sin romper
-la interfaz actual.
+la interfaz actual. No deben volver a declararse fuera de `tokens.css`.
