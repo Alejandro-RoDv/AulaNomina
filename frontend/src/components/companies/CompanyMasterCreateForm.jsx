@@ -1,5 +1,20 @@
 import { useMemo, useState } from "react";
 
+import {
+  Alert,
+  Badge,
+  Button,
+  Field,
+  Form,
+  FormActions,
+  FormGrid,
+  FormOption,
+  FormOptions,
+  FormPresetBar,
+  FormSection,
+  Input,
+  Select,
+} from "../ui";
 import { createCompany } from "../../services/companyApi";
 
 const MUTUALS = [
@@ -180,20 +195,26 @@ function buildPayload(form) {
   };
 }
 
-function Field({ label, wide = false, children }) {
-  return <label style={wide ? styles.fieldWide : styles.field}><span>{label}</span>{children}</label>;
-}
-
 function TextInput({ name, form, onChange, type = "text", required = false }) {
-  return <input name={name} value={form[name] || ""} onChange={onChange} type={type} required={required} style={styles.input} />;
+  return (
+    <Input
+      name={name}
+      value={form[name] || ""}
+      onChange={onChange}
+      type={type}
+      required={required}
+    />
+  );
 }
 
 function MutualSelect({ name, value, onChange }) {
   return (
-    <select name={name} value={value} onChange={onChange} style={styles.input}>
+    <Select name={name} value={value} onChange={onChange}>
       <option value="">Seleccionar mutua</option>
-      {MUTUALS.map((mutual) => <option key={mutual} value={mutual}>{mutual}</option>)}
-    </select>
+      {MUTUALS.map((mutual) => (
+        <option key={mutual} value={mutual}>{mutual}</option>
+      ))}
+    </Select>
   );
 }
 
@@ -238,129 +259,281 @@ export default function CompanyMasterCreateForm({ collectiveAgreements = [], onC
   };
 
   return (
-    <form onSubmit={handleSubmit} style={styles.form}>
-      <section style={styles.block}>
-        <div style={styles.headingRow}>
-          <div><h3 style={styles.title}>Ficha maestra de empresa</h3><p style={styles.subtitle}>Los parámetros de cálculo, SILTRA, retenciones e impresión se configuran después en Preferencias.</p></div>
-          <span style={styles.badge}>Datos maestros</span>
-        </div>
-        <div style={styles.demoRow}>
-          {Object.entries(DEMOS).map(([key, demo]) => <button key={key} type="button" onClick={() => loadDemo(key)} style={styles.secondaryButton}>{demo.label}</button>)}
-        </div>
-      </section>
+    <Form onSubmit={handleSubmit}>
+      <FormSection
+        eyebrow="Alta de empresa"
+        title="Ficha maestra"
+        description="Introduce primero los datos estructurales. Los parámetros de cálculo, SILTRA, retenciones e impresión se completan después en Preferencias."
+        actions={<Badge tone="brand">Datos maestros</Badge>}
+      >
+        <FormPresetBar>
+          {Object.entries(DEMOS).map(([key, demo]) => (
+            <Button key={key} type="button" variant="secondary" size="sm" onClick={() => loadDemo(key)}>
+              {demo.label}
+            </Button>
+          ))}
+        </FormPresetBar>
+      </FormSection>
 
-      <section style={styles.block}>
-        <h4 style={styles.blockTitle}>Identificación y estado</h4>
-        <div style={styles.grid}>
-          <Field label="Nombre de empresa"><TextInput name="name" form={form} onChange={handleChange} required /></Field>
-          <Field label="CIF"><TextInput name="cif" form={form} onChange={handleChange} required /></Field>
-          <Field label="Estado"><select name="status" value={form.status} onChange={handleChange} style={styles.input}><option value="alta">Alta</option><option value="baja_temporal">Baja temporal</option><option value="baja_definitiva">Baja definitiva</option></select></Field>
-          <Field label="Fecha de alta"><TextInput name="registration_date" form={form} onChange={handleChange} type="date" /></Field>
-          <Field label="Fecha de baja"><TextInput name="deregistration_date" form={form} onChange={handleChange} type="date" /></Field>
-          <Field label="Tipo de empresa"><select name="company_type" value={form.company_type} onChange={handleChange} style={styles.input}><option value="privada">Privada</option><option value="publica">Pública</option><option value="privada_sin_lucro">Privada sin lucro</option><option value="corporaciones">Corporaciones</option><option value="ett">ETT</option><option value="sociedad_laboral_privada">Sociedad laboral privada</option></select></Field>
-          <Field label="CCC régimen"><TextInput name="ccc_regime" form={form} onChange={handleChange} /></Field>
-          <Field label="CCC código"><TextInput name="ccc_code" form={form} onChange={handleChange} /></Field>
-          <Field label="Convenio principal" wide>
-            <select name="main_collective_agreement" value={form.main_collective_agreement} onChange={handleChange} style={styles.input}>
+      <FormSection
+        title="Identificación y estado"
+        description="Datos necesarios para reconocer la empresa y situarla dentro del entorno laboral."
+      >
+        <FormGrid columns={3}>
+          <Field label="Nombre de empresa" required>
+            <TextInput name="name" form={form} onChange={handleChange} required />
+          </Field>
+          <Field label="CIF" required>
+            <TextInput name="cif" form={form} onChange={handleChange} required />
+          </Field>
+          <Field label="Estado">
+            <Select name="status" value={form.status} onChange={handleChange}>
+              <option value="alta">Alta</option>
+              <option value="baja_temporal">Baja temporal</option>
+              <option value="baja_definitiva">Baja definitiva</option>
+            </Select>
+          </Field>
+          <Field label="Fecha de alta">
+            <TextInput name="registration_date" form={form} onChange={handleChange} type="date" />
+          </Field>
+          <Field label="Fecha de baja">
+            <TextInput name="deregistration_date" form={form} onChange={handleChange} type="date" />
+          </Field>
+          <Field label="Tipo de empresa">
+            <Select name="company_type" value={form.company_type} onChange={handleChange}>
+              <option value="privada">Privada</option>
+              <option value="publica">Pública</option>
+              <option value="privada_sin_lucro">Privada sin lucro</option>
+              <option value="corporaciones">Corporaciones</option>
+              <option value="ett">ETT</option>
+              <option value="sociedad_laboral_privada">Sociedad laboral privada</option>
+            </Select>
+          </Field>
+          <Field label="CCC régimen" hint="Régimen general habitual: 0111.">
+            <TextInput name="ccc_regime" form={form} onChange={handleChange} />
+          </Field>
+          <Field label="CCC código">
+            <TextInput name="ccc_code" form={form} onChange={handleChange} />
+          </Field>
+          <Field
+            label="Convenio principal"
+            hint="Solo se muestran convenios ya creados en el módulo de Convenios."
+            className="an-form-field--wide"
+          >
+            <Select name="main_collective_agreement" value={form.main_collective_agreement} onChange={handleChange}>
               <option value="">Sin convenio asignado</option>
               {agreementOptions.map((agreement) => (
-                <option key={agreement.id} value={agreement.name}>{agreement.name}{agreement.agreement_code ? ` · ${agreement.agreement_code}` : ""}</option>
+                <option key={agreement.id} value={agreement.name}>
+                  {agreement.name}{agreement.agreement_code ? ` · ${agreement.agreement_code}` : ""}
+                </option>
               ))}
-            </select>
-            <small style={styles.help}>Solo se muestran convenios ya creados en el módulo de Convenios.</small>
+            </Select>
           </Field>
-        </div>
-        <div style={styles.checkRow}>
-          <label><input type="checkbox" name="is_cooperative" checked={form.is_cooperative} onChange={handleChange} /> Sociedad cooperativa</label>
-          <label><input type="checkbox" name="special_work_income_withholding" checked={form.special_work_income_withholding} onChange={handleChange} /> Cálculo especial de retenciones de trabajo</label>
-        </div>
-      </section>
+        </FormGrid>
 
-      <section style={styles.block}>
-        <h4 style={styles.blockTitle}>Domicilio social y contacto</h4>
-        <div style={styles.grid}>
-          <Field label="Domicilio social" wide><TextInput name="address" form={form} onChange={handleChange} /></Field>
-          <Field label="Localidad"><TextInput name="city" form={form} onChange={handleChange} /></Field>
-          <Field label="Provincia"><TextInput name="province" form={form} onChange={handleChange} /></Field>
-          <Field label="Teléfono"><TextInput name="company_phone" form={form} onChange={handleChange} /></Field>
-          <Field label="Correo electrónico"><TextInput name="company_email" form={form} onChange={handleChange} type="email" /></Field>
-          <Field label="Sitio web"><TextInput name="company_website" form={form} onChange={handleChange} /></Field>
-          <Field label="Persona de contacto"><TextInput name="company_contact_person" form={form} onChange={handleChange} /></Field>
-        </div>
-      </section>
+        <FormOptions>
+          <FormOption
+            name="is_cooperative"
+            checked={form.is_cooperative}
+            onChange={handleChange}
+            label="Sociedad cooperativa"
+            description="Activa el tratamiento específico de esta forma jurídica."
+          />
+          <FormOption
+            name="special_work_income_withholding"
+            checked={form.special_work_income_withholding}
+            onChange={handleChange}
+            label="Cálculo especial de retenciones"
+            description="Marca empresas con reglas particulares sobre rendimientos del trabajo."
+          />
+        </FormOptions>
+      </FormSection>
 
-      <section style={styles.block}>
-        <h4 style={styles.blockTitle}>Representante legal y actividad</h4>
-        <div style={styles.grid}>
-          <Field label="Nombre y apellidos"><TextInput name="legal_representative_name" form={form} onChange={handleChange} /></Field>
-          <Field label="DNI"><TextInput name="legal_representative_dni" form={form} onChange={handleChange} /></Field>
-          <Field label="Puesto"><TextInput name="legal_representative_position" form={form} onChange={handleChange} /></Field>
-          <Field label="CNAE 2009 código"><TextInput name="cnae_2009_code" form={form} onChange={handleChange} /></Field>
-          <Field label="CNAE 2009 denominación"><TextInput name="cnae_2009_name" form={form} onChange={handleChange} /></Field>
-          <Field label="CNAE 2025 código"><TextInput name="cnae_2025_code" form={form} onChange={handleChange} /></Field>
-          <Field label="CNAE 2025 denominación"><TextInput name="cnae_2025_name" form={form} onChange={handleChange} /></Field>
-        </div>
-      </section>
+      <FormSection
+        title="Domicilio social y contacto"
+        description="Información corporativa utilizada en documentos, comunicaciones y fichas de empresa."
+      >
+        <FormGrid columns={3}>
+          <Field label="Domicilio social" className="an-form-field--wide">
+            <TextInput name="address" form={form} onChange={handleChange} />
+          </Field>
+          <Field label="Localidad">
+            <TextInput name="city" form={form} onChange={handleChange} />
+          </Field>
+          <Field label="Provincia">
+            <TextInput name="province" form={form} onChange={handleChange} />
+          </Field>
+          <Field label="Teléfono">
+            <TextInput name="company_phone" form={form} onChange={handleChange} />
+          </Field>
+          <Field label="Correo electrónico">
+            <TextInput name="company_email" form={form} onChange={handleChange} type="email" />
+          </Field>
+          <Field label="Sitio web">
+            <TextInput name="company_website" form={form} onChange={handleChange} />
+          </Field>
+          <Field label="Persona de contacto">
+            <TextInput name="company_contact_person" form={form} onChange={handleChange} />
+          </Field>
+        </FormGrid>
+      </FormSection>
 
-      <section style={styles.block}>
-        <h4 style={styles.blockTitle}>Mutuas, seguros y previsión social</h4>
-        <div style={styles.grid}>
-          <Field label="Mutua contingencias profesionales"><MutualSelect name="professional_contingencies_mutual" value={form.professional_contingencies_mutual} onChange={handleChange} /></Field>
-          <Field label="Nº póliza CP"><TextInput name="professional_contingencies_policy" form={form} onChange={handleChange} /></Field>
-          <Field label="Fecha efecto CP"><TextInput name="professional_contingencies_effective_date" form={form} onChange={handleChange} type="date" /></Field>
-          <Field label="Mutua incapacidad temporal"><MutualSelect name="common_it_mutual" value={form.common_it_mutual} onChange={handleChange} /></Field>
-          <Field label="Nº póliza IT"><TextInput name="common_it_policy" form={form} onChange={handleChange} /></Field>
-          <Field label="Fecha efecto IT"><TextInput name="common_it_effective_date" form={form} onChange={handleChange} type="date" /></Field>
-        </div>
-        <div style={styles.checkRow}>
-          <label><input type="checkbox" name="collective_insurance_enabled" checked={form.collective_insurance_enabled} onChange={handleChange} /> Seguro colectivo de convenio</label>
-          <label><input type="checkbox" name="pension_plan_enabled" checked={form.pension_plan_enabled} onChange={handleChange} /> Plan de pensiones</label>
-        </div>
-        {form.collective_insurance_enabled && <div style={styles.grid}><Field label="Aseguradora"><TextInput name="collective_insurance_company" form={form} onChange={handleChange} /></Field><Field label="Nº póliza"><TextInput name="collective_insurance_policy" form={form} onChange={handleChange} /></Field><Field label="Capital asegurado"><TextInput name="collective_insurance_capital" form={form} onChange={handleChange} /></Field></div>}
-        {form.pension_plan_enabled && <div style={styles.grid}><Field label="Clave entidad gestora"><TextInput name="pension_manager_key" form={form} onChange={handleChange} /></Field><Field label="Número entidad gestora"><TextInput name="pension_manager_entity_number" form={form} onChange={handleChange} /></Field><Field label="Denominación del plan"><TextInput name="pension_plan_name" form={form} onChange={handleChange} /></Field></div>}
-      </section>
+      <FormSection
+        title="Representante legal y actividad"
+        description="Representación de la entidad y clasificación de su actividad económica."
+      >
+        <FormGrid columns={3}>
+          <Field label="Nombre y apellidos">
+            <TextInput name="legal_representative_name" form={form} onChange={handleChange} />
+          </Field>
+          <Field label="DNI">
+            <TextInput name="legal_representative_dni" form={form} onChange={handleChange} />
+          </Field>
+          <Field label="Puesto">
+            <TextInput name="legal_representative_position" form={form} onChange={handleChange} />
+          </Field>
+          <Field label="CNAE 2009 código">
+            <TextInput name="cnae_2009_code" form={form} onChange={handleChange} />
+          </Field>
+          <Field label="CNAE 2009 denominación" className="an-form-field--span-2">
+            <TextInput name="cnae_2009_name" form={form} onChange={handleChange} />
+          </Field>
+          <Field label="CNAE 2025 código">
+            <TextInput name="cnae_2025_code" form={form} onChange={handleChange} />
+          </Field>
+          <Field label="CNAE 2025 denominación" className="an-form-field--span-2">
+            <TextInput name="cnae_2025_name" form={form} onChange={handleChange} />
+          </Field>
+        </FormGrid>
+      </FormSection>
 
-      <section style={styles.block}>
-        <h4 style={styles.blockTitle}>Calendario y datos financieros</h4>
-        <div style={styles.grid}>
-          <Field label="Modo de calendario"><select name="work_calendar_mode" value={form.work_calendar_mode} onChange={handleChange} style={styles.input}><option value="new">Calendario propio</option><option value="existing">Calendario existente</option></select></Field>
-          <Field label="Nombre del calendario"><TextInput name="work_calendar_name" form={form} onChange={handleChange} /></Field>
-          <Field label="IBAN"><TextInput name="bank_iban" form={form} onChange={handleChange} /></Field>
-          <Field label="Régimen fiscal"><select name="fiscal_regime" value={form.fiscal_regime} onChange={handleChange} style={styles.input}><option value="estimacion_directa">Estimación directa</option><option value="modulos">Módulos</option><option value="plan_general_contable">Plan general contable</option></select></Field>
-        </div>
-      </section>
+      <FormSection
+        title="Mutuas, seguros y previsión social"
+        description="Coberturas asociadas a contingencias profesionales, incapacidad temporal y beneficios colectivos."
+      >
+        <FormGrid columns={3}>
+          <Field label="Mutua contingencias profesionales">
+            <MutualSelect
+              name="professional_contingencies_mutual"
+              value={form.professional_contingencies_mutual}
+              onChange={handleChange}
+            />
+          </Field>
+          <Field label="Nº póliza CP">
+            <TextInput name="professional_contingencies_policy" form={form} onChange={handleChange} />
+          </Field>
+          <Field label="Fecha efecto CP">
+            <TextInput name="professional_contingencies_effective_date" form={form} onChange={handleChange} type="date" />
+          </Field>
+          <Field label="Mutua incapacidad temporal">
+            <MutualSelect name="common_it_mutual" value={form.common_it_mutual} onChange={handleChange} />
+          </Field>
+          <Field label="Nº póliza IT">
+            <TextInput name="common_it_policy" form={form} onChange={handleChange} />
+          </Field>
+          <Field label="Fecha efecto IT">
+            <TextInput name="common_it_effective_date" form={form} onChange={handleChange} type="date" />
+          </Field>
+        </FormGrid>
 
-      {error && <div style={styles.error}>{error}</div>}
-      {createdCompany && (
-        <div style={styles.successRow}>
-          <span>Empresa creada: <strong>{createdCompany.name}</strong>.</span>
-          <button type="button" onClick={() => onOpenPreferences?.(createdCompany)} style={styles.preferencesButton}>Configurar preferencias</button>
-        </div>
+        <FormOptions>
+          <FormOption
+            name="collective_insurance_enabled"
+            checked={form.collective_insurance_enabled}
+            onChange={handleChange}
+            label="Seguro colectivo de convenio"
+            description="Muestra los datos de aseguradora, póliza y capital."
+          />
+          <FormOption
+            name="pension_plan_enabled"
+            checked={form.pension_plan_enabled}
+            onChange={handleChange}
+            label="Plan de pensiones"
+            description="Muestra los datos de la entidad gestora y del plan."
+          />
+        </FormOptions>
+
+        {form.collective_insurance_enabled && (
+          <FormGrid columns={3}>
+            <Field label="Aseguradora">
+              <TextInput name="collective_insurance_company" form={form} onChange={handleChange} />
+            </Field>
+            <Field label="Nº póliza">
+              <TextInput name="collective_insurance_policy" form={form} onChange={handleChange} />
+            </Field>
+            <Field label="Capital asegurado">
+              <TextInput name="collective_insurance_capital" form={form} onChange={handleChange} />
+            </Field>
+          </FormGrid>
+        )}
+
+        {form.pension_plan_enabled && (
+          <FormGrid columns={3}>
+            <Field label="Clave entidad gestora">
+              <TextInput name="pension_manager_key" form={form} onChange={handleChange} />
+            </Field>
+            <Field label="Número entidad gestora">
+              <TextInput name="pension_manager_entity_number" form={form} onChange={handleChange} />
+            </Field>
+            <Field label="Denominación del plan">
+              <TextInput name="pension_plan_name" form={form} onChange={handleChange} />
+            </Field>
+          </FormGrid>
+        )}
+      </FormSection>
+
+      <FormSection
+        title="Calendario y datos financieros"
+        description="Configuración inicial de calendario, domiciliación y régimen fiscal."
+      >
+        <FormGrid columns={2}>
+          <Field label="Modo de calendario">
+            <Select name="work_calendar_mode" value={form.work_calendar_mode} onChange={handleChange}>
+              <option value="new">Calendario propio</option>
+              <option value="existing">Calendario existente</option>
+            </Select>
+          </Field>
+          <Field label="Nombre del calendario">
+            <TextInput name="work_calendar_name" form={form} onChange={handleChange} />
+          </Field>
+          <Field label="IBAN">
+            <TextInput name="bank_iban" form={form} onChange={handleChange} />
+          </Field>
+          <Field label="Régimen fiscal">
+            <Select name="fiscal_regime" value={form.fiscal_regime} onChange={handleChange}>
+              <option value="estimacion_directa">Estimación directa</option>
+              <option value="modulos">Módulos</option>
+              <option value="plan_general_contable">Plan general contable</option>
+            </Select>
+          </Field>
+        </FormGrid>
+      </FormSection>
+
+      {error && (
+        <Alert tone="danger" title="No se ha podido crear la empresa">
+          {error}
+        </Alert>
       )}
-      <div style={styles.actions}><button type="submit" disabled={submitting} style={styles.saveButton}>{submitting ? "Creando..." : "Crear empresa"}</button></div>
-    </form>
+
+      {createdCompany && (
+        <Alert
+          tone="success"
+          title="Empresa creada"
+          actions={(
+            <Button type="button" variant="secondary" size="sm" onClick={() => onOpenPreferences?.(createdCompany)}>
+              Configurar preferencias
+            </Button>
+          )}
+        >
+          {createdCompany.name} ya está disponible en el entorno.
+        </Alert>
+      )}
+
+      <FormActions note="Los campos marcados como obligatorios deben completarse antes de guardar." sticky>
+        <Button type="submit" loading={submitting}>
+          Crear empresa
+        </Button>
+      </FormActions>
+    </Form>
   );
 }
-
-const styles = {
-  form: { display: "flex", flexDirection: "column", gap: "14px" },
-  block: { border: "1px solid #e5e7eb", borderRadius: "10px", padding: "16px", display: "flex", flexDirection: "column", gap: "14px", backgroundColor: "#fff" },
-  headingRow: { display: "flex", justifyContent: "space-between", gap: "16px", alignItems: "start", flexWrap: "wrap" },
-  title: { margin: 0, color: "#111827", fontSize: "18px" },
-  subtitle: { margin: "5px 0 0", color: "#64748b", fontSize: "13px" },
-  badge: { padding: "5px 9px", borderRadius: "999px", backgroundColor: "#fef3c7", color: "#92400e", fontSize: "12px", fontWeight: 900 },
-  demoRow: { display: "flex", gap: "8px", flexWrap: "wrap" },
-  secondaryButton: { border: "1px solid #d1d5db", backgroundColor: "#fff", color: "#111827", borderRadius: "7px", padding: "8px 10px", cursor: "pointer", fontWeight: 800 },
-  blockTitle: { margin: 0, color: "#111827", fontSize: "14px", fontWeight: 900 },
-  grid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "12px" },
-  field: { display: "flex", flexDirection: "column", gap: "6px", color: "#374151", fontSize: "13px", fontWeight: 800 },
-  fieldWide: { display: "flex", flexDirection: "column", gap: "6px", color: "#374151", fontSize: "13px", fontWeight: 800, gridColumn: "1 / -1" },
-  input: { width: "100%", minHeight: "39px", boxSizing: "border-box", border: "1px solid #cbd5e1", borderRadius: "7px", padding: "8px 10px", backgroundColor: "#fff" },
-  help: { color: "#64748b", fontSize: "12px", fontWeight: 600 },
-  checkRow: { display: "flex", gap: "18px", flexWrap: "wrap", color: "#374151", fontWeight: 800, fontSize: "13px" },
-  error: { padding: "11px 13px", borderRadius: "8px", backgroundColor: "#fef2f2", color: "#b91c1c", fontWeight: 800 },
-  successRow: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px", padding: "12px 14px", borderRadius: "8px", backgroundColor: "#f0fdf4", color: "#166534", flexWrap: "wrap" },
-  preferencesButton: { border: "1px solid #eab308", backgroundColor: "#facc15", color: "#111827", borderRadius: "7px", padding: "8px 11px", cursor: "pointer", fontWeight: 900 },
-  actions: { display: "flex", justifyContent: "flex-end" },
-  saveButton: { border: "1px solid #111827", backgroundColor: "#111827", color: "#fff", borderRadius: "8px", padding: "10px 16px", cursor: "pointer", fontWeight: 900 },
-};

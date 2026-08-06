@@ -9,6 +9,10 @@ import {
   Button,
   ContentCard,
   Field,
+  Form,
+  FormActions,
+  FormGrid,
+  FormSection,
   Input,
   StatCard,
   StatusCard,
@@ -23,6 +27,18 @@ import {
 - `StatusCard`: estado operativo, validación o comprobación con tono semántico.
 
 Los cuatro patrones comparten borde, radio, sombra, tipografía y espaciado. No se deben crear variantes visuales específicas dentro de cada módulo.
+
+## Patrones de formularios
+
+- `Form`: contenedor vertical del formulario completo.
+- `FormSection`: bloque lógico con título, descripción y acciones opcionales.
+- `FormGrid`: distribución responsive de campos en una, dos, tres o cuatro columnas.
+- `Field`: etiqueta, control, ayuda, obligatoriedad y error.
+- `FormOptions` y `FormOption`: opciones booleanas con contexto suficiente.
+- `FormPresetBar`: carga de ejemplos didácticos o configuraciones predefinidas.
+- `FormActions`: zona común de guardado, cancelación y mensajes secundarios.
+
+Los formularios deben agrupar la información por significado. No se deben mostrar listas extensas de campos sin secciones ni crear estilos inline para cada pantalla.
 
 ## Criterios
 

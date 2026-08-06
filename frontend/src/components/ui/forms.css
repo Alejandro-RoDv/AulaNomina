@@ -1,0 +1,282 @@
+/* AulaNomina Design System — composición de formularios */
+
+.an-page-card:has(> .an-form) {
+  padding: 0;
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+
+.an-page-card:has(> .an-form) > .an-page-card__header {
+  margin-bottom: var(--an-space-5);
+}
+
+.an-form {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: var(--an-space-5);
+}
+
+.an-form-section {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: var(--an-space-5);
+  padding: var(--an-space-6);
+  border: 1px solid var(--an-color-border);
+  border-radius: var(--an-radius-lg);
+  background: var(--an-color-surface);
+  box-shadow: var(--an-shadow-xs);
+}
+
+.an-form-section__header {
+  display: flex;
+  min-width: 0;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--an-space-5);
+  padding-bottom: var(--an-space-4);
+  border-bottom: 1px solid var(--an-color-border);
+}
+
+.an-form-section__heading {
+  min-width: 0;
+}
+
+.an-form-section__eyebrow {
+  margin: 0 0 var(--an-space-1);
+  color: var(--an-color-text-muted);
+  font-size: 0.6875rem;
+  font-weight: var(--an-font-weight-bold);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.an-form-section__title {
+  margin: 0;
+  color: var(--an-color-text-primary);
+  font-size: var(--an-font-size-lg);
+  font-weight: var(--an-font-weight-bold);
+  line-height: var(--an-line-height-heading);
+}
+
+.an-form-section__description {
+  max-width: 72ch;
+  margin: var(--an-space-2) 0 0;
+  color: var(--an-color-text-secondary);
+  font-size: var(--an-font-size-sm);
+  line-height: var(--an-line-height-body);
+}
+
+.an-form-section__actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: var(--an-space-2);
+}
+
+.an-form-section__content {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: var(--an-space-5);
+}
+
+.an-form-grid {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--an-form-grid-min)), 1fr));
+  gap: var(--an-space-4);
+}
+
+.an-form-grid--fixed {
+  grid-template-columns: repeat(var(--an-form-grid-columns), minmax(0, 1fr));
+}
+
+.an-form-field--wide {
+  grid-column: 1 / -1;
+}
+
+.an-form-field--span-2 {
+  grid-column: span 2;
+}
+
+.an-form-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 17rem), 1fr));
+  gap: var(--an-space-3);
+}
+
+.an-form-option {
+  display: flex;
+  min-width: 0;
+  align-items: flex-start;
+  gap: var(--an-space-3);
+  padding: var(--an-space-3) var(--an-space-4);
+  border: 1px solid var(--an-color-border);
+  border-radius: var(--an-radius-md);
+  background: var(--an-color-surface-subtle);
+  cursor: pointer;
+  transition: border-color var(--an-duration-fast) var(--an-ease-standard),
+    background-color var(--an-duration-fast) var(--an-ease-standard);
+}
+
+.an-form-option:hover {
+  border-color: var(--an-color-border-strong);
+  background: var(--an-color-surface-muted);
+}
+
+.an-form-option:has(.an-form-option__control:checked) {
+  border-color: var(--an-color-primary-200);
+  background: var(--an-color-primary-50);
+}
+
+.an-form-option__control {
+  width: 1rem;
+  height: 1rem;
+  flex: 0 0 auto;
+  margin: 2px 0 0;
+  accent-color: var(--an-color-action-primary);
+}
+
+.an-form-option__copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.an-form-option__label {
+  color: var(--an-color-text-primary);
+  font-size: var(--an-font-size-sm);
+  font-weight: var(--an-font-weight-semibold);
+}
+
+.an-form-option__description {
+  color: var(--an-color-text-muted);
+  font-size: var(--an-font-size-xs);
+  line-height: var(--an-line-height-body);
+}
+
+.an-form-presets {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--an-space-4);
+  padding: var(--an-space-3) var(--an-space-4);
+  border: 1px dashed var(--an-color-border-strong);
+  border-radius: var(--an-radius-md);
+  background: var(--an-color-surface-subtle);
+}
+
+.an-form-presets__label {
+  flex: 0 0 auto;
+  color: var(--an-color-text-muted);
+  font-size: var(--an-font-size-xs);
+  font-weight: var(--an-font-weight-bold);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.an-form-presets__actions {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--an-space-2);
+}
+
+.an-form-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--an-space-4);
+  padding-top: var(--an-space-5);
+  border-top: 1px solid var(--an-color-border);
+}
+
+.an-form-actions--between {
+  justify-content: space-between;
+}
+
+.an-form-actions--start {
+  justify-content: flex-start;
+}
+
+.an-form-actions--center {
+  justify-content: center;
+}
+
+.an-form-actions--end {
+  justify-content: flex-end;
+}
+
+.an-form-actions--sticky {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  margin-inline: calc(var(--an-space-6) * -1);
+  padding: var(--an-space-4) var(--an-space-6);
+  border: 1px solid var(--an-color-border);
+  border-radius: var(--an-radius-lg);
+  background: rgb(255 255 255 / 96%);
+  box-shadow: var(--an-shadow-md);
+  backdrop-filter: blur(12px);
+}
+
+.an-form-actions__note {
+  margin: 0;
+  color: var(--an-color-text-muted);
+  font-size: var(--an-font-size-xs);
+}
+
+.an-form-actions__buttons {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--an-space-2);
+}
+
+@media (max-width: 64rem) {
+  .an-form-grid--fixed {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 48rem) {
+  .an-form {
+    gap: var(--an-space-4);
+  }
+
+  .an-form-section {
+    gap: var(--an-space-4);
+    padding: var(--an-space-5);
+  }
+
+  .an-form-section__header,
+  .an-form-presets,
+  .an-form-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .an-form-section__actions,
+  .an-form-presets__actions,
+  .an-form-actions__buttons {
+    justify-content: flex-start;
+  }
+
+  .an-form-grid--fixed {
+    grid-template-columns: 1fr;
+  }
+
+  .an-form-field--span-2 {
+    grid-column: auto;
+  }
+
+  .an-form-actions--sticky {
+    margin-inline: 0;
+    padding: var(--an-space-4);
+  }
+}

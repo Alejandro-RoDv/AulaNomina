@@ -10,6 +10,7 @@ import "./payroll-print.css";
 import "./contract-print-v5-fixes.js";
 import "./convenios-ui-fixes.js";
 import "./affiliation-siltra-bridge.js";
+import "./route-aliases.js";
 import App from "./App.jsx";
 import DesignSystemPreview from "./design-system/DesignSystemPreview.jsx";
 import CaseNavigationBridge from "./components/case-studies/CaseNavigationBridge.jsx";

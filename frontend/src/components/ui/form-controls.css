@@ -1,0 +1,13 @@
+.an-field__label {
+  align-items: stretch;
+  flex-direction: column;
+  justify-content: flex-start;
+  gap: var(--an-space-2);
+}
+
+.an-field__label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--an-space-3);
+}

@@ -1,5 +1,7 @@
 import { Children, cloneElement, forwardRef, isValidElement, useId } from "react";
 
+import "./form-controls.css";
+
 function joinClassNames(...classNames) {
   return classNames.filter(Boolean).join(" ");
 }
@@ -32,11 +34,13 @@ export function Field({
 
   return (
     <div className={joinClassNames("an-field", error && "an-field--error", className)}>
-      <label className="an-field__label" htmlFor={fieldId}>
-        {label}
-        {required && <span className="an-field__required">Obligatorio</span>}
+      <label className="an-field__label">
+        <span className="an-field__label-row">
+          <span>{label}</span>
+          {required && <span className="an-field__required">Obligatorio</span>}
+        </span>
+        {control}
       </label>
-      {control}
       {hint && (
         <p className="an-field__hint" id={hintId}>
           {hint}
