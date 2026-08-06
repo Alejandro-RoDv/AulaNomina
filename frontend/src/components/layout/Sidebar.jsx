@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
+import { ChevronDown, LayoutDashboard, X } from "lucide-react";
 
 import logo from "../../assets/aulanomina-logo.svg";
+import "./layout.css";
 
 const SIDEBAR_STORAGE_KEY = "aulanomina:sidebarExpandedGroups";
 const panelItem = { id: "dashboard", label: "Panel", enabled: true };
@@ -235,14 +237,35 @@ function findGroupIdForPage(activePage, activeNavKey) {
 export default function Sidebar({ activePage, setActivePage }) {
   const [activeNavKey, setActiveNavKey] = useState(() => getInitialActiveKey(activePage));
   const [expandedGroups, setExpandedGroups] = useState(getStoredExpandedGroups);
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   useEffect(() => {
     setActiveNavKey(getInitialActiveKey(activePage));
   }, [activePage]);
 
-  const toggleGroup = (groupId) => {
+  useEffect(() => {
+    const handleToggle = () => setMobileOpen((previous) => !previous);
+    const handleClose = () => setMobileOpen(false);
+    window.addEventListener("aulanomina-toggle-sidebar", handleToggle);
+    window.addEventListener("aulanomina-close-sidebar", handleClose);
+    return () => {
+      window.removeEventListener("aulanomina-toggle-sidebar", handleToggle);
+      window.removeEventListener("aulanomina-close-sidebar", handleClose);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!mobileOpen) return undefined;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [mobileOpen]);
+
+  const toggleGroup = (groupId, currentValue) => {
     setExpandedGroups((previous) => {
-      const next = { ...previous, [groupId]: !previous[groupId] };
+      const next = { ...previous, [groupId]: !currentValue };
       storeExpandedGroups(next);
       return next;
     });
@@ -256,6 +279,7 @@ export default function Sidebar({ activePage, setActivePage }) {
     const itemKey = getItemKey(item);
     setActiveNavKey(itemKey);
     setActivePage(item.id);
+    setMobileOpen(false);
 
     const groupId = findGroupIdForPage(item.id, itemKey);
     if (groupId) {
@@ -282,85 +306,102 @@ export default function Sidebar({ activePage, setActivePage }) {
   );
 
   return (
-    <aside style={styles.sidebar}>
-      <div style={styles.logoPanel}><img src={logo} alt="AulaNomina" style={styles.logo} /></div>
-      <div style={styles.menuPanel}>
+    <>
+      <aside className={`an-sidebar${mobileOpen ? " is-mobile-open" : ""}`} aria-label="Navegación principal">
+        <div className="an-sidebar__brand">
+          <div className="an-sidebar__brand-copy">
+            <img src={logo} alt="AulaNomina" className="an-sidebar__logo" />
+            <span className="an-sidebar__descriptor">ERP laboral educativo</span>
+          </div>
+          <button
+            type="button"
+            className="an-sidebar__close"
+            onClick={() => setMobileOpen(false)}
+            aria-label="Cerrar navegación"
+          >
+            <X aria-hidden="true" />
+          </button>
+        </div>
+
+        <nav className="an-sidebar__navigation">
+          <button
+            type="button"
+            className={`an-sidebar__panel${activePage === panelItem.id ? " is-active" : ""}`}
+            onClick={() => handleNavClick(panelItem)}
+          >
+            <LayoutDashboard aria-hidden="true" />
+            <span>{panelItem.label}</span>
+          </button>
+
+          {groups.map((group) => {
+            const isGroupActive = groupContainsActiveItem(group, activePage, activeNavKey);
+            const isExpanded = expandedGroups[group.id] ?? isGroupActive;
+
+            return (
+              <section key={group.id} className="an-sidebar__group">
+                <button
+                  type="button"
+                  className={`an-sidebar__group-toggle${isGroupActive ? " is-active" : ""}`}
+                  onClick={() => toggleGroup(group.id, isExpanded)}
+                  aria-expanded={isExpanded}
+                >
+                  <span>{group.title}</span>
+                  <span className={`an-sidebar__chevron${isExpanded ? " is-open" : ""}`}>
+                    <ChevronDown size={15} aria-hidden="true" />
+                  </span>
+                </button>
+
+                {isExpanded && (
+                  <div className="an-sidebar__group-items">
+                    {group.items.map((item) => (
+                      <div key={`${item.id}-${item.label}`} className="an-sidebar__item-block">
+                        <button
+                          type="button"
+                          disabled={!item.enabled}
+                          onClick={() => handleNavClick(item)}
+                          className={`an-sidebar__item${isParentActive(item) ? " is-active" : ""}`}
+                        >
+                          {item.label}
+                        </button>
+
+                        {item.children && (
+                          <div className="an-sidebar__subitems">
+                            {item.children.map((child) => (
+                              <button
+                                key={`${child.id}-${child.label}`}
+                                type="button"
+                                disabled={!child.enabled}
+                                onClick={() => handleNavClick(child)}
+                                className={`an-sidebar__subitem${isItemActive(child) ? " is-active" : ""}`}
+                              >
+                                {child.label}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </section>
+            );
+          })}
+        </nav>
+
+        <div className="an-sidebar__footer">
+          <span className="an-sidebar__environment">Entorno disponible</span>
+          <span>v0.1</span>
+        </div>
+      </aside>
+
+      {mobileOpen && (
         <button
           type="button"
-          style={activePage === panelItem.id ? styles.panelButtonActive : styles.panelButton}
-          onClick={() => handleNavClick(panelItem)}
-        >
-          {panelItem.label}
-        </button>
-
-        {groups.map((group) => {
-          const isExpanded = Boolean(expandedGroups[group.id]);
-          const isGroupActive = groupContainsActiveItem(group, activePage, activeNavKey);
-          return (
-            <section key={group.id} style={styles.group}>
-              <button
-                type="button"
-                style={{ ...styles.groupToggle, ...(isGroupActive ? styles.groupToggleActive : {}) }}
-                onClick={() => toggleGroup(group.id)}
-                aria-expanded={isExpanded}
-              >
-                <span>{group.title}</span><strong>{isExpanded ? "−" : "+"}</strong>
-              </button>
-              {isExpanded && (
-                <div style={styles.groupItems}>
-                  {group.items.map((item) => (
-                    <div key={`${item.id}-${item.label}`} style={styles.itemBlock}>
-                      <button
-                        type="button"
-                        disabled={!item.enabled}
-                        onClick={() => handleNavClick(item)}
-                        style={{ ...styles.navItem, ...(isParentActive(item) ? styles.navItemActive : {}), ...(!item.enabled ? styles.navItemDisabled : {}) }}
-                      >
-                        {item.label}
-                      </button>
-                      {item.children && (
-                        <div style={styles.submenu}>
-                          {item.children.map((child) => (
-                            <button
-                              key={`${child.id}-${child.label}`}
-                              type="button"
-                              disabled={!child.enabled}
-                              onClick={() => handleNavClick(child)}
-                              style={{ ...styles.subNavItem, ...(isItemActive(child) ? styles.subNavItemActive : {}), ...(!child.enabled ? styles.navItemDisabled : {}) }}
-                            >
-                              {child.label}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </section>
-          );
-        })}
-      </div>
-    </aside>
+          className="an-sidebar-backdrop"
+          onClick={() => setMobileOpen(false)}
+          aria-label="Cerrar navegación"
+        />
+      )}
+    </>
   );
 }
-
-const styles = {
-  sidebar: { width: "272px", minHeight: "100vh", backgroundColor: "#f8f3b5", borderRight: "3px solid #111111", boxSizing: "border-box", display: "flex", flexDirection: "column", position: "fixed", left: 0, top: 0, bottom: 0 },
-  logoPanel: { height: "132px", backgroundColor: "#ffffff", borderBottom: "3px solid #111111", display: "flex", alignItems: "center", justifyContent: "center", padding: "4px 8px", boxSizing: "border-box", overflow: "hidden" },
-  logo: { width: "275px", maxWidth: "110%", maxHeight: "130px", objectFit: "contain", display: "block" },
-  menuPanel: { flex: 1, padding: "16px 10px 26px", overflowY: "auto" },
-  panelButton: { width: "100%", textAlign: "left", backgroundColor: "transparent", border: "none", color: "#111111", padding: "9px 8px", cursor: "pointer", fontSize: "16px", fontWeight: 950, letterSpacing: "0.03em", textTransform: "uppercase", marginBottom: "8px" },
-  panelButtonActive: { width: "100%", textAlign: "left", backgroundColor: "#ffffff", border: "3px solid #111111", boxShadow: "3px 3px 0 #111111", color: "#111111", padding: "9px 8px", cursor: "pointer", fontSize: "16px", fontWeight: 950, letterSpacing: "0.03em", textTransform: "uppercase", marginBottom: "8px" },
-  group: { marginBottom: "8px" },
-  groupToggle: { width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px", backgroundColor: "transparent", border: "none", color: "#111111", padding: "9px 8px", cursor: "pointer", fontSize: "16px", fontWeight: 950, letterSpacing: "0.03em", textTransform: "uppercase", textAlign: "left" },
-  groupToggleActive: { backgroundColor: "rgba(255, 255, 255, 0.72)", outline: "2px solid #111111", boxShadow: "3px 3px 0 #111111" },
-  groupItems: { display: "flex", flexDirection: "column", gap: "7px", paddingTop: "8px", paddingBottom: "10px" },
-  itemBlock: { display: "flex", flexDirection: "column", gap: "5px" },
-  navItem: { width: "100%", textAlign: "left", backgroundColor: "transparent", border: "none", borderRadius: 0, color: "#111111", padding: "6px 10px", cursor: "pointer", fontSize: "13px", fontWeight: 950, letterSpacing: "0.05em", textTransform: "uppercase" },
-  navItemActive: { backgroundColor: "#ffffff", border: "3px solid #111111", boxShadow: "3px 3px 0 #111111" },
-  navItemDisabled: { opacity: 0.45, cursor: "not-allowed" },
-  submenu: { display: "flex", flexDirection: "column", gap: "4px", paddingLeft: "18px", borderLeft: "3px solid #111111", marginLeft: "8px" },
-  subNavItem: { width: "100%", textAlign: "left", backgroundColor: "transparent", border: "none", color: "#111111", padding: "6px 8px", cursor: "pointer", fontSize: "12px", fontWeight: 900, letterSpacing: "0.04em", textTransform: "uppercase" },
-  subNavItemActive: { backgroundColor: "#ffffff", border: "2px solid #111111" },
-};
