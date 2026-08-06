@@ -1,0 +1,201 @@
+/* AulaNomina — pulido visual transversal del shell y del panel */
+
+/* Sidebar */
+.an-sidebar::before {
+  content: none;
+}
+
+.an-sidebar__subitem {
+  color: var(--an-color-text-secondary);
+  font-weight: var(--an-font-weight-medium);
+}
+
+.an-sidebar__group + .an-sidebar__group {
+  margin-top: var(--an-space-2);
+}
+
+.an-sidebar__group {
+  margin-bottom: var(--an-space-2);
+}
+
+.an-sidebar__group-items {
+  padding-bottom: var(--an-space-4);
+}
+
+.an-sidebar__footer {
+  min-height: 58px;
+  padding:
+    var(--an-space-4)
+    var(--an-space-5)
+    max(var(--an-space-5), env(safe-area-inset-bottom));
+}
+
+/* Topbar: una única familia visual para Correo, SILTRA, Alertas y Ajustes */
+.an-header__siltra {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--an-space-2);
+}
+
+.an-header__siltra > .mail-launcher-slot {
+  display: inline-flex !important;
+  align-items: center !important;
+}
+
+.an-header__siltra .mail-global-launcher,
+.an-header__siltra > .siltra-global-launcher,
+.an-header__alert-button,
+.an-header__action-button {
+  min-height: var(--an-control-height-md) !important;
+  height: var(--an-control-height-md);
+  padding: 0 var(--an-space-3) !important;
+  border: 1px solid var(--an-color-border) !important;
+  border-radius: var(--an-radius-md) !important;
+  background: var(--an-color-surface) !important;
+  color: var(--an-color-text-secondary) !important;
+  box-shadow: none !important;
+  font-family: inherit !important;
+  font-size: var(--an-font-size-sm) !important;
+  font-weight: var(--an-font-weight-semibold) !important;
+  letter-spacing: normal !important;
+  line-height: 1 !important;
+  text-transform: none !important;
+}
+
+.an-header__siltra .mail-global-launcher:hover,
+.an-header__siltra > .siltra-global-launcher:hover,
+.an-header__alert-button:hover,
+.an-header__action-button:hover {
+  border-color: var(--an-color-border-strong) !important;
+  background: var(--an-color-surface-muted) !important;
+  color: var(--an-color-text-primary) !important;
+  transform: none;
+}
+
+.an-header__siltra .mail-global-launcher:focus-visible,
+.an-header__siltra > .siltra-global-launcher:focus-visible,
+.an-header__alert-button:focus-visible,
+.an-header__action-button:focus-visible {
+  outline: 2px solid rgb(37 99 235 / 36%) !important;
+  outline-offset: 2px !important;
+}
+
+.an-header__siltra .mail-global-launcher__logo {
+  width: 22px;
+  height: 22px;
+}
+
+.an-header__siltra > .siltra-global-launcher img {
+  width: 26px;
+  height: 26px;
+}
+
+.an-header__siltra .mail-global-launcher__counter {
+  min-width: 20px;
+  height: 20px;
+  background: var(--an-color-primary-600);
+  font-size: 0.6875rem;
+}
+
+.an-header {
+  border-top: 0;
+}
+
+.an-header__topbar {
+  align-items: center;
+}
+
+/* Panel: métricas con mayor jerarquía y respiración */
+.an-dashboard__metric {
+  min-height: 132px;
+  padding: var(--an-space-6);
+}
+
+.an-dashboard__metric > div {
+  display: flex;
+  min-width: 0;
+  min-height: 84px;
+  flex: 1;
+  flex-direction: column;
+}
+
+.an-dashboard__metric strong {
+  font-size: 2rem;
+  font-weight: var(--an-font-weight-bold);
+  font-variant-numeric: tabular-nums;
+}
+
+.an-dashboard__metric div > span {
+  margin-top: auto;
+  padding-top: var(--an-space-3);
+}
+
+/* Acciones rápidas: respuesta clara sin convertir la flecha en otro botón */
+.an-dashboard__quick-action > svg {
+  color: var(--an-color-text-secondary);
+  transition:
+    color var(--an-duration-fast) var(--an-ease-standard),
+    transform var(--an-duration-fast) var(--an-ease-standard);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .an-dashboard__quick-action:hover {
+    border-color: var(--an-color-primary-200);
+    box-shadow: var(--an-shadow-md);
+    transform: translateY(-2px);
+  }
+
+  .an-dashboard__quick-action:hover > svg {
+    color: var(--an-color-primary-600);
+    transform: translateX(2px);
+  }
+}
+
+/* Filas de atención: badges alineados y cifras estables */
+.an-dashboard__attention-item {
+  align-items: center;
+}
+
+.an-dashboard__attention-icon,
+.an-dashboard__attention-copy,
+.an-dashboard__attention-status,
+.an-dashboard__attention-arrow {
+  align-self: center;
+}
+
+.an-dashboard__attention-status {
+  display: inline-flex;
+  min-width: 56px;
+  min-height: 28px;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+/* El progreso completo es verde; los estados parciales usan un tono neutro informativo. */
+.an-dashboard__progress:not([aria-label$="100%"] ) span {
+  background: var(--an-color-primary-500);
+}
+
+.an-dashboard__progress[aria-label$="100%"] span {
+  background: linear-gradient(90deg, var(--an-color-success-500), var(--an-color-success-600));
+}
+
+@media (max-width: 48rem) {
+  .an-dashboard__metric {
+    min-height: 120px;
+    padding: var(--an-space-5);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .an-dashboard__quick-action > svg {
+    transition: none;
+  }
+
+  .an-dashboard__quick-action:hover,
+  .an-dashboard__quick-action:hover > svg {
+    transform: none;
+  }
+}
