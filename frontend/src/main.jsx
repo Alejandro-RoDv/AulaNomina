@@ -15,6 +15,7 @@ import "./affiliation-siltra-bridge.js";
 import "./route-aliases.js";
 import App from "./App.jsx";
 import AccessibilityBridge from "./components/accessibility/AccessibilityBridge.jsx";
+import FooterBridge from "./components/layout/FooterBridge.jsx";
 import MotionBridge from "./components/motion/MotionBridge.jsx";
 import DesignSystemPreview from "./design-system/DesignSystemPreview.jsx";
 import CaseNavigationBridge from "./components/case-studies/CaseNavigationBridge.jsx";
@@ -36,6 +37,7 @@ createRoot(document.getElementById("root")).render(
         <AccessibilityBridge />
         <MotionBridge />
         <App />
+        <FooterBridge />
         <CaseNavigationBridge />
         <AffiliationSiltraBridge />
         <FieSiltraBridge />

@@ -37,8 +37,16 @@
 }
 
 .an-dashboard__main-grid {
-  grid-template-columns: minmax(0, 1.2fr) minmax(24rem, 0.8fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--an-space-5);
+  align-items: stretch;
+}
+
+.an-dashboard__main-grid > .an-dashboard__panel {
+  display: flex;
+  min-width: 0;
+  height: 100%;
+  flex-direction: column;
 }
 
 .an-dashboard__panel {
@@ -46,6 +54,7 @@
 }
 
 .an-dashboard__attention-list {
+  flex: 1;
   margin-top: var(--an-space-4);
 }
 
@@ -74,6 +83,7 @@
 }
 
 .an-dashboard__calendar-list {
+  flex: 1;
   margin-top: var(--an-space-3);
 }
 
@@ -168,7 +178,7 @@
 
 @media (max-width: 78rem) {
   .an-dashboard__main-grid {
-    grid-template-columns: minmax(0, 1.1fr) minmax(21rem, 0.9fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .an-dashboard__calendar-event {
