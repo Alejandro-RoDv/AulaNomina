@@ -1,0 +1,17 @@
+/* Ajustes específicos de la cabecera de la página Panel */
+
+.an-header__page--panel {
+  padding-top: var(--an-space-4);
+  padding-bottom: var(--an-space-4);
+}
+
+.an-header__page--panel .an-header__subtitle {
+  margin-top: var(--an-space-1);
+}
+
+@media (max-width: 48rem) {
+  .an-header__page--panel {
+    padding-top: var(--an-space-3);
+    padding-bottom: var(--an-space-3);
+  }
+}

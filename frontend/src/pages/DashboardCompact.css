@@ -1,4 +1,17 @@
-/* Ajustes compactos del Panel: métricas, pendientes y agenda */
+/* Ajustes compactos del Panel: cabecera, métricas, pendientes y agenda */
+
+.an-dashboard {
+  gap: var(--an-space-5);
+}
+
+.an-dashboard__intro {
+  padding-top: 0;
+  padding-bottom: var(--an-space-3);
+}
+
+.an-dashboard__intro-copy p {
+  margin-top: var(--an-space-1);
+}
 
 .an-dashboard__metrics {
   gap: var(--an-space-3);
@@ -55,14 +68,14 @@
 
 .an-dashboard__attention-list {
   flex: 1;
-  margin-top: var(--an-space-4);
+  margin-top: var(--an-space-3);
 }
 
 .an-dashboard__attention-item {
   grid-template-columns: 34px minmax(0, 1fr) auto 16px;
-  min-height: 64px;
+  min-height: 60px;
   gap: var(--an-space-3);
-  padding: 10px 0;
+  padding: 8px 0;
 }
 
 .an-dashboard__attention-icon {
@@ -88,15 +101,15 @@
 }
 
 .an-dashboard__calendar-event {
-  grid-template-columns: 42px minmax(0, 1fr) auto 16px;
-  min-height: 64px;
+  grid-template-columns: 40px minmax(0, 1fr) auto 16px;
+  min-height: 60px;
   gap: 10px;
-  padding: 9px 0;
+  padding: 8px 0;
 }
 
 .an-dashboard__calendar-date {
-  width: 42px;
-  height: 42px;
+  width: 40px;
+  height: 40px;
   border-radius: var(--an-radius-md);
 }
 
@@ -184,11 +197,6 @@
   .an-dashboard__calendar-event {
     grid-template-columns: 40px minmax(0, 1fr) 16px;
   }
-
-  .an-dashboard__calendar-date {
-    width: 40px;
-    height: 40px;
-  }
 }
 
 @media (max-width: 68rem) {
@@ -198,6 +206,10 @@
 }
 
 @media (max-width: 48rem) {
+  .an-dashboard {
+    gap: var(--an-space-4);
+  }
+
   .an-dashboard__metric {
     min-height: 100px;
     padding: var(--an-space-4);

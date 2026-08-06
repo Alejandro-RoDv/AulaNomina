@@ -11,6 +11,7 @@ import { fetchPayrolls } from "../../services/payrollApi";
 import { fetchWorkCenters } from "../../services/workCenterApi";
 import { generateAlerts, getAlertStats } from "../../utils/alertRules";
 import "./layout.css";
+import "./panel-header-polish.css";
 
 const SEVERITY_LABELS = {
   critical: "Crítica",
@@ -102,7 +103,11 @@ export default function Header({
   const previewAlerts = alerts.slice(0, 5);
   const showWorkerTabs = isWorkerTitle(title);
   const showContractTabs = title === "Contratos";
-  const displayTitle = title === "Dashboard" ? "Panel" : title;
+  const isPanel = title === "Dashboard";
+  const displayTitle = isPanel ? "Panel" : title;
+  const displaySubtitle = isPanel
+    ? "Visión general de la actividad y procesos pendientes"
+    : subtitle;
 
   const loadHeaderAlerts = async () => {
     try {
@@ -256,11 +261,11 @@ export default function Header({
         </div>
       </div>
 
-      <div className="an-header__page">
+      <div className={`an-header__page${isPanel ? " an-header__page--panel" : ""}`}>
         <div>
-          <p className="an-header__eyebrow">AulaNomina</p>
+          {!isPanel && <p className="an-header__eyebrow">AulaNomina</p>}
           <h1 className="an-header__title">{displayTitle}</h1>
-          {subtitle && <p className="an-header__subtitle">{subtitle}</p>}
+          {displaySubtitle && <p className="an-header__subtitle">{displaySubtitle}</p>}
         </div>
       </div>
 
