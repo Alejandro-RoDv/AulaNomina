@@ -12,6 +12,7 @@ import "./convenios-ui-fixes.js";
 import "./affiliation-siltra-bridge.js";
 import "./route-aliases.js";
 import App from "./App.jsx";
+import AccessibilityBridge from "./components/accessibility/AccessibilityBridge.jsx";
 import DesignSystemPreview from "./design-system/DesignSystemPreview.jsx";
 import CaseNavigationBridge from "./components/case-studies/CaseNavigationBridge.jsx";
 import AffiliationSiltraBridge from "./components/siltra/AffiliationSiltraBridge.jsx";
@@ -29,6 +30,7 @@ createRoot(document.getElementById("root")).render(
       <DesignSystemPreview />
     ) : (
       <>
+        <AccessibilityBridge />
         <App />
         <CaseNavigationBridge />
         <AffiliationSiltraBridge />

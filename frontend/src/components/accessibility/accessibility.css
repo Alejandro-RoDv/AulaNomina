@@ -1,0 +1,140 @@
+/* AulaNomina Design System — accesibilidad e interacción global */
+
+.an-skip-link {
+  position: fixed;
+  top: var(--an-space-3);
+  left: var(--an-space-3);
+  z-index: var(--an-z-toast);
+  display: inline-flex;
+  min-height: var(--an-control-height-md);
+  align-items: center;
+  padding: 0 var(--an-space-4);
+  border: 2px solid var(--an-color-primary-800);
+  border-radius: var(--an-radius-md);
+  background: var(--an-color-surface);
+  color: var(--an-color-primary-800);
+  box-shadow: var(--an-shadow-lg);
+  font-size: var(--an-font-size-sm);
+  font-weight: var(--an-font-weight-bold);
+  text-decoration: none;
+  transform: translateY(calc(-100% - var(--an-space-6)));
+  transition: transform var(--an-duration-fast) var(--an-ease-standard);
+}
+
+.an-skip-link:focus {
+  transform: translateY(0);
+}
+
+.an-live-region,
+.an-visually-hidden {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+.an-main-content {
+  scroll-margin-top: calc(var(--an-topbar-height) + var(--an-space-8));
+}
+
+.an-main-content:focus {
+  outline: none;
+}
+
+:where(
+  button,
+  [role="button"],
+  a[href],
+  input,
+  select,
+  textarea,
+  summary,
+  [tabindex]:not([tabindex="-1"])
+):focus-visible {
+  outline: 3px solid var(--an-color-focus-ring);
+  outline-offset: 3px;
+}
+
+:where(button, [role="button"], a[href], summary) {
+  -webkit-tap-highlight-color: rgb(37 99 235 / 16%);
+}
+
+[aria-current="page"] {
+  font-weight: var(--an-font-weight-semibold);
+}
+
+[aria-invalid="true"] {
+  border-color: var(--an-color-danger-600) !important;
+}
+
+[aria-busy="true"] {
+  cursor: progress;
+}
+
+svg[aria-hidden="true"] {
+  pointer-events: none;
+}
+
+@media (pointer: coarse) {
+  :where(button, [role="button"], a[href], summary) {
+    min-height: 2.75rem;
+  }
+}
+
+@media (prefers-contrast: more) {
+  :root {
+    --an-color-border: var(--an-color-neutral-400);
+    --an-color-border-strong: var(--an-color-neutral-600);
+    --an-color-text-secondary: var(--an-color-neutral-800);
+    --an-color-text-muted: var(--an-color-neutral-700);
+  }
+
+  :where(
+    button,
+    [role="button"],
+    a[href],
+    input,
+    select,
+    textarea,
+    summary,
+    [tabindex]:not([tabindex="-1"])
+  ):focus-visible {
+    outline-width: 4px;
+  }
+}
+
+@media (forced-colors: active) {
+  .an-skip-link,
+  :where(button, [role="button"], input, select, textarea) {
+    forced-color-adjust: auto;
+  }
+
+  :where(
+    button,
+    [role="button"],
+    a[href],
+    input,
+    select,
+    textarea,
+    summary,
+    [tabindex]:not([tabindex="-1"])
+  ):focus-visible {
+    outline: 3px solid Highlight;
+  }
+
+  [aria-current="page"] {
+    outline: 2px solid Highlight;
+    outline-offset: -2px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .an-skip-link {
+    transition: none;
+  }
+}

@@ -18,15 +18,17 @@ export function Field({
   const generatedId = useId();
   const child = Children.only(children);
   const childId = isValidElement(child) ? child.props.id : undefined;
+  const childDescribedBy = isValidElement(child) ? child.props["aria-describedby"] : undefined;
   const fieldId = id || childId || generatedId;
   const hintId = hint ? `${fieldId}-hint` : undefined;
   const errorId = error ? `${fieldId}-error` : undefined;
-  const describedBy = [hintId, errorId].filter(Boolean).join(" ") || undefined;
+  const describedBy = [childDescribedBy, hintId, errorId].filter(Boolean).join(" ") || undefined;
 
   const control = isValidElement(child)
     ? cloneElement(child, {
         id: fieldId,
         required: required || child.props.required,
+        "aria-required": required || child.props["aria-required"] || undefined,
         "aria-describedby": describedBy,
         "aria-invalid": error ? true : child.props["aria-invalid"],
       })
@@ -34,7 +36,7 @@ export function Field({
 
   return (
     <div className={joinClassNames("an-field", error && "an-field--error", className)}>
-      <label className="an-field__label">
+      <label className="an-field__label" htmlFor={fieldId}>
         <span className="an-field__label-row">
           <span>{label}</span>
           {required && <span className="an-field__required">Obligatorio</span>}

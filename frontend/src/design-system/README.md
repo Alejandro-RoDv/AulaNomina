@@ -2,7 +2,7 @@
 
 Esta carpeta contiene las fundaciones visuales compartidas por todo el frontend.
 El objetivo es evitar que cada módulo defina sus propios colores, espaciados,
-radios, sombras o tamaños de control.
+radios, sombras, tamaños de control o criterios de accesibilidad.
 
 ## Archivos
 
@@ -12,9 +12,11 @@ radios, sombras o tamaños de control.
   rediseñar todavía los módulos existentes.
 - `tokens.js`: referencias reutilizables para componentes React que todavía
   necesiten estilos inline.
+- `ACCESSIBILITY.md`: reglas de teclado, foco, semántica, formularios, estados y diálogos.
 - `DesignSystemPreview.jsx` y `preview.css`: catálogo técnico temporal para
   revisar visualmente los componentes antes de migrar módulos completos.
 - `../components/ui/`: biblioteca de componentes React reutilizables.
+- `../components/accessibility/`: capa global de navegación accesible y anuncios de ruta.
 
 ## Componentes disponibles
 
@@ -29,6 +31,9 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
+  Dialog,
+  Drawer,
+  EmptyState,
   Field,
   Input,
   Select,
@@ -61,6 +66,9 @@ http://localhost:5173/?design-system=1
 6. Mantener como máximo una acción primaria visible por bloque de contenido.
 7. Antes de crear una variante visual nueva, comprobar si el componente base
    ya resuelve el caso mediante sus propiedades.
+8. Ningún componente interactivo puede depender exclusivamente del ratón o del color.
+9. Los controles deben conservar un nombre accesible y un estado de foco visible.
+10. Toda pantalla migrada debe superar la comprobación manual definida en `ACCESSIBILITY.md`.
 
 ## Ejemplo CSS
 
