@@ -1,0 +1,215 @@
+/* AulaNomina Design System — movimiento y microinteracciones
+ *
+ * El movimiento comunica cambio de estado y respuesta a una acción. No se usa
+ * como decoración ni debe retrasar la interacción.
+ */
+
+.an-page-is-entering > * {
+  animation: an-page-enter var(--an-duration-slow) var(--an-ease-standard) both;
+}
+
+.an-button,
+.an-action-card__button,
+.an-table__icon-button,
+.an-table__pagination button,
+.an-header__action-button,
+.an-header__alert-button,
+.an-header__plain-button,
+.an-header__primary-button,
+.an-header__danger-button,
+.an-sidebar__panel,
+.an-sidebar__group-toggle,
+.an-sidebar__item,
+.an-sidebar__subitem,
+.an-sidebar__item-toggle {
+  transition-duration: var(--an-duration-fast);
+  transition-timing-function: var(--an-ease-standard);
+}
+
+.an-card,
+.an-pattern-card,
+.an-data-table__toolbar,
+.an-table-scroll,
+.an-state-panel,
+.an-alert {
+  transition:
+    border-color var(--an-duration-normal) var(--an-ease-standard),
+    box-shadow var(--an-duration-normal) var(--an-ease-standard),
+    background-color var(--an-duration-normal) var(--an-ease-standard),
+    transform var(--an-duration-normal) var(--an-ease-standard);
+}
+
+.an-badge,
+.an-status-card__badge,
+.an-header__counter {
+  transition:
+    background-color var(--an-duration-fast) var(--an-ease-standard),
+    border-color var(--an-duration-fast) var(--an-ease-standard),
+    color var(--an-duration-fast) var(--an-ease-standard);
+}
+
+.an-sidebar__group-items,
+.an-sidebar__subitems {
+  transform-origin: top;
+  animation: an-disclosure-enter var(--an-duration-normal) var(--an-ease-standard) both;
+}
+
+.an-header__alert-dropdown,
+.company-menu {
+  transform-origin: top right;
+  animation: an-popover-enter var(--an-duration-normal) var(--an-ease-standard) both;
+}
+
+.an-dialog__body > *,
+.an-drawer__body > * {
+  animation: an-content-settle var(--an-duration-slow) var(--an-ease-standard) both;
+}
+
+.an-button__icon,
+.an-action-card__button svg,
+.an-table__icon-button svg,
+.an-header__action-button svg,
+.an-header__alert-button svg {
+  transition: transform var(--an-duration-fast) var(--an-ease-standard);
+}
+
+.an-table__row--interactive .an-table__primary-link,
+.an-table__row--interactive .an-table__primary-title {
+  transition: color var(--an-duration-fast) var(--an-ease-standard);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .an-button:hover:not(:disabled),
+  .an-action-card__button:hover:not(:disabled),
+  .an-table__icon-button:hover:not(:disabled),
+  .an-header__action-button:hover:not(:disabled),
+  .an-header__alert-button:hover:not(:disabled) {
+    transform: translateY(-1px);
+  }
+
+  .an-button:hover:not(:disabled) .an-button__icon,
+  .an-action-card__button:hover:not(:disabled) svg {
+    transform: translateX(1px);
+  }
+
+  .an-stat-card:hover,
+  .an-action-card:hover:not(.is-disabled) {
+    border-color: var(--an-color-border-strong);
+    box-shadow: var(--an-shadow-sm);
+    transform: translateY(-1px);
+  }
+
+  .an-table__row--interactive:hover .an-table__primary-link,
+  .an-table__row--interactive:hover .an-table__primary-title {
+    color: var(--an-color-text-link);
+  }
+}
+
+.an-button:active:not(:disabled),
+.an-action-card__button:active:not(:disabled),
+.an-table__icon-button:active:not(:disabled),
+.an-header__action-button:active:not(:disabled),
+.an-header__alert-button:active:not(:disabled) {
+  transform: translateY(0) scale(0.985);
+}
+
+@keyframes an-page-enter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes an-disclosure-enter {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scaleY(0.985);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scaleY(1);
+  }
+}
+
+@keyframes an-popover-enter {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.985);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes an-content-settle {
+  from {
+    opacity: 0;
+    transform: translateY(3px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .an-page-is-entering > *,
+  .an-sidebar__group-items,
+  .an-sidebar__subitems,
+  .an-header__alert-dropdown,
+  .company-menu,
+  .an-dialog__body > *,
+  .an-drawer__body > * {
+    animation: none !important;
+  }
+
+  .an-button,
+  .an-action-card__button,
+  .an-table__icon-button,
+  .an-table__pagination button,
+  .an-header__action-button,
+  .an-header__alert-button,
+  .an-header__plain-button,
+  .an-header__primary-button,
+  .an-header__danger-button,
+  .an-sidebar__panel,
+  .an-sidebar__group-toggle,
+  .an-sidebar__item,
+  .an-sidebar__subitem,
+  .an-sidebar__item-toggle,
+  .an-card,
+  .an-pattern-card,
+  .an-data-table__toolbar,
+  .an-table-scroll,
+  .an-state-panel,
+  .an-alert,
+  .an-badge,
+  .an-status-card__badge,
+  .an-header__counter {
+    transition: none !important;
+  }
+
+  .an-button:hover:not(:disabled),
+  .an-button:active:not(:disabled),
+  .an-action-card:hover:not(.is-disabled),
+  .an-action-card__button:hover:not(:disabled),
+  .an-action-card__button:active:not(:disabled),
+  .an-table__icon-button:hover:not(:disabled),
+  .an-table__icon-button:active:not(:disabled),
+  .an-header__action-button:hover:not(:disabled),
+  .an-header__action-button:active:not(:disabled),
+  .an-header__alert-button:hover:not(:disabled),
+  .an-header__alert-button:active:not(:disabled),
+  .an-stat-card:hover {
+    transform: none !important;
+  }
+}
