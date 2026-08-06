@@ -93,7 +93,6 @@ export default function Dashboard({
   const quickActions = [
     {
       label: "Nueva empresa",
-      description: "Crear estructura",
       icon: Building2,
       onClick: () => openPage("companies", {
         hash: "#company-companies",
@@ -103,19 +102,16 @@ export default function Dashboard({
     },
     {
       label: "Nuevo trabajador",
-      description: "Dar de alta",
       icon: Users,
       onClick: () => openPage("employees"),
     },
     {
       label: "Nuevo contrato",
-      description: "Iniciar relación",
       icon: FileText,
       onClick: () => openPage("contracts", { modeGroup: "contracts", modeValue: "new" }),
     },
     {
       label: "Preparar nómina",
-      description: "Abrir periodo",
       icon: Receipt,
       onClick: () => openPage("payroll-monthly-preparation"),
     },
@@ -196,42 +192,33 @@ export default function Dashboard({
 
   return (
     <Page className="an-dashboard" spacing="default">
-      <section className="an-dashboard__welcome">
-        <div className="an-dashboard__welcome-copy">
-          <span className="an-dashboard__welcome-icon" aria-hidden="true">
-            <Building2 />
-          </span>
-          <div>
-            <p className="an-dashboard__section-label">AulaNomina</p>
-            <h2>Bienvenido a AulaNomina</h2>
-            <p>
-              Consulta y gestiona empresas, trabajadores, contratos, incidencias y nóminas
-              desde un único espacio de trabajo.
-            </p>
-            <div className="an-dashboard__welcome-meta">
-              <span className="an-dashboard__availability">Entorno disponible</span>
-              <span>Última nómina: {getPayrollPeriod(latestPayroll)}</span>
-            </div>
-          </div>
+      <section className="an-dashboard__intro" aria-labelledby="dashboard-welcome-title">
+        <div className="an-dashboard__intro-copy">
+          <h2 id="dashboard-welcome-title">Bienvenido</h2>
+          <p>Consulta el estado general y accede a las operaciones más habituales.</p>
         </div>
+        <div className="an-dashboard__intro-meta" aria-label="Estado del entorno">
+          <span className="an-dashboard__availability">Entorno disponible</span>
+          <span>Última nómina: <strong>{getPayrollPeriod(latestPayroll)}</strong></span>
+        </div>
+      </section>
 
-        <div className="an-dashboard__quick-area">
-          <p className="an-dashboard__section-label">Acciones rápidas</p>
-          <div className="an-dashboard__quick-grid">
-            {quickActions.map((action) => {
-              const Icon = action.icon;
-              return (
-                <button key={action.label} type="button" className="an-dashboard__quick-action" onClick={action.onClick}>
-                  <span className="an-dashboard__quick-icon" aria-hidden="true"><Icon /></span>
-                  <span>
-                    <strong>{action.label}</strong>
-                    <small>{action.description}</small>
-                  </span>
-                  <ArrowRight aria-hidden="true" />
-                </button>
-              );
-            })}
-          </div>
+      <section className="an-dashboard__quick-toolbar" aria-labelledby="dashboard-quick-actions-title">
+        <div className="an-dashboard__quick-heading">
+          <p className="an-dashboard__section-label" id="dashboard-quick-actions-title">Acciones rápidas</p>
+          <span>Operaciones frecuentes</span>
+        </div>
+        <div className="an-dashboard__quick-row">
+          {quickActions.map((action) => {
+            const Icon = action.icon;
+            return (
+              <button key={action.label} type="button" className="an-dashboard__quick-button" onClick={action.onClick}>
+                <span className="an-dashboard__quick-button-icon" aria-hidden="true"><Icon /></span>
+                <strong>{action.label}</strong>
+                <ArrowRight aria-hidden="true" />
+              </button>
+            );
+          })}
         </div>
       </section>
 

@@ -3,9 +3,11 @@ import { createRoot } from "react-dom/client";
 import "./index.css";
 import "./design-system/tokens.css";
 import "./design-system/foundations.css";
+import "./design-system/polish.css";
 import "./components/ui/ui.css";
 import "./components/incidents/incidentTable.css";
 import "./components/mail/mailScenarioValidation.css";
+import "./pages/DashboardIntro.css";
 import "./payroll-print.css";
 import "./contract-print-v5-fixes.js";
 import "./convenios-ui-fixes.js";
@@ -22,7 +24,6 @@ import CraRoute from "./components/cra/CraRoute.jsx";
 import FieRoute from "./components/fie/FieRoute.jsx";
 import MailLauncherBridge from "./components/mail/MailLauncherBridge.jsx";
 import MailRoute from "./components/mail/MailRoute.jsx";
-import "./design-system/polish.css";
 
 const showDesignSystem = new URLSearchParams(window.location.search).has("design-system");
 
