@@ -1,0 +1,144 @@
+/* AulaNomina Design System — estados de carga, vacío, error y confirmación */
+
+.an-state {
+  display: flex;
+  min-width: 0;
+  min-height: 13rem;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: var(--an-space-4);
+  padding: var(--an-space-10);
+  border: 1px solid var(--an-color-border);
+  border-radius: var(--an-radius-lg);
+  background: var(--an-color-surface);
+  color: var(--an-color-text-primary);
+  text-align: center;
+  box-shadow: var(--an-shadow-xs);
+}
+
+.an-state--compact {
+  min-height: 0;
+  padding: var(--an-space-6);
+}
+
+.an-state--spacious {
+  min-height: 18rem;
+  padding: var(--an-space-16);
+}
+
+.an-state__icon {
+  display: inline-flex;
+  width: 3rem;
+  height: 3rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--an-radius-xl);
+  background: var(--an-color-surface-muted);
+  color: var(--an-color-text-secondary);
+}
+
+.an-state__icon svg {
+  width: 1.5rem;
+  height: 1.5rem;
+  stroke-width: 1.8;
+}
+
+.an-state__copy {
+  display: flex;
+  max-width: 36rem;
+  flex-direction: column;
+  gap: var(--an-space-2);
+}
+
+.an-state__title {
+  margin: 0;
+  color: var(--an-color-text-primary);
+  font-size: var(--an-font-size-lg);
+  font-weight: var(--an-font-weight-bold);
+  line-height: var(--an-line-height-heading);
+}
+
+.an-state__description {
+  margin: 0;
+  color: var(--an-color-text-secondary);
+  font-size: var(--an-font-size-sm);
+  line-height: var(--an-line-height-relaxed);
+}
+
+.an-state__actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: var(--an-space-2);
+  margin-top: var(--an-space-1);
+}
+
+.an-state--info .an-state__icon {
+  background: var(--an-color-info-50);
+  color: var(--an-color-info-700);
+}
+
+.an-state--success {
+  border-color: var(--an-color-success-100);
+}
+
+.an-state--success .an-state__icon {
+  background: var(--an-color-success-50);
+  color: var(--an-color-success-700);
+}
+
+.an-state--warning {
+  border-color: var(--an-color-warning-100);
+}
+
+.an-state--warning .an-state__icon {
+  background: var(--an-color-warning-50);
+  color: var(--an-color-warning-700);
+}
+
+.an-state--danger {
+  border-color: var(--an-color-danger-100);
+}
+
+.an-state--danger .an-state__icon {
+  background: var(--an-color-danger-50);
+  color: var(--an-color-danger-700);
+}
+
+.an-state.is-loading .an-state__icon svg {
+  animation: an-state-spin 900ms linear infinite;
+}
+
+@keyframes an-state-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 40rem) {
+  .an-state,
+  .an-state--spacious {
+    min-height: 0;
+    padding: var(--an-space-8) var(--an-space-5);
+  }
+
+  .an-state--compact {
+    padding: var(--an-space-5);
+  }
+
+  .an-state__actions {
+    width: 100%;
+  }
+
+  .an-state__actions > * {
+    flex: 1 1 auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .an-state.is-loading .an-state__icon svg {
+    animation-duration: 1800ms;
+  }
+}

@@ -10,14 +10,19 @@ import {
   ContentCard,
   DataTable,
   DataTableSearch,
+  EmptyState,
+  ErrorState,
   Field,
   Form,
   FormActions,
   FormGrid,
   FormSection,
   Input,
+  LoadingState,
+  NoResultsState,
   StatCard,
   StatusCard,
+  SuccessState,
   Table,
   TableBody,
   TableCell,
@@ -57,10 +62,21 @@ Los formularios deben agrupar la información por significado. No se deben mostr
 - `TableHeaderCell`: soporta ordenación y estado accesible mediante `aria-sort`.
 - `TablePrimaryCell`: muestra el dato principal y su metainformación.
 - `TableActions` y `TableIconButton`: limitan y alinean las acciones por fila.
-- `TableEmpty`: estado vacío común.
+- `TableEmpty`: estado vacío dentro de una tabla.
 - `TablePagination`: navegación entre páginas cuando el volumen lo requiera.
 
 Las tablas deben priorizar la lectura. La primera columna identifica el registro, los estados usan `Badge` y las acciones secundarias se agrupan en un menú. En móvil, las filas se convierten en tarjetas con etiquetas visibles.
+
+## Estados de pantalla
+
+- `LoadingState`: consulta o proceso que todavía no ha terminado.
+- `EmptyState`: módulo sin registros creados; debe incluir la acción que permita comenzar cuando exista.
+- `NoResultsState`: existen datos, pero la búsqueda o los filtros no devuelven coincidencias.
+- `ErrorState`: fallo que impide continuar y requiere corrección o reintento.
+- `SuccessState`: confirmación relevante que sustituye temporalmente al contenido anterior.
+- `StatePanel`: base común para estados específicos no contemplados por los componentes anteriores.
+
+Los estados de pantalla sustituyen al contenido principal y no deben confundirse con `Alert`, que comunica mensajes breves dentro de un flujo ya visible. Todos admiten tamaño `compact`, `default` o `spacious` y una única zona de acciones.
 
 ## Criterios
 

@@ -9,11 +9,13 @@ import {
   DataTableSearch,
   DataTableSummary,
   DataTableToolbar,
+  EmptyState,
+  LoadingState,
+  NoResultsState,
   Table,
   TableActions,
   TableBody,
   TableCell,
-  TableEmpty,
   TableHead,
   TableHeaderCell,
   TableIconButton,
@@ -57,7 +59,15 @@ function buildDuplicatePayload(source, form) {
   return payload;
 }
 
-export default function CompanyDirectory({ companies, workCenters, loading, onOpenCompany, onDeleteCompany, onCreated }) {
+export default function CompanyDirectory({
+  companies,
+  workCenters,
+  loading,
+  onOpenCompany,
+  onDeleteCompany,
+  onCreated,
+  onCreateCompany,
+}) {
   const [filters, setFilters] = useState(EMPTY_FILTERS);
   const [sortConfig, setSortConfig] = useState({ key: "name", direction: "asc" });
   const [openMenuId, setOpenMenuId] = useState(null);
@@ -111,7 +121,6 @@ export default function CompanyDirectory({ companies, workCenters, loading, onOp
   }, [companies, filters, sortConfig, centerCounts]);
 
   const activeFilters = Object.values(filters).filter(Boolean).length;
-
   const sortDirection = (key) => sortConfig.key === key ? sortConfig.direction : null;
   const sortBy = (key) => setSortConfig((current) => nextSortConfig(current, key));
 
@@ -154,6 +163,29 @@ export default function CompanyDirectory({ companies, workCenters, loading, onOp
       setSubmitting(false);
     }
   };
+
+  if (loading) {
+    return (
+      <LoadingState
+        size="compact"
+        title="Cargando empresas"
+        description="Estamos recuperando las empresas, sus centros y la configuración asociada."
+      />
+    );
+  }
+
+  if (!companies.length) {
+    return (
+      <EmptyState
+        size="spacious"
+        title="Todavía no hay empresas"
+        description="Crea la primera empresa para empezar a configurar centros, trabajadores, contratos y nóminas."
+        actions={onCreateCompany ? (
+          <Button onClick={onCreateCompany}>Crear primera empresa</Button>
+        ) : null}
+      />
+    );
+  }
 
   return (
     <>
@@ -204,132 +236,129 @@ export default function CompanyDirectory({ companies, workCenters, loading, onOp
           total={companies.length}
         />
 
-        <Table aria-label="Empresas registradas" minWidth="66rem">
-          <TableHead>
-            <TableRow>
-              <TableHeaderCell
-                sortable
-                direction={sortDirection("name")}
-                onSort={() => sortBy("name")}
-                style={{ width: "24%" }}
-              >
-                Empresa
-              </TableHeaderCell>
-              <TableHeaderCell
-                sortable
-                direction={sortDirection("status")}
-                onSort={() => sortBy("status")}
-                style={{ width: "11%" }}
-              >
-                Estado
-              </TableHeaderCell>
-              <TableHeaderCell
-                sortable
-                direction={sortDirection("company_type")}
-                onSort={() => sortBy("company_type")}
-                style={{ width: "12%" }}
-              >
-                Tipo
-              </TableHeaderCell>
-              <TableHeaderCell
-                sortable
-                direction={sortDirection("ccc")}
-                onSort={() => sortBy("ccc")}
-                style={{ width: "15%" }}
-              >
-                CCC principal
-              </TableHeaderCell>
-              <TableHeaderCell
-                sortable
-                direction={sortDirection("agreement")}
-                onSort={() => sortBy("agreement")}
-                style={{ width: "21%" }}
-              >
-                Convenio
-              </TableHeaderCell>
-              <TableHeaderCell
-                sortable
-                direction={sortDirection("centers")}
-                onSort={() => sortBy("centers")}
-                align="center"
-                style={{ width: "7%" }}
-              >
-                Centros
-              </TableHeaderCell>
-              <TableHeaderCell align="right" style={{ width: "10%" }}>Acciones</TableHeaderCell>
-            </TableRow>
-          </TableHead>
-
-          <TableBody>
-            {loading && (
-              <TableEmpty
-                colSpan={7}
-                title="Cargando empresas"
-                description="Los datos aparecerán en cuanto finalice la consulta."
-              />
-            )}
-
-            {!loading && filtered.map((company) => (
-              <TableRow key={company.id} interactive>
-                <TableCell label="Empresa">
-                  <TablePrimaryCell
-                    title={company.name}
-                    meta={`CIF ${company.cif || "sin informar"} · Código EMP-${String(company.id).padStart(4, "0")}`}
-                    onClick={() => onOpenCompany(company)}
-                  />
-                </TableCell>
-                <TableCell label="Estado">
-                  <Badge tone={statusTone(company.status)} dot>{formatStatus(company.status)}</Badge>
-                </TableCell>
-                <TableCell label="Tipo">{company.company_type || "Sin definir"}</TableCell>
-                <TableCell label="CCC principal">{company.ccc || "Sin informar"}</TableCell>
-                <TableCell label="Convenio">{company.main_collective_agreement || "Sin asignar"}</TableCell>
-                <TableCell label="Centros" align="center">{centerCounts[String(company.id)] || 0}</TableCell>
-                <TableCell label="Acciones" align="right">
-                  <TableActions>
-                    <Button variant="secondary" size="sm" onClick={() => onOpenCompany(company)}>
-                      Abrir
-                    </Button>
-                    <div className="company-menu-container">
-                      <TableIconButton
-                        label={`Más acciones para ${company.name}`}
-                        aria-expanded={openMenuId === company.id}
-                        onClick={() => setOpenMenuId((current) => current === company.id ? null : company.id)}
-                      >
-                        <MoreVertical aria-hidden="true" />
-                      </TableIconButton>
-                      {openMenuId === company.id && (
-                        <div className="company-menu">
-                          <button type="button" onClick={() => onOpenCompany(company)}>Editar datos generales</button>
-                          <button type="button" onClick={() => openDuplicate(company)}>Duplicar empresa</button>
-                          <button
-                            type="button"
-                            className="company-menu-danger"
-                            onClick={() => {
-                              setOpenMenuId(null);
-                              setDeleteCompany(company);
-                              setError("");
-                            }}
-                          >
-                            Eliminar empresa
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  </TableActions>
-                </TableCell>
+        {filtered.length > 0 ? (
+          <Table aria-label="Empresas registradas" minWidth="66rem">
+            <TableHead>
+              <TableRow>
+                <TableHeaderCell
+                  sortable
+                  direction={sortDirection("name")}
+                  onSort={() => sortBy("name")}
+                  style={{ width: "24%" }}
+                >
+                  Empresa
+                </TableHeaderCell>
+                <TableHeaderCell
+                  sortable
+                  direction={sortDirection("status")}
+                  onSort={() => sortBy("status")}
+                  style={{ width: "11%" }}
+                >
+                  Estado
+                </TableHeaderCell>
+                <TableHeaderCell
+                  sortable
+                  direction={sortDirection("company_type")}
+                  onSort={() => sortBy("company_type")}
+                  style={{ width: "12%" }}
+                >
+                  Tipo
+                </TableHeaderCell>
+                <TableHeaderCell
+                  sortable
+                  direction={sortDirection("ccc")}
+                  onSort={() => sortBy("ccc")}
+                  style={{ width: "15%" }}
+                >
+                  CCC principal
+                </TableHeaderCell>
+                <TableHeaderCell
+                  sortable
+                  direction={sortDirection("agreement")}
+                  onSort={() => sortBy("agreement")}
+                  style={{ width: "21%" }}
+                >
+                  Convenio
+                </TableHeaderCell>
+                <TableHeaderCell
+                  sortable
+                  direction={sortDirection("centers")}
+                  onSort={() => sortBy("centers")}
+                  align="center"
+                  style={{ width: "7%" }}
+                >
+                  Centros
+                </TableHeaderCell>
+                <TableHeaderCell align="right" style={{ width: "10%" }}>Acciones</TableHeaderCell>
               </TableRow>
-            ))}
+            </TableHead>
 
-            {!loading && !filtered.length && (
-              <TableEmpty
-                colSpan={7}
-                title="No hay empresas coincidentes"
-                description="Modifica la búsqueda o elimina alguno de los filtros aplicados."
-              />
+            <TableBody>
+              {filtered.map((company) => (
+                <TableRow key={company.id} interactive>
+                  <TableCell label="Empresa">
+                    <TablePrimaryCell
+                      title={company.name}
+                      meta={`CIF ${company.cif || "sin informar"} · Código EMP-${String(company.id).padStart(4, "0")}`}
+                      onClick={() => onOpenCompany(company)}
+                    />
+                  </TableCell>
+                  <TableCell label="Estado">
+                    <Badge tone={statusTone(company.status)} dot>{formatStatus(company.status)}</Badge>
+                  </TableCell>
+                  <TableCell label="Tipo">{company.company_type || "Sin definir"}</TableCell>
+                  <TableCell label="CCC principal">{company.ccc || "Sin informar"}</TableCell>
+                  <TableCell label="Convenio">{company.main_collective_agreement || "Sin asignar"}</TableCell>
+                  <TableCell label="Centros" align="center">{centerCounts[String(company.id)] || 0}</TableCell>
+                  <TableCell label="Acciones" align="right">
+                    <TableActions>
+                      <Button variant="secondary" size="sm" onClick={() => onOpenCompany(company)}>
+                        Abrir
+                      </Button>
+                      <div className="company-menu-container">
+                        <TableIconButton
+                          label={`Más acciones para ${company.name}`}
+                          aria-expanded={openMenuId === company.id}
+                          onClick={() => setOpenMenuId((current) => current === company.id ? null : company.id)}
+                        >
+                          <MoreVertical aria-hidden="true" />
+                        </TableIconButton>
+                        {openMenuId === company.id && (
+                          <div className="company-menu">
+                            <button type="button" onClick={() => onOpenCompany(company)}>Editar datos generales</button>
+                            <button type="button" onClick={() => openDuplicate(company)}>Duplicar empresa</button>
+                            <button
+                              type="button"
+                              className="company-menu-danger"
+                              onClick={() => {
+                                setOpenMenuId(null);
+                                setDeleteCompany(company);
+                                setError("");
+                              }}
+                            >
+                              Eliminar empresa
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </TableActions>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        ) : (
+          <NoResultsState
+            size="compact"
+            title="No hay empresas coincidentes"
+            description="Modifica la búsqueda o elimina alguno de los filtros aplicados."
+            actions={(
+              <Button variant="secondary" size="sm" onClick={() => setFilters(EMPTY_FILTERS)}>
+                Limpiar filtros
+              </Button>
             )}
-          </TableBody>
-        </Table>
+          />
+        )}
       </DataTable>
 
       {duplicateCompany && (

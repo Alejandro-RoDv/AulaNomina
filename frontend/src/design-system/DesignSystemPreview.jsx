@@ -17,9 +17,14 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
+  EmptyState,
+  ErrorState,
   Field,
   Input,
+  LoadingState,
+  NoResultsState,
   Select,
+  SuccessState,
   Textarea,
 } from "../components/ui/index.js";
 import "./preview.css";
@@ -44,7 +49,7 @@ export default function DesignSystemPreview() {
             <ArrowLeft aria-hidden="true" />
             Volver a AulaNomina
           </a>
-          <Badge tone="brand">Paso 41.2</Badge>
+          <Badge tone="brand">Paso 41.9</Badge>
         </div>
       </header>
 
@@ -54,7 +59,7 @@ export default function DesignSystemPreview() {
             <p className="an-preview__eyebrow">AulaNomina Design System</p>
             <h1>Componentes base</h1>
             <p className="an-preview__lead">
-              Primera biblioteca reutilizable para sustituir los estilos aislados de los módulos.
+              Biblioteca reutilizable para sustituir los estilos aislados de los módulos.
               Esta pantalla es técnica y no forma parte de la navegación comercial.
             </p>
           </div>
@@ -100,8 +105,8 @@ export default function DesignSystemPreview() {
 
         <section className="an-preview__section" aria-labelledby="preview-badges">
           <div className="an-preview__section-heading">
-            <h2 id="preview-badges">Estados</h2>
-            <p>Los estados usan color semántico sin convertir toda la pantalla en un semáforo.</p>
+            <h2 id="preview-badges">Estados semánticos</h2>
+            <p>El color comunica el estado sin convertir toda la pantalla en un semáforo.</p>
           </div>
           <Card>
             <div className="an-preview__component-row">
@@ -190,10 +195,43 @@ export default function DesignSystemPreview() {
           </Card>
         </section>
 
+        <section className="an-preview__section" aria-labelledby="preview-system-states">
+          <div className="an-preview__section-heading">
+            <h2 id="preview-system-states">Estados de pantalla</h2>
+            <p>Carga, ausencia de datos, filtros sin coincidencias, error y confirmación comparten composición.</p>
+          </div>
+          <div className="an-preview__state-grid">
+            <LoadingState size="compact" title="Cargando nóminas" />
+            <EmptyState
+              size="compact"
+              title="Todavía no hay trabajadores"
+              description="Crea el primer trabajador para comenzar el caso práctico."
+              actions={<Button size="sm">Crear trabajador</Button>}
+            />
+            <NoResultsState
+              size="compact"
+              title="Sin coincidencias"
+              actions={<Button size="sm" variant="secondary">Limpiar filtros</Button>}
+            />
+            <ErrorState
+              size="compact"
+              title="No se pudieron cargar los contratos"
+              description="Comprueba la conexión con el backend y vuelve a intentarlo."
+              actions={<Button size="sm" variant="secondary">Reintentar</Button>}
+            />
+            <SuccessState
+              size="compact"
+              title="Empresa creada"
+              description="Ya puedes configurar sus centros y preferencias."
+              actions={<Button size="sm" variant="secondary">Abrir ficha</Button>}
+            />
+          </div>
+        </section>
+
         <section className="an-preview__section" aria-labelledby="preview-alerts">
           <div className="an-preview__section-heading">
             <h2 id="preview-alerts">Mensajes del sistema</h2>
-            <p>Información, confirmaciones, advertencias y errores comparten estructura.</p>
+            <p>Los avisos breves se muestran dentro del flujo sin sustituir el contenido de la pantalla.</p>
           </div>
           <div className="an-preview__alert-stack">
             <Alert title="Información del entorno" tone="info" icon={<Info />}>
