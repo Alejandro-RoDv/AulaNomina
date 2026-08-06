@@ -12,6 +12,41 @@ radios, sombras o tamaños de control.
   rediseñar todavía los módulos existentes.
 - `tokens.js`: referencias reutilizables para componentes React que todavía
   necesiten estilos inline.
+- `DesignSystemPreview.jsx` y `preview.css`: catálogo técnico temporal para
+  revisar visualmente los componentes antes de migrar módulos completos.
+- `../components/ui/`: biblioteca de componentes React reutilizables.
+
+## Componentes disponibles
+
+```jsx
+import {
+  Alert,
+  Badge,
+  Button,
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+  Field,
+  Input,
+  Select,
+  Textarea,
+} from "../components/ui/index.js";
+```
+
+La vista previa se abre durante el desarrollo añadiendo este parámetro a la URL:
+
+```text
+?design-system=1
+```
+
+Por ejemplo, con Vite en local:
+
+```text
+http://localhost:5173/?design-system=1
+```
 
 ## Reglas de uso
 
@@ -24,6 +59,8 @@ radios, sombras o tamaños de control.
 5. Reservar el amarillo para identidad de marca, resaltados didácticos muy
    concretos y elementos propios de AulaNomina.
 6. Mantener como máximo una acción primaria visible por bloque de contenido.
+7. Antes de crear una variante visual nueva, comprobar si el componente base
+   ya resuelve el caso mediante sus propiedades.
 
 ## Ejemplo CSS
 
@@ -37,16 +74,18 @@ radios, sombras o tamaños de control.
 }
 ```
 
-## Ejemplo React con estilo inline
+## Ejemplo React
 
 ```jsx
-import { designTokens } from "../design-system/tokens.js";
+import { Button, Card, CardContent, CardHeader, CardTitle } from "../components/ui/index.js";
 
-const style = {
-  padding: designTokens.space[6],
-  color: designTokens.color.textPrimary,
-  background: designTokens.color.surface,
-};
+<Card>
+  <CardHeader>
+    <CardTitle>Trabajadores</CardTitle>
+  </CardHeader>
+  <CardContent>127 trabajadores activos</CardContent>
+  <Button>Nuevo trabajador</Button>
+</Card>;
 ```
 
 Los alias antiguos (`--text`, `--accent`, `--border`, etc.) se mantienen de

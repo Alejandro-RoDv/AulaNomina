@@ -1,0 +1,216 @@
+import {
+  AlertCircle,
+  ArrowLeft,
+  CheckCircle2,
+  Info,
+  Plus,
+  Save,
+  TriangleAlert,
+} from "lucide-react";
+import {
+  Alert,
+  Badge,
+  Button,
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+  Field,
+  Input,
+  Select,
+  Textarea,
+} from "../components/ui/index.js";
+import "./preview.css";
+
+const SWATCHES = [
+  { label: "Acción principal", className: "an-preview__swatch--primary" },
+  { label: "Marca", className: "an-preview__swatch--brand" },
+  { label: "Éxito", className: "an-preview__swatch--success" },
+  { label: "Advertencia", className: "an-preview__swatch--warning" },
+  { label: "Error", className: "an-preview__swatch--danger" },
+  { label: "Superficie", className: "an-preview__swatch--surface" },
+];
+
+export default function DesignSystemPreview() {
+  const returnPath = window.location.pathname || "/";
+
+  return (
+    <div className="an-preview">
+      <header className="an-preview__topbar">
+        <div className="an-preview__topbar-content">
+          <a className="an-preview__back" href={returnPath}>
+            <ArrowLeft aria-hidden="true" />
+            Volver a AulaNomina
+          </a>
+          <Badge tone="brand">Paso 41.2</Badge>
+        </div>
+      </header>
+
+      <main className="an-preview__main">
+        <div className="an-preview__intro">
+          <div>
+            <p className="an-preview__eyebrow">AulaNomina Design System</p>
+            <h1>Componentes base</h1>
+            <p className="an-preview__lead">
+              Primera biblioteca reutilizable para sustituir los estilos aislados de los módulos.
+              Esta pantalla es técnica y no forma parte de la navegación comercial.
+            </p>
+          </div>
+          <Button icon={<Plus />}>Nueva empresa</Button>
+        </div>
+
+        <section className="an-preview__section" aria-labelledby="preview-colors">
+          <div className="an-preview__section-heading">
+            <h2 id="preview-colors">Paleta funcional</h2>
+            <p>El amarillo identifica la marca. El azul queda reservado para la acción dominante.</p>
+          </div>
+          <div className="an-preview__swatches">
+            {SWATCHES.map((swatch) => (
+              <div className="an-preview__swatch-item" key={swatch.label}>
+                <span className={`an-preview__swatch ${swatch.className}`} />
+                <span>{swatch.label}</span>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="an-preview__section" aria-labelledby="preview-buttons">
+          <div className="an-preview__section-heading">
+            <h2 id="preview-buttons">Botones</h2>
+            <p>Cuatro variantes, tres tamaños y estados consistentes.</p>
+          </div>
+          <Card>
+            <div className="an-preview__component-row">
+              <Button icon={<Save />}>Guardar cambios</Button>
+              <Button variant="secondary">Vista previa</Button>
+              <Button variant="ghost">Cancelar</Button>
+              <Button variant="danger">Eliminar</Button>
+              <Button loading>Procesando</Button>
+              <Button disabled>Deshabilitado</Button>
+            </div>
+            <div className="an-preview__component-row an-preview__component-row--sizes">
+              <Button size="sm" variant="secondary">Pequeño</Button>
+              <Button size="md" variant="secondary">Mediano</Button>
+              <Button size="lg" variant="secondary">Grande</Button>
+            </div>
+          </Card>
+        </section>
+
+        <section className="an-preview__section" aria-labelledby="preview-badges">
+          <div className="an-preview__section-heading">
+            <h2 id="preview-badges">Estados</h2>
+            <p>Los estados usan color semántico sin convertir toda la pantalla en un semáforo.</p>
+          </div>
+          <Card>
+            <div className="an-preview__component-row">
+              <Badge dot>Sin iniciar</Badge>
+              <Badge tone="brand" dot>Demo</Badge>
+              <Badge tone="info" dot>En revisión</Badge>
+              <Badge tone="success" dot>Validado</Badge>
+              <Badge tone="warning" dot>Con avisos</Badge>
+              <Badge tone="danger" dot>Rechazado</Badge>
+            </div>
+          </Card>
+        </section>
+
+        <section className="an-preview__section" aria-labelledby="preview-cards">
+          <div className="an-preview__section-heading">
+            <h2 id="preview-cards">Tarjetas</h2>
+            <p>La misma estructura sirve para contenido, indicadores y acciones contextuales.</p>
+          </div>
+          <div className="an-preview__card-grid">
+            <Card>
+              <CardHeader actions={<Badge tone="success">Activo</Badge>}>
+                <CardTitle>Trabajadores</CardTitle>
+                <CardDescription>Personas disponibles en el entorno de simulación.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <strong className="an-preview__metric">127</strong>
+                <p className="an-preview__metric-detail">4 altas durante este periodo</p>
+              </CardContent>
+            </Card>
+
+            <Card variant="subtle">
+              <CardHeader>
+                <CardTitle>Cierre de nómina</CardTitle>
+                <CardDescription>Periodo diciembre de 2026.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="an-preview__body-copy">
+                  Quedan tres incidencias pendientes antes de cerrar el proceso.
+                </p>
+              </CardContent>
+              <CardFooter>
+                <Button variant="secondary">Revisar incidencias</Button>
+                <Button>Continuar</Button>
+              </CardFooter>
+            </Card>
+          </div>
+        </section>
+
+        <section className="an-preview__section" aria-labelledby="preview-form">
+          <div className="an-preview__section-heading">
+            <h2 id="preview-form">Formulario</h2>
+            <p>Controles de 44 px, etiquetas consistentes y errores asociados al campo.</p>
+          </div>
+          <Card padding="lg">
+            <CardHeader>
+              <CardTitle>Datos de la empresa</CardTitle>
+              <CardDescription>Ejemplo de agrupación para una ficha administrativa.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="an-preview__form-grid">
+                <Field label="Razón social" required hint="Nombre legal que aparecerá en documentos.">
+                  <Input placeholder="Empresa Ejemplo, S.L." />
+                </Field>
+                <Field label="CIF" required error="El CIF debe contener nueve caracteres.">
+                  <Input defaultValue="B123" />
+                </Field>
+                <Field label="Tipo de entidad">
+                  <Select defaultValue="private">
+                    <option value="private">Empresa privada</option>
+                    <option value="public">Entidad pública</option>
+                    <option value="non-profit">Entidad sin ánimo de lucro</option>
+                  </Select>
+                </Field>
+                <Field label="CCC principal">
+                  <Input placeholder="01/1112345678" />
+                </Field>
+                <Field label="Observaciones" className="an-preview__form-wide">
+                  <Textarea placeholder="Información relevante para el caso práctico..." />
+                </Field>
+              </div>
+            </CardContent>
+            <CardFooter>
+              <Button variant="ghost">Cancelar</Button>
+              <Button icon={<Save />}>Guardar empresa</Button>
+            </CardFooter>
+          </Card>
+        </section>
+
+        <section className="an-preview__section" aria-labelledby="preview-alerts">
+          <div className="an-preview__section-heading">
+            <h2 id="preview-alerts">Mensajes del sistema</h2>
+            <p>Información, confirmaciones, advertencias y errores comparten estructura.</p>
+          </div>
+          <div className="an-preview__alert-stack">
+            <Alert title="Información del entorno" tone="info" icon={<Info />}>
+              Los datos pertenecen a una simulación educativa y no se enviarán a organismos reales.
+            </Alert>
+            <Alert title="Proceso completado" tone="success" icon={<CheckCircle2 />}>
+              La declaración se ha generado correctamente.
+            </Alert>
+            <Alert title="Revisión necesaria" tone="warning" icon={<TriangleAlert />}>
+              Existen dos trabajadores sin grupo de cotización informado.
+            </Alert>
+            <Alert title="No se pudo guardar" tone="danger" icon={<AlertCircle />}>
+              Corrige los campos marcados antes de continuar.
+            </Alert>
+          </div>
+        </section>
+      </main>
+    </div>
+  );
+}
