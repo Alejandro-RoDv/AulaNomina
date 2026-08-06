@@ -102,6 +102,7 @@ export default function Header({
   const previewAlerts = alerts.slice(0, 5);
   const showWorkerTabs = isWorkerTitle(title);
   const showContractTabs = title === "Contratos";
+  const displayTitle = title === "Dashboard" ? "Panel" : title;
 
   const loadHeaderAlerts = async () => {
     try {
@@ -259,7 +260,7 @@ export default function Header({
       <div className="an-header__page">
         <div>
           <p className="an-header__eyebrow">AulaNomina</p>
-          <h1 className="an-header__title">{title}</h1>
+          <h1 className="an-header__title">{displayTitle}</h1>
           {subtitle && <p className="an-header__subtitle">{subtitle}</p>}
         </div>
       </div>
