@@ -1,5 +1,32 @@
 /* AulaNomina Design System — navegación jerárquica */
 
+.an-sidebar__brand {
+  position: relative;
+  min-height: 124px;
+  justify-content: center;
+  padding: var(--an-space-6) var(--an-space-4) var(--an-space-5);
+}
+
+.an-sidebar__brand-copy {
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+}
+
+.an-sidebar__logo {
+  width: 210px;
+  max-width: calc(100% - var(--an-space-4));
+  margin-inline: auto;
+  object-fit: contain;
+  object-position: center;
+}
+
+.an-sidebar__close {
+  position: absolute;
+  top: var(--an-space-4);
+  right: var(--an-space-4);
+}
+
 .an-sidebar__group + .an-sidebar__group {
   margin-top: var(--an-space-1);
 }
@@ -138,6 +165,17 @@
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@media (max-width: 48rem) {
+  .an-sidebar__brand {
+    min-height: 112px;
+    padding-block: var(--an-space-5);
+  }
+
+  .an-sidebar__logo {
+    width: 190px;
   }
 }
 
