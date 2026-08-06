@@ -8,6 +8,8 @@ Biblioteca visual compartida por los módulos del frontend.
 import {
   Button,
   ContentCard,
+  DataTable,
+  DataTableSearch,
   Field,
   Form,
   FormActions,
@@ -16,6 +18,12 @@ import {
   Input,
   StatCard,
   StatusCard,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeaderCell,
+  TableRow,
 } from "./components/ui/index.js";
 ```
 
@@ -39,6 +47,20 @@ Los cuatro patrones comparten borde, radio, sombra, tipografía y espaciado. No 
 - `FormActions`: zona común de guardado, cancelación y mensajes secundarios.
 
 Los formularios deben agrupar la información por significado. No se deben mostrar listas extensas de campos sin secciones ni crear estilos inline para cada pantalla.
+
+## Patrones de tablas
+
+- `DataTable`: contenedor funcional de filtros, resumen, tabla y paginación.
+- `DataTableToolbar`: agrupa búsqueda, filtros y acciones generales.
+- `DataTableSearch` y `DataTableFilter`: controles homogéneos de consulta.
+- `DataTableSummary`: comunica el número de resultados antes de la tabla.
+- `TableHeaderCell`: soporta ordenación y estado accesible mediante `aria-sort`.
+- `TablePrimaryCell`: muestra el dato principal y su metainformación.
+- `TableActions` y `TableIconButton`: limitan y alinean las acciones por fila.
+- `TableEmpty`: estado vacío común.
+- `TablePagination`: navegación entre páginas cuando el volumen lo requiera.
+
+Las tablas deben priorizar la lectura. La primera columna identifica el registro, los estados usan `Badge` y las acciones secundarias se agrupan en un menú. En móvil, las filas se convierten en tarjetas con etiquetas visibles.
 
 ## Criterios
 

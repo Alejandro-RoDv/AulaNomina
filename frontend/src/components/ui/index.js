@@ -25,3 +25,21 @@ export {
   FormPresetBar,
   FormSection,
 } from "./FormLayout.jsx";
+export {
+  DataTable,
+  DataTableFilter,
+  DataTableSearch,
+  DataTableSummary,
+  DataTableToolbar,
+  Table,
+  TableActions,
+  TableBody,
+  TableCell,
+  TableEmpty,
+  TableHead,
+  TableHeaderCell,
+  TableIconButton,
+  TablePagination,
+  TablePrimaryCell,
+  TableRow,
+} from "./Table.jsx";

@@ -1,7 +1,27 @@
 import { useMemo, useState } from "react";
+import { MoreVertical } from "lucide-react";
 
+import {
+  Badge,
+  Button,
+  DataTable,
+  DataTableFilter,
+  DataTableSearch,
+  DataTableSummary,
+  DataTableToolbar,
+  Table,
+  TableActions,
+  TableBody,
+  TableCell,
+  TableEmpty,
+  TableHead,
+  TableHeaderCell,
+  TableIconButton,
+  TablePrimaryCell,
+  TableRow,
+} from "../ui";
 import { createCompany } from "../../services/companyApi";
-import { getSortLabel, nextSortConfig, sortRows } from "../../utils/tableSorting";
+import { nextSortConfig, sortRows } from "../../utils/tableSorting";
 import "./companyWorkspace.css";
 
 const EMPTY_FILTERS = { search: "", status: "", company_type: "", province: "" };
@@ -16,10 +36,10 @@ function formatStatus(status) {
   return "Alta";
 }
 
-function statusClass(status) {
-  if (status === "baja_temporal") return "company-status company-status-warning";
-  if (status === "baja_definitiva") return "company-status company-status-inactive";
-  return "company-status company-status-active";
+function statusTone(status) {
+  if (status === "baja_temporal") return "warning";
+  if (status === "baja_definitiva") return "neutral";
+  return "success";
 }
 
 function buildDuplicatePayload(source, form) {
@@ -64,13 +84,21 @@ export default function CompanyDirectory({ companies, workCenters, loading, onOp
   const filtered = useMemo(() => {
     const search = normalizeText(filters.search);
     const rows = companies.filter((company) => {
-      const matchesSearch = !search || [company.name, company.cif, company.ccc, company.city, company.province, company.main_collective_agreement]
-        .some((value) => normalizeText(value).includes(search));
+      const matchesSearch = !search || [
+        company.name,
+        company.cif,
+        company.ccc,
+        company.city,
+        company.province,
+        company.main_collective_agreement,
+      ].some((value) => normalizeText(value).includes(search));
+
       return matchesSearch
         && (!filters.status || company.status === filters.status)
         && (!filters.company_type || company.company_type === filters.company_type)
         && (!filters.province || company.province === filters.province);
     });
+
     return sortRows(rows, sortConfig, {
       name: (company) => company.name,
       cif: (company) => company.cif,
@@ -84,13 +112,8 @@ export default function CompanyDirectory({ companies, workCenters, loading, onOp
 
   const activeFilters = Object.values(filters).filter(Boolean).length;
 
-  const sortHeader = (key, label) => (
-    <th>
-      <button type="button" className="company-sort" onClick={() => setSortConfig((current) => nextSortConfig(current, key))}>
-        <span>{label}</span><span>{getSortLabel(sortConfig, key)}</span>
-      </button>
-    </th>
-  );
+  const sortDirection = (key) => sortConfig.key === key ? sortConfig.direction : null;
+  const sortBy = (key) => setSortConfig((current) => nextSortConfig(current, key));
 
   const openDuplicate = (company) => {
     setOpenMenuId(null);
@@ -132,85 +155,200 @@ export default function CompanyDirectory({ companies, workCenters, loading, onOp
     }
   };
 
-  if (loading) return <div className="company-empty-state">Cargando empresas...</div>;
-
   return (
     <>
-      <div className="company-filter-bar">
-        <div className="company-search-field">
-          <span aria-hidden="true">⌕</span>
-          <input value={filters.search} onChange={(event) => setFilters((current) => ({ ...current, search: event.target.value }))} placeholder="Buscar por empresa, CIF, CCC o convenio" />
-        </div>
-        <select value={filters.status} onChange={(event) => setFilters((current) => ({ ...current, status: event.target.value }))}>
-          <option value="">Estado: todos</option>
-          <option value="alta">Alta</option>
-          <option value="baja_temporal">Baja temporal</option>
-          <option value="baja_definitiva">Baja definitiva</option>
-        </select>
-        <select value={filters.company_type} onChange={(event) => setFilters((current) => ({ ...current, company_type: event.target.value }))}>
-          <option value="">Tipo: todos</option>
-          {options.types.map((type) => <option key={type} value={type}>{type}</option>)}
-        </select>
-        <select value={filters.province} onChange={(event) => setFilters((current) => ({ ...current, province: event.target.value }))}>
-          <option value="">Provincia: todas</option>
-          {options.provinces.map((province) => <option key={province} value={province}>{province}</option>)}
-        </select>
-        {activeFilters > 0 && <button type="button" className="company-button-ghost" onClick={() => setFilters(EMPTY_FILTERS)}>Limpiar ({activeFilters})</button>}
-      </div>
+      <DataTable>
+        <DataTableToolbar
+          actions={activeFilters > 0 ? (
+            <Button variant="ghost" size="sm" onClick={() => setFilters(EMPTY_FILTERS)}>
+              Limpiar filtros ({activeFilters})
+            </Button>
+          ) : null}
+        >
+          <DataTableSearch
+            value={filters.search}
+            onChange={(event) => setFilters((current) => ({ ...current, search: event.target.value }))}
+            placeholder="Buscar por empresa, CIF, CCC o convenio"
+          />
+          <DataTableFilter
+            label="Filtrar por estado"
+            value={filters.status}
+            onChange={(event) => setFilters((current) => ({ ...current, status: event.target.value }))}
+          >
+            <option value="">Todos los estados</option>
+            <option value="alta">Alta</option>
+            <option value="baja_temporal">Baja temporal</option>
+            <option value="baja_definitiva">Baja definitiva</option>
+          </DataTableFilter>
+          <DataTableFilter
+            label="Filtrar por tipo de empresa"
+            value={filters.company_type}
+            onChange={(event) => setFilters((current) => ({ ...current, company_type: event.target.value }))}
+          >
+            <option value="">Todos los tipos</option>
+            {options.types.map((type) => <option key={type} value={type}>{type}</option>)}
+          </DataTableFilter>
+          <DataTableFilter
+            label="Filtrar por provincia"
+            value={filters.province}
+            onChange={(event) => setFilters((current) => ({ ...current, province: event.target.value }))}
+          >
+            <option value="">Todas las provincias</option>
+            {options.provinces.map((province) => <option key={province} value={province}>{province}</option>)}
+          </DataTableFilter>
+        </DataTableToolbar>
 
-      <div className="company-results-heading">
-        <strong>Empresas registradas</strong>
-        <span>{filtered.length} de {companies.length} resultados</span>
-      </div>
+        <DataTableSummary
+          label="Empresas registradas"
+          count={filtered.length}
+          total={companies.length}
+        />
 
-      <div className="company-table-wrap">
-        <table className="company-directory-table">
-          <thead><tr>{sortHeader("name", "Empresa")}{sortHeader("status", "Estado")}{sortHeader("company_type", "Tipo")}{sortHeader("ccc", "CCC principal")}{sortHeader("agreement", "Convenio")}{sortHeader("centers", "Centros")}<th>Acciones</th></tr></thead>
-          <tbody>
-            {filtered.map((company) => (
-              <tr key={company.id}>
-                <td>
-                  <button type="button" className="company-name-link" onClick={() => onOpenCompany(company)}>{company.name}</button>
-                  <small>CIF {company.cif || "sin informar"} · Código EMP-{String(company.id).padStart(4, "0")}</small>
-                </td>
-                <td><span className={statusClass(company.status)}>{formatStatus(company.status)}</span></td>
-                <td>{company.company_type || "Sin definir"}</td>
-                <td>{company.ccc || "Sin informar"}</td>
-                <td>{company.main_collective_agreement || "Sin asignar"}</td>
-                <td>{centerCounts[String(company.id)] || 0}</td>
-                <td>
-                  <div className="company-row-actions">
-                    <button type="button" className="company-button-open" onClick={() => onOpenCompany(company)}>Abrir</button>
+        <Table aria-label="Empresas registradas" minWidth="66rem">
+          <TableHead>
+            <TableRow>
+              <TableHeaderCell
+                sortable
+                direction={sortDirection("name")}
+                onSort={() => sortBy("name")}
+                style={{ width: "24%" }}
+              >
+                Empresa
+              </TableHeaderCell>
+              <TableHeaderCell
+                sortable
+                direction={sortDirection("status")}
+                onSort={() => sortBy("status")}
+                style={{ width: "11%" }}
+              >
+                Estado
+              </TableHeaderCell>
+              <TableHeaderCell
+                sortable
+                direction={sortDirection("company_type")}
+                onSort={() => sortBy("company_type")}
+                style={{ width: "12%" }}
+              >
+                Tipo
+              </TableHeaderCell>
+              <TableHeaderCell
+                sortable
+                direction={sortDirection("ccc")}
+                onSort={() => sortBy("ccc")}
+                style={{ width: "15%" }}
+              >
+                CCC principal
+              </TableHeaderCell>
+              <TableHeaderCell
+                sortable
+                direction={sortDirection("agreement")}
+                onSort={() => sortBy("agreement")}
+                style={{ width: "21%" }}
+              >
+                Convenio
+              </TableHeaderCell>
+              <TableHeaderCell
+                sortable
+                direction={sortDirection("centers")}
+                onSort={() => sortBy("centers")}
+                align="center"
+                style={{ width: "7%" }}
+              >
+                Centros
+              </TableHeaderCell>
+              <TableHeaderCell align="right" style={{ width: "10%" }}>Acciones</TableHeaderCell>
+            </TableRow>
+          </TableHead>
+
+          <TableBody>
+            {loading && (
+              <TableEmpty
+                colSpan={7}
+                title="Cargando empresas"
+                description="Los datos aparecerán en cuanto finalice la consulta."
+              />
+            )}
+
+            {!loading && filtered.map((company) => (
+              <TableRow key={company.id} interactive>
+                <TableCell label="Empresa">
+                  <TablePrimaryCell
+                    title={company.name}
+                    meta={`CIF ${company.cif || "sin informar"} · Código EMP-${String(company.id).padStart(4, "0")}`}
+                    onClick={() => onOpenCompany(company)}
+                  />
+                </TableCell>
+                <TableCell label="Estado">
+                  <Badge tone={statusTone(company.status)} dot>{formatStatus(company.status)}</Badge>
+                </TableCell>
+                <TableCell label="Tipo">{company.company_type || "Sin definir"}</TableCell>
+                <TableCell label="CCC principal">{company.ccc || "Sin informar"}</TableCell>
+                <TableCell label="Convenio">{company.main_collective_agreement || "Sin asignar"}</TableCell>
+                <TableCell label="Centros" align="center">{centerCounts[String(company.id)] || 0}</TableCell>
+                <TableCell label="Acciones" align="right">
+                  <TableActions>
+                    <Button variant="secondary" size="sm" onClick={() => onOpenCompany(company)}>
+                      Abrir
+                    </Button>
                     <div className="company-menu-container">
-                      <button type="button" className="company-menu-trigger" aria-label={`Más acciones para ${company.name}`} onClick={() => setOpenMenuId((current) => current === company.id ? null : company.id)}>⋮</button>
+                      <TableIconButton
+                        label={`Más acciones para ${company.name}`}
+                        aria-expanded={openMenuId === company.id}
+                        onClick={() => setOpenMenuId((current) => current === company.id ? null : company.id)}
+                      >
+                        <MoreVertical aria-hidden="true" />
+                      </TableIconButton>
                       {openMenuId === company.id && (
                         <div className="company-menu">
                           <button type="button" onClick={() => onOpenCompany(company)}>Editar datos generales</button>
                           <button type="button" onClick={() => openDuplicate(company)}>Duplicar empresa</button>
-                          <button type="button" className="company-menu-danger" onClick={() => { setOpenMenuId(null); setDeleteCompany(company); setError(""); }}>Eliminar empresa</button>
+                          <button
+                            type="button"
+                            className="company-menu-danger"
+                            onClick={() => {
+                              setOpenMenuId(null);
+                              setDeleteCompany(company);
+                              setError("");
+                            }}
+                          >
+                            Eliminar empresa
+                          </button>
                         </div>
                       )}
                     </div>
-                  </div>
-                </td>
-              </tr>
+                  </TableActions>
+                </TableCell>
+              </TableRow>
             ))}
-            {!filtered.length && <tr><td colSpan="7" className="company-empty-cell">No hay empresas que coincidan con los filtros.</td></tr>}
-          </tbody>
-        </table>
-      </div>
+
+            {!loading && !filtered.length && (
+              <TableEmpty
+                colSpan={7}
+                title="No hay empresas coincidentes"
+                description="Modifica la búsqueda o elimina alguno de los filtros aplicados."
+              />
+            )}
+          </TableBody>
+        </Table>
+      </DataTable>
 
       {duplicateCompany && (
         <div className="company-modal-backdrop">
           <div className="company-confirm-modal">
-            <div className="company-modal-header"><div><h3>Duplicar empresa</h3><p>Origen: {duplicateCompany.name}</p></div><button type="button" onClick={() => setDuplicateCompany(null)}>×</button></div>
+            <div className="company-modal-header">
+              <div><h3>Duplicar empresa</h3><p>Origen: {duplicateCompany.name}</p></div>
+              <button type="button" onClick={() => setDuplicateCompany(null)}>×</button>
+            </div>
             <form onSubmit={submitDuplicate} className="company-modal-form">
               <label>Nuevo nombre<input value={duplicateForm.name} onChange={(event) => setDuplicateForm((current) => ({ ...current, name: event.target.value }))} required /></label>
               <label>Nuevo CIF<input value={duplicateForm.cif} onChange={(event) => setDuplicateForm((current) => ({ ...current, cif: event.target.value }))} required /></label>
               <label>CCC régimen<input value={duplicateForm.ccc_regime} onChange={(event) => setDuplicateForm((current) => ({ ...current, ccc_regime: event.target.value }))} /></label>
               <label>CCC código<input value={duplicateForm.ccc_code} onChange={(event) => setDuplicateForm((current) => ({ ...current, ccc_code: event.target.value }))} /></label>
               {error && <div className="company-form-error">{error}</div>}
-              <div className="company-modal-actions"><button type="button" className="company-button-ghost" onClick={() => setDuplicateCompany(null)}>Cancelar</button><button type="submit" className="company-button-primary" disabled={submitting}>{submitting ? "Creando..." : "Crear duplicado"}</button></div>
+              <div className="company-modal-actions">
+                <button type="button" className="company-button-ghost" onClick={() => setDuplicateCompany(null)}>Cancelar</button>
+                <button type="submit" className="company-button-primary" disabled={submitting}>{submitting ? "Creando..." : "Crear duplicado"}</button>
+              </div>
             </form>
           </div>
         </div>
@@ -219,10 +357,16 @@ export default function CompanyDirectory({ companies, workCenters, loading, onOp
       {deleteCompany && (
         <div className="company-modal-backdrop">
           <div className="company-confirm-modal">
-            <div className="company-modal-header"><div><h3>Eliminar empresa</h3><p>{deleteCompany.name}</p></div><button type="button" onClick={() => setDeleteCompany(null)}>×</button></div>
+            <div className="company-modal-header">
+              <div><h3>Eliminar empresa</h3><p>{deleteCompany.name}</p></div>
+              <button type="button" onClick={() => setDeleteCompany(null)}>×</button>
+            </div>
             <p>Se eliminarán también las relaciones bancarias vinculadas. Esta acción requiere confirmación.</p>
             {error && <div className="company-form-error">{error}</div>}
-            <div className="company-modal-actions"><button type="button" className="company-button-ghost" onClick={() => setDeleteCompany(null)}>Cancelar</button><button type="button" className="company-button-danger" onClick={confirmDelete} disabled={submitting}>{submitting ? "Eliminando..." : "Confirmar eliminación"}</button></div>
+            <div className="company-modal-actions">
+              <button type="button" className="company-button-ghost" onClick={() => setDeleteCompany(null)}>Cancelar</button>
+              <button type="button" className="company-button-danger" onClick={confirmDelete} disabled={submitting}>{submitting ? "Eliminando..." : "Confirmar eliminación"}</button>
+            </div>
           </div>
         </div>
       )}
