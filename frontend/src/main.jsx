@@ -1,6 +1,8 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import "./index.css";
+import "./design-system/tokens.css";
+import "./design-system/foundations.css";
 import "./components/incidents/incidentTable.css";
 import "./components/mail/mailScenarioValidation.css";
 import "./payroll-print.css";

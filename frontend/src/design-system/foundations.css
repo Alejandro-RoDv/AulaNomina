@@ -1,0 +1,131 @@
+/*
+ * AulaNomina Design System — fundamentos globales
+ *
+ * Esta capa aplica únicamente decisiones estructurales y seguras. Los módulos
+ * conservarán sus componentes actuales hasta que sean migrados expresamente.
+ */
+
+:root {
+  color-scheme: light;
+  font-family: var(--an-font-sans);
+  color: var(--an-color-text-primary);
+  background: var(--an-color-canvas);
+}
+
+html {
+  background: var(--an-color-canvas);
+  scroll-behavior: smooth;
+}
+
+body {
+  min-width: 20rem;
+  background: var(--an-color-canvas);
+  color: var(--an-color-text-primary);
+  font-family: var(--an-font-sans);
+  font-size: var(--an-font-size-md);
+  font-weight: var(--an-font-weight-regular);
+  line-height: var(--an-line-height-body);
+  letter-spacing: var(--an-letter-spacing-normal);
+}
+
+body,
+button,
+input,
+select,
+textarea {
+  font-family: var(--an-font-sans);
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  color: var(--an-color-text-primary);
+  font-family: var(--an-font-sans);
+  font-weight: var(--an-font-weight-bold);
+  line-height: var(--an-line-height-heading);
+  letter-spacing: var(--an-letter-spacing-tight);
+}
+
+p,
+li,
+dd,
+dt,
+label,
+input,
+select,
+textarea,
+button {
+  line-height: var(--an-line-height-body);
+}
+
+small {
+  color: var(--an-color-text-muted);
+  font-size: var(--an-font-size-sm);
+}
+
+a {
+  color: var(--an-color-text-link);
+  text-underline-offset: 0.2em;
+}
+
+button,
+input,
+select,
+textarea {
+  color: inherit;
+}
+
+button,
+[role="button"],
+a,
+input,
+select,
+textarea {
+  transition-duration: var(--an-duration-normal);
+  transition-timing-function: var(--an-ease-standard);
+}
+
+button:disabled,
+input:disabled,
+select:disabled,
+textarea:disabled,
+[aria-disabled="true"] {
+  cursor: not-allowed;
+  opacity: 0.58;
+}
+
+:focus-visible {
+  outline: 3px solid rgb(59 130 246 / 32%);
+  outline-offset: 2px;
+}
+
+::selection {
+  background: var(--an-color-brand-200);
+  color: var(--an-color-neutral-950);
+}
+
+hr {
+  border: 0;
+  border-top: 1px solid var(--an-color-border);
+}
+
+code,
+kbd,
+samp,
+pre {
+  font-family: var(--an-font-mono);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
