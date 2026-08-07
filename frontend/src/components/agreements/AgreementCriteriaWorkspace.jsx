@@ -59,10 +59,6 @@ export default function AgreementCriteriaWorkspace({
           <h3 style={styles.title}>{section.title}</h3>
           <p style={styles.description}>{section.description}</p>
         </div>
-        <div style={styles.status}>
-          <span>Carga</span>
-          <strong>Bajo demanda</strong>
-        </div>
       </header>
 
       <Suspense fallback={<div style={styles.loading}>Cargando apartado laboral…</div>}>
@@ -123,10 +119,6 @@ const styles = {
     cursor: "pointer",
   },
   header: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    gap: "20px",
     borderBottom: "1px solid #e2e8f0",
     padding: "0 0 18px",
   },
@@ -142,14 +134,6 @@ const styles = {
     color: "#64748b",
     fontSize: "12px",
     lineHeight: 1.5,
-  },
-  status: {
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "flex-end",
-    color: "#64748b",
-    fontSize: "11px",
-    whiteSpace: "nowrap",
   },
   loading: {
     border: "1px solid #e2e8f0",
