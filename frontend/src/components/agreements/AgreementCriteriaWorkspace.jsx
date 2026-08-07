@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 
 const AgreementCriteriaPanel = lazy(() => import("./AgreementCriteriaPanel"));
 const AgreementSeniorityPanel = lazy(() => import("./AgreementSeniorityPanel"));
@@ -18,13 +18,35 @@ const SECTIONS = [
   },
 ];
 
+function classifyCriteriaSummaries(root) {
+  root?.querySelectorAll("article > div:last-child > span").forEach((summary) => {
+    const text = String(summary.textContent || "").trim().toLocaleLowerCase("es-ES");
+    const isStatus = text.includes("pendiente")
+      || text === "no aplicable"
+      || text === "aplicable"
+      || text.includes("informado");
+    summary.dataset.summaryKind = isStatus ? "status" : "detail";
+  });
+}
+
 export default function AgreementCriteriaWorkspace({
   agreement,
   onAgreementChanged,
   onOpenManagementTab,
 }) {
   const [activeSection, setActiveSection] = useState("criteria");
+  const contentRef = useRef(null);
   const section = SECTIONS.find((item) => item.id === activeSection) || SECTIONS[0];
+
+  useEffect(() => {
+    if (activeSection !== "criteria" || !contentRef.current) return undefined;
+
+    const root = contentRef.current;
+    classifyCriteriaSummaries(root);
+    const observer = new MutationObserver(() => classifyCriteriaSummaries(root));
+    observer.observe(root, { childList: true, subtree: true, characterData: true });
+    return () => observer.disconnect();
+  }, [activeSection, agreement.id]);
 
   function handleCriteriaNavigation(target) {
     if (target === "seniority") {
@@ -62,7 +84,7 @@ export default function AgreementCriteriaWorkspace({
       </header>
 
       <Suspense fallback={<div style={styles.loading}>Cargando apartado laboral…</div>}>
-        <div key={`${agreement.id}:${activeSection}`} style={styles.content}>
+        <div ref={contentRef} key={`${agreement.id}:${activeSection}`} style={styles.content}>
           {activeSection === "criteria" && (
             <AgreementCriteriaPanel
               agreement={agreement}
