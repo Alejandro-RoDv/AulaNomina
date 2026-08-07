@@ -9,11 +9,11 @@ import CollectiveAgreementsManagementPage from "./CollectiveAgreementsManagement
 const VIEW_COPY = {
   criteria: {
     title: "Criterios laborales del convenio",
-    subtitle: "Criterios generales y antigüedad cargados únicamente al abrir cada apartado.",
+    subtitle: "Configura las reglas laborales y condiciones aplicables al convenio.",
   },
   salary: {
     title: "Estructura salarial del convenio",
-    subtitle: "Conceptos, revisiones, activaciones, atrasos y pagas cargados bajo demanda.",
+    subtitle: "Gestiona conceptos, revisiones, activaciones, atrasos y pagas del convenio.",
   },
 };
 
