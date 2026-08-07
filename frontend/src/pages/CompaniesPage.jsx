@@ -6,6 +6,7 @@ import CompanyMasterCreateForm from "../components/companies/CompanyMasterCreate
 import WorkCenterCreatePanel from "../components/workCenters/WorkCenterCreatePanel";
 import WorkCenterTable from "../components/workCenters/WorkCenterTable";
 import { Button } from "../components/ui";
+import "../components/companies/companySplit42Refinements.css";
 import { getSelectedCompanyId, setSelectedCompanyId as persistSelectedCompanyId } from "../utils/companyContext";
 import { openReportPreset } from "../utils/reportShortcuts";
 
@@ -45,6 +46,30 @@ function routeToHash(route) {
 function publishRoute(hash) {
   window.location.hash = hash;
   window.dispatchEvent(new Event("aulanomina-route-change"));
+}
+
+function getHeaderContext(route) {
+  if (route.area === "centers") {
+    return {
+      eyebrow: "Organización",
+      title: "Centros de trabajo",
+      subtitle: "Gestión de centros vinculados a las empresas de la organización",
+    };
+  }
+
+  if (route.area === "reports") {
+    return {
+      eyebrow: "Organización",
+      title: "Informes de organización",
+      subtitle: "Consultas consolidadas de empresas y centros de trabajo",
+    };
+  }
+
+  return {
+    eyebrow: "Organización",
+    title: "Empresas",
+    subtitle: "Gestión de empresas y estructura organizativa",
+  };
 }
 
 export default function CompaniesPage(props) {
@@ -88,6 +113,14 @@ export default function CompaniesPage(props) {
     setSelectedCompanyId(normalized);
     persistSelectedCompanyId(normalized);
   };
+
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent("aulanomina-header-context", { detail: getHeaderContext(route) }));
+  }, [route]);
+
+  useEffect(() => () => {
+    window.dispatchEvent(new CustomEvent("aulanomina-header-context", { detail: null }));
+  }, []);
 
   useEffect(() => {
     if (optimisticCompany && companies.some((company) => String(company.id) === String(optimisticCompany.id))) {
@@ -195,10 +228,11 @@ export default function CompaniesPage(props) {
     <div className="company-page">
       {route.area === "companies" && route.view === "list" && (
         <section className="company-list-workspace" aria-label="Directorio de empresas">
-          <div className="company-page-commandbar">
-            <div className="company-page-commandbar__summary">
-              <strong>{activeCompanyCount} empresas activas</strong>
-              <span>{activeCenterCount} centros de trabajo registrados</span>
+          <div className="company-page-commandbar company-page-commandbar--compact">
+            <div className="company-page-commandbar__metrics" aria-label="Resumen de organización">
+              <span><strong>{activeCompanyCount}</strong> empresas activas</span>
+              <span className="company-page-commandbar__separator" aria-hidden="true">·</span>
+              <span><strong>{activeCenterCount}</strong> centros de trabajo</span>
             </div>
             <Button onClick={() => requestRoute(HASHES.new)}>Nueva empresa</Button>
           </div>
