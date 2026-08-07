@@ -3,9 +3,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import CompanyDetailWorkspace from "../components/companies/CompanyDetailWorkspace";
 import CompanyDirectory from "../components/companies/CompanyDirectory";
 import CompanyMasterCreateForm from "../components/companies/CompanyMasterCreateForm";
-import PageCard from "../components/layout/PageCard";
 import WorkCenterCreatePanel from "../components/workCenters/WorkCenterCreatePanel";
 import WorkCenterTable from "../components/workCenters/WorkCenterTable";
+import { Button } from "../components/ui";
 import { getSelectedCompanyId, setSelectedCompanyId as persistSelectedCompanyId } from "../utils/companyContext";
 import { openReportPreset } from "../utils/reportShortcuts";
 
@@ -72,6 +72,16 @@ export default function CompaniesPage(props) {
     if (!optimisticCompany || companies.some((company) => String(company.id) === String(optimisticCompany.id))) return companies;
     return [...companies, optimisticCompany];
   }, [companies, optimisticCompany]);
+
+  const activeCompanyCount = useMemo(
+    () => availableCompanies.filter((company) => company.is_active !== false && company.status !== "baja_definitiva").length,
+    [availableCompanies]
+  );
+
+  const activeCenterCount = useMemo(
+    () => workCenters.filter((center) => center.is_active !== false).length,
+    [workCenters]
+  );
 
   const selectCompany = (companyId) => {
     const normalized = companyId ? String(companyId) : "";
@@ -181,42 +191,48 @@ export default function CompaniesPage(props) {
     commitRoute(`#company-detail/${route.companyId}/${tab}`);
   };
 
-  const navItems = [
-    ["companies", "Empresas", HASHES.list],
-    ["centers", "Centros de trabajo", HASHES.centers],
-    ["reports", "Informes", HASHES.reports],
-  ];
-
   return (
-    <div style={styles.wrapper}>
-      <nav className="company-primary-nav">
-        {navItems.map(([area, label, hash]) => (
-          <button key={area} type="button" className={route.area === area ? "active" : ""} onClick={() => requestRoute(hash)}>{label}</button>
-        ))}
-      </nav>
-
+    <div className="company-page">
       {route.area === "companies" && route.view === "list" && (
-        <>
-          <div className="company-module-header">
-            <div><h2>Empresas</h2><p>Localiza una empresa y accede a sus datos, centros, preferencias y cuentas bancarias.</p></div>
-            <div className="company-module-actions"><button type="button" className="company-button-primary" onClick={() => requestRoute(HASHES.new)}>+ Nueva empresa</button></div>
+        <section className="company-list-workspace" aria-label="Directorio de empresas">
+          <div className="company-page-commandbar">
+            <div className="company-page-commandbar__summary">
+              <strong>{activeCompanyCount} empresas activas</strong>
+              <span>{activeCenterCount} centros de trabajo registrados</span>
+            </div>
+            <Button onClick={() => requestRoute(HASHES.new)}>Nueva empresa</Button>
           </div>
-          <PageCard title="Empresas registradas" subtitle="La tabla se utiliza para localizar y abrir fichas; las configuraciones se gestionan dentro de cada empresa.">
-            <CompanyDirectory companies={availableCompanies} workCenters={workCenters} loading={loading} onOpenCompany={openCompany} onDeleteCompany={onDeleteCompany} onCreated={handleCompanyCreated} />
-          </PageCard>
-        </>
+
+          <div className="company-directory-surface">
+            <CompanyDirectory
+              companies={availableCompanies}
+              workCenters={workCenters}
+              loading={loading}
+              onOpenCompany={openCompany}
+              onDeleteCompany={onDeleteCompany}
+              onCreated={handleCompanyCreated}
+              onCreateCompany={() => requestRoute(HASHES.new)}
+            />
+          </div>
+        </section>
       )}
 
       {route.area === "companies" && route.view === "new" && (
-        <>
-          <div className="company-module-header">
-            <div><h2>Nueva empresa</h2><p>Alta de datos maestros. Las reglas operativas se completan posteriormente en su ficha.</p></div>
-            <button type="button" className="company-button-ghost" onClick={() => requestRoute(HASHES.list)}>Volver al listado</button>
+        <section className="company-create-workspace" aria-label="Alta de empresa">
+          <div className="company-page-commandbar company-page-commandbar--back">
+            <div className="company-page-commandbar__summary">
+              <strong>Alta de empresa</strong>
+              <span>Introduce los datos maestros. La configuración avanzada se completa después desde la ficha.</span>
+            </div>
+            <Button variant="ghost" onClick={() => requestRoute(HASHES.list)}>Volver a empresas</Button>
           </div>
-          <PageCard title="Alta de empresa" subtitle="Crea la empresa y continúa después con centros, preferencias y domiciliación de pagos.">
-            <CompanyMasterCreateForm collectiveAgreements={collectiveAgreements} onCreated={handleCompanyCreated} onOpenPreferences={openCompany} />
-          </PageCard>
-        </>
+
+          <CompanyMasterCreateForm
+            collectiveAgreements={collectiveAgreements}
+            onCreated={handleCompanyCreated}
+            onOpenPreferences={openCompany}
+          />
+        </section>
       )}
 
       {route.area === "companies" && route.view === "detail" && selectedCompany && (
@@ -242,13 +258,26 @@ export default function CompaniesPage(props) {
       )}
 
       {route.area === "companies" && route.view === "detail" && !selectedCompany && !loading && (
-        <div className="company-empty-state">La empresa indicada no existe o ya no está disponible. <button type="button" className="company-button-ghost" onClick={() => requestRoute(HASHES.list)}>Volver al listado</button></div>
+        <div className="company-empty-state">
+          La empresa indicada no existe o ya no está disponible.
+          <Button variant="ghost" onClick={() => requestRoute(HASHES.list)}>Volver al listado</Button>
+        </div>
       )}
 
       {route.area === "centers" && (
-        <>
-          <div className="company-module-header"><div><h2>Centros de trabajo</h2><p>Crea y mantiene centros vinculados a empresas existentes.</p></div></div>
-          <PageCard title="Gestión de centros" subtitle="La empresa elegida se conserva al cambiar de pestaña o módulo.">
+        <section className="company-centers-workspace" aria-label="Centros de trabajo">
+          <div className="company-page-commandbar">
+            <div className="company-page-commandbar__summary">
+              <strong>{activeCenterCount} centros activos</strong>
+              <span>Selecciona una empresa para crear y mantener sus centros de trabajo.</span>
+            </div>
+          </div>
+
+          <div className="company-center-section">
+            <div className="company-section-heading">
+              <h3>Nuevo centro de trabajo</h3>
+              <p>El centro quedará vinculado a la empresa seleccionada.</p>
+            </div>
             <WorkCenterCreatePanel
               companies={availableCompanies}
               workCenters={workCenters}
@@ -257,26 +286,39 @@ export default function CompaniesPage(props) {
               onSelectedCompanyChange={selectCompany}
               onCreated={handleCenterCreated}
             />
-          </PageCard>
-          <PageCard title="Centros de la empresa seleccionada" subtitle={selectedCompanyId ? "El nuevo centro aparecerá aquí inmediatamente después de guardarlo." : "Selecciona una empresa para cargar sus centros."}>
-            <WorkCenterTable loading={loading} workCenters={visibleWorkCenters} companies={availableCompanies} onUpdateWorkCenter={onUpdateWorkCenter} onDeleteWorkCenter={onDeleteWorkCenter} submitting={workCenterSubmitting} />
-          </PageCard>
-        </>
+          </div>
+
+          <div className="company-center-section">
+            <div className="company-section-heading">
+              <h3>Centros de la empresa seleccionada</h3>
+              <p>{selectedCompanyId ? "Los cambios se reflejan directamente en el directorio." : "Selecciona una empresa para cargar sus centros."}</p>
+            </div>
+            <WorkCenterTable
+              loading={loading}
+              workCenters={visibleWorkCenters}
+              companies={availableCompanies}
+              onUpdateWorkCenter={onUpdateWorkCenter}
+              onDeleteWorkCenter={onDeleteWorkCenter}
+              submitting={workCenterSubmitting}
+            />
+          </div>
+        </section>
       )}
 
       {route.area === "reports" && (
-        <>
-          <div className="company-module-header"><div><h2>Informes de empresas</h2><p>Consultas consolidadas del módulo de empresas y centros.</p></div></div>
+        <section className="company-reports-workspace" aria-label="Informes de empresas">
+          <div className="company-page-commandbar">
+            <div className="company-page-commandbar__summary">
+              <strong>Informes de organización</strong>
+              <span>Consultas consolidadas de empresas y centros de trabajo.</span>
+            </div>
+          </div>
           <div className="company-report-grid">
             <article className="company-report-card"><h3>Empresas activas</h3><p>Relación de empresas actualmente en situación de alta.</p><button type="button" className="company-button-primary" onClick={() => openReportPreset({ category: "company", reportId: "companies-active" })}>Abrir informe</button></article>
             <article className="company-report-card"><h3>Centros y CCC</h3><p>Distribución de centros de trabajo y códigos de cuenta de cotización.</p><button type="button" className="company-button-primary" onClick={() => openReportPreset({ category: "company", reportId: "centers-ccc" })}>Abrir informe</button></article>
           </div>
-        </>
+        </section>
       )}
     </div>
   );
 }
-
-const styles = {
-  wrapper: { display: "flex", flexDirection: "column", gap: "20px" },
-};
