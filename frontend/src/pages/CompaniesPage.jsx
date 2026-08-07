@@ -230,9 +230,16 @@ export default function CompaniesPage(props) {
         <section className="company-list-workspace" aria-label="Directorio de empresas">
           <div className="company-page-commandbar company-page-commandbar--compact">
             <div className="company-page-commandbar__metrics" aria-label="Resumen de organización">
-              <span><strong>{activeCompanyCount}</strong> empresas activas</span>
-              <span className="company-page-commandbar__separator" aria-hidden="true">·</span>
-              <span><strong>{activeCenterCount}</strong> centros de trabajo</span>
+              <div className="company-page-commandbar__metric company-page-commandbar__metric--active">
+                <span className="company-page-commandbar__metric-dot" aria-hidden="true" />
+                <strong>{activeCompanyCount}</strong>
+                <span>Empresas activas</span>
+              </div>
+              <span className="company-page-commandbar__divider" aria-hidden="true" />
+              <div className="company-page-commandbar__metric">
+                <strong>{activeCenterCount}</strong>
+                <span>Centros de trabajo</span>
+              </div>
             </div>
             <Button onClick={() => requestRoute(HASHES.new)}>Nueva empresa</Button>
           </div>
