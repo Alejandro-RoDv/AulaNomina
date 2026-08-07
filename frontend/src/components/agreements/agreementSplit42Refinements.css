@@ -116,7 +116,21 @@
   border-top: 0 !important;
 }
 
+/* Los detalles cuantitativos se muestran como texto discreto, no como estado. */
 .agreement-workspace article > div:last-child > span {
+  display: block;
+  min-height: 0;
+  padding: 0 !important;
+  border-radius: 0;
+  background: transparent;
+  color: var(--an-color-text-muted, #64748b) !important;
+  font-size: 0.6875rem !important;
+  font-weight: 600 !important;
+  white-space: nowrap;
+}
+
+/* Solo los estados reales conservan el tratamiento de pill. */
+.agreement-workspace article > div:last-child > span[data-summary-kind="status"] {
   display: inline-flex;
   align-items: center;
   min-height: 24px;
@@ -124,9 +138,7 @@
   border-radius: 999px;
   background: var(--an-color-surface-muted, #f1f5f9);
   color: var(--an-color-text-secondary, #475569) !important;
-  font-size: 0.6875rem !important;
   font-weight: 700 !important;
-  white-space: nowrap;
 }
 
 .agreement-workspace article button {
