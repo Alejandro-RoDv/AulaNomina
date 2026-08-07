@@ -1,0 +1,57 @@
+/* Split 42.1 — refinamientos visuales tras primera revisión */
+
+.company-page-commandbar--compact {
+  min-height: 44px;
+  padding-bottom: var(--an-space-4);
+}
+
+.company-page-commandbar__metrics {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--an-space-2);
+  color: var(--an-color-text-secondary);
+  font-size: var(--an-font-size-sm);
+}
+
+.company-page-commandbar__metrics span {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.company-page-commandbar__metrics strong {
+  color: var(--an-color-text-primary);
+  font-weight: var(--an-font-weight-semibold);
+}
+
+.company-page-commandbar__separator {
+  color: var(--an-color-text-disabled);
+}
+
+.company-directory-surface .an-data-table__summary {
+  justify-content: flex-start;
+  margin-bottom: var(--an-space-3);
+}
+
+.company-directory-surface .an-data-table__summary strong {
+  display: none;
+}
+
+.company-directory-surface .an-data-table__summary span {
+  color: var(--an-color-text-muted);
+  font-size: var(--an-font-size-xs);
+  font-weight: var(--an-font-weight-semibold);
+}
+
+@media (max-width: 48rem) {
+  .company-page-commandbar--compact {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .company-page-commandbar--compact .an-button {
+    width: 100%;
+  }
+}
