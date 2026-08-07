@@ -1,6 +1,11 @@
 /* Split 42.2 — Personas / Trabajadores
    Convierte el listado y el expediente en workspaces planos y normaliza la paleta. */
 
+/* La navegación de Trabajadores vive en el sidebar, no se duplica bajo la cabecera. */
+.an-header__tabs[aria-label="Navegación trabajador"] {
+  display: none;
+}
+
 /* El PageCard exterior deja de actuar como una gran tarjeta. */
 .an-page-card:has(select[name="companyId"]) {
   padding: 0 !important;
@@ -42,12 +47,22 @@
   accent-color: var(--an-color-action-primary, #2563eb);
 }
 
-/* Botones primarios heredados en negro -> azul. */
-.an-page-card:has(select[name="companyId"]) button[style*="rgb(17, 24, 39)"],
-.an-page-card:has(select[name="companyId"]) button[style*="#111827"] {
+/* Solo los botones con fondo negro heredado se convierten en primarios azules.
+   Así los botones secundarios blancos conservan su jerarquía neutra. */
+.an-page-card:has(select[name="companyId"]) button[style*="background-color: rgb(17, 24, 39)"],
+.an-page-card:has(select[name="companyId"]) button[style*="background-color: #111827"] {
   border-color: var(--an-color-action-primary, #2563eb) !important;
   background: var(--an-color-action-primary, #2563eb) !important;
   color: #fff !important;
+}
+
+/* Acciones no disponibles, incluidos los informes sin empresa seleccionada, quedan neutras. */
+.an-page-card:has(select[name="companyId"]) button:disabled {
+  border-color: var(--an-color-border, #e2e8f0) !important;
+  background: var(--an-color-surface-subtle, #f8fafc) !important;
+  color: var(--an-color-text-muted, #94a3b8) !important;
+  opacity: 1 !important;
+  cursor: not-allowed !important;
 }
 
 /* Expediente era amarillo: pasa a acción principal azul. */
