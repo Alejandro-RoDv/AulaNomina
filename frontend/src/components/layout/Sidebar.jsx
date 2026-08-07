@@ -49,7 +49,16 @@ const groups = [
     title: "Personas",
     icon: UsersRound,
     items: [
-      { id: "employees-list", label: "Trabajadores", enabled: true },
+      {
+        id: "employees-menu",
+        label: "Trabajadores",
+        enabled: true,
+        children: [
+          { id: "employees", label: "Nuevo trabajador", enabled: true },
+          { id: "employees-list", label: "Listado de trabajadores", enabled: true },
+          { id: "employee-record", label: "Expediente", enabled: true },
+        ],
+      },
     ],
   },
   {
