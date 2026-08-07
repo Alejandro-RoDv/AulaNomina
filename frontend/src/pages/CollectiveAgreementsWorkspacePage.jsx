@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 
 import AgreementCriteriaWorkspace from "../components/agreements/AgreementCriteriaWorkspace";
 import AgreementSalaryWorkspace from "../components/agreements/AgreementSalaryWorkspace";
+import "../components/agreements/agreementSplit42Refinements.css";
 import { useAgreementWorkspace } from "../hooks/useAgreementWorkspace";
 import CollectiveAgreementsManagementPage from "./CollectiveAgreementsManagementPage.jsx";
 
@@ -52,7 +53,7 @@ export default function CollectiveAgreementsWorkspacePage(props) {
   const copy = VIEW_COPY[view];
 
   return (
-    <div style={styles.wrapper}>
+    <div className="agreement-workspace" style={styles.wrapper}>
       <nav style={styles.tabs} aria-label="Áreas del convenio">
         <button type="button" onClick={() => setView("management")} style={view === "management" ? styles.tabActive : styles.tab}>Gestión del convenio</button>
         <button type="button" onClick={() => setView("salary")} style={view === "salary" ? styles.tabActive : styles.tab}>Estructura salarial</button>
