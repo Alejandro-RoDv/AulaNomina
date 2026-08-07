@@ -1,0 +1,155 @@
+/* Split 42.2 — Personas / Trabajadores
+   Convierte el listado y el expediente en workspaces planos y normaliza la paleta. */
+
+/* El PageCard exterior deja de actuar como una gran tarjeta. */
+.an-page-card:has(select[name="companyId"]) {
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.an-page-card:has(select[name="companyId"]) > .an-page-card__header {
+  margin-bottom: 24px !important;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--an-color-border, #e2e8f0);
+}
+
+.an-page-card:has(select[name="companyId"]) .an-page-card__title {
+  font-size: 1.125rem;
+}
+
+/* Ámbito y filtros: controles de aplicación, no bloques decorativos. */
+.an-page-card:has(select[name="companyId"]) input:not([type="checkbox"]):not([type="radio"]),
+.an-page-card:has(select[name="companyId"]) select,
+.an-page-card:has(select[name="companyId"]) textarea {
+  border-color: var(--an-color-border-strong, #cbd5e1) !important;
+  border-radius: var(--an-radius-md, 7px) !important;
+  background: #fff !important;
+}
+
+.an-page-card:has(select[name="companyId"]) input:not([type="checkbox"]):not([type="radio"]):focus,
+.an-page-card:has(select[name="companyId"]) select:focus,
+.an-page-card:has(select[name="companyId"]) textarea:focus {
+  border-color: var(--an-color-action-primary, #2563eb) !important;
+  outline: none;
+  box-shadow: 0 0 0 3px rgb(37 99 235 / 12%);
+}
+
+.an-page-card:has(select[name="companyId"]) input[type="checkbox"],
+.an-page-card:has(select[name="companyId"]) input[type="radio"] {
+  accent-color: var(--an-color-action-primary, #2563eb);
+}
+
+/* Botones primarios heredados en negro -> azul. */
+.an-page-card:has(select[name="companyId"]) button[style*="rgb(17, 24, 39)"],
+.an-page-card:has(select[name="companyId"]) button[style*="#111827"] {
+  border-color: var(--an-color-action-primary, #2563eb) !important;
+  background: var(--an-color-action-primary, #2563eb) !important;
+  color: #fff !important;
+}
+
+/* Expediente era amarillo: pasa a acción principal azul. */
+.an-page-card:has(select[name="companyId"]) button[style*="rgb(248, 243, 181)"],
+.an-page-card:has(select[name="companyId"]) button[style*="#f8f3b5"] {
+  border-color: var(--an-color-action-primary, #2563eb) !important;
+  background: var(--an-color-action-primary, #2563eb) !important;
+  color: #fff !important;
+}
+
+/* En tablas, Editar es secundaria; Expediente conserva el foco principal. */
+.an-page-card:has(select[name="companyId"]) table button[style*="rgb(17, 24, 39)"],
+.an-page-card:has(select[name="companyId"]) table button[style*="#111827"] {
+  border-color: var(--an-color-border-strong, #cbd5e1) !important;
+  background: #fff !important;
+  color: var(--an-color-text-primary, #0f172a) !important;
+}
+
+.an-page-card:has(select[name="companyId"]) table button[style*="rgb(248, 243, 181)"],
+.an-page-card:has(select[name="companyId"]) table button[style*="#f8f3b5"] {
+  border-color: #bfdbfe !important;
+  background: #eff6ff !important;
+  color: #1d4ed8 !important;
+}
+
+/* Tabla: cabecera tenue y filas algo más ligeras. */
+.an-page-card:has(select[name="companyId"]) table thead th {
+  background: var(--an-color-surface-subtle, #f8fafc) !important;
+  color: var(--an-color-text-secondary, #475569) !important;
+}
+
+.an-page-card:has(select[name="companyId"]) table tbody tr:hover td {
+  background: #f8fbff;
+}
+
+/* Tabs del expediente: navegación plana con subrayado, no botones rellenos. */
+.an-page-card:has(select[name="companyId"]) div[style*="padding-bottom: 10px"] > button {
+  min-height: 38px !important;
+  padding: 0 2px 10px !important;
+  border: 0 !important;
+  border-bottom: 2px solid transparent !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  color: var(--an-color-text-secondary, #475569) !important;
+}
+
+.an-page-card:has(select[name="companyId"]) div[style*="padding-bottom: 10px"] > button[style*="rgb(17, 24, 39)"],
+.an-page-card:has(select[name="companyId"]) div[style*="padding-bottom: 10px"] > button[style*="#111827"] {
+  border-bottom-color: var(--an-color-action-primary, #2563eb) !important;
+  background: transparent !important;
+  color: #1d4ed8 !important;
+}
+
+/* La cabecera-resumen del empleado se mantiene como contexto, pero más discreta. */
+.an-page-card:has(select[name="companyId"]) div[style*="min-width: 320px"][style*="background-color: rgb(249, 250, 251)"],
+.an-page-card:has(select[name="companyId"]) div[style*="min-width: 320px"][style*="#f9fafb"] {
+  border-color: var(--an-color-border, #e2e8f0) !important;
+  background: var(--an-color-surface-subtle, #f8fafc) !important;
+}
+
+/* Los KPI sí representan resumen agregado, por eso se mantienen como superficies suaves. */
+.an-page-card:has(select[name="companyId"]) div[style*="min-width: 120px"][style*="padding: 12px"][style*="background-color: rgb(249, 250, 251)"],
+.an-page-card:has(select[name="companyId"]) div[style*="min-width: 120px"][style*="padding: 12px"][style*="#f9fafb"] {
+  border-color: var(--an-color-border, #e2e8f0) !important;
+  border-radius: var(--an-radius-md, 7px) !important;
+  background: #fff !important;
+}
+
+/* Paneles del expediente: espacio + divisor en lugar de tarjeta dentro de tarjeta. */
+.an-page-card:has(select[name="companyId"]) div[style*="border-radius: 12px"][style*="padding: 16px"] {
+  border: 0 !important;
+  border-top: 1px solid var(--an-color-border, #e2e8f0) !important;
+  border-radius: 0 !important;
+  padding: 22px 0 0 !important;
+  background: transparent !important;
+}
+
+/* Datos personales: definición en rejilla, sin una tarjeta por dato. */
+.an-page-card:has(select[name="companyId"]) div[style*="border-radius: 10px"][style*="padding: 10px"][style*="flex-direction: column"] {
+  border: 0 !important;
+  border-bottom: 1px solid var(--an-color-border, #e2e8f0) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  padding: 8px 0 12px !important;
+}
+
+/* Los estados semánticos conservan verde/rojo; el resto de interacción es azul/neutro. */
+.an-page-card:has(select[name="companyId"]) span[style*="rgb(220, 252, 231)"] {
+  background: #ecfdf3 !important;
+  color: #15803d !important;
+}
+
+/* Responsive */
+@media (max-width: 64rem) {
+  .an-page-card:has(select[name="companyId"]) div[style*="grid-template-columns: repeat(4"] {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+
+@media (max-width: 48rem) {
+  .an-page-card:has(select[name="companyId"]) div[style*="grid-template-columns: repeat(4"],
+  .an-page-card:has(select[name="companyId"]) div[style*="grid-template-columns: repeat(2"] {
+    grid-template-columns: 1fr !important;
+  }
+}
