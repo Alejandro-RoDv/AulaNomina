@@ -1,0 +1,162 @@
+/* Split 42.1 — Convenios: normalización visual de criterios y estructura salarial */
+
+.agreement-workspace {
+  min-width: 0;
+}
+
+/* Un solo color de interacción: azul. Amarillo queda reservado a marca y avisos reales. */
+.agreement-workspace input[type="checkbox"],
+.agreement-workspace input[type="radio"] {
+  accent-color: var(--an-color-action-primary, #2563eb);
+}
+
+.agreement-workspace button[style*="#111827"],
+.agreement-workspace button[style*="rgb(17, 24, 39)"],
+.agreement-workspace button[style*="#facc15"],
+.agreement-workspace button[style*="rgb(250, 204, 21)"] {
+  border-color: var(--an-color-action-primary, #2563eb) !important;
+  border-radius: var(--an-radius-md, 7px) !important;
+  background: var(--an-color-action-primary, #2563eb) !important;
+  color: #fff !important;
+}
+
+.agreement-workspace button[style*="#111827"]:hover,
+.agreement-workspace button[style*="rgb(17, 24, 39)"]:hover,
+.agreement-workspace button[style*="#facc15"]:hover,
+.agreement-workspace button[style*="rgb(250, 204, 21)"]:hover {
+  border-color: var(--an-color-action-primary-hover, #1d4ed8) !important;
+  background: var(--an-color-action-primary-hover, #1d4ed8) !important;
+}
+
+/* Selecciones que antes aparecían en amarillo pasan a azul suave. */
+.agreement-workspace button[style*="#fffbeb"],
+.agreement-workspace button[style*="rgb(255, 251, 235)"] {
+  border-color: #bfdbfe !important;
+  border-left-color: var(--an-color-action-primary, #2563eb) !important;
+  background: #eff6ff !important;
+  color: #1d4ed8 !important;
+}
+
+/* Bloques operativos (p. ej. generación de atrasos) no son advertencias. */
+.agreement-workspace div[style*="#facc15"][style*="#fffbeb"],
+.agreement-workspace div[style*="rgb(250, 204, 21)"][style*="rgb(255, 251, 235)"] {
+  border-color: #bfdbfe !important;
+  background: #f8fbff !important;
+}
+
+.agreement-workspace div[style*="#facc15"][style*="#fffbeb"] [style*="#78350f"],
+.agreement-workspace div[style*="rgb(250, 204, 21)"][style*="rgb(255, 251, 235)"] [style*="rgb(120, 53, 15)"] {
+  color: #475569 !important;
+}
+
+/* Inputs coherentes con Empresas / Centros. */
+.agreement-workspace input:not([type="checkbox"]):not([type="radio"]),
+.agreement-workspace select,
+.agreement-workspace textarea {
+  border-radius: var(--an-radius-md, 7px) !important;
+  border-color: var(--an-color-border-strong, #cbd5e1) !important;
+}
+
+.agreement-workspace input:not([type="checkbox"]):not([type="radio"]):focus,
+.agreement-workspace select:focus,
+.agreement-workspace textarea:focus {
+  border-color: var(--an-color-action-primary, #2563eb) !important;
+  outline: none;
+  box-shadow: 0 0 0 3px rgb(37 99 235 / 12%);
+}
+
+/* Criterios laborales: sustituir la cuadrícula de tarjetas iguales por un índice compacto. */
+.agreement-workspace section:has(> div > article) {
+  border: 0 !important;
+  background: transparent !important;
+}
+
+.agreement-workspace section:has(> div > article) > header {
+  padding: 0 0 var(--an-space-4, 16px) !important;
+  border-bottom: 1px solid var(--an-color-border, #e2e8f0) !important;
+  background: transparent !important;
+}
+
+.agreement-workspace div:has(> article) {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 0 var(--an-space-8, 32px) !important;
+  padding: 0 !important;
+}
+
+.agreement-workspace article {
+  min-height: 0 !important;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto !important;
+  align-items: center !important;
+  gap: var(--an-space-6, 24px) !important;
+  padding: var(--an-space-5, 20px) 0 !important;
+  border: 0 !important;
+  border-bottom: 1px solid var(--an-color-border, #e2e8f0) !important;
+  background: transparent !important;
+}
+
+.agreement-workspace article h4 {
+  font-size: 0.9375rem !important;
+}
+
+.agreement-workspace article p {
+  max-width: 46ch;
+  margin-top: var(--an-space-1, 4px) !important;
+  color: var(--an-color-text-muted, #64748b) !important;
+  line-height: 1.45 !important;
+}
+
+.agreement-workspace article > div:last-child {
+  min-width: 148px;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: flex-end !important;
+  gap: var(--an-space-2, 8px) !important;
+  padding-top: 0 !important;
+  border-top: 0 !important;
+}
+
+.agreement-workspace article > div:last-child > span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 3px 8px !important;
+  border-radius: 999px;
+  background: var(--an-color-surface-muted, #f1f5f9);
+  color: var(--an-color-text-secondary, #475569) !important;
+  font-size: 0.6875rem !important;
+  font-weight: 700 !important;
+  white-space: nowrap;
+}
+
+.agreement-workspace article button {
+  border: 0 !important;
+  background: transparent !important;
+  color: var(--an-color-action-primary, #2563eb) !important;
+  text-decoration: none !important;
+  text-underline-offset: 0 !important;
+}
+
+.agreement-workspace article button:hover {
+  color: var(--an-color-action-primary-hover, #1d4ed8) !important;
+  text-decoration: underline !important;
+  text-underline-offset: 3px !important;
+}
+
+@media (max-width: 72rem) {
+  .agreement-workspace div:has(> article) {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+@media (max-width: 48rem) {
+  .agreement-workspace article {
+    grid-template-columns: 1fr !important;
+    gap: var(--an-space-3, 12px) !important;
+  }
+
+  .agreement-workspace article > div:last-child {
+    min-width: 0;
+    align-items: flex-start !important;
+  }
+}
