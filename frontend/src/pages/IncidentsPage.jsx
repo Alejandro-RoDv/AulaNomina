@@ -1,42 +1,58 @@
 import { useEffect, useMemo, useState } from "react";
-import {
-  ArrowLeftRight,
-  Calculator,
-  CalendarDays,
-  Clock3,
-  HeartPulse,
-  History,
-  LayoutDashboard,
-  UserMinus,
-} from "lucide-react";
 
 import CategoryIncidentForm from "../components/incidents/CategoryIncidentForm";
 import IncidentDashboard from "../components/incidents/IncidentDashboard";
 import IncidentHistoryPanel from "../components/incidents/IncidentHistoryPanel";
 import IncidentPayrollControl from "../components/incidents/IncidentPayrollControl";
 import "../components/incidents/incidentWorkspace.css";
+import "../components/incidents/incidentSplit42Refinements.css";
 import PageCard from "../components/layout/PageCard";
 import {
   getCategoryFormUpdates,
   getIncidentCategory,
-  INCIDENT_CATEGORY_TABS,
 } from "../utils/incidentCategories";
 import { getEmployeeVisibleCode } from "../utils/visibleCodes";
 import WageGarnishmentManagementPage from "./WageGarnishmentManagementPage";
 
 const INCIDENTS_MODE_KEY = "aulanomina:incidentsMode";
 const INCIDENTS_MODE_EVENT = "aulanomina-incidents-mode";
+const INCIDENT_CATEGORY_KEY = "aulanomina:incidentCategory";
+const INCIDENT_CATEGORY_EVENT = "aulanomina-incident-category";
 const HEADER_EVENT = "aulanomina-header-context";
 
-const TAB_ICONS = {
-  all: LayoutDashboard,
-  medical: HeartPulse,
-  absence: UserMinus,
-  vacation: CalendarDays,
-  overtime: Clock3,
-  movement: ArrowLeftRight,
-  payroll: Calculator,
-  history: History,
+const CATEGORY_HEADERS = {
+  all: {
+    title: "Incidencias laborales",
+    subtitle: "Resumen y seguimiento de incidencias con impacto laboral y en nómina",
+  },
+  medical: {
+    title: "IT y prestaciones",
+    subtitle: "Incapacidades temporales, recaídas y prestaciones vinculadas al trabajador",
+  },
+  absence: {
+    title: "Absentismo",
+    subtitle: "Ausencias, permisos, suspensiones y sanciones con trazabilidad laboral",
+  },
+  vacation: {
+    title: "Vacaciones",
+    subtitle: "Registro y seguimiento de periodos de vacaciones",
+  },
+  overtime: {
+    title: "Horas extraordinarias",
+    subtitle: "Registro de horas extra y su tratamiento económico",
+  },
+  movement: {
+    title: "Cambios del trabajador",
+    subtitle: "Cambios de categoría, jornada, centro y otras condiciones laborales",
+  },
+  payroll: {
+    title: "Control de nómina",
+    subtitle: "Revisión del impacto de las incidencias sobre el cálculo mensual",
+  },
+  history: {
+    title: "Historial de incidencias",
+    subtitle: "Consulta, filtrado y trazabilidad de incidencias registradas",
+  },
 };
 
 function getInitialMode() {
@@ -62,13 +78,23 @@ function readCaseContext() {
 }
 
 function getInitialCategory() {
-  return readCaseContext().incidentCategory || "all";
+  if (typeof window === "undefined") return "all";
+  return readCaseContext().incidentCategory
+    || window.sessionStorage.getItem(INCIDENT_CATEGORY_KEY)
+    || "all";
 }
 
-function publishHeader(mode) {
+function publishHeader(mode, category = "all") {
   const detail = mode === "embargo"
-    ? { title: "Embargos judiciales", subtitle: "Gestión, cálculo y seguimiento de retenciones judiciales" }
-    : { title: "Incidencias laborales", subtitle: "Registro, cálculo y trazabilidad del impacto mensual" };
+    ? {
+        eyebrow: "Gestión laboral",
+        title: "Embargos judiciales",
+        subtitle: "Gestión, cálculo y seguimiento de retenciones judiciales",
+      }
+    : {
+        eyebrow: "Gestión laboral",
+        ...(CATEGORY_HEADERS[getIncidentCategory(category).value] || CATEGORY_HEADERS.all),
+      };
   window.dispatchEvent(new CustomEvent(HEADER_EVENT, { detail }));
 }
 
@@ -105,18 +131,33 @@ export default function IncidentsPage({
   const activeTab = getIncidentCategory(activeCategory);
 
   useEffect(() => {
-    const handleModeChange = () => {
+    const syncNavigation = () => {
       const mode = getInitialMode();
+      const category = window.sessionStorage.getItem(INCIDENT_CATEGORY_KEY) || getInitialCategory();
       setActiveMode(mode);
-      publishHeader(mode);
+      if (mode !== "embargo") setActiveCategory(getIncidentCategory(category).value);
+      publishHeader(mode, category);
     };
-    handleModeChange();
-    window.addEventListener(INCIDENTS_MODE_EVENT, handleModeChange);
+
+    syncNavigation();
+    window.addEventListener(INCIDENTS_MODE_EVENT, syncNavigation);
+    window.addEventListener(INCIDENT_CATEGORY_EVENT, syncNavigation);
     return () => {
-      window.removeEventListener(INCIDENTS_MODE_EVENT, handleModeChange);
+      window.removeEventListener(INCIDENTS_MODE_EVENT, syncNavigation);
+      window.removeEventListener(INCIDENT_CATEGORY_EVENT, syncNavigation);
       window.dispatchEvent(new CustomEvent(HEADER_EVENT, { detail: null }));
     };
   }, []);
+
+  useEffect(() => {
+    if (activeMode === "embargo") return;
+    const tab = getIncidentCategory(activeCategory);
+    const updates = getCategoryFormUpdates(tab, incidentForm.incident_type);
+    Object.entries(updates).forEach(([name, valueToApply]) => {
+      onIncidentChange({ target: { name, value: valueToApply, type: "select-one" } });
+    });
+    publishHeader("list", tab.value);
+  }, [activeCategory]);
 
   const enrichedIncidents = useMemo(() => {
     const employeeMap = Object.fromEntries(employees.map((item) => [String(item.id), item]));
@@ -152,23 +193,14 @@ export default function IncidentsPage({
     });
   }, [incidents, employees, contracts, companies, workCenters]);
 
-  const workspaceStats = useMemo(() => {
-    const active = enrichedIncidents.filter((item) => !item.is_cancelled);
-    return {
-      total: active.length,
-      pending: active.filter((item) => ["draft", "open", "pending"].includes(item.status)).length,
-      recalculation: active.filter((item) => item.requires_recalculation).length,
-      regularization: active.filter((item) => item.requires_regularization).length,
-    };
-  }, [enrichedIncidents]);
-
   const openCategory = (value) => {
     const tab = getIncidentCategory(value);
-    if (tab.value !== activeCategory) setActiveCategory(tab.value);
-    const updates = getCategoryFormUpdates(tab, incidentForm.incident_type);
-    Object.entries(updates).forEach(([name, valueToApply]) => {
-      onIncidentChange({ target: { name, value: valueToApply, type: "select-one" } });
-    });
+    window.sessionStorage.setItem(INCIDENTS_MODE_KEY, "list");
+    window.sessionStorage.setItem(INCIDENT_CATEGORY_KEY, tab.value);
+    setActiveMode("list");
+    setActiveCategory(tab.value);
+    publishHeader("list", tab.value);
+    window.dispatchEvent(new Event(INCIDENT_CATEGORY_EVENT));
   };
 
   useEffect(() => {
@@ -199,38 +231,7 @@ export default function IncidentsPage({
     />;
   }
 
-  return <div className="incident-workspace">
-    <section className="incident-workspace-hero">
-      <div>
-        <span className="incident-workspace-eyebrow">Gestión laboral · Motor trazable</span>
-        <h1>Incidencias laborales</h1>
-        <p>Registra situaciones del trabajador, revisa conflictos y controla su impacto antes de calcular la nómina.</p>
-      </div>
-      <div className="incident-workspace-status">
-        <article><small>Activas</small><strong>{workspaceStats.total}</strong></article>
-        <article><small>Pendientes</small><strong>{workspaceStats.pending}</strong></article>
-        <article className={workspaceStats.recalculation ? "warning" : ""}><small>Recálculo</small><strong>{workspaceStats.recalculation}</strong></article>
-        <article className={workspaceStats.regularization ? "critical" : ""}><small>Regularización</small><strong>{workspaceStats.regularization}</strong></article>
-      </div>
-    </section>
-
-    <nav className="incident-workspace-tabs" role="tablist" aria-label="Procesos de incidencias">
-      {INCIDENT_CATEGORY_TABS.map((tab) => {
-        const Icon = TAB_ICONS[tab.value] || LayoutDashboard;
-        return <button
-          key={tab.value}
-          type="button"
-          role="tab"
-          aria-selected={activeCategory === tab.value}
-          onClick={() => openCategory(tab.value)}
-          className={activeCategory === tab.value ? "active" : ""}
-        >
-          <Icon size={16} />
-          <span>{tab.shortLabel || tab.label}</span>
-        </button>;
-      })}
-    </nav>
-
+  return <div className="incident-workspace incident-workspace--split42">
     <div role="tabpanel" className="incident-workspace-content">
       {activeTab.kind === "dashboard" && <IncidentDashboard incidents={enrichedIncidents} onOpenCategory={openCategory} />}
 
@@ -252,7 +253,7 @@ export default function IncidentsPage({
         incidentSubmitting={incidentSubmitting}
       />}
 
-      {activeTab.kind === "form" && <PageCard title={activeTab.title} subtitle={activeTab.subtitle}>
+      {activeTab.kind === "form" && <PageCard className="incident-form-card" title={activeTab.title} subtitle={activeTab.subtitle}>
         <CategoryIncidentForm
           category={activeTab}
           form={incidentForm}
