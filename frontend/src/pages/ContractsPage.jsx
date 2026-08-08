@@ -5,6 +5,7 @@ import ContractForm from "../components/ContractFormProfessional";
 import ContractPrintPage from "../components/ContractPrintPageV5";
 import ContractHistoryScope from "../components/contracts/ContractHistoryScope";
 import "../components/contracts/contractSplit42Refinements.css";
+import "../components/contracts/contractEditSplit42.css";
 
 function getStoredMode() {
   return window.sessionStorage.getItem("aulanomina:contractsMode") || "history";
