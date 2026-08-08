@@ -14,16 +14,21 @@
   min-width: 0;
 }
 
-/* KPI: información agregada, no tarjetas decorativas. */
+/* Resumen: mantener solo los datos operativos que ayudan a leer el listado. */
 .contract-history-workspace > div:first-child {
-  gap: 16px !important;
-  margin-bottom: 20px !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 12px !important;
+  margin-bottom: 16px !important;
+}
+
+.contract-history-workspace > div:first-child > div:nth-child(n + 3) {
+  display: none !important;
 }
 
 .contract-history-workspace > div:first-child > div {
-  min-height: 88px;
+  min-height: 72px;
   justify-content: center;
-  padding: 16px 18px !important;
+  padding: 14px 16px !important;
   border: 1px solid #dbe3ef !important;
   border-radius: 10px !important;
   background: #ffffff !important;
@@ -37,7 +42,7 @@
 
 .contract-history-workspace > div:first-child > div > strong {
   color: #0f172a !important;
-  font-size: 22px !important;
+  font-size: 20px !important;
 }
 
 /* Barra de búsqueda y filtros. */
@@ -89,16 +94,28 @@
   background: #ffffff !important;
 }
 
-/* Resumen de resultados. */
+/* Resumen de resultados: una sola cifra útil + orden actual. */
 .contract-history-workspace > div:has(+ div > table) {
   margin: 2px 0 10px !important;
   color: #64748b !important;
-  font-size: 12.5px !important;
+  font-size: 0 !important;
 }
 
 .contract-history-workspace > div:has(+ div > table) strong {
   color: #0f172a;
-  font-size: 14px;
+  font-size: 13.5px !important;
+}
+
+.contract-history-workspace > div:has(+ div > table) strong::after {
+  content: " resultados";
+  font-weight: 600;
+  color: #64748b;
+}
+
+.contract-history-workspace > div:has(+ div > table) span {
+  color: #64748b;
+  font-size: 12.5px !important;
+  font-weight: 600;
 }
 
 /* Tabla: más legible por defecto y algo menos ancha. */
