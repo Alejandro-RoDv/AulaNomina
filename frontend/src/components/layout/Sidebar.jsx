@@ -82,10 +82,17 @@ const groups = [
         label: "Incidencias",
         enabled: true,
         children: [
-          { id: "incidents", label: "Incidencias laborales", enabled: true, modeGroup: "incidents", modeValue: "list" },
-          { id: "incidents", label: "Embargos judiciales", enabled: true, modeGroup: "incidents", modeValue: "embargo" },
+          { id: "incidents", label: "Resumen", enabled: true, modeGroup: "incidentCategory", modeValue: "all" },
+          { id: "incidents", label: "IT y prestaciones", enabled: true, modeGroup: "incidentCategory", modeValue: "medical" },
+          { id: "incidents", label: "Absentismo", enabled: true, modeGroup: "incidentCategory", modeValue: "absence" },
+          { id: "incidents", label: "Vacaciones", enabled: true, modeGroup: "incidentCategory", modeValue: "vacation" },
+          { id: "incidents", label: "Horas extra", enabled: true, modeGroup: "incidentCategory", modeValue: "overtime" },
+          { id: "incidents", label: "Cambios", enabled: true, modeGroup: "incidentCategory", modeValue: "movement" },
+          { id: "incidents", label: "Control nómina", enabled: true, modeGroup: "incidentCategory", modeValue: "payroll" },
+          { id: "incidents", label: "Historial", enabled: true, modeGroup: "incidentCategory", modeValue: "history" },
         ],
       },
+      { id: "incidents", label: "Embargos judiciales", enabled: true, modeGroup: "incidents", modeValue: "embargo" },
     ],
   },
   {
@@ -221,12 +228,14 @@ const modeStorageKeys = {
   contracts: "aulanomina:contractsMode",
   companies: "aulanomina:companiesMode",
   incidents: "aulanomina:incidentsMode",
+  incidentCategory: "aulanomina:incidentCategory",
 };
 
 const modeEvents = {
   contracts: "aulanomina-contract-mode",
   companies: "aulanomina-route-change",
   incidents: "aulanomina-incidents-mode",
+  incidentCategory: "aulanomina-incident-category",
 };
 
 function getItemKey(item) {
@@ -269,7 +278,9 @@ function getInitialActiveKey(activePage) {
   }
   if (activePage === "incidents") {
     const mode = window.sessionStorage.getItem(modeStorageKeys.incidents) || "list";
-    return `incidents:incidents:${mode}`;
+    if (mode === "embargo") return "incidents:incidents:embargo";
+    const category = window.sessionStorage.getItem(modeStorageKeys.incidentCategory) || "all";
+    return `incidents:incidentCategory:${category}`;
   }
 
   const hashItem = findItemForHash(activePage, window.location.hash);
@@ -326,6 +337,13 @@ function applyItemNavigation(item) {
     routeChanged = true;
   } else {
     routeChanged = clearHashIfNeeded(item);
+  }
+
+  if (item.modeGroup === "incidentCategory") {
+    window.sessionStorage.setItem(modeStorageKeys.incidents, "list");
+    window.sessionStorage.setItem(modeStorageKeys.incidentCategory, item.modeValue);
+    window.dispatchEvent(new Event(modeEvents.incidentCategory));
+    return;
   }
 
   if (item.modeGroup && item.modeValue) {
@@ -398,11 +416,13 @@ export default function Sidebar({ activePage, setActivePage }) {
     window.addEventListener("hashchange", syncActiveNavigation);
     window.addEventListener("aulanomina-contract-mode", syncActiveNavigation);
     window.addEventListener("aulanomina-incidents-mode", syncActiveNavigation);
+    window.addEventListener("aulanomina-incident-category", syncActiveNavigation);
     return () => {
       window.removeEventListener("aulanomina-route-change", syncActiveNavigation);
       window.removeEventListener("hashchange", syncActiveNavigation);
       window.removeEventListener("aulanomina-contract-mode", syncActiveNavigation);
       window.removeEventListener("aulanomina-incidents-mode", syncActiveNavigation);
+      window.removeEventListener("aulanomina-incident-category", syncActiveNavigation);
     };
   }, [activePage]);
 
