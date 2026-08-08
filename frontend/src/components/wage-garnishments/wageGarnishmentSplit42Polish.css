@@ -1,0 +1,44 @@
+/* Split 42 — remate visual de Embargos judiciales.
+   El amarillo queda reservado para advertencias reales, no para navegación o decoración. */
+
+/* El contexto ya explica qué debe hacer el usuario. El bloque de tres pasos que
+   aparecía debajo repetía la misma información y ocupaba demasiado espacio. */
+.an-page-card:has(.wg-context) + section {
+  display: none !important;
+}
+
+/* Estado activo de Nuevo embargo / Historial: azul funcional, igual que el resto
+   de la aplicación. Cubrimos tanto serialización hexadecimal como rgb del style inline. */
+.an-page-card:has(.wg-context) > div:last-child > button[style*="background-color: #fffbea"],
+.an-page-card:has(.wg-context) > div:last-child > button[style*="background-color: rgb(255, 251, 234)"] {
+  background: var(--wg-blue-soft) !important;
+  color: var(--wg-blue-strong) !important;
+  box-shadow: inset 0 -3px 0 var(--wg-blue) !important;
+}
+
+/* El contador de expedientes no es una alerta: pasa de amarillo a indicador neutro. */
+.an-page-card:has(.wg-context) > div:last-child > button:nth-child(2) > span:nth-child(3) {
+  min-width: 26px !important;
+  height: 26px !important;
+  display: inline-grid !important;
+  place-items: center !important;
+  border: 1px solid #cfd6e0 !important;
+  border-radius: 999px !important;
+  background: #eef2f6 !important;
+  color: #475467 !important;
+  font-size: 9px !important;
+  font-weight: 850 !important;
+}
+
+/* En el paso de cálculo, los resaltados informativos tampoco necesitan amarillo. */
+section[style*="box-shadow: rgba(15, 23, 42, 0.06)"] span[style*="background-color: rgb(255, 251, 234)"],
+section[style*="box-shadow: rgba(15, 23, 42, 0.06)"] span[style*="background-color: #fffbea"] {
+  background: var(--wg-blue-soft) !important;
+  color: var(--wg-blue-strong) !important;
+}
+
+section[style*="box-shadow: rgba(15, 23, 42, 0.06)"] div[style*="background-color: rgb(255, 251, 234)"],
+section[style*="box-shadow: rgba(15, 23, 42, 0.06)"] div[style*="background-color: #fffbea"] {
+  border-color: #bfdbfe !important;
+  background: var(--wg-blue-soft) !important;
+}
