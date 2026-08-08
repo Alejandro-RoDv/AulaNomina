@@ -11,28 +11,34 @@ function pluralizeContracts(text) {
   return `${count} ${count === 1 ? "contrato" : "contratos"}`;
 }
 
+function setTextIfChanged(node, value) {
+  if (!node || node.textContent === value) return;
+  node.textContent = value;
+}
+
 function refinePrintWorkspace() {
   document.querySelectorAll(".cp-module").forEach((module) => {
     const eyebrow = module.querySelector(".cp-toolbar p");
-    if (eyebrow && eyebrow.textContent?.includes("Split 27")) {
-      eyebrow.textContent = "DOCUMENTACIÓN CONTRACTUAL";
+    if (eyebrow?.textContent?.includes("Split 27")) {
+      setTextIfChanged(eyebrow, "DOCUMENTACIÓN CONTRACTUAL");
     }
 
     const previewEyebrow = module.querySelector(".cp-preview header p");
     if (previewEyebrow?.textContent?.trim() === "Previsualización HTML") {
-      previewEyebrow.textContent = "PREVISUALIZACIÓN";
+      setTextIfChanged(previewEyebrow, "PREVISUALIZACIÓN");
     }
 
     const previewTitle = module.querySelector(".cp-preview header h2");
     if (previewTitle?.textContent?.trim() === "Modelo reducido de contrato") {
-      previewTitle.textContent = "Vista previa del contrato";
+      setTextIfChanged(previewTitle, "Vista previa del contrato");
     }
 
     module.querySelectorAll(".cp-family").forEach((family) => {
       const countNode = family.querySelector(":scope > div span");
       if (countNode) {
-        countNode.textContent = pluralizeContracts(countNode.textContent);
-        const isEmpty = /^0\s+contratos?$/i.test(countNode.textContent.trim());
+        const pluralized = pluralizeContracts(countNode.textContent);
+        setTextIfChanged(countNode, pluralized);
+        const isEmpty = /^0\s+contratos?$/i.test(pluralized.trim());
         family.classList.toggle("cp-family--empty", isEmpty);
       }
 
@@ -40,21 +46,35 @@ function refinePrintWorkspace() {
         const cells = row.querySelectorAll("td");
         if (cells.length < 7) return;
         const statusCell = cells[cells.length - 1];
-        const rawStatus = statusCell.textContent?.trim().toLowerCase();
+        const rawStatus = statusCell.dataset.rawStatus || statusCell.textContent?.trim().toLowerCase();
         if (!STATUS_LABELS[rawStatus]) return;
 
-        statusCell.textContent = STATUS_LABELS[rawStatus];
+        statusCell.dataset.rawStatus = rawStatus;
+        setTextIfChanged(statusCell, STATUS_LABELS[rawStatus]);
         statusCell.classList.add("cp-status", `cp-status--${rawStatus}`);
       });
     });
 
     module.querySelectorAll(".cp-preview header span").forEach((node) => {
-      node.textContent = pluralizeContracts(node.textContent);
+      setTextIfChanged(node, pluralizeContracts(node.textContent));
     });
   });
 }
 
-refinePrintWorkspace();
+let scheduled = false;
+let observer;
 
-const observer = new MutationObserver(refinePrintWorkspace);
+function scheduleRefinement() {
+  if (scheduled) return;
+  scheduled = true;
+  window.requestAnimationFrame(() => {
+    scheduled = false;
+    observer?.disconnect();
+    refinePrintWorkspace();
+    observer?.observe(document.body, { childList: true, subtree: true });
+  });
+}
+
+refinePrintWorkspace();
+observer = new MutationObserver(scheduleRefinement);
 observer.observe(document.body, { childList: true, subtree: true });
