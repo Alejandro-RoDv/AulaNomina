@@ -39,6 +39,13 @@ const contractTabs = [
   { mode: "print", label: "Impresión contratos" },
 ];
 
+const contractTitles = new Set([
+  "Contratos",
+  "Nuevo contrato",
+  "Historial de contratos",
+  "Impresión de contratos",
+]);
+
 const overlayHashes = new Set(["#documents", "#alerts", "#reports"]);
 
 function getSeverityClass(severity) {
@@ -106,7 +113,7 @@ export default function Header({
   const alertStats = useMemo(() => getAlertStats(alerts), [alerts]);
   const previewAlerts = alerts.slice(0, 5);
   const showWorkerTabs = isWorkerTitle(effectiveTitle);
-  const showContractTabs = effectiveTitle === "Contratos";
+  const showContractTabs = contractTitles.has(effectiveTitle) || effectiveEyebrow === "Contratación";
   const isPanel = effectiveTitle === "Dashboard";
   const displayTitle = isPanel ? "Panel" : effectiveTitle;
   const displaySubtitle = isPanel
@@ -160,6 +167,7 @@ export default function Header({
     setContractMode(mode);
     clearOverlayHash();
     window.dispatchEvent(new Event("aulanomina-contract-mode"));
+    window.dispatchEvent(new Event("aulanomina-route-change"));
     window.dispatchEvent(new CustomEvent("aulanomina-open-page", { detail: { page: "contracts" } }));
   };
 
