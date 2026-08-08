@@ -1,0 +1,706 @@
+:root {
+  --wg-blue: #2563eb;
+  --wg-blue-strong: #1d4ed8;
+  --wg-blue-soft: #eff6ff;
+  --wg-ink: #101828;
+  --wg-muted: #667085;
+  --wg-line: #d7dde7;
+  --wg-soft: #f7f9fc;
+  --wg-surface: #ffffff;
+}
+
+/* El primer PageCard solo actúa como contenedor del contexto. Evitamos repetir
+   el título global de la página y eliminamos la apariencia de tarjeta. */
+.an-page-card:has(.wg-context) {
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.an-page-card:has(.wg-context) > .an-page-card__header {
+  display: none;
+}
+
+.wg-context {
+  border: 1px solid var(--wg-line);
+  background: var(--wg-surface);
+}
+
+.wg-context__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 17px 20px;
+  border-bottom: 1px solid var(--wg-line);
+  background: var(--wg-soft);
+}
+
+.wg-kicker {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--wg-blue-strong);
+  font-size: 10px;
+  font-weight: 850;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.wg-context__title,
+.wg-history__title,
+.wg-record-section__title {
+  margin: 0;
+  color: var(--wg-ink);
+  font-weight: 850;
+}
+
+.wg-context__title {
+  font-size: 16px;
+}
+
+.wg-context__subtitle,
+.wg-history__subtitle,
+.wg-record-section__subtitle {
+  margin: 4px 0 0;
+  color: var(--wg-muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.wg-context__status {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--wg-line);
+  background: #fff;
+  color: #667085;
+  font-size: 9px;
+  font-weight: 850;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.wg-context__status.is-ready {
+  border-color: #93c5fd;
+  background: var(--wg-blue-soft);
+  color: var(--wg-blue-strong);
+}
+
+.wg-context__body {
+  display: grid;
+  grid-template-columns: minmax(380px, 1.1fr) minmax(300px, 0.9fr);
+  gap: 18px;
+  align-items: stretch;
+  padding: 18px 20px;
+}
+
+.wg-context__selectors {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.wg-field {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.wg-field--wide {
+  grid-column: span 2;
+}
+
+.wg-label {
+  color: #344054;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.wg-input,
+.wg-select,
+.wg-textarea,
+.wg-money {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #b9c2cf;
+  border-radius: 0;
+  background: #fff;
+  color: var(--wg-ink);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.wg-input,
+.wg-select {
+  min-height: 39px;
+  padding: 8px 10px;
+}
+
+.wg-input:focus,
+.wg-select:focus,
+.wg-textarea:focus,
+.wg-money:focus-within {
+  border-color: var(--wg-blue);
+  outline: 2px solid rgba(37, 99, 235, 0.13);
+  outline-offset: 0;
+}
+
+.wg-input:disabled,
+.wg-select:disabled,
+.wg-textarea:disabled {
+  background: #f2f4f7;
+  color: #98a2b3;
+  cursor: not-allowed;
+}
+
+.wg-context__summary {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) auto auto;
+  gap: 11px;
+  align-items: center;
+  min-width: 0;
+  padding: 12px 14px;
+  border-left: 3px solid var(--wg-blue);
+  background: var(--wg-blue-soft);
+}
+
+.wg-context__avatar {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  background: var(--wg-blue);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.wg-context__identity {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.wg-context__identity small {
+  color: #667085;
+  font-size: 8px;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.wg-context__identity strong {
+  overflow: hidden;
+  color: var(--wg-ink);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wg-context__identity span {
+  color: #667085;
+  font-size: 10px;
+}
+
+.wg-context__metric {
+  display: flex;
+  min-width: 92px;
+  flex-direction: column;
+  align-items: center;
+  padding-left: 12px;
+  border-left: 1px solid #bfdbfe;
+}
+
+.wg-context__metric strong {
+  color: var(--wg-ink);
+  font-size: 19px;
+  line-height: 1;
+}
+
+.wg-context__metric span {
+  margin-top: 4px;
+  color: #667085;
+  font-size: 8px;
+  font-weight: 800;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.wg-context__helper {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  padding: 14px;
+  border-left: 3px solid #98a2b3;
+  background: #f8fafc;
+  color: #475467;
+  font-size: 11px;
+}
+
+.wg-context__release {
+  min-height: 32px;
+  padding: 0 10px;
+  border: 1px solid #98a2b3;
+  border-radius: 0;
+  background: #fff;
+  color: #344054;
+  font-size: 9px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+/* Acciones de nivel superior: pasan de tarjetas a selector de modo. */
+.an-page-card:has(.wg-context) > div:last-child {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 0 !important;
+  margin-top: 10px !important;
+  border: 1px solid var(--wg-line);
+  background: #fff;
+}
+
+.an-page-card:has(.wg-context) > div:last-child > button {
+  min-height: 58px !important;
+  grid-template-columns: 34px 1fr auto !important;
+  gap: 10px !important;
+  padding: 10px 13px !important;
+  border: 0 !important;
+  border-right: 1px solid var(--wg-line) !important;
+  border-radius: 0 !important;
+  background: #fff !important;
+  color: #344054 !important;
+  box-shadow: none !important;
+}
+
+.an-page-card:has(.wg-context) > div:last-child > button:last-child {
+  border-right: 0 !important;
+}
+
+.an-page-card:has(.wg-context) > div:last-child > button:not(:disabled):hover {
+  background: #f8fafc !important;
+}
+
+.an-page-card:has(.wg-context) > div:last-child > button[style*="fffbea"] {
+  background: var(--wg-blue-soft) !important;
+  color: var(--wg-blue-strong) !important;
+  box-shadow: inset 0 -3px 0 var(--wg-blue) !important;
+}
+
+.an-page-card:has(.wg-context) > div:last-child > button > span:first-child {
+  display: grid !important;
+  width: 30px !important;
+  height: 30px !important;
+  place-items: center !important;
+  border-radius: 0 !important;
+  background: var(--wg-blue) !important;
+  color: #fff !important;
+  font-size: 16px !important;
+}
+
+.an-page-card:has(.wg-context) > div:last-child small {
+  color: #667085;
+  font-size: 10px;
+}
+
+/* Contenedor del expediente: una superficie única, no otra tarjeta flotante. */
+.an-page-card:has(.wg-record-form),
+.an-page-card:has(.wg-history) {
+  border: 1px solid var(--wg-line) !important;
+  border-radius: 0 !important;
+  background: #fff !important;
+  box-shadow: none !important;
+}
+
+.an-page-card:has(.wg-record-form) > .an-page-card__header,
+.an-page-card:has(.wg-history) > .an-page-card__header {
+  margin-bottom: 16px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--wg-line);
+}
+
+.an-page-card:has(.wg-record-form) > .an-page-card__header .an-page-card__title,
+.an-page-card:has(.wg-history) > .an-page-card__header .an-page-card__title {
+  font-size: 17px;
+}
+
+/* Stepper del expediente. */
+.an-page-card:has(.wg-record-form) > .an-page-card__header + div {
+  margin-bottom: 16px !important;
+  padding: 10px 12px !important;
+  border: 1px solid var(--wg-line) !important;
+  border-radius: 0 !important;
+  background: var(--wg-soft) !important;
+}
+
+.an-page-card:has(.wg-record-form) > .an-page-card__header + div > span:last-child {
+  border-radius: 0 !important;
+  background: var(--wg-blue) !important;
+}
+
+.an-page-card:has(.wg-record-form) > div:last-child button {
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+.an-page-card:has(.wg-record-form) > div:last-child button:last-child {
+  border-color: var(--wg-blue) !important;
+  background: var(--wg-blue) !important;
+  color: #fff !important;
+}
+
+/* Formulario: cuatro bloques visuales pasan a ser secciones de una sola ficha. */
+.wg-record-form {
+  border: 1px solid var(--wg-line);
+  background: #fff;
+}
+
+.wg-record-section {
+  border-bottom: 1px solid var(--wg-line);
+}
+
+.wg-record-section:last-child {
+  border-bottom: 0;
+}
+
+.wg-record-section__header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 13px 15px;
+  background: var(--wg-soft);
+}
+
+.wg-record-section__number {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  place-items: center;
+  border: 1px solid #93c5fd;
+  background: var(--wg-blue-soft);
+  color: var(--wg-blue-strong);
+  font-size: 9px;
+  font-weight: 900;
+}
+
+.wg-record-section__title {
+  font-size: 13px;
+}
+
+.wg-record-section__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 13px;
+  padding: 15px;
+  border-top: 1px solid #edf0f4;
+}
+
+.wg-record-section__grid--economic {
+  grid-template-columns: minmax(170px, 0.7fr) minmax(170px, 0.7fr) minmax(280px, 1.6fr);
+}
+
+.wg-checkbox {
+  display: flex;
+  min-height: 39px;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px;
+  border: 1px solid var(--wg-line);
+  background: #f8fafc;
+  color: #344054;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.wg-money {
+  display: grid;
+  grid-template-columns: 1fr 34px;
+  overflow: hidden;
+}
+
+.wg-money input {
+  min-height: 37px;
+  border: 0;
+  background: transparent;
+  padding: 8px 10px;
+  color: var(--wg-ink);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 650;
+  outline: 0;
+}
+
+.wg-money__currency {
+  display: grid;
+  place-items: center;
+  border-left: 1px solid var(--wg-line);
+  background: var(--wg-soft);
+  color: #475467;
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.wg-textarea {
+  min-height: 78px;
+  padding: 9px 10px;
+  resize: vertical;
+}
+
+.wg-alert {
+  margin: 0 15px 15px;
+  padding: 9px 11px;
+  border-left: 3px solid #d97706;
+  background: #fffbeb;
+  color: #92400e;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.wg-alert--info {
+  border-left-color: var(--wg-blue);
+  background: var(--wg-blue-soft);
+  color: #1e40af;
+}
+
+/* Historial: métricas y tabla forman una única vista de trabajo. */
+.wg-history {
+  border: 1px solid var(--wg-line);
+  background: #fff;
+}
+
+.wg-history__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 15px 17px;
+  border-bottom: 1px solid var(--wg-line);
+  background: var(--wg-soft);
+}
+
+.wg-history__title {
+  font-size: 14px;
+}
+
+.wg-history__filters {
+  display: grid;
+  grid-template-columns: minmax(250px, 1fr) 170px;
+  gap: 8px;
+  flex: 1 1 450px;
+  max-width: 590px;
+}
+
+.wg-history__metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border-bottom: 1px solid var(--wg-line);
+}
+
+.wg-history__metric {
+  display: flex;
+  min-height: 66px;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  padding: 10px 14px;
+  border-right: 1px solid var(--wg-line);
+  background: #fff;
+  color: #667085;
+  font-size: 9px;
+  font-weight: 750;
+}
+
+.wg-history__metric:last-child {
+  border-right: 0;
+}
+
+.wg-history__metric strong {
+  color: var(--wg-ink);
+  font-size: 18px;
+}
+
+.wg-history__metric--accent {
+  background: var(--wg-blue-soft);
+}
+
+.wg-history__table-wrap {
+  overflow-x: auto;
+}
+
+.wg-history__table {
+  width: 100%;
+  min-width: 1200px;
+  border-collapse: collapse;
+}
+
+.wg-history__table th {
+  padding: 10px;
+  border-bottom: 1px solid #cfd6e0;
+  background: #eef2f6;
+  color: #475467;
+  font-size: 9px;
+  font-weight: 850;
+  letter-spacing: 0.03em;
+  text-align: left;
+  text-transform: uppercase;
+}
+
+.wg-history__table td {
+  padding: 10px;
+  border-bottom: 1px solid #e8ecf1;
+  color: #344054;
+  font-size: 10px;
+  font-weight: 650;
+}
+
+.wg-history__table tbody tr:hover {
+  background: #f8fbff;
+}
+
+.wg-history__priority,
+.wg-history__count {
+  text-align: center;
+  font-weight: 850 !important;
+}
+
+.wg-history__reference {
+  color: var(--wg-ink) !important;
+  font-weight: 850 !important;
+}
+
+.wg-history__money {
+  color: var(--wg-ink) !important;
+  font-weight: 800 !important;
+  text-align: right;
+}
+
+.wg-status {
+  display: inline-flex;
+  min-width: 70px;
+  justify-content: center;
+  padding: 4px 7px;
+  font-size: 9px;
+  font-weight: 800;
+}
+
+.wg-status--draft { background: #e0f2fe; color: #075985; }
+.wg-status--active { background: #dcfce7; color: #166534; }
+.wg-status--suspended { background: #fef3c7; color: #92400e; }
+.wg-status--cancelled { background: #fee2e2; color: #991b1b; }
+.wg-status--completed { background: #eef2f6; color: #475467; }
+
+.wg-history__actions {
+  display: flex;
+  gap: 5px;
+  white-space: nowrap;
+}
+
+.wg-action {
+  min-height: 28px;
+  padding: 0 8px;
+  border: 1px solid #b8c1ce;
+  border-radius: 0;
+  background: #fff;
+  color: #344054;
+  font-size: 9px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.wg-action:hover {
+  border-color: var(--wg-blue);
+  color: var(--wg-blue-strong);
+}
+
+.wg-action--danger {
+  border-color: #fca5a5;
+  color: #991b1b;
+}
+
+.wg-action--warning {
+  border-color: #f59e0b;
+  color: #92400e;
+}
+
+.wg-history__empty {
+  padding: 36px !important;
+  text-align: center;
+  color: #667085 !important;
+}
+
+/* Pestañas de expediente creadas en WageGarnishmentManagementPage. */
+nav[style*="border-bottom: 2px solid rgb(17, 24, 39)"],
+nav[style*="border-bottom: 2px solid #111827"] {
+  gap: 0 !important;
+  padding: 0 !important;
+  border: 1px solid var(--wg-line) !important;
+  background: #f5f7fa !important;
+}
+
+nav[style*="border-bottom: 2px solid rgb(17, 24, 39)"] button,
+nav[style*="border-bottom: 2px solid #111827"] button {
+  margin: 0 !important;
+  padding: 9px 13px !important;
+  border: 0 !important;
+  border-right: 1px solid var(--wg-line) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  color: #475467 !important;
+}
+
+nav[style*="border-bottom: 2px solid rgb(17, 24, 39)"] button[style*="border: 2px solid"],
+nav[style*="border-bottom: 2px solid #111827"] button[style*="border: 2px solid"] {
+  background: #fff !important;
+  color: var(--wg-blue-strong) !important;
+  box-shadow: inset 0 -3px 0 var(--wg-blue) !important;
+}
+
+/* Resumen de grabación del paso 2. */
+section[style*="box-shadow: rgba(15, 23, 42, 0.06)"]:has(h3) {
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+@media (max-width: 900px) {
+  .wg-context__body {
+    grid-template-columns: 1fr;
+  }
+
+  .wg-record-section__grid--economic {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .wg-context__header,
+  .wg-history__header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .wg-context__selectors,
+  .wg-history__filters,
+  .wg-history__metrics,
+  .wg-record-section__grid--economic {
+    grid-template-columns: 1fr;
+  }
+
+  .wg-context__summary {
+    grid-template-columns: 38px minmax(0, 1fr);
+  }
+
+  .wg-context__metric,
+  .wg-context__release {
+    grid-column: 1 / -1;
+  }
+
+  .an-page-card:has(.wg-context) > div:last-child {
+    grid-template-columns: 1fr !important;
+  }
+}
