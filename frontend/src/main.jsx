@@ -9,6 +9,7 @@ import "./components/incidents/incidentTable.css";
 import "./components/employees/employeeSplit42Refinements.css";
 import "./components/contracts/contractHistoryTableCompact.css";
 import "./components/contracts/contractPrintSplit42.css";
+import "./components/wage-garnishments/wageGarnishmentSplit42Polish.css";
 import "./components/mail/mailScenarioValidation.css";
 import "./pages/DashboardIntro.css";
 import "./payroll-print.css";
