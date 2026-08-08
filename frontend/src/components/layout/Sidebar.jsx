@@ -30,30 +30,9 @@ const groups = [
         label: "Empresas / centros",
         enabled: true,
         children: [
-          {
-            id: "companies",
-            label: "Nueva empresa",
-            enabled: true,
-            hash: "#company-new",
-            modeGroup: "companies",
-            modeValue: "new",
-          },
-          {
-            id: "companies",
-            label: "Listado empresas",
-            enabled: true,
-            hash: "#company-list",
-            modeGroup: "companies",
-            modeValue: "list",
-          },
-          {
-            id: "companies",
-            label: "Centros",
-            enabled: true,
-            hash: "#company-centers",
-            modeGroup: "companies",
-            modeValue: "centers",
-          },
+          { id: "companies", label: "Nueva empresa", enabled: true, hash: "#company-new", modeGroup: "companies", modeValue: "new" },
+          { id: "companies", label: "Listado empresas", enabled: true, hash: "#company-list", modeGroup: "companies", modeValue: "list" },
+          { id: "companies", label: "Centros", enabled: true, hash: "#company-centers", modeGroup: "companies", modeValue: "centers" },
         ],
       },
       { id: "collective-agreements", label: "Convenios", enabled: true },
@@ -82,11 +61,14 @@ const groups = [
     icon: FileCheck2,
     items: [
       {
-        id: "contracts",
+        id: "contracts-menu",
         label: "Contratos",
         enabled: true,
-        modeGroup: "contracts",
-        modeValue: "history",
+        children: [
+          { id: "contracts", label: "Nuevo contrato", enabled: true, modeGroup: "contracts", modeValue: "new" },
+          { id: "contracts", label: "Historial contratos", enabled: true, modeGroup: "contracts", modeValue: "history" },
+          { id: "contracts", label: "Impresión contratos", enabled: true, modeGroup: "contracts", modeValue: "print" },
+        ],
       },
     ],
   },
@@ -100,20 +82,8 @@ const groups = [
         label: "Incidencias",
         enabled: true,
         children: [
-          {
-            id: "incidents",
-            label: "Incidencias laborales",
-            enabled: true,
-            modeGroup: "incidents",
-            modeValue: "list",
-          },
-          {
-            id: "incidents",
-            label: "Embargos judiciales",
-            enabled: true,
-            modeGroup: "incidents",
-            modeValue: "embargo",
-          },
+          { id: "incidents", label: "Incidencias laborales", enabled: true, modeGroup: "incidents", modeValue: "list" },
+          { id: "incidents", label: "Embargos judiciales", enabled: true, modeGroup: "incidents", modeValue: "embargo" },
         ],
       },
     ],
@@ -167,12 +137,7 @@ const groups = [
           { id: "social-security-dashboard", label: "Seguros sociales", enabled: true },
           { id: "social-security-settlements", label: "Liquidaciones", enabled: true },
           { id: "social-security-files", label: "Ficheros generados", enabled: true },
-          {
-            id: "social-security-dashboard",
-            label: "Ficheros CRA",
-            enabled: true,
-            hash: "#cra-files",
-          },
+          { id: "social-security-dashboard", label: "Ficheros CRA", enabled: true, hash: "#cra-files" },
         ],
       },
       {
@@ -180,20 +145,10 @@ const groups = [
         label: "Comunicaciones",
         enabled: true,
         children: [
-          {
-            id: "fie-inss",
-            label: "Comunicaciones INSS (FIE)",
-            enabled: true,
-            hash: "#fie-inss",
-          },
+          { id: "fie-inss", label: "Comunicaciones INSS (FIE)", enabled: true, hash: "#fie-inss" },
         ],
       },
-      {
-        id: "siltra-launcher",
-        label: "SILTRA",
-        enabled: true,
-        launchSelector: ".siltra-global-launcher",
-      },
+      { id: "siltra-launcher", label: "SILTRA", enabled: true, launchSelector: ".siltra-global-launcher" },
     ],
   },
   {
@@ -220,18 +175,8 @@ const groups = [
     title: "Formación",
     icon: GraduationCap,
     items: [
-      {
-        id: "mail-launcher",
-        label: "Bandeja de entrada",
-        enabled: true,
-        launchSelector: ".mail-global-launcher",
-      },
-      {
-        id: "student-demo",
-        label: "Mis casos prácticos",
-        enabled: true,
-        hash: "#student-demo",
-      },
+      { id: "mail-launcher", label: "Bandeja de entrada", enabled: true, launchSelector: ".mail-global-launcher" },
+      { id: "student-demo", label: "Mis casos prácticos", enabled: true, hash: "#student-demo" },
     ],
   },
   {
@@ -265,12 +210,7 @@ const groups = [
         enabled: true,
         children: [
           { id: "progress", label: "Progreso", enabled: true, hash: "#progress" },
-          {
-            id: "teaching-alerts",
-            label: "Alertas docentes",
-            enabled: true,
-            hash: "#teaching-alerts",
-          },
+          { id: "teaching-alerts", label: "Alertas docentes", enabled: true, hash: "#teaching-alerts" },
         ],
       },
     ],
@@ -311,9 +251,7 @@ function findItemForHash(activePage, hash) {
   for (const group of groups) {
     for (const item of group.items) {
       if (item.id === activePage && item.hash === hash) return item;
-      const child = item.children?.find(
-        (candidate) => candidate.id === activePage && candidate.hash === hash
-      );
+      const child = item.children?.find((candidate) => candidate.id === activePage && candidate.hash === hash);
       if (child) return child;
     }
   }
@@ -326,9 +264,7 @@ function getInitialActiveKey(activePage) {
     return `contracts:contracts:${mode}`;
   }
   if (activePage === "companies") {
-    const mode = getCompanyModeFromHash()
-      || window.sessionStorage.getItem(modeStorageKeys.companies)
-      || "list";
+    const mode = getCompanyModeFromHash() || window.sessionStorage.getItem(modeStorageKeys.companies) || "list";
     return `companies:companies:${mode}`;
   }
   if (activePage === "incidents") {
@@ -338,7 +274,6 @@ function getInitialActiveKey(activePage) {
 
   const hashItem = findItemForHash(activePage, window.location.hash);
   if (hashItem) return getItemKey(hashItem);
-
   return activePage;
 }
 
@@ -380,7 +315,6 @@ function applyItemNavigation(item) {
     document.querySelector(item.launchSelector)?.click();
     return;
   }
-
   if (item.launchEvent) {
     window.dispatchEvent(new Event(item.launchEvent));
     return;
@@ -422,23 +356,17 @@ function findGroupIdForPage(activePage, activeNavKey) {
 
 function findParentKeyForPage(groupId, activePage, activeNavKey) {
   const group = groups.find((candidate) => candidate.id === groupId);
-  const parent = group?.items.find(
-    (item) => item.children?.some((child) => itemMatchesPage(child, activePage, activeNavKey))
-  );
+  const parent = group?.items.find((item) => item.children?.some((child) => itemMatchesPage(child, activePage, activeNavKey)));
   return parent ? getItemKey(parent) : null;
 }
 
 export default function Sidebar({ activePage, setActivePage }) {
   const initialNavKey = getInitialActiveKey(activePage);
   const initialGroupId = findGroupIdForPage(activePage, initialNavKey);
-  const initialParentKey = initialGroupId
-    ? findParentKeyForPage(initialGroupId, activePage, initialNavKey)
-    : null;
+  const initialParentKey = initialGroupId ? findParentKeyForPage(initialGroupId, activePage, initialNavKey) : null;
 
   const [activeNavKey, setActiveNavKey] = useState(initialNavKey);
-  const [expandedGroupId, setExpandedGroupId] = useState(
-    initialGroupId || getStoredActiveGroup
-  );
+  const [expandedGroupId, setExpandedGroupId] = useState(initialGroupId || getStoredActiveGroup);
   const [expandedParents, setExpandedParents] = useState(() => {
     const stored = getStoredExpandedParents();
     if (!initialGroupId || !initialParentKey) return stored;
@@ -453,7 +381,6 @@ export default function Sidebar({ activePage, setActivePage }) {
       setActiveNavKey(nextActiveKey);
 
       if (!nextGroupId) return;
-
       setExpandedGroupId(nextGroupId);
       storeActiveGroup(nextGroupId);
       const nextParentKey = findParentKeyForPage(nextGroupId, activePage, nextActiveKey);
@@ -469,9 +396,13 @@ export default function Sidebar({ activePage, setActivePage }) {
     syncActiveNavigation();
     window.addEventListener("aulanomina-route-change", syncActiveNavigation);
     window.addEventListener("hashchange", syncActiveNavigation);
+    window.addEventListener("aulanomina-contract-mode", syncActiveNavigation);
+    window.addEventListener("aulanomina-incidents-mode", syncActiveNavigation);
     return () => {
       window.removeEventListener("aulanomina-route-change", syncActiveNavigation);
       window.removeEventListener("hashchange", syncActiveNavigation);
+      window.removeEventListener("aulanomina-contract-mode", syncActiveNavigation);
+      window.removeEventListener("aulanomina-incidents-mode", syncActiveNavigation);
     };
   }, [activePage]);
 
@@ -505,10 +436,7 @@ export default function Sidebar({ activePage, setActivePage }) {
     setExpandedGroupId(groupId);
     storeActiveGroup(groupId);
     setExpandedParents((previous) => {
-      const next = {
-        ...previous,
-        [groupId]: previous[groupId] === parentKey ? null : parentKey,
-      };
+      const next = { ...previous, [groupId]: previous[groupId] === parentKey ? null : parentKey };
       storeExpandedParents(next);
       return next;
     });
@@ -551,9 +479,7 @@ export default function Sidebar({ activePage, setActivePage }) {
     return !item.modeGroup && !item.hash;
   };
 
-  const isParentActive = (item) => (
-    item.children?.some((child) => isItemActive(child))
-  );
+  const isParentActive = (item) => item.children?.some((child) => isItemActive(child));
 
   return (
     <>
@@ -562,12 +488,7 @@ export default function Sidebar({ activePage, setActivePage }) {
           <div className="an-sidebar__brand-copy">
             <img src={logo} alt="AulaNomina" className="an-sidebar__logo" />
           </div>
-          <button
-            type="button"
-            className="an-sidebar__close"
-            onClick={() => setMobileOpen(false)}
-            aria-label="Cerrar navegación"
-          >
+          <button type="button" className="an-sidebar__close" onClick={() => setMobileOpen(false)} aria-label="Cerrar navegación">
             <X aria-hidden="true" />
           </button>
         </div>
@@ -677,12 +598,7 @@ export default function Sidebar({ activePage, setActivePage }) {
       </aside>
 
       {mobileOpen && (
-        <button
-          type="button"
-          className="an-sidebar-backdrop"
-          onClick={() => setMobileOpen(false)}
-          aria-label="Cerrar navegación"
-        />
+        <button type="button" className="an-sidebar-backdrop" onClick={() => setMobileOpen(false)} aria-label="Cerrar navegación" />
       )}
     </>
   );
