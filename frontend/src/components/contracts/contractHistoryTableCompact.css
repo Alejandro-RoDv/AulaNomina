@@ -1,0 +1,146 @@
+/* Split 42 · Histórico de contratos
+   Segunda pasada: menos altura por fila y solo información necesaria para escaneo rápido. */
+
+/* El convenio pertenece al detalle del contrato, no al listado operativo. */
+.contract-history-workspace table th:nth-child(4),
+.contract-history-workspace table td:nth-child(4) {
+  display: none !important;
+}
+
+/* El puesto ya está disponible en el detalle/edición: el nombre queda en una sola línea. */
+.contract-history-workspace table td:nth-child(2) small {
+  display: none !important;
+}
+
+.contract-history-workspace table td:nth-child(2) strong {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Empresa y centro se leen como un único ámbito y no fuerzan dos líneas. */
+.contract-history-workspace table td:nth-child(3) {
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+/* Contrato: código y modalidad en una única línea cuando existe modalidad. */
+.contract-history-workspace table td:nth-child(6) {
+  white-space: nowrap !important;
+}
+
+.contract-history-workspace table td:nth-child(6) strong,
+.contract-history-workspace table td:nth-child(6) small {
+  display: inline !important;
+}
+
+.contract-history-workspace table td:nth-child(6) small:not(:empty)::before {
+  content: " · ";
+}
+
+.contract-history-workspace table td:nth-child(6) small {
+  margin: 0 !important;
+}
+
+/* Jornada es un dato informativo normal: sin badge azul y en una sola línea. */
+.contract-history-workspace table td:nth-child(7) {
+  white-space: nowrap !important;
+}
+
+.contract-history-workspace table td:nth-child(7) > span {
+  display: inline !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  color: #0f172a !important;
+  font-size: 13px !important;
+  font-weight: 800 !important;
+}
+
+.contract-history-workspace table td:nth-child(7) > small {
+  display: inline !important;
+  margin: 0 !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+}
+
+.contract-history-workspace table td:nth-child(7) > small::before {
+  content: " · ";
+  color: #94a3b8;
+}
+
+/* Salario principal en una línea; el cálculo aplicado queda para el detalle. */
+.contract-history-workspace table td:nth-child(11) small {
+  display: none !important;
+}
+
+/* Menos altura por fila sin convertirla en una tabla densa difícil de pulsar. */
+.contract-history-workspace table {
+  min-width: 1160px !important;
+}
+
+.contract-history-workspace thead th {
+  padding-top: 10px !important;
+  padding-bottom: 10px !important;
+}
+
+.contract-history-workspace tbody td {
+  padding-top: 10px !important;
+  padding-bottom: 10px !important;
+  vertical-align: middle !important;
+}
+
+/* Reparto de ancho tras retirar Convenio. */
+.contract-history-workspace table th:nth-child(1),
+.contract-history-workspace table td:nth-child(1) {
+  width: 70px !important;
+}
+
+.contract-history-workspace table th:nth-child(2),
+.contract-history-workspace table td:nth-child(2) {
+  width: 150px !important;
+}
+
+.contract-history-workspace table th:nth-child(3),
+.contract-history-workspace table td:nth-child(3) {
+  width: 210px !important;
+}
+
+.contract-history-workspace table th:nth-child(5),
+.contract-history-workspace table td:nth-child(5) {
+  width: 110px !important;
+}
+
+.contract-history-workspace table th:nth-child(6),
+.contract-history-workspace table td:nth-child(6) {
+  width: 150px !important;
+}
+
+.contract-history-workspace table th:nth-child(7),
+.contract-history-workspace table td:nth-child(7) {
+  width: 145px !important;
+}
+
+.contract-history-workspace table th:nth-child(8),
+.contract-history-workspace table td:nth-child(8),
+.contract-history-workspace table th:nth-child(9),
+.contract-history-workspace table td:nth-child(9) {
+  width: 90px !important;
+}
+
+.contract-history-workspace table th:nth-child(10),
+.contract-history-workspace table td:nth-child(10) {
+  width: 95px !important;
+}
+
+.contract-history-workspace table th:nth-child(11),
+.contract-history-workspace table td:nth-child(11) {
+  width: 105px !important;
+}
+
+.contract-history-workspace table th:nth-child(12),
+.contract-history-workspace table td:nth-child(12) {
+  width: 82px !important;
+}
