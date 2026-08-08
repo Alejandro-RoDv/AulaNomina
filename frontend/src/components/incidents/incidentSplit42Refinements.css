@@ -1,0 +1,346 @@
+/* Split 42 · Gestión laboral / Incidencias
+   Normaliza el módulo al lenguaje visual del resto del ERP: azul funcional,
+   neutros para estructura y colores semánticos solo para estados. */
+
+.incident-workspace--split42 {
+  --incident-blue: #2563eb;
+  --incident-blue-dark: #1d4ed8;
+  --incident-blue-soft: #eff6ff;
+  --incident-ink: #0f172a;
+  --incident-muted: #64748b;
+  --incident-line: #dbe3ef;
+  --incident-soft: #f8fafc;
+  gap: 20px;
+}
+
+.incident-workspace--split42 .incident-workspace-content,
+.incident-workspace--split42 .incident-dashboard {
+  gap: 18px;
+}
+
+/* Resumen mensual: encabezado plano, sin banda amarilla ni tarjeta pesada. */
+.incident-workspace--split42 .incident-dashboard-header {
+  padding: 0 0 18px;
+  border: 0;
+  border-bottom: 1px solid var(--incident-line);
+  background: transparent;
+}
+
+.incident-workspace--split42 .incident-panel-kicker,
+.incident-workspace--split42 .incident-engine-heading > span {
+  color: #64748b;
+  letter-spacing: .07em;
+}
+
+.incident-workspace--split42 .incident-dashboard-header h2 {
+  margin-top: 4px;
+  font-size: 20px;
+  color: var(--incident-ink);
+}
+
+.incident-workspace--split42 .incident-dashboard-header p {
+  max-width: 680px;
+  margin-top: 5px;
+  color: var(--incident-muted);
+  font-size: 13px;
+}
+
+.incident-workspace--split42 .incident-period-controls select,
+.incident-workspace--split42 .incident-history-filters select,
+.incident-workspace--split42 .incident-history-filters input,
+.incident-workspace--split42 .incident-subtype-panel select,
+.incident-workspace--split42 .incident-engine-actions select,
+.incident-workspace--split42 .incident-override-form input {
+  min-height: 40px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #fff;
+  color: #1e293b;
+}
+
+.incident-workspace--split42 select:focus,
+.incident-workspace--split42 input:focus,
+.incident-workspace--split42 textarea:focus {
+  outline: 2px solid rgb(37 99 235 / 16%);
+  outline-offset: 0;
+  border-color: var(--incident-blue) !important;
+}
+
+/* KPI: siguen siendo superficies porque son métricas, pero sin decoración de marca. */
+.incident-workspace--split42 .incident-metrics,
+.incident-workspace--split42 .incident-engine-metrics {
+  gap: 10px;
+}
+
+.incident-workspace--split42 .incident-metric,
+.incident-workspace--split42 .incident-engine-metric {
+  min-height: 88px;
+  padding: 13px 14px;
+  border: 1px solid var(--incident-line);
+  border-radius: 10px;
+  background: #fff;
+}
+
+.incident-workspace--split42 .incident-metric.warning,
+.incident-workspace--split42 .incident-engine-metric.warning {
+  border-color: #f0d89a;
+  border-bottom-width: 1px;
+  background: #fffdf7;
+}
+
+.incident-workspace--split42 .incident-metric.success,
+.incident-workspace--split42 .incident-engine-metric.success {
+  border-color: #bbebce;
+  border-bottom-width: 1px;
+  background: #fbfefc;
+}
+
+.incident-workspace--split42 .incident-metric.critical,
+.incident-workspace--split42 .incident-engine-metric.critical {
+  border-color: #fecaca;
+  border-bottom-width: 1px;
+  background: #fffafa;
+}
+
+.incident-workspace--split42 .incident-metric-icon,
+.incident-workspace--split42 .incident-engine-metric-icon {
+  width: 34px;
+  height: 34px;
+  flex-basis: 34px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--incident-blue-soft);
+  color: var(--incident-blue);
+}
+
+.incident-workspace--split42 .incident-metric strong,
+.incident-workspace--split42 .incident-engine-metric strong {
+  font-size: 22px;
+  color: var(--incident-ink);
+}
+
+/* Paneles: más aire y divisores, menos caja dentro de caja. */
+.incident-workspace--split42 .incident-dashboard-columns {
+  grid-template-columns: minmax(0, 1.25fr) minmax(320px, .75fr);
+  gap: 22px;
+}
+
+.incident-workspace--split42 .incident-workspace-panel {
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.incident-workspace--split42 .incident-workspace-panel > header,
+.incident-workspace--split42 .incident-engine-panel > header {
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--incident-line);
+}
+
+.incident-workspace--split42 .incident-workspace-panel h3 {
+  font-size: 16px;
+  color: var(--incident-ink);
+}
+
+/* Procesos disponibles: índice operativo compacto, no colección de tarjetas. */
+.incident-workspace--split42 .incident-category-cards {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 24px;
+}
+
+.incident-workspace--split42 .incident-category-cards button {
+  position: static;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 8px;
+  min-height: 58px;
+  padding: 10px 4px;
+  border: 0;
+  border-bottom: 1px solid #e2e8f0;
+  border-radius: 0;
+  background: transparent;
+  color: #1e293b;
+}
+
+.incident-workspace--split42 .incident-category-cards button::before {
+  display: none;
+}
+
+.incident-workspace--split42 .incident-category-cards button:hover {
+  background: #f8fafc;
+}
+
+.incident-workspace--split42 .incident-category-cards button span {
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.incident-workspace--split42 .incident-category-cards button strong {
+  position: static;
+  grid-column: auto;
+  grid-row: auto;
+  min-width: 30px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: #475569;
+  font-size: 12px;
+  text-align: center;
+}
+
+.incident-workspace--split42 .incident-category-cards button small {
+  display: none;
+}
+
+.incident-workspace--split42 .incident-category-cards button svg {
+  position: static;
+  color: var(--incident-blue);
+}
+
+.incident-workspace--split42 .incident-payroll-cta {
+  margin-top: 16px;
+  padding: 11px 13px;
+  border: 1px solid var(--incident-blue);
+  border-radius: 8px;
+  background: var(--incident-blue);
+  color: #fff;
+}
+
+.incident-workspace--split42 .incident-payroll-cta:hover {
+  border-color: var(--incident-blue-dark);
+  background: var(--incident-blue-dark);
+}
+
+.incident-workspace--split42 .incident-alert-count {
+  min-width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.incident-workspace--split42 .incident-alert-list {
+  gap: 8px;
+}
+
+.incident-workspace--split42 .incident-alert {
+  border: 1px solid #e2e8f0;
+  border-left: 3px solid #60a5fa;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.incident-workspace--split42 .incident-alert.warning {
+  border-left-color: #d69e2e;
+  background: #fffdf7;
+}
+
+.incident-workspace--split42 .incident-alert.critical {
+  border-left-color: #dc2626;
+  background: #fffafa;
+}
+
+.incident-workspace--split42 .incident-empty,
+.incident-workspace--split42 .incident-engine-empty {
+  border: 1px dashed #cbd5e1;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.incident-workspace--split42 .incident-recent-row {
+  padding: 11px 0;
+}
+
+.incident-workspace--split42 .incident-type-pill,
+.incident-workspace--split42 .incident-status-text {
+  border-radius: 999px;
+  background: #f1f5f9;
+}
+
+/* Botones del módulo. */
+.incident-workspace--split42 .incident-primary-action,
+.incident-workspace--split42 .incident-button-primary,
+.incident-workspace--split42 .incident-history-actions button:first-child {
+  border-color: var(--incident-blue);
+  border-radius: 8px;
+  background: var(--incident-blue);
+  color: #fff;
+}
+
+.incident-workspace--split42 .incident-primary-action:hover,
+.incident-workspace--split42 .incident-button-primary:hover,
+.incident-workspace--split42 .incident-history-actions button:first-child:hover {
+  border-color: var(--incident-blue-dark);
+  background: var(--incident-blue-dark);
+}
+
+.incident-workspace--split42 .incident-button-secondary,
+.incident-workspace--split42 .incident-history-actions button:last-child,
+.incident-workspace--split42 .incident-button-quiet {
+  border-color: #cbd5e1;
+  border-radius: 8px;
+  background: #fff;
+  color: #334155;
+}
+
+/* Filtros e inputs secundarios: fuera el amarillo funcional. */
+.incident-workspace--split42 .incident-history-filters {
+  padding: 14px 0 16px;
+  border: 0;
+  border-bottom: 1px solid var(--incident-line);
+  background: transparent;
+}
+
+.incident-workspace--split42 .incident-subtype-panel {
+  padding: 13px 14px;
+  border: 1px solid #bfdbfe;
+  border-left-width: 1px;
+  border-radius: 8px;
+  background: var(--incident-blue-soft);
+}
+
+/* Formularios de incidencias: eliminamos la gran tarjeta exterior. */
+.incident-workspace--split42 .incident-form-card {
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.incident-workspace--split42 .incident-form-card > .an-page-card__header {
+  margin-bottom: 18px;
+  padding: 0 0 16px;
+  border-bottom: 1px solid var(--incident-line);
+}
+
+/* Control de nómina: neutralizamos su hero antiguo. */
+.incident-workspace--split42 .incident-engine-toolbar {
+  padding: 0 0 18px;
+  border: 0;
+  border-bottom: 1px solid var(--incident-line);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.incident-workspace--split42 .incident-engine-heading h2 {
+  color: var(--incident-ink);
+  font-size: 20px;
+}
+
+.incident-workspace--split42 .incident-payroll-identity {
+  overflow: hidden;
+  border: 1px solid var(--incident-line);
+  border-radius: 10px;
+}
+
+@media (max-width: 980px) {
+  .incident-workspace--split42 .incident-dashboard-columns,
+  .incident-workspace--split42 .incident-category-cards {
+    grid-template-columns: 1fr;
+  }
+}
