@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import PageCard from "../components/layout/PageCard";
 import ContractForm from "../components/ContractFormProfessional";
 import ContractPrintPage from "../components/ContractPrintPageV5";
-import ContractTable from "../components/ContractTable";
+import ContractHistoryScope from "../components/contracts/ContractHistoryScope";
 import "../components/contracts/contractSplit42Refinements.css";
 
 function getStoredMode() {
@@ -160,18 +160,16 @@ export default function ContractsPage({
       )}
 
       {isHistory && (
-        <section className="contract-history-workspace" aria-label="Historial de contratos">
-          <ContractTable
-            loading={loading}
-            contracts={contracts}
-            employees={employees}
-            companies={companies}
-            workCenters={workCenters}
-            onUpdateContract={onUpdateContract}
-            onDeleteContract={onDeleteContract}
-            submitting={contractSubmitting}
-          />
-        </section>
+        <ContractHistoryScope
+          loading={loading}
+          contracts={contracts}
+          employees={employees}
+          companies={companies}
+          workCenters={workCenters}
+          onUpdateContract={onUpdateContract}
+          onDeleteContract={onDeleteContract}
+          submitting={contractSubmitting}
+        />
       )}
 
       {isPrint && (
