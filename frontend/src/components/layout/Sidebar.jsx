@@ -26,20 +26,35 @@ const groups = [
     icon: Building2,
     items: [
       {
-        id: "companies",
-        label: "Empresas",
+        id: "companies-menu",
+        label: "Empresas / centros",
         enabled: true,
-        hash: "#company-list",
-        modeGroup: "companies",
-        modeValue: "list",
-      },
-      {
-        id: "companies",
-        label: "Centros de trabajo",
-        enabled: true,
-        hash: "#company-centers",
-        modeGroup: "companies",
-        modeValue: "centers",
+        children: [
+          {
+            id: "companies",
+            label: "Nueva empresa",
+            enabled: true,
+            hash: "#company-new",
+            modeGroup: "companies",
+            modeValue: "new",
+          },
+          {
+            id: "companies",
+            label: "Listado empresas",
+            enabled: true,
+            hash: "#company-list",
+            modeGroup: "companies",
+            modeValue: "list",
+          },
+          {
+            id: "companies",
+            label: "Centros",
+            enabled: true,
+            hash: "#company-centers",
+            modeGroup: "companies",
+            modeValue: "centers",
+          },
+        ],
       },
       { id: "collective-agreements", label: "Convenios", enabled: true },
     ],
@@ -285,9 +300,10 @@ function isActionItem(item) {
 }
 
 function getCompanyModeFromHash() {
+  if (window.location.hash === "#company-new") return "new";
   if (window.location.hash === "#company-centers") return "centers";
-  if (window.location.hash === "#company-list") return "list";
-  return "new";
+  if (window.location.hash === "#company-list" || window.location.hash.startsWith("#company-detail/")) return "list";
+  return null;
 }
 
 function findItemForHash(activePage, hash) {
@@ -310,7 +326,9 @@ function getInitialActiveKey(activePage) {
     return `contracts:contracts:${mode}`;
   }
   if (activePage === "companies") {
-    const mode = window.sessionStorage.getItem(modeStorageKeys.companies) || getCompanyModeFromHash();
+    const mode = getCompanyModeFromHash()
+      || window.sessionStorage.getItem(modeStorageKeys.companies)
+      || "list";
     return `companies:companies:${mode}`;
   }
   if (activePage === "incidents") {
@@ -429,11 +447,13 @@ export default function Sidebar({ activePage, setActivePage }) {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   useEffect(() => {
-    const nextActiveKey = getInitialActiveKey(activePage);
-    const nextGroupId = findGroupIdForPage(activePage, nextActiveKey);
-    setActiveNavKey(nextActiveKey);
+    const syncActiveNavigation = () => {
+      const nextActiveKey = getInitialActiveKey(activePage);
+      const nextGroupId = findGroupIdForPage(activePage, nextActiveKey);
+      setActiveNavKey(nextActiveKey);
 
-    if (nextGroupId) {
+      if (!nextGroupId) return;
+
       setExpandedGroupId(nextGroupId);
       storeActiveGroup(nextGroupId);
       const nextParentKey = findParentKeyForPage(nextGroupId, activePage, nextActiveKey);
@@ -444,7 +464,15 @@ export default function Sidebar({ activePage, setActivePage }) {
           return next;
         });
       }
-    }
+    };
+
+    syncActiveNavigation();
+    window.addEventListener("aulanomina-route-change", syncActiveNavigation);
+    window.addEventListener("hashchange", syncActiveNavigation);
+    return () => {
+      window.removeEventListener("aulanomina-route-change", syncActiveNavigation);
+      window.removeEventListener("hashchange", syncActiveNavigation);
+    };
   }, [activePage]);
 
   useEffect(() => {
