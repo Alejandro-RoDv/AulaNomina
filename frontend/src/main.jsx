@@ -23,7 +23,7 @@ import MotionBridge from "./components/motion/MotionBridge.jsx";
 import DesignSystemPreview from "./design-system/DesignSystemPreview.jsx";
 import CaseNavigationBridge from "./components/case-studies/CaseNavigationBridge.jsx";
 import AffiliationSiltraBridge from "./components/siltra/AffiliationSiltraBridge.jsx";
-import FieSiltraBridge from "./components/fie/FieSiltraBridge.jsx";
+import FieSiltraBridge from "./components/siltra/FieSiltraBridge.jsx";
 import CraRoute from "./components/cra/CraRoute.jsx";
 import FieRoute from "./components/fie/FieRoute.jsx";
 import MailLauncherBridge from "./components/mail/MailLauncherBridge.jsx";
