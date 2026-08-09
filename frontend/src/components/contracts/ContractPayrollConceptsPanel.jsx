@@ -8,6 +8,7 @@ import {
   loadAgreementConceptsIntoContract,
 } from "../../services/payrollApi";
 import { formatCurrency } from "../payrolls/PayrollForm";
+import "../payrolls/salaryConceptsSplit42.css";
 
 const EMPTY_FORM = {
   concept_id: "",
@@ -23,6 +24,12 @@ function getSourceLabel(sourceType) {
   if (sourceType === "AGREEMENT") return "Convenio";
   if (sourceType === "CUSTOM") return "Personalizado";
   return "Sistema";
+}
+
+function getSourceBadge(sourceType) {
+  if (sourceType === "AGREEMENT") return "sc-badge--agreement";
+  if (sourceType === "CUSTOM") return "sc-badge--custom";
+  return "sc-badge--system";
 }
 
 function getCalculationLabel(item) {
@@ -43,7 +50,7 @@ function buildSyncMessage(result) {
   return parts.join(" ");
 }
 
-export default function ContractPayrollConceptsPanel({ contract }) {
+export default function ContractPayrollConceptsPanel({ contract, refreshKey = 0 }) {
   const [concepts, setConcepts] = useState([]);
   const [items, setItems] = useState([]);
   const [form, setForm] = useState(EMPTY_FORM);
@@ -64,12 +71,7 @@ export default function ContractPayrollConceptsPanel({ contract }) {
     return groups;
   }, [concepts]);
 
-  const conceptById = useMemo(() => {
-    return concepts.reduce((accumulator, concept) => {
-      accumulator[concept.id] = concept;
-      return accumulator;
-    }, {});
-  }, [concepts]);
+  const conceptById = useMemo(() => new Map(concepts.map((concept) => [Number(concept.id), concept])), [concepts]);
 
   async function loadData() {
     if (!contract?.id) return;
@@ -80,8 +82,8 @@ export default function ContractPayrollConceptsPanel({ contract }) {
         fetchPayrollConcepts(),
         fetchContractPayrollConcepts(contract.id),
       ]);
-      setConcepts(conceptData || []);
-      setItems(itemData || []);
+      setConcepts(Array.isArray(conceptData) ? conceptData : []);
+      setItems(Array.isArray(itemData) ? itemData : []);
     } catch (err) {
       setError(err.message || "No se han podido cargar los conceptos permanentes.");
     } finally {
@@ -93,12 +95,26 @@ export default function ContractPayrollConceptsPanel({ contract }) {
     setSyncResult(null);
     setMessage("");
     setError("");
+    setForm(EMPTY_FORM);
     loadData();
-  }, [contract?.id]);
+  }, [contract?.id, refreshKey]);
 
   function handleChange(event) {
     const { name, value } = event.target;
     setForm((current) => ({ ...current, [name]: value }));
+    setMessage("");
+  }
+
+  function handleConceptChange(event) {
+    const value = event.target.value;
+    const concept = concepts.find((item) => String(item.id) === String(value));
+    setForm((current) => ({
+      ...current,
+      concept_id: value,
+      description: current.description || concept?.name || "",
+      unit_price: String(concept?.default_unit_price ?? "0"),
+      amount: Number(concept?.default_amount || 0) > 0 ? String(concept.default_amount) : "",
+    }));
     setMessage("");
   }
 
@@ -180,131 +196,124 @@ export default function ContractPayrollConceptsPanel({ contract }) {
   if (!contract) return null;
 
   return (
-    <section style={styles.wrapper}>
-      <div style={styles.header}>
+    <section className="contract-concepts-panel">
+      <div className="sc-panel-header">
         <div>
-          <h3 style={styles.title}>Conceptos permanentes del contrato</h3>
-          <p style={styles.subtitle}>Importes recurrentes que podrán cargarse en las nóminas mensuales.</p>
+          <h3>Conceptos del contrato</h3>
+          <p>Importes recurrentes que se cargarán en las nóminas mensuales de este contrato.</p>
         </div>
-        <div style={styles.headerActions}>
+        <div className="sc-panel-actions">
           <button
             type="button"
+            className="sc-button sc-button--secondary"
             onClick={handleLoadAgreementConcepts}
             disabled={syncing || !contract.collective_agreement_id}
-            style={syncing || !contract.collective_agreement_id ? styles.agreementButtonDisabled : styles.agreementButton}
           >
             {syncing ? "Cargando convenio..." : "Cargar desde convenio"}
           </button>
-          <button type="button" onClick={loadData} style={styles.secondaryButton}>{loading ? "Cargando..." : "Actualizar"}</button>
+          <button type="button" className="sc-button sc-button--ghost" onClick={loadData} disabled={loading}>
+            {loading ? "Actualizando..." : "Actualizar"}
+          </button>
         </div>
       </div>
 
       {!contract.collective_agreement_id && (
-        <div style={styles.warning}>Este contrato no tiene un convenio vinculado. Asígnalo en la ficha contractual antes de cargar conceptos.</div>
+        <div className="sc-feedback sc-feedback--warning">Este contrato no tiene un convenio vinculado. Puedes añadir conceptos manuales, pero para cargar los del convenio primero debes asignarlo en la ficha contractual.</div>
       )}
-      {error && <div style={styles.error}>{error}</div>}
-      {message && <div style={styles.success}>{message}</div>}
+      {error && <div className="sc-feedback sc-feedback--error">{error}</div>}
+      {message && <div className="sc-feedback sc-feedback--success">{message}</div>}
       {syncResult?.warnings?.length > 0 && (
-        <div style={styles.warning}>
-          <strong>Observaciones de la carga</strong>
-          {syncResult.warnings.map((warning) => <span key={warning} style={styles.warningLine}>{warning}</span>)}
-        </div>
-      )}
-      {syncResult?.imported_names?.length > 0 && (
-        <div style={styles.syncSummary}>
-          <strong>Conceptos aplicados desde {syncResult.agreement_name || "el convenio"}</strong>
-          <span>{syncResult.imported_names.join(" · ")}</span>
+        <div className="sc-feedback sc-feedback--warning">
+          <strong>Observaciones de la carga:</strong> {syncResult.warnings.join(" · ")}
         </div>
       )}
 
-      <form onSubmit={handleSubmit} style={styles.form}>
-        <div style={styles.formGrid}>
-          <label style={styles.field}>Concepto
-            <select name="concept_id" value={form.concept_id} onChange={handleChange} style={styles.input}>
-              <option value="">Seleccionar</option>
-              {["SYSTEM", "AGREEMENT", "CUSTOM"].map((source) => (
-                groupedConcepts[source]?.length ? (
-                  <optgroup key={source} label={getSourceLabel(source)}>
-                    {groupedConcepts[source].map((concept) => <option key={concept.id} value={concept.id}>{concept.name}</option>)}
-                  </optgroup>
-                ) : null
-              ))}
+      <form className="contract-concepts-panel__form" onSubmit={handleSubmit}>
+        <div className="sc-section-header">
+          <div>
+            <h3>Añadir concepto permanente</h3>
+            <p>Selecciona el concepto y define el importe aplicable a este contrato.</p>
+          </div>
+        </div>
+
+        <div className="contract-concepts-panel__grid">
+          <label className="sc-field">Concepto
+            <select name="concept_id" value={form.concept_id} onChange={handleConceptChange} disabled={saving}>
+              <option value="">Seleccionar concepto</option>
+              {["SYSTEM", "AGREEMENT", "CUSTOM"].map((source) => groupedConcepts[source]?.length ? (
+                <optgroup key={source} label={getSourceLabel(source)}>
+                  {groupedConcepts[source].map((concept) => <option key={concept.id} value={concept.id}>{concept.name} · {concept.code}</option>)}
+                </optgroup>
+              ) : null)}
             </select>
           </label>
-          <label style={styles.field}>Descripción
-            <input name="description" value={form.description} onChange={handleChange} placeholder="Ej. Antigüedad mensual" style={styles.input} />
+          <label className="sc-field">Descripción
+            <input name="description" value={form.description} onChange={handleChange} placeholder="Descripción opcional" disabled={saving} />
           </label>
-          <label style={styles.field}>Cantidad
-            <input type="number" step="0.01" name="quantity" value={form.quantity} onChange={handleChange} style={styles.input} />
+          <label className="sc-field">Cantidad
+            <input type="number" step="0.01" name="quantity" value={form.quantity} onChange={handleChange} disabled={saving} />
           </label>
-          <label style={styles.field}>Precio unitario
-            <input type="number" step="0.01" name="unit_price" value={form.unit_price} onChange={handleChange} style={styles.input} />
+          <label className="sc-field">Precio unitario
+            <input type="number" step="0.01" name="unit_price" value={form.unit_price} onChange={handleChange} disabled={saving} />
           </label>
-          <label style={styles.field}>Importe mensual
-            <input type="number" step="0.01" name="amount" value={form.amount} onChange={handleChange} placeholder="Ej. 95" style={styles.input} />
+          <label className="sc-field">Importe mensual
+            <input type="number" step="0.01" name="amount" value={form.amount} onChange={handleChange} placeholder="Calculado si se deja vacío" disabled={saving} />
           </label>
-          <button type="submit" disabled={saving} style={styles.primaryButton}>{saving ? "Añadiendo..." : "Añadir"}</button>
+        </div>
+
+        <div className="contract-concepts-panel__dates">
+          <label className="sc-field">Vigente desde
+            <input type="date" name="start_date" value={form.start_date} onChange={handleChange} disabled={saving} />
+          </label>
+          <label className="sc-field">Vigente hasta
+            <input type="date" name="end_date" value={form.end_date} onChange={handleChange} disabled={saving} />
+          </label>
+        </div>
+
+        <div className="sc-editor__actions">
+          <button type="submit" className="sc-button sc-button--primary" disabled={saving}>
+            {saving ? "Añadiendo..." : "Añadir concepto"}
+          </button>
         </div>
       </form>
 
-      <div style={styles.tableWrap}>
-        <table style={styles.table}>
+      <div className="sc-result-info">{items.length} conceptos permanentes activos en este contrato.</div>
+      <div className="sc-table-wrap">
+        <table className="sc-table">
           <thead>
             <tr>
-              <th style={styles.th}>Concepto</th>
-              <th style={styles.th}>Origen</th>
-              <th style={styles.th}>Cálculo</th>
-              <th style={styles.thRight}>Importe</th>
-              <th style={styles.th}>Vigencia</th>
-              <th style={styles.thActions}>Acciones</th>
+              <th>Concepto</th>
+              <th>Origen</th>
+              <th>Cálculo</th>
+              <th>Importe</th>
+              <th>Vigencia</th>
+              <th>Acciones</th>
             </tr>
           </thead>
           <tbody>
-            {items.map((item) => (
-              <tr key={item.id}>
-                <td style={styles.td}><strong>{item.concept_name}</strong>{item.description && <span style={styles.note}>{item.description}</span>}</td>
-                <td style={styles.td}>{getSourceLabel(conceptById[item.concept_id]?.source_type)}</td>
-                <td style={styles.td}>{getCalculationLabel(item)}</td>
-                <td style={styles.tdRight}>{formatCurrency(item.amount)}</td>
-                <td style={styles.td}>{item.start_date || "-"} / {item.end_date || "sin fin"}</td>
-                <td style={styles.tdActions}><button type="button" onClick={() => handleDeactivate(item)} style={styles.dangerButton}>Desactivar</button></td>
-              </tr>
-            ))}
-            {items.length === 0 && <tr><td colSpan="6" style={styles.td}>Este contrato no tiene conceptos permanentes.</td></tr>}
+            {items.map((item) => {
+              const concept = conceptById.get(Number(item.concept_id));
+              return (
+                <tr key={item.id}>
+                  <td>
+                    <span className="sc-table__primary">{item.concept_name}</span>
+                    <span className="sc-code">{item.concept_code || concept?.code || ""}</span>
+                    {item.description && <span className="sc-table__secondary">{item.description}</span>}
+                  </td>
+                  <td><span className={`sc-badge ${getSourceBadge(concept?.source_type)}`}>{getSourceLabel(concept?.source_type)}</span></td>
+                  <td>{getCalculationLabel(item)}</td>
+                  <td><span className="sc-table__primary">{formatCurrency(item.amount)}</span></td>
+                  <td>{item.start_date || "Sin inicio"} · {item.end_date || "sin fin"}</td>
+                  <td>
+                    <button type="button" className="sc-button sc-button--danger sc-button--small" onClick={() => handleDeactivate(item)}>Desactivar</button>
+                  </td>
+                </tr>
+              );
+            })}
+            {!items.length && <tr><td colSpan="6" className="sc-empty">Este contrato todavía no tiene conceptos permanentes.</td></tr>}
           </tbody>
         </table>
       </div>
     </section>
   );
 }
-
-const styles = {
-  wrapper: { marginTop: "16px", border: "2px solid #111827", borderRadius: "14px", padding: "14px", backgroundColor: "#fffdf0", boxShadow: "3px 3px 0 #111827" },
-  header: { display: "flex", justifyContent: "space-between", gap: "12px", alignItems: "start", marginBottom: "12px", flexWrap: "wrap" },
-  headerActions: { display: "flex", gap: "8px", flexWrap: "wrap", justifyContent: "flex-end" },
-  title: { margin: 0, fontSize: "18px", fontWeight: 900, color: "#111827" },
-  subtitle: { margin: "4px 0 0", color: "#6b7280", fontSize: "12px", fontWeight: 700 },
-  form: { marginBottom: "14px" },
-  formGrid: { display: "grid", gridTemplateColumns: "minmax(210px, 1.2fr) minmax(240px, 1.4fr) 110px 130px 140px auto", gap: "10px", alignItems: "end", overflowX: "auto" },
-  field: { display: "flex", flexDirection: "column", gap: "5px", fontSize: "12px", fontWeight: 900, color: "#374151" },
-  input: { border: "2px solid #d1d5db", borderRadius: "8px", padding: "8px", fontWeight: 700, width: "100%", boxSizing: "border-box" },
-  primaryButton: { backgroundColor: "#111827", color: "#ffffff", border: "2px solid #111827", borderRadius: "8px", padding: "9px 16px", fontWeight: 900, cursor: "pointer" },
-  secondaryButton: { backgroundColor: "#ffffff", color: "#111827", border: "2px solid #111827", borderRadius: "8px", padding: "8px 12px", fontWeight: 900, cursor: "pointer" },
-  agreementButton: { backgroundColor: "#facc15", color: "#111827", border: "2px solid #111827", borderRadius: "8px", padding: "8px 12px", fontWeight: 900, cursor: "pointer" },
-  agreementButtonDisabled: { backgroundColor: "#e5e7eb", color: "#6b7280", border: "2px solid #d1d5db", borderRadius: "8px", padding: "8px 12px", fontWeight: 900, cursor: "not-allowed" },
-  dangerButton: { backgroundColor: "#fee2e2", color: "#991b1b", border: "1px solid #991b1b", borderRadius: "8px", padding: "7px 10px", fontWeight: 800, cursor: "pointer" },
-  tableWrap: { overflowX: "auto" },
-  table: { width: "100%", borderCollapse: "collapse", backgroundColor: "#ffffff", minWidth: "760px" },
-  th: { textAlign: "left", padding: "8px", backgroundColor: "#f3f4f6", borderBottom: "1px solid #d1d5db", fontSize: "12px" },
-  thRight: { textAlign: "right", padding: "8px", backgroundColor: "#f3f4f6", borderBottom: "1px solid #d1d5db", fontSize: "12px" },
-  thActions: { width: "110px", textAlign: "left", padding: "8px", backgroundColor: "#f3f4f6", borderBottom: "1px solid #d1d5db", fontSize: "12px" },
-  td: { padding: "9px 8px", borderBottom: "1px solid #e5e7eb", verticalAlign: "top" },
-  tdRight: { padding: "9px 8px", borderBottom: "1px solid #e5e7eb", textAlign: "right", fontWeight: 900 },
-  tdActions: { padding: "9px 8px", borderBottom: "1px solid #e5e7eb" },
-  note: { display: "block", color: "#6b7280", fontSize: "11px", fontWeight: 700, marginTop: "3px" },
-  error: { marginBottom: "10px", padding: "10px", borderRadius: "10px", backgroundColor: "#fef2f2", color: "#991b1b", border: "1px solid #fecaca", fontWeight: 800 },
-  success: { marginBottom: "10px", padding: "10px", borderRadius: "10px", backgroundColor: "#f0fdf4", color: "#166534", border: "1px solid #bbf7d0", fontWeight: 800 },
-  warning: { marginBottom: "10px", padding: "10px", borderRadius: "10px", backgroundColor: "#fffbeb", color: "#92400e", border: "1px solid #fde68a", fontWeight: 800, display: "flex", flexDirection: "column", gap: "4px" },
-  warningLine: { display: "block", fontSize: "12px" },
-  syncSummary: { marginBottom: "10px", padding: "10px", borderRadius: "10px", backgroundColor: "#eff6ff", color: "#1e3a8a", border: "1px solid #bfdbfe", fontWeight: 800, display: "flex", flexDirection: "column", gap: "4px", fontSize: "12px" },
-};
