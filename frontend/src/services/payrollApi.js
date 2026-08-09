@@ -14,7 +14,8 @@ function withVariableIncentives(payload) {
 }
 
 export async function fetchPayrolls() {
-  return apiRequest("/payrolls", {}, "Error al cargar nóminas");
+  const payrolls = await apiRequest("/payrolls", {}, "Error al cargar nóminas");
+  return Array.isArray(payrolls) ? payrolls.filter((payroll) => payroll.status !== "draft") : payrolls;
 }
 
 export async function createPayroll(payload) {
@@ -38,6 +39,46 @@ export async function prepareMonthlyPayrolls(payload) {
       body: JSON.stringify(payload),
     },
     "Error al preparar nóminas mensuales"
+  );
+}
+
+export async function ensurePayrollPreparation(payload) {
+  return apiRequest(
+    "/payroll-preparations/ensure",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    },
+    "Error al abrir la preparación de nómina"
+  );
+}
+
+export async function fetchPayrollPreparation(payrollId) {
+  return apiRequest(
+    `/payroll-preparations/${payrollId}`,
+    {},
+    "Error al cargar la preparación de nómina"
+  );
+}
+
+export async function previewPayrollPreparation(payrollId) {
+  return apiRequest(
+    `/payroll-preparations/${payrollId}/preview`,
+    {},
+    "Error al calcular la vista previa"
+  );
+}
+
+export async function generatePayrolls(payload) {
+  return apiRequest(
+    "/payroll-generation",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    },
+    "Error al generar nóminas"
   );
 }
 
