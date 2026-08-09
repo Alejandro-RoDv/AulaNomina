@@ -124,6 +124,10 @@ export default function ContractPayrollConceptsPanel({ contract, refreshKey = 0 
       setError("Selecciona un concepto.");
       return;
     }
+    if (items.some((item) => Number(item.concept_id) === Number(form.concept_id) && item.is_active !== false)) {
+      setError("Este contrato ya tiene ese concepto permanente activo. Desactívalo o edita el existente antes de volver a añadirlo.");
+      return;
+    }
 
     setSaving(true);
     setError("");
