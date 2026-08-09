@@ -7,6 +7,37 @@ import "../components/payrolls/payrollPreparationFlow.css";
 const currentYear = new Date().getFullYear();
 const currentMonth = new Date().getMonth() + 1;
 
+const MONTHS = [
+  "Enero",
+  "Febrero",
+  "Marzo",
+  "Abril",
+  "Mayo",
+  "Junio",
+  "Julio",
+  "Agosto",
+  "Septiembre",
+  "Octubre",
+  "Noviembre",
+  "Diciembre",
+];
+
+const EXTRA_PERIODS = [
+  { value: 13, label: "Paga extra · Verano" },
+  { value: 14, label: "Paga extra · Diciembre" },
+  { value: 15, label: "Paga extra · 1" },
+  { value: 16, label: "Paga extra · 2" },
+  { value: 17, label: "Paga extra · 3" },
+  { value: 18, label: "Paga extra · 4" },
+  { value: 19, label: "Paga extra · 5" },
+];
+
+function periodLabel(value) {
+  const numeric = Number(value);
+  if (numeric >= 1 && numeric <= 12) return `${String(numeric).padStart(2, "0")} · ${MONTHS[numeric - 1]}`;
+  return EXTRA_PERIODS.find((item) => item.value === numeric)?.label || String(value);
+}
+
 function employeeName(employee) {
   return [employee?.first_name, employee?.last_name, employee?.second_last_name]
     .filter(Boolean)
@@ -17,6 +48,7 @@ function employeeName(employee) {
 function sourceLabel(value) {
   if (value === "prepared") return "Preparación guardada";
   if (value === "automatic") return "Datos automáticos";
+  if (value === "extra_pay") return "Paga extraordinaria";
   if (value === "existing") return "Ya generada";
   return value || "-";
 }
@@ -38,6 +70,8 @@ export default function PayrollSimulationPage({ employees = [], contracts = [] }
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [result, setResult] = useState(null);
+
+  const isExtraPeriod = Number(period.period_month) > 12;
 
   useEffect(() => {
     window.dispatchEvent(new CustomEvent("aulanomina-header-context", {
@@ -186,7 +220,11 @@ export default function PayrollSimulationPage({ employees = [], contracts = [] }
           <div>
             <span>GENERACIÓN DEL PERIODO</span>
             <h2>Selecciona qué nóminas quieres generar</h2>
-            <p>Las preparaciones guardadas conservan sus últimos conceptos. El resto se calcula automáticamente desde contrato, permanentes e incidencias.</p>
+            <p>
+              {isExtraPeriod
+                ? "La paga extraordinaria se resuelve desde la configuración del convenio y del contrato. Los contratos sin una paga configurada para este periodo se omitirán con su motivo."
+                : "Las preparaciones guardadas conservan sus últimos conceptos. El resto se calcula automáticamente desde contrato, permanentes e incidencias."}
+            </p>
           </div>
           <button type="button" className="payroll-s42__secondary" onClick={toggleAll} disabled={!eligibleContractIds.length}>
             {eligibleContractIds.length && eligibleContractIds.every((id) => selectedContracts.includes(id)) ? "Deseleccionar todas" : "Seleccionar todas"}
@@ -194,11 +232,17 @@ export default function PayrollSimulationPage({ employees = [], contracts = [] }
         </div>
         <div className="payroll-generation__period-grid">
           <label>
-            <span>Mes</span>
+            <span>Periodo</span>
             <select value={period.period_month} onChange={(event) => handlePeriodChange("period_month", event.target.value)}>
-              {Array.from({ length: 12 }, (_, index) => index + 1).map((month) => (
-                <option key={month} value={month}>{String(month).padStart(2, "0")}</option>
-              ))}
+              <optgroup label="Nóminas mensuales">
+                {MONTHS.map((name, index) => {
+                  const month = index + 1;
+                  return <option key={month} value={month}>{String(month).padStart(2, "0")} · {name}</option>;
+                })}
+              </optgroup>
+              <optgroup label="Pagas extraordinarias">
+                {EXTRA_PERIODS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+              </optgroup>
             </select>
           </label>
           <label>
@@ -215,7 +259,13 @@ export default function PayrollSimulationPage({ employees = [], contracts = [] }
           <div>
             <span>PLANTILLA ACTIVA</span>
             <h2>{selectedContracts.length} seleccionadas · {eligibleContractIds.length} disponibles</h2>
-            <p>{statusLoading ? "Comprobando preparaciones del periodo..." : "Preparada = se usará el último borrador guardado. Automática = se construirán los conceptos al generar."}</p>
+            <p>
+              {statusLoading
+                ? "Comprobando el estado del periodo..."
+                : isExtraPeriod
+                  ? `${periodLabel(period.period_month)} · se utilizará la paga extraordinaria asignada al mismo periodo en el convenio.`
+                  : "Preparada = se usará el último borrador guardado. Automática = se construirán los conceptos al generar."}
+            </p>
           </div>
         </header>
 
@@ -263,7 +313,11 @@ export default function PayrollSimulationPage({ employees = [], contracts = [] }
         {groupedContracts.length === 0 && <div className="payroll-prep__message">No hay contratos activos disponibles para generar nóminas.</div>}
 
         <footer className="payroll-generation__actions">
-          <span>Generar crea la versión definitiva del periodo y la incorpora al histórico.</span>
+          <span>
+            {isExtraPeriod
+              ? "Generar crea la paga extraordinaria definitiva según las reglas del convenio y la incorpora al histórico."
+              : "Generar crea la versión definitiva del periodo y la incorpora al histórico."}
+          </span>
           <button type="button" className="payroll-s42__primary" onClick={handleGenerate} disabled={!selectedContracts.length || submitting}>
             {submitting ? "Generando..." : `Generar ${selectedContracts.length || ""} nómina${selectedContracts.length === 1 ? "" : "s"}`}
           </button>
@@ -275,7 +329,7 @@ export default function PayrollSimulationPage({ employees = [], contracts = [] }
           <header className="payroll-generation__workspace-header">
             <div>
               <span>RESULTADO</span>
-              <h2>{String(result.period_month).padStart(2, "0")}/{result.period_year}</h2>
+              <h2>{periodLabel(result.period_month)} · {result.period_year}</h2>
               <p>Resultado de la generación del periodo seleccionado.</p>
             </div>
             <button type="button" className="payroll-s42__secondary" onClick={openHistory}>Abrir histórico del periodo</button>
