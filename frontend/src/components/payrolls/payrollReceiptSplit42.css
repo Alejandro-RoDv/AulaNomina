@@ -1,0 +1,471 @@
+.payroll-receipt-s42__overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(15, 23, 42, 0.55);
+}
+
+.payroll-receipt-s42__modal {
+  width: min(1180px, 100%);
+  height: min(88vh, 860px);
+  display: grid;
+  grid-template-rows: auto auto 1fr;
+  overflow: hidden;
+  border: 1px solid #cfd6e0;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.24);
+}
+
+.payroll-receipt-s42__header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 18px 20px 16px;
+  border-bottom: 1px solid #e4e7ec;
+  background: #fff;
+}
+
+.payroll-receipt-s42__header p {
+  margin: 0 0 3px;
+  color: #2563eb;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+
+.payroll-receipt-s42__header h2 {
+  margin: 0;
+  color: #101828;
+  font-size: 21px;
+  line-height: 1.2;
+}
+
+.payroll-receipt-s42__header span {
+  display: block;
+  margin-top: 5px;
+  color: #667085;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.payroll-receipt-s42__header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.payroll-receipt-s42__secondary,
+.payroll-receipt-s42__close,
+.payroll-receipt-s42__tabs button {
+  font: inherit;
+}
+
+.payroll-receipt-s42__secondary {
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid #b8c1ce;
+  border-radius: 6px;
+  background: #fff;
+  color: #344054;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.payroll-receipt-s42__secondary:hover {
+  border-color: #2563eb;
+  color: #1d4ed8;
+}
+
+.payroll-receipt-s42__close {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #344054;
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.payroll-receipt-s42__close:hover {
+  background: #f2f4f7;
+  color: #101828;
+}
+
+.payroll-receipt-s42__tabs {
+  display: flex;
+  gap: 22px;
+  padding: 0 20px;
+  border-bottom: 1px solid #e4e7ec;
+  background: #fff;
+}
+
+.payroll-receipt-s42__tabs button {
+  min-height: 44px;
+  padding: 0 1px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: #667085;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.payroll-receipt-s42__tabs button:hover {
+  color: #1d4ed8;
+}
+
+.payroll-receipt-s42__tabs button.is-active {
+  border-bottom-color: #2563eb;
+  color: #1d4ed8;
+}
+
+.payroll-receipt-s42__body {
+  min-height: 0;
+  overflow-y: auto;
+  padding: 20px;
+  background: #f8fafc;
+}
+
+.payroll-receipt-s42__tab-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.payroll-receipt-s42__identity,
+.payroll-receipt-s42__period-detail {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border-top: 1px solid #d7dde7;
+  border-bottom: 1px solid #d7dde7;
+  background: #fff;
+}
+
+.payroll-receipt-s42__summary-field {
+  min-width: 0;
+  padding: 13px 14px;
+  border-right: 1px solid #e4e7ec;
+}
+
+.payroll-receipt-s42__summary-field:last-child {
+  border-right: 0;
+}
+
+.payroll-receipt-s42__summary-field span,
+.payroll-receipt-s42__total span {
+  display: block;
+  margin-bottom: 4px;
+  color: #667085;
+  font-size: 10px;
+  font-weight: 850;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.payroll-receipt-s42__summary-field strong {
+  display: block;
+  overflow: hidden;
+  color: #101828;
+  font-size: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.payroll-receipt-s42__summary-field small {
+  display: block;
+  margin-top: 4px;
+  overflow: hidden;
+  color: #667085;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.payroll-receipt-s42__totals {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.payroll-receipt-s42__totals--compact {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.payroll-receipt-s42__total {
+  min-height: 72px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 12px 14px;
+  border: 1px solid #d7dde7;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.payroll-receipt-s42__total strong {
+  color: #101828;
+  font-size: 18px;
+}
+
+.payroll-receipt-s42__total.is-primary {
+  border-color: #93c5fd;
+  background: #eff6ff;
+}
+
+.payroll-receipt-s42__total.is-primary span,
+.payroll-receipt-s42__total.is-primary strong {
+  color: #1d4ed8;
+}
+
+.payroll-receipt-s42__summary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  align-items: start;
+}
+
+.payroll-receipt-s42__section {
+  overflow: hidden;
+  border: 1px solid #d7dde7;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.payroll-receipt-s42__section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border-bottom: 1px solid #e4e7ec;
+}
+
+.payroll-receipt-s42__section-heading h3 {
+  margin: 0;
+  color: #101828;
+  font-size: 14px;
+}
+
+.payroll-receipt-s42__section-heading span {
+  color: #667085;
+  font-size: 10px;
+  font-weight: 750;
+}
+
+.payroll-receipt-s42__table-wrap {
+  overflow-x: auto;
+}
+
+.payroll-receipt-s42__table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.payroll-receipt-s42__table th {
+  padding: 9px 11px;
+  background: #f2f4f7;
+  color: #475467;
+  font-size: 10px;
+  font-weight: 850;
+  text-align: left;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.payroll-receipt-s42__table th:first-child {
+  width: 90px;
+}
+
+.payroll-receipt-s42__table th:nth-child(3) {
+  width: 110px;
+}
+
+.payroll-receipt-s42__table th:last-child {
+  width: 130px;
+}
+
+.payroll-receipt-s42__table td {
+  padding: 10px 11px;
+  border-bottom: 1px solid #eaecf0;
+  color: #344054;
+  font-size: 12px;
+  vertical-align: top;
+}
+
+.payroll-receipt-s42__table tr:last-child td {
+  border-bottom: 0;
+}
+
+.payroll-receipt-s42__table td strong {
+  color: #101828;
+}
+
+.payroll-receipt-s42__table td small {
+  display: block;
+  margin-top: 2px;
+  color: #667085;
+  line-height: 1.35;
+}
+
+.payroll-receipt-s42__table .is-code {
+  color: #475467;
+  font-weight: 800;
+}
+
+.payroll-receipt-s42__table .is-number {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.payroll-receipt-s42__empty,
+.payroll-receipt-s42__state {
+  padding: 30px !important;
+  color: #667085 !important;
+  text-align: center !important;
+}
+
+.payroll-receipt-s42__warning,
+.payroll-receipt-s42__error {
+  margin-bottom: 16px;
+  padding: 10px 12px;
+  border-left: 3px solid #f59e0b;
+  background: #fffbeb;
+  color: #92400e;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.payroll-receipt-s42__error {
+  border-left-color: #ef4444;
+  background: #fef2f2;
+  color: #991b1b;
+}
+
+.payroll-receipt-s42__explanation-intro {
+  display: grid;
+  grid-template-columns: minmax(240px, 0.7fr) 1.3fr;
+  gap: 24px;
+  padding: 16px 0 18px;
+  border-bottom: 1px solid #d7dde7;
+}
+
+.payroll-receipt-s42__explanation-intro span {
+  color: #2563eb;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+}
+
+.payroll-receipt-s42__explanation-intro h3 {
+  margin: 4px 0 0;
+  color: #101828;
+  font-size: 18px;
+}
+
+.payroll-receipt-s42__explanation-intro p {
+  margin: 0;
+  color: #475467;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.payroll-receipt-s42__explanation-list article {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.75fr) 1.25fr;
+  gap: 18px;
+  padding: 13px 14px;
+  border-bottom: 1px solid #eaecf0;
+}
+
+.payroll-receipt-s42__explanation-list article:last-child {
+  border-bottom: 0;
+}
+
+.payroll-receipt-s42__explanation-list article > div {
+  min-width: 0;
+}
+
+.payroll-receipt-s42__explanation-list article strong {
+  display: block;
+  color: #101828;
+  font-size: 12px;
+}
+
+.payroll-receipt-s42__explanation-list article span {
+  display: block;
+  margin-top: 4px;
+  color: #667085;
+  font-size: 11px;
+}
+
+.payroll-receipt-s42__explanation-list article p {
+  margin: 0;
+  color: #475467;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.payroll-receipt-s42__explanation-list article code {
+  grid-column: 2;
+  color: #667085;
+  font-size: 11px;
+  white-space: normal;
+}
+
+.payroll-receipt-s42__legal {
+  margin-top: 18px;
+  padding-top: 12px;
+  border-top: 1px solid #d7dde7;
+  color: #98a2b3;
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+@media (max-width: 900px) {
+  .payroll-receipt-s42__overlay {
+    padding: 12px;
+  }
+
+  .payroll-receipt-s42__modal {
+    height: 94vh;
+  }
+
+  .payroll-receipt-s42__identity,
+  .payroll-receipt-s42__period-detail,
+  .payroll-receipt-s42__totals,
+  .payroll-receipt-s42__totals--compact,
+  .payroll-receipt-s42__summary-grid,
+  .payroll-receipt-s42__explanation-intro,
+  .payroll-receipt-s42__explanation-list article {
+    grid-template-columns: 1fr;
+  }
+
+  .payroll-receipt-s42__summary-field {
+    border-right: 0;
+    border-bottom: 1px solid #e4e7ec;
+  }
+
+  .payroll-receipt-s42__summary-field:last-child {
+    border-bottom: 0;
+  }
+
+  .payroll-receipt-s42__explanation-list article code {
+    grid-column: 1;
+  }
+}
