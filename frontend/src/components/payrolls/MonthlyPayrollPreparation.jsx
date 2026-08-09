@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 
 import { prepareMonthlyPayrolls } from "../../services/payrollApi";
+import PayrollReceiptModal from "./PayrollReceiptModal";
 
 const currentYear = new Date().getFullYear();
 const currentMonth = new Date().getMonth() + 1;
@@ -31,6 +32,7 @@ export default function MonthlyPayrollPreparation({ companies, workCenters, onPr
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [result, setResult] = useState(null);
+  const [receiptPayrollId, setReceiptPayrollId] = useState(null);
 
   const activeCompanies = companies.filter((company) => company.is_active);
 
@@ -110,6 +112,21 @@ export default function MonthlyPayrollPreparation({ companies, workCenters, onPr
     }
   };
 
+  const openFilteredHistory = () => {
+    const params = new URLSearchParams();
+    params.set("period", `${form.period_year}-${String(form.period_month).padStart(2, "0")}`);
+
+    if (form.company_ids.length === 1) {
+      const selectedCompany = companies.find((company) => String(company.id) === String(form.company_ids[0]));
+      const selectedCenter = workCenters.find((center) => String(center.id) === String(form.center_id));
+      const scopeLabel = selectedCenter?.name || selectedCompany?.name;
+      if (scopeLabel) params.set("company", scopeLabel);
+    }
+
+    window.history.replaceState(null, "", `${window.location.pathname}?${params.toString()}`);
+    window.dispatchEvent(new CustomEvent("aulanomina-open-page", { detail: { page: "payroll-history" } }));
+  };
+
   return (
     <div style={styles.wrapper}>
       <form onSubmit={handleSubmit} style={styles.form}>
@@ -187,7 +204,18 @@ export default function MonthlyPayrollPreparation({ companies, workCenters, onPr
       </form>
 
       {result && (
-        <section style={styles.resultBox}>
+        <section style={styles.resultBox} className="payroll-s42__preparation-results">
+          <div className="payroll-s42__result-toolbar">
+            <div>
+              <span className="payroll-s42__result-eyebrow">RESULTADO DE PREPARACIÓN</span>
+              <strong>{String(form.period_month).padStart(2, "0")}/{form.period_year}</strong>
+              <small>Revisa cada nómina antes de continuar con el cierre mensual.</small>
+            </div>
+            <button type="button" onClick={openFilteredHistory} className="payroll-s42__secondary payroll-s42__history-link">
+              Abrir histórico del periodo
+            </button>
+          </div>
+
           <div style={styles.summaryGrid}>
             <div style={styles.summaryItem}><span>Creadas</span><strong>{result.created_count}</strong></div>
             <div style={styles.summaryItem}><span>Ya existían</span><strong>{result.existing_count}</strong></div>
@@ -209,6 +237,7 @@ export default function MonthlyPayrollPreparation({ companies, workCenters, onPr
                   <th style={styles.thRight}>Antigüedad</th>
                   <th style={styles.thRight}>Prorrata extra</th>
                   <th style={styles.thRight}>Bruto</th>
+                  <th style={styles.thRight}>Acciones</th>
                 </tr>
               </thead>
               <tbody>
@@ -223,18 +252,29 @@ export default function MonthlyPayrollPreparation({ companies, workCenters, onPr
                     <td style={styles.tdRight}>{formatMoney(item.seniority_amount)} €</td>
                     <td style={styles.tdRight}>{formatMoney(item.extra_pay_proration)} €</td>
                     <td style={styles.tdRight}>{formatMoney(item.gross_salary)} €</td>
+                    <td style={styles.tdRight}>
+                      <button
+                        type="button"
+                        className="payroll-s42__table-action"
+                        disabled={!item.payroll_id}
+                        onClick={() => setReceiptPayrollId(item.payroll_id)}
+                        title={item.payroll_id ? "Abrir recibo y conceptos de la nómina" : "La nómina no está disponible para consulta"}
+                      >
+                        Ver nómina
+                      </button>
+                    </td>
                   </tr>
                 ))}
 
                 {result.payrolls.length === 0 && (
-                  <tr><td colSpan="9" style={styles.emptyCell}>No hay contratos activos para el periodo seleccionado.</td></tr>
+                  <tr><td colSpan="10" style={styles.emptyCell}>No hay contratos activos para el periodo seleccionado.</td></tr>
                 )}
               </tbody>
             </table>
           </div>
 
           {result.skipped?.length > 0 && (
-            <section style={styles.skippedBox}>
+            <section style={styles.skippedBox} className="payroll-s42__skipped">
               <h3 style={styles.sectionTitle}>Omitidas con motivo</h3>
               <div style={styles.tableWrapper}>
                 <table style={styles.table}>
@@ -253,6 +293,10 @@ export default function MonthlyPayrollPreparation({ companies, workCenters, onPr
             </section>
           )}
         </section>
+      )}
+
+      {receiptPayrollId && (
+        <PayrollReceiptModal payrollId={receiptPayrollId} onClose={() => setReceiptPayrollId(null)} />
       )}
     </div>
   );
@@ -276,15 +320,15 @@ const styles = {
   secondaryButton: { backgroundColor: "#f3f4f6", color: "#111827", border: "1px solid #d1d5db", borderRadius: "8px", padding: "8px 10px", cursor: "pointer", fontWeight: 800 },
   error: { backgroundColor: "#fee2e2", color: "#991b1b", padding: "10px 12px", borderRadius: "8px" },
   resultBox: { border: "1px solid #e5e7eb", borderRadius: "10px", padding: "14px", display: "flex", flexDirection: "column", gap: "14px" },
-  skippedBox: { border: "1px solid #facc15", borderRadius: "10px", backgroundColor: "#fefce8", padding: "14px", display: "flex", flexDirection: "column", gap: "10px" },
+  skippedBox: { border: "1px solid #e5e7eb", borderRadius: "8px", backgroundColor: "#fffdf7", padding: "14px", display: "flex", flexDirection: "column", gap: "10px" },
   summaryGrid: { display: "flex", gap: "12px", flexWrap: "wrap" },
   summaryItem: { border: "1px solid #e5e7eb", borderRadius: "8px", padding: "10px 14px", minWidth: "120px", display: "flex", flexDirection: "column", gap: "4px" },
   tableWrapper: { overflowX: "auto" },
-  table: { width: "100%", minWidth: "980px", borderCollapse: "collapse" },
+  table: { width: "100%", minWidth: "1080px", borderCollapse: "collapse" },
   th: { textAlign: "left", padding: "11px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb", whiteSpace: "nowrap" },
   thRight: { textAlign: "right", padding: "11px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb", whiteSpace: "nowrap" },
-  td: { padding: "11px", borderBottom: "1px solid #eee", verticalAlign: "top" },
-  tdStrong: { padding: "11px", borderBottom: "1px solid #eee", verticalAlign: "top", fontWeight: 800 },
-  tdRight: { padding: "11px", borderBottom: "1px solid #eee", textAlign: "right", whiteSpace: "nowrap" },
+  td: { padding: "11px", borderBottom: "1px solid #eee", verticalAlign: "middle" },
+  tdStrong: { padding: "11px", borderBottom: "1px solid #eee", verticalAlign: "middle", fontWeight: 800 },
+  tdRight: { padding: "11px", borderBottom: "1px solid #eee", textAlign: "right", whiteSpace: "nowrap", verticalAlign: "middle" },
   emptyCell: { padding: "18px", color: "#6b7280", textAlign: "center" },
 };
