@@ -11,6 +11,8 @@ import "./components/contracts/contractHistoryTableCompact.css";
 import "./components/contracts/contractPrintSplit42.css";
 import "./components/payrolls/payrollSplit42.css";
 import "./components/payrolls/monthlyPayrollReviewSplit42.css";
+import "./components/payrolls/payrollPreparationFlow.css";
+import "./components/payrolls/payrollGenerationStatus.css";
 import "./components/wage-garnishments/wageGarnishmentSplit42Polish.css";
 import "./components/mail/mailScenarioValidation.css";
 import "./pages/DashboardIntro.css";
