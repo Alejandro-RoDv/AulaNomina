@@ -82,46 +82,98 @@ def employee_panel(employee: dict, contract: dict) -> str:
     )
 
 
-def earning_rows(lines: list[dict]) -> str:
-    if not lines:
-        return "<tr><td colspan='4' class='empty'>Sin devengos</td></tr>"
+def filler_rows(count: int, columns: int = 4) -> str:
+    if count <= 0:
+        return ""
+    return "".join(f"<tr class='filler'><td colspan='{columns}'>&nbsp;</td></tr>" for _ in range(count))
 
-    rows: list[str] = []
-    last_nature = None
+
+def earning_rows(lines: list[dict]) -> str:
+    salary_lines: list[dict] = []
+    non_salary_lines: list[dict] = []
     for line in lines:
         nature = str(line.get("salary_nature") or "SALARIAL").upper()
-        if nature != last_nature:
-            label = "Percepciones no salariales:" if nature in {"EXTRASALARIAL", "NO_SALARIAL", "NO SALARIAL"} else "Percepciones salariales:"
-            rows.append(f"<tr class='subheading'><td colspan='4'>{html_text(label)}</td></tr>")
-            last_nature = nature
+        if nature in {"EXTRASALARIAL", "NO_SALARIAL", "NO SALARIAL"}:
+            non_salary_lines.append(line)
+        else:
+            salary_lines.append(line)
 
-        quantity = line.get("quantity")
-        unit_price = line.get("unit_price")
-        rows.append(
-            "<tr>"
-            f"<td>{html_text(line.get('name') or line.get('code'))}</td>"
-            f"<td class='num'>{decimal_text(quantity) if quantity is not None else ''}</td>"
-            f"<td class='num'>{money_text(unit_price) if unit_price is not None else ''}</td>"
-            f"<td class='num'>{money_text(line.get('amount'))}</td>"
-            "</tr>"
-        )
+    rows: list[str] = ["<tr class='subheading'><td colspan='4'>Percepciones salariales:</td></tr>"]
+
+    def append_lines(items: list[dict]) -> None:
+        for line in items:
+            quantity = line.get("quantity")
+            unit_price = line.get("unit_price")
+            rows.append(
+                "<tr>"
+                f"<td>{html_text(line.get('name') or line.get('code'))}</td>"
+                f"<td class='num'>{decimal_text(quantity) if quantity is not None else ''}</td>"
+                f"<td class='num'>{money_text(unit_price) if unit_price is not None else ''}</td>"
+                f"<td class='num'>{money_text(line.get('amount'))}</td>"
+                "</tr>"
+            )
+
+    append_lines(salary_lines)
+    rows.append("<tr class='subheading subsection'><td colspan='4'>Percepciones no salariales:</td></tr>")
+    append_lines(non_salary_lines)
+
+    visible_rows = len(rows)
+    rows.append(filler_rows(max(0, 10 - visible_rows)))
     return "".join(rows)
 
 
+def deduction_rate_text(line: dict) -> str:
+    trace = line.get("trace") or {}
+    raw = None
+    for key in ("rate", "percentage", "percent", "employee_rate", "irpf_rate"):
+        if trace.get(key) is not None:
+            raw = trace.get(key)
+            break
+    if raw is None:
+        return ""
+    try:
+        rate = Decimal(str(raw))
+        if abs(rate) <= 1:
+            rate *= 100
+        return f"{rate.normalize()}%".replace(".", ",")
+    except Exception:
+        return ""
+
+
 def deduction_rows(lines: list[dict]) -> str:
-    if not lines:
-        return "<tr><td colspan='4' class='empty'>Sin deducciones</td></tr>"
+    social_security: list[dict] = []
+    other: list[dict] = []
+    for line in lines:
+        code = str(line.get("code") or "").upper()
+        name = str(line.get("name") or "").lower()
+        is_ss = code.startswith("SS_") or any(
+            token in name for token in ("contingencias", "desempleo", "formación profesional", "mei")
+        )
+        (social_security if is_ss else other).append(line)
 
     rows: list[str] = []
-    for line in lines:
+    if social_security:
         rows.append(
-            "<tr>"
-            f"<td>{html_text(line.get('name') or line.get('code'))}</td>"
-            "<td></td>"
-            "<td></td>"
-            f"<td class='num'>{money_text(line.get('amount'))}</td>"
-            "</tr>"
+            "<tr class='subheading'><td colspan='4'>Aportación del trabajador a las cotizaciones de la Seguridad Social:</td></tr>"
         )
+
+    def append_lines(items: list[dict]) -> None:
+        for line in items:
+            rows.append(
+                "<tr>"
+                f"<td>{html_text(line.get('name') or line.get('code'))}</td>"
+                "<td></td>"
+                f"<td class='num rate'>{html_text(deduction_rate_text(line), '')}</td>"
+                f"<td class='num'>{money_text(line.get('amount'))}</td>"
+                "</tr>"
+            )
+
+    append_lines(social_security)
+    append_lines(other)
+    if not rows:
+        rows.append("<tr><td colspan='4' class='empty'>Sin deducciones</td></tr>")
+
+    rows.append(filler_rows(max(0, 8 - len(rows))))
     return "".join(rows)
 
 
@@ -146,77 +198,84 @@ def build_payroll_receipt_print_html(receipt: dict) -> str:
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>{html_text(title)}</title>
   <style>
-    :root {{ font-family: Arial, Helvetica, sans-serif; color: #171717; background: #efefef; }}
+    :root {{ font-family: Arial, Helvetica, sans-serif; color: #171717; background: #ececec; }}
     * {{ box-sizing: border-box; }}
-    body {{ margin: 0; padding: 26px; }}
-    .toolbar {{ width: min(920px, 100%); margin: 0 auto 12px; display: flex; justify-content: flex-end; }}
-    .toolbar button {{ border: 1px solid #9ca3af; border-radius: 4px; background: #fff; padding: 9px 14px; color: #111827; font-weight: 700; cursor: pointer; }}
-    .sheet {{ width: min(920px, 100%); min-height: 1180px; margin: 0 auto; padding: 28px 34px 34px; background: #fff; border: 1px solid #c9c9c9; box-shadow: 0 8px 26px rgba(0,0,0,.08); }}
-    .document-note {{ margin: 0 0 10px; color: #6b7280; font-size: 9px; font-weight: 700; letter-spacing: .06em; text-align: right; text-transform: uppercase; }}
-    .parties {{ display: grid; grid-template-columns: 1fr 1fr; border: 1.5px solid #222; }}
-    .party {{ min-height: 150px; }}
-    .party + .party {{ border-left: 1px solid #222; }}
-    .party h2 {{ margin: 0; padding: 3px 8px; background: #f1f1f1; border-bottom: 1px solid #d0d0d0; font-size: 15px; text-align: center; }}
-    .party .info-row {{ display: grid; grid-template-columns: 190px 1fr; gap: 6px; padding: 1px 7px; font-size: 11px; line-height: 1.22; }}
+    body {{ margin: 0; padding: 22px; }}
+    .toolbar {{ width: min(210mm, calc(100vw - 32px)); margin: 0 auto 12px; display: flex; justify-content: flex-end; }}
+    .toolbar button {{ border: 1px solid #98a2b3; border-radius: 4px; background: #fff; padding: 10px 15px; color: #101828; font-weight: 700; cursor: pointer; }}
+    .sheet {{ width: min(210mm, calc(100vw - 32px)); min-height: 297mm; margin: 0 auto; padding: 18mm 10mm 13mm; background: #fff; border: 1px solid #c8c8c8; box-shadow: 0 10px 32px rgba(0,0,0,.10); }}
+    .parties {{ display: grid; grid-template-columns: 1fr 1fr; border: 1.4px solid #111; }}
+    .party {{ min-height: 44mm; }}
+    .party + .party {{ border-left: 1px solid #111; }}
+    .party h2 {{ margin: 0; padding: 4px 8px; background: #f2f2f2; border-bottom: 1px solid #c8c8c8; font-size: 16px; line-height: 1.1; text-align: center; }}
+    .party .info-row {{ display: grid; grid-template-columns: 42% 58%; gap: 7px; padding: 2px 8px; font-size: 12.2px; line-height: 1.25; }}
+    .party .info-row:first-of-type {{ padding-top: 7px; }}
     .party .info-row span {{ color: #202020; }}
-    .party .info-row strong {{ font-weight: 500; }}
-    .period {{ display: grid; grid-template-columns: 1.6fr 1fr 1fr .8fr; border: 1.5px solid #222; border-top: 0; font-size: 11px; }}
-    .period > div {{ padding: 3px 7px; }}
-    .period .center {{ text-align: center; font-style: italic; }}
-    .period .days {{ text-align: right; }}
+    .party .info-row strong {{ font-weight: 500; overflow-wrap: anywhere; }}
+    .period {{ display: grid; grid-template-columns: 1.7fr .9fr .9fr .7fr; border: 1.4px solid #111; border-top: 0; font-size: 12px; }}
+    .period > div {{ min-height: 38px; padding: 5px 8px; display: flex; align-items: center; }}
+    .period .center {{ justify-content: center; text-align: center; font-style: italic; line-height: 1.2; }}
+    .period .days {{ justify-content: flex-end; text-align: right; }}
     table {{ width: 100%; border-collapse: collapse; table-layout: fixed; }}
-    .payroll-table {{ border-left: 1.5px solid #222; border-right: 1.5px solid #222; font-size: 11px; }}
-    .payroll-table th {{ padding: 3px 6px; background: #f1f1f1; border-bottom: 1px solid #d0d0d0; font-size: 12px; }}
+    .payroll-table {{ border-left: 1.4px solid #111; border-right: 1.4px solid #111; font-size: 12.2px; }}
+    .payroll-table th {{ padding: 4px 7px; background: #f1f1f1; border-bottom: 1px solid #c8c8c8; font-size: 13px; line-height: 1.15; }}
     .payroll-table th:first-child {{ width: 58%; text-align: left; }}
     .payroll-table th:nth-child(2) {{ width: 14%; }}
     .payroll-table th:nth-child(3) {{ width: 14%; }}
     .payroll-table th:nth-child(4) {{ width: 14%; }}
-    .payroll-table td {{ padding: 2px 6px; vertical-align: top; }}
+    .payroll-table td {{ height: 23px; padding: 3px 7px; vertical-align: middle; }}
     .payroll-table td.num {{ text-align: right; white-space: nowrap; font-style: italic; }}
-    .payroll-table .subheading td {{ padding-top: 5px; font-weight: 700; font-style: normal; }}
-    .payroll-table .empty {{ padding: 8px; color: #6b7280; text-align: center; }}
-    .total-row {{ display: grid; grid-template-columns: 1fr 190px; border: 1.5px solid #222; border-top: 0; font-size: 12px; font-weight: 700; }}
-    .total-row span {{ padding: 3px 7px; }}
-    .total-row strong {{ padding: 3px 7px; text-align: right; font-style: italic; }}
-    .deductions-title {{ display: grid; grid-template-columns: 1fr 190px; margin-top: 18px; border-left: 1.5px solid #222; border-right: 1.5px solid #222; border-top: 1.5px solid #222; background: #f1f1f1; font-size: 12px; font-weight: 700; }}
-    .deductions-title span {{ padding: 4px 7px; }}
+    .payroll-table td.rate {{ color: #333; }}
+    .payroll-table .subheading td {{ height: 25px; padding-top: 5px; padding-bottom: 2px; font-weight: 700; font-style: normal; }}
+    .payroll-table .subsection td {{ padding-top: 8px; }}
+    .payroll-table .filler td {{ height: 22px; padding: 0; }}
+    .payroll-table .empty {{ padding: 12px; color: #6b7280; text-align: center; }}
+    .total-row {{ display: grid; grid-template-columns: 1fr 44mm; border: 1.4px solid #111; border-top: 0; font-size: 13px; font-weight: 700; }}
+    .total-row span, .total-row strong {{ min-height: 28px; padding: 5px 8px; display: flex; align-items: center; }}
+    .total-row strong {{ justify-content: flex-end; text-align: right; font-style: italic; }}
+    .deductions-title {{ display: grid; grid-template-columns: 1fr 44mm; margin-top: 7mm; border-left: 1.4px solid #111; border-right: 1.4px solid #111; border-top: 1.4px solid #111; background: #f1f1f1; font-size: 13px; font-weight: 700; }}
+    .deductions-title span {{ padding: 5px 8px; }}
     .deductions-title span:last-child {{ text-align: center; }}
-    .net-row {{ display: grid; grid-template-columns: 1fr 190px; margin-top: 14px; border: 1.5px solid #222; font-size: 13px; font-weight: 800; }}
-    .net-row span {{ padding: 5px 7px; }}
-    .net-row strong {{ padding: 5px 7px; border-left: 1px solid #222; background: #f7f7f7; text-align: right; font-style: italic; }}
-    .payment {{ display: grid; grid-template-columns: 1.2fr .8fr; min-height: 64px; border-left: 1.5px solid #222; border-right: 1.5px solid #222; border-bottom: 1.5px solid #222; font-size: 11px; }}
-    .payment > div {{ padding: 5px 7px; }}
-    .payment .signature {{ display: flex; align-items: center; justify-content: center; font-size: 12px; }}
-    .bases {{ margin-top: 18px; border: 1.5px solid #222; }}
-    .bases h2 {{ margin: 0; padding: 4px 7px; background: #f1f1f1; font-size: 12px; }}
-    .bases h3 {{ margin: 0; padding: 3px 7px; font-size: 12px; }}
-    .base-row {{ display: grid; grid-template-columns: 1fr 190px; padding: 2px 7px; font-size: 11px; }}
+    .net-row {{ display: grid; grid-template-columns: 1fr 44mm; margin-top: 5mm; border: 1.4px solid #111; font-size: 14px; font-weight: 800; }}
+    .net-row span, .net-row strong {{ min-height: 32px; padding: 6px 8px; display: flex; align-items: center; }}
+    .net-row strong {{ justify-content: flex-end; border-left: 1px solid #111; background: #f7f7f7; text-align: right; font-style: italic; }}
+    .payment {{ display: grid; grid-template-columns: 1.15fr .85fr; min-height: 23mm; border-left: 1.4px solid #111; border-right: 1.4px solid #111; border-bottom: 1.4px solid #111; font-size: 12px; }}
+    .payment > div {{ padding: 6px 8px; line-height: 1.45; }}
+    .payment .signature {{ display: flex; align-items: center; justify-content: center; font-size: 12.5px; }}
+    .bases {{ margin-top: 7mm; min-height: 42mm; border: 1.4px solid #111; }}
+    .bases h2 {{ margin: 0; padding: 5px 8px; background: #f1f1f1; font-size: 13px; }}
+    .bases h3 {{ margin: 0; padding: 5px 8px 3px; font-size: 13px; }}
+    .base-row {{ display: grid; grid-template-columns: 1fr 44mm; padding: 3px 8px; font-size: 12px; line-height: 1.25; }}
     .base-row strong {{ text-align: right; font-style: italic; font-weight: 500; }}
-    .footer {{ margin-top: 18px; color: #6b7280; font-size: 9px; line-height: 1.35; text-align: center; }}
+    .footer {{ margin-top: 6mm; color: #7a7a7a; font-size: 9px; line-height: 1.4; text-align: center; }}
+    @media (max-width: 820px) {{
+      body {{ padding: 8px; }}
+      .toolbar, .sheet {{ width: 100%; }}
+      .sheet {{ padding: 24px 16px; }}
+      .party .info-row {{ grid-template-columns: 46% 54%; font-size: 11px; }}
+    }}
     @media print {{
       :root {{ background: white; }}
       body {{ padding: 0; background: white; }}
       .toolbar {{ display: none; }}
       .sheet {{ width: 100%; min-height: 0; border: 0; box-shadow: none; padding: 0; }}
-      @page {{ size: A4; margin: 14mm; }}
+      @page {{ size: A4; margin: 10mm; }}
     }}
   </style>
 </head>
 <body>
   <div class="toolbar"><button onclick="window.print()">Imprimir / Guardar como PDF</button></div>
   <main class="sheet">
-    <p class="document-note">Recibo individual de salarios simulado · AulaNomina</p>
-
     <section class="parties">
       {company_panel(company)}
       {employee_panel(employee, contract)}
     </section>
 
     <section class="period">
-      <div>Periodo de liquidación: <strong>{html_text(period.get('label'))}</strong></div>
+      <div>Periodo de liquidación: <strong>&nbsp;{html_text(period.get('label'))}</strong></div>
       <div class="center">Fecha inicial<br><strong>{period_start}</strong></div>
       <div class="center">Fecha final<br><strong>{period_end}</strong></div>
-      <div class="days">Total días: <strong>{html_text(total_days)}</strong></div>
+      <div class="days">Total días: <strong>&nbsp;{html_text(total_days)}</strong></div>
     </section>
 
     <table class="payroll-table">
@@ -253,7 +312,7 @@ def build_payroll_receipt_print_html(receipt: dict) -> str:
 
     <footer class="footer">
       {html_text(receipt.get('legal_footer'))}<br>
-      Centro de trabajo: {html_text(work_center.get('name'))} · Contrato: {html_text(contract.get('code'))}
+      Centro de trabajo: {html_text(work_center.get('name'))} · Contrato: {html_text(contract.get('code'))} · Nómina: {html_text(receipt.get('payroll_code'))}
     </footer>
   </main>
 </body>
