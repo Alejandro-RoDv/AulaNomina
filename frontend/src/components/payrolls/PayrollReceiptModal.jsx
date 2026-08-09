@@ -82,6 +82,133 @@ function ReceiptTable({ title, lines = [], emptyLabel = "Sin conceptos" }) {
   );
 }
 
+function PayslipParty({ title, children }) {
+  return (
+    <section className="payroll-payslip__party">
+      <h3>{title}</h3>
+      <div>{children}</div>
+    </section>
+  );
+}
+
+function PartyLine({ label, value }) {
+  return (
+    <p>
+      <span>{label}:</span>
+      <strong>{safeText(value)}</strong>
+    </p>
+  );
+}
+
+function PayslipLines({ lines = [], type }) {
+  if (!lines.length) {
+    return <div className="payroll-payslip__empty-row">Sin conceptos en este apartado.</div>;
+  }
+
+  return lines.map((line) => {
+    const quantity = line.quantity ?? line.units ?? line.days ?? "";
+    const price = line.unit_price ?? line.price ?? line.rate ?? line.percentage ?? "";
+    return (
+      <div className="payroll-payslip__line" key={`${type}-${line.code}-${line.id || line.display_order || line.name}`}>
+        <div>
+          <span className="payroll-payslip__line-code">{safeText(line.code, "")}</span>
+          <strong>{safeText(line.name)}</strong>
+          {line.description && <small>{line.description}</small>}
+        </div>
+        <span className="is-number">{quantity !== "" ? safeText(quantity) : ""}</span>
+        <span className="is-number">{price !== "" ? safeText(price) : ""}</span>
+        <strong className="is-number">{formatCurrency(line.amount)}</strong>
+      </div>
+    );
+  });
+}
+
+function OfficialPayslip({ receipt }) {
+  const companyAddress = [receipt.company?.address, receipt.company?.city, receipt.company?.province].filter(Boolean).join(" · ");
+  const employeeAddress = [receipt.employee?.address, receipt.employee?.city, receipt.employee?.province].filter(Boolean).join(" · ");
+  const category = receipt.contract?.professional_category || receipt.contract?.job_position;
+  const group = receipt.contract?.contribution_group || receipt.contract?.group;
+
+  return (
+    <article className="payroll-payslip">
+      <header className="payroll-payslip__parties">
+        <PayslipParty title="EMPRESA">
+          <PartyLine label="Nombre" value={receipt.company?.name} />
+          <PartyLine label="Domicilio" value={companyAddress || "No informado"} />
+          <PartyLine label="CIF" value={receipt.company?.tax_id} />
+          <PartyLine label="Código cuenta cotización S.S." value={receipt.company?.contribution_account} />
+        </PayslipParty>
+        <PayslipParty title="TRABAJADOR/A">
+          <PartyLine label="Nombre" value={receipt.employee?.name} />
+          <PartyLine label="DNI/NIE" value={receipt.employee?.tax_id} />
+          <PartyLine label="Número de afiliación a la S.S." value={receipt.employee?.social_security_number} />
+          <PartyLine label="Categoría o grupo profesional" value={category} />
+          <PartyLine label="Grupo de cotización" value={group} />
+          <PartyLine label="Domicilio" value={employeeAddress || "No informado"} />
+        </PayslipParty>
+      </header>
+
+      <section className="payroll-payslip__period">
+        <div><span>Periodo de liquidación</span><strong>{safeText(receipt.period?.label)}</strong></div>
+        <div><span>Fecha inicial</span><strong>{formatDate(receipt.period?.period_start)}</strong></div>
+        <div><span>Fecha final</span><strong>{formatDate(receipt.period?.period_end)}</strong></div>
+        <div><span>Total días</span><strong>{formatNumber(receipt.period?.contribution_days)}</strong></div>
+      </section>
+
+      <section className="payroll-payslip__section">
+        <div className="payroll-payslip__section-title">DEVENGOS</div>
+        <div className="payroll-payslip__columns">
+          <span>Concepto</span><span>Cantidad</span><span>Precio</span><span>Totales</span>
+        </div>
+        <div className="payroll-payslip__subheading">Percepciones salariales y no salariales</div>
+        <PayslipLines lines={receipt.earnings || []} type="earning" />
+        <div className="payroll-payslip__subtotal">
+          <strong>TOTAL DEVENGADO</strong>
+          <strong>{formatCurrency(receipt.totals?.total_earnings)}</strong>
+        </div>
+      </section>
+
+      <section className="payroll-payslip__section payroll-payslip__section--deductions">
+        <div className="payroll-payslip__section-title">DEDUCCIONES</div>
+        <div className="payroll-payslip__columns">
+          <span>Concepto</span><span></span><span>Tipo / %</span><span>Totales</span>
+        </div>
+        <PayslipLines lines={receipt.deductions || []} type="deduction" />
+        <div className="payroll-payslip__subtotal">
+          <strong>TOTAL A DEDUCIR</strong>
+          <strong>{formatCurrency(receipt.totals?.total_deductions)}</strong>
+        </div>
+      </section>
+
+      <section className="payroll-payslip__net">
+        <strong>LÍQUIDO A PERCIBIR</strong>
+        <strong>{formatCurrency(receipt.totals?.net_salary)}</strong>
+      </section>
+
+      <section className="payroll-payslip__payment">
+        <div><span>Fecha de ingreso de la nómina:</span><strong>{formatDate(receipt.payment_date)}</strong></div>
+        <div><span>Entidad financiera:</span><strong>{safeText(receipt.bank_name, "-")}</strong></div>
+        <div><span>Cuenta:</span><strong>{safeText(receipt.bank_account, "-")}</strong></div>
+        <div className="payroll-payslip__signature">Firma del trabajador</div>
+      </section>
+
+      <section className="payroll-payslip__bases">
+        <div className="payroll-payslip__section-title">DETERMINACIÓN DE LAS BASES DE COTIZACIÓN A LA SEGURIDAD SOCIAL Y CONCEPTOS DE RECAUDACIÓN CONJUNTA</div>
+        {(receipt.base_lines || []).length > 0 ? (
+          receipt.base_lines.map((line) => (
+            <div className="payroll-payslip__base-line" key={`base-${line.code}-${line.id || line.name}`}>
+              <span>{safeText(line.name || line.code)}</span>
+              <strong>{formatCurrency(line.amount)}</strong>
+            </div>
+          ))
+        ) : (
+          <div className="payroll-payslip__empty-row">Sin bases informadas.</div>
+        )}
+      </section>
+    </article>
+  );
+}
+
 function ExplanationList({ title, items = [], renderMeta }) {
   if (!items.length) return null;
   return (
@@ -150,7 +277,7 @@ export default function PayrollReceiptModal({ payrollId, onClose }) {
   if (!payrollId) return null;
 
   const tabs = [
-    ["summary", "Resumen"],
+    ["summary", "Nómina"],
     ["concepts", "Conceptos"],
     ["bases", "Bases y coste"],
     ["explanation", "Explicación"],
@@ -179,12 +306,7 @@ export default function PayrollReceiptModal({ payrollId, onClose }) {
 
         <nav className="payroll-receipt-s42__tabs" aria-label="Secciones de la nómina">
           {tabs.map(([key, label]) => (
-            <button
-              key={key}
-              type="button"
-              className={activeTab === key ? "is-active" : ""}
-              onClick={() => setActiveTab(key)}
-            >
+            <button key={key} type="button" className={activeTab === key ? "is-active" : ""} onClick={() => setActiveTab(key)}>
               {label}
             </button>
           ))}
@@ -202,55 +324,13 @@ export default function PayrollReceiptModal({ payrollId, onClose }) {
                 </div>
               )}
 
-              {activeTab === "summary" && (
-                <div className="payroll-receipt-s42__tab-panel">
-                  <section className="payroll-receipt-s42__identity">
-                    <SummaryField
-                      label="Trabajador"
-                      value={receipt.employee?.name}
-                      secondary={`${safeText(receipt.employee?.tax_id)} · NAF ${safeText(receipt.employee?.social_security_number)}`}
-                    />
-                    <SummaryField
-                      label="Empresa / centro"
-                      value={receipt.company?.name}
-                      secondary={receipt.work_center?.name || "Sin centro informado"}
-                    />
-                    <SummaryField label="Periodo" value={receipt.period?.label} secondary={`${formatNumber(receipt.period?.worked_days)} días trabajados · ${formatNumber(receipt.period?.contribution_days)} cotizados`} />
-                    <SummaryField
-                      label="Contrato / categoría"
-                      value={safeText(receipt.contract?.code || receipt.contract?.type)}
-                      secondary={safeText(receipt.contract?.professional_category || receipt.contract?.job_position)}
-                    />
-                  </section>
-
-                  <section className="payroll-receipt-s42__totals">
-                    <Total label="Devengos" value={formatCurrency(receipt.totals?.total_earnings)} />
-                    <Total label="Deducciones" value={formatCurrency(receipt.totals?.total_deductions)} />
-                    <Total label="Líquido a percibir" value={formatCurrency(receipt.totals?.net_salary)} primary />
-                    <Total label="Coste empresa" value={formatCurrency(receipt.totals?.company_total_cost)} />
-                  </section>
-
-                  <div className="payroll-receipt-s42__summary-grid">
-                    <ReceiptTable title="Devengos" lines={receipt.earnings || []} />
-                    <ReceiptTable title="Deducciones" lines={receipt.deductions || []} />
-                  </div>
-
-                  <section className="payroll-receipt-s42__period-detail">
-                    <SummaryField label="Días de incidencia" value={formatNumber(receipt.period?.incident_days)} />
-                    <SummaryField label="Prestaciones" value={formatCurrency(receipt.incident_summary?.total_benefits)} />
-                    <SummaryField label="Complementos" value={formatCurrency(receipt.incident_summary?.total_company_complements)} />
-                    <SummaryField label="Descuentos por ausencia" value={formatCurrency(receipt.incident_summary?.total_absence_deductions)} />
-                  </section>
-                </div>
-              )}
+              {activeTab === "summary" && <OfficialPayslip receipt={receipt} />}
 
               {activeTab === "concepts" && (
                 <div className="payroll-receipt-s42__tab-panel">
                   <ReceiptTable title="Devengos" lines={receipt.earnings || []} />
                   <ReceiptTable title="Deducciones" lines={receipt.deductions || []} />
-                  {receipt.informative_lines?.length > 0 && (
-                    <ReceiptTable title="Líneas informativas" lines={receipt.informative_lines} />
-                  )}
+                  {receipt.informative_lines?.length > 0 && <ReceiptTable title="Líneas informativas" lines={receipt.informative_lines} />}
                 </div>
               )}
 
@@ -269,34 +349,15 @@ export default function PayrollReceiptModal({ payrollId, onClose }) {
               {activeTab === "explanation" && (
                 <div className="payroll-receipt-s42__tab-panel">
                   <section className="payroll-receipt-s42__explanation-intro">
-                    <div>
-                      <span>LECTURA DIDÁCTICA</span>
-                      <h3>Cómo se ha calculado esta nómina</h3>
-                    </div>
+                    <div><span>LECTURA DIDÁCTICA</span><h3>Cómo se ha calculado esta nómina</h3></div>
                     <p>{receipt.incident_summary?.explanation || "La nómina no contiene incidencias con impacto específico en el periodo."}</p>
                   </section>
-
-                  <ExplanationList
-                    title="Incidencias aplicadas"
-                    items={receipt.incident_explanations || []}
-                    renderMeta={(item) => item.period}
-                  />
-                  <ExplanationList
-                    title="Bases y cotización"
-                    items={receipt.base_explanations || []}
-                    renderMeta={(item) => formatCurrency(item.amount)}
-                  />
-                  <ExplanationList
-                    title="Explicación de conceptos"
-                    items={receipt.line_explanations || []}
-                    renderMeta={(item) => `${safeText(item.code)} · ${formatCurrency(item.amount)}`}
-                  />
-
-                  {(receipt.incident_explanations || []).length === 0 &&
-                    (receipt.base_explanations || []).length === 0 &&
-                    (receipt.line_explanations || []).length === 0 && (
-                      <div className="payroll-receipt-s42__state">No hay explicaciones adicionales para esta nómina.</div>
-                    )}
+                  <ExplanationList title="Incidencias aplicadas" items={receipt.incident_explanations || []} renderMeta={(item) => item.period} />
+                  <ExplanationList title="Bases y cotización" items={receipt.base_explanations || []} renderMeta={(item) => formatCurrency(item.amount)} />
+                  <ExplanationList title="Explicación de conceptos" items={receipt.line_explanations || []} renderMeta={(item) => `${safeText(item.code)} · ${formatCurrency(item.amount)}`} />
+                  {(receipt.incident_explanations || []).length === 0 && (receipt.base_explanations || []).length === 0 && (receipt.line_explanations || []).length === 0 && (
+                    <div className="payroll-receipt-s42__state">No hay explicaciones adicionales para esta nómina.</div>
+                  )}
                 </div>
               )}
 
