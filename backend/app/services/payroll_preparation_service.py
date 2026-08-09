@@ -8,7 +8,6 @@ from sqlalchemy.orm import Session, joinedload
 
 import app.crud.payroll as payroll_crud
 from app.crud.payroll_salary_structure import get_payroll_items, load_contract_concepts_into_payroll
-from app.models.company import Company
 from app.models.contract import Contract
 from app.models.employee import Employee
 from app.models.payroll import Payroll
@@ -16,9 +15,8 @@ from app.models.payroll_salary_structure import PayrollItem
 from app.schemas.payroll import PayrollCreate
 from app.schemas.payroll_preparation import PayrollGenerationRequest, PayrollPreparationEnsureRequest
 from app.services.payroll_amounts import calculate_social_security_amounts_from_bases, money
-from app.services.payroll_application_service import create_payroll
 from app.services.payroll_concept_engine import build_concept_lines_from_payroll
-from app.services.payroll_concept_items import ensure_engine_concept, json_safe
+from app.services.payroll_concept_items import ensure_engine_concept, json_safe, sync_engine_concept_items
 
 GENERATED_STATUSES = {"pending", "calculated", "reviewed", "closed"}
 
@@ -76,6 +74,7 @@ def _editable_items(db: Session, payroll_id: int) -> list[PayrollItem]:
 
 
 def calculate_preparation_preview(db: Session, payroll: Payroll) -> dict:
+    """Calculate a non-persistent preview from the saved preparation lines."""
     items = _editable_items(db, payroll.id)
     gross_salary = Decimal("0.00")
     common_base = Decimal("0.00")
@@ -169,6 +168,38 @@ def _find_period_payroll(db: Session, contract_id: int, period_month: int, perio
     ).order_by(Payroll.id.desc()).first()
 
 
+def _create_draft_payroll(db: Session, request: PayrollPreparationEnsureRequest, contract: Contract) -> Payroll:
+    """Create a draft using the calculation engine without processing incidents as final.
+
+    The CRUD layer calculates period amounts, including the current incident
+    picture, but does not mark incidents as processed. Canonical concept lines are
+    materialized only to provide the editable starting point for the student.
+    """
+    created = payroll_crud.create_payroll(
+        db,
+        PayrollCreate(
+            employee_id=request.employee_id,
+            contract_id=contract.id,
+            company_id=contract.company_id,
+            center_id=contract.center_id,
+            period_month=request.period_month,
+            period_year=request.period_year,
+            salary_supplements=Decimal("0.00"),
+            variable_incentives=Decimal("0.00"),
+            irpf_mode="auto",
+            status="draft",
+        ),
+    )
+    try:
+        sync_engine_concept_items(db, created.id, build_concept_lines_from_payroll(created))
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+    load_contract_concepts_into_payroll(db, created.id)
+    return payroll_crud.get_payroll(db, created.id)
+
+
 def ensure_preparation(db: Session, request: PayrollPreparationEnsureRequest) -> dict:
     employee = db.query(Employee).filter(Employee.id == request.employee_id, Employee.is_active == True).first()
     if not employee:
@@ -187,24 +218,8 @@ def ensure_preparation(db: Session, request: PayrollPreparationEnsureRequest) ->
     if existing:
         return build_preparation_response(db, existing)
 
-    created = create_payroll(
-        db,
-        PayrollCreate(
-            employee_id=employee.id,
-            contract_id=contract.id,
-            company_id=contract.company_id,
-            center_id=contract.center_id,
-            period_month=request.period_month,
-            period_year=request.period_year,
-            salary_supplements=Decimal("0.00"),
-            variable_incentives=Decimal("0.00"),
-            irpf_mode="auto",
-            status="draft",
-        ),
-        actor="payroll_preparation",
-    )
-    load_contract_concepts_into_payroll(db, created.id)
-    return build_preparation_response(db, payroll_crud.get_payroll(db, created.id))
+    created = _create_draft_payroll(db, request, contract)
+    return build_preparation_response(db, created)
 
 
 def get_preparation(db: Session, payroll_id: int) -> dict:
@@ -220,12 +235,19 @@ def _sum_by_code(items: list[PayrollItem], code: str) -> Decimal:
 
 def _sum_categories(items: list[PayrollItem], categories: set[str]) -> Decimal:
     return money(sum(
-        (money(item.amount) for item in items if item.concept and item.concept.concept_type == "DEVENGO" and item.concept.category in categories),
+        (
+            money(item.amount)
+            for item in items
+            if item.concept
+            and item.concept.concept_type == "DEVENGO"
+            and item.concept.category in categories
+        ),
         Decimal("0.00"),
     ))
 
 
 def _sync_generated_system_items(db: Session, payroll: Payroll) -> None:
+    """Refresh only automatic deductions/bases/costs; keep prepared earnings."""
     prefix = f"ENGINE:{payroll.id}:"
     existing = db.query(PayrollItem).options(joinedload(PayrollItem.concept)).filter(
         PayrollItem.payroll_id == payroll.id,
@@ -280,6 +302,8 @@ def finalize_preparation(db: Session, payroll: Payroll) -> Payroll:
     payroll.professional_contingencies_base = preview["professional_base"]
     payroll.unemployment_training_fogasa_base = preview["professional_base"]
     payroll.irpf_base = preview["irpf_base"]
+    payroll.daily_common_base = money(preview["contribution_base"] / Decimal(str(payroll.contribution_days or 30)))
+    payroll.daily_professional_base = money(preview["professional_base"] / Decimal(str(payroll.contribution_days or 30)))
     payroll.employee_common_contingencies = calculated["employee_common_contingencies"]
     payroll.employee_unemployment = calculated["employee_unemployment"]
     payroll.employee_training = calculated["employee_training"]
@@ -299,6 +323,7 @@ def finalize_preparation(db: Session, payroll: Payroll) -> Payroll:
     payroll.status = "calculated"
     payroll.calculation_version = int(payroll.calculation_version or 0) + 1
     payroll.calculation_engine_version = "preparation-v1"
+    payroll.calculation_fingerprint = None
     payroll.last_calculated_at = datetime.utcnow()
 
     try:
@@ -347,6 +372,7 @@ def generate_payrolls(db: Session, request: PayrollGenerationRequest) -> dict:
             skipped_count += 1
             items.append({**base_item, "status": "skipped", "source": "automatic", "message": "Trabajador inactivo"})
             continue
+
         skip_reason = payroll_crud.get_contract_period_skip_reason(contract, request.period_month, request.period_year)
         if skip_reason:
             skipped_count += 1
@@ -356,22 +382,37 @@ def generate_payrolls(db: Session, request: PayrollGenerationRequest) -> dict:
         existing = _find_period_payroll(db, contract.id, request.period_month, request.period_year)
         if existing and existing.status != "draft":
             existing_count += 1
-            items.append({**base_item, "payroll_id": existing.id, "status": existing.status, "source": "existing", "message": "La nómina ya estaba generada"})
+            items.append({
+                **base_item,
+                "payroll_id": existing.id,
+                "status": existing.status,
+                "source": "existing",
+                "message": "La nómina ya estaba generada",
+            })
             continue
 
         source = "prepared" if existing and existing.status == "draft" else "automatic"
         if existing is None:
-            preparation = ensure_preparation(db, PayrollPreparationEnsureRequest(
-                employee_id=contract.employee_id,
-                contract_id=contract.id,
-                period_month=request.period_month,
-                period_year=request.period_year,
-            ))
+            preparation = ensure_preparation(
+                db,
+                PayrollPreparationEnsureRequest(
+                    employee_id=contract.employee_id,
+                    contract_id=contract.id,
+                    period_month=request.period_month,
+                    period_year=request.period_year,
+                ),
+            )
             existing = payroll_crud.get_payroll(db, preparation["payroll_id"])
 
         generated = finalize_preparation(db, existing)
         generated_count += 1
-        items.append({**base_item, "payroll_id": generated.id, "status": generated.status, "source": source, "message": None})
+        items.append({
+            **base_item,
+            "payroll_id": generated.id,
+            "status": generated.status,
+            "source": source,
+            "message": None,
+        })
 
     return {
         "period_month": request.period_month,
