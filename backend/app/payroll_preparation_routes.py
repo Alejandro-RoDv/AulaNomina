@@ -17,6 +17,7 @@ from app.services.payroll_preparation_service import (
     generate_payrolls,
     get_preparation,
 )
+from app.services.payroll_special_generation_service import generate_special_payrolls
 
 router = APIRouter(tags=["payroll-preparation"])
 
@@ -83,7 +84,7 @@ def ensure_payroll_preparation_endpoint(
 
 @router.get("/payroll-preparations", response_model=list[PayrollPreparationStatusItem])
 def list_payroll_preparations_endpoint(
-    period_month: int = Query(..., ge=1, le=15),
+    period_month: int = Query(..., ge=1, le=19),
     period_year: int = Query(..., ge=2000, le=2100),
     db: Session = Depends(get_db),
 ):
@@ -135,6 +136,9 @@ def generate_payrolls_endpoint(
     request: PayrollGenerationRequest,
     db: Session = Depends(get_db),
 ):
+    if request.period_month > 12:
+        return generate_special_payrolls(db, request)
+
     result = generate_payrolls(db, request)
     generated_ids = [
         int(item["payroll_id"])
