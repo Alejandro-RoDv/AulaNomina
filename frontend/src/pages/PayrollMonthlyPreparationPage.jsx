@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 
-import MonthlyPayrollPreparation from "../components/payrolls/MonthlyPayrollPreparationV3";
+import MonthlyPayrollPreparation from "../components/payrolls/MonthlyPayrollPreparationV4";
 import "../components/payrolls/payrollPreparationFlow.css";
 
 export default function PayrollMonthlyPreparationPage({ companies = [], workCenters = [], onPrepared }) {
