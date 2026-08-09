@@ -1,6 +1,13 @@
 /* Split 42 — remate visual de Embargos judiciales.
    El amarillo queda reservado para advertencias reales, no para navegación o decoración. */
 
+/* Sin contexto, ocultamos únicamente la guía redundante de tres pasos. Antes se
+   ocultaba cualquier <section> siguiente al selector y eso tapaba también el formulario
+   de Nuevo embargo cuando ya había empresa y trabajador seleccionados. */
+.an-page-card:has(.wg-context) + section[style*="padding: 22px"] {
+  display: none !important;
+}
+
 /* Estado activo de Nuevo embargo / Historial: azul funcional, igual que el resto
    de la aplicación. Cubrimos tanto serialización hexadecimal como rgb del style inline. */
 .an-page-card:has(.wg-context) > div:last-child > button[style*="background-color: #fffbea"],
