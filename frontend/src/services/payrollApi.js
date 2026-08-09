@@ -70,6 +70,14 @@ export async function previewPayrollPreparation(payrollId) {
   );
 }
 
+export async function reopenPayrollPreparation(payrollId) {
+  return apiRequest(
+    `/payroll-preparations/${payrollId}/reopen`,
+    { method: "POST" },
+    "Error al reabrir la nómina para edición"
+  );
+}
+
 export async function generatePayrolls(payload) {
   return apiRequest(
     "/payroll-generation",
