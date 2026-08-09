@@ -1,0 +1,29 @@
+.payroll-sheet .payroll-sheet__action-buttons > .payroll-s42__secondary:nth-last-child(2) {
+  border-color: #2563eb;
+  background: #2563eb;
+  color: #fff;
+}
+
+.payroll-sheet .payroll-sheet__action-buttons > .payroll-s42__secondary:nth-last-child(2):hover:not(:disabled) {
+  border-color: #1d4ed8;
+  background: #1d4ed8;
+  color: #fff;
+}
+
+.payroll-sheet .payroll-sheet__action-buttons > .payroll-s42__secondary:nth-last-child(2):disabled {
+  border-color: #cbd5e1;
+  background: #e2e8f0;
+  color: #94a3b8;
+}
+
+.payroll-sheet .payroll-sheet__action-buttons > .payroll-s42__primary:last-child {
+  border-color: #cbd5e1;
+  background: #fff;
+  color: #334155;
+}
+
+.payroll-sheet .payroll-sheet__action-buttons > .payroll-s42__primary:last-child:hover:not(:disabled) {
+  border-color: #94a3b8;
+  background: #f8fafc;
+  color: #0f172a;
+}
