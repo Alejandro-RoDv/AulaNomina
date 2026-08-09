@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 
-import MonthlyPayrollPreparation from "../components/payrolls/MonthlyPayrollPreparationV2";
+import MonthlyPayrollPreparation from "../components/payrolls/MonthlyPayrollPreparationV3";
 import "../components/payrolls/payrollPreparationFlow.css";
 
 export default function PayrollMonthlyPreparationPage({ companies = [], workCenters = [], onPrepared }) {
@@ -19,7 +19,7 @@ export default function PayrollMonthlyPreparationPage({ companies = [], workCent
     <div className="payroll-s42 payroll-s42--monthly">
       <section className="payroll-s42__workflow" aria-label="Flujo de preparación mensual">
         <div className="payroll-s42__workflow-step" data-step="1">Selecciona empresa, trabajador y periodo</div>
-        <div className="payroll-s42__workflow-step" data-step="2">Edita directamente los conceptos de la nómina</div>
+        <div className="payroll-s42__workflow-step" data-step="2">Trabaja la nómina en la hoja de conceptos</div>
         <div className="payroll-s42__workflow-step" data-step="3">Guarda, previsualiza y genera cuando esté lista</div>
       </section>
 
