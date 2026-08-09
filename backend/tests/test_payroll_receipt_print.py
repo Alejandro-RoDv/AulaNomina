@@ -94,12 +94,14 @@ def test_build_payroll_receipt_print_html_contains_spanish_payslip_sections():
 
     assert "<!doctype html>" in html
     assert "Imprimir / Guardar como PDF" in html
-    assert "RECIBO INDIVIDUAL DE SALARIOS" in html
     assert "EMPRESA" in html
     assert "TRABAJADOR/A" in html
     assert "Fundación AulaNomina" in html
     assert "Javier Romero Sánchez" in html
+    assert "Periodo de liquidación" in html
     assert "DEVENGOS" in html
+    assert "Percepciones salariales" in html
+    assert "Percepciones no salariales" in html
     assert "TOTAL DEVENGADO" in html
     assert "DEDUCCIONES" in html
     assert "TOTAL A DEDUCIR" in html
