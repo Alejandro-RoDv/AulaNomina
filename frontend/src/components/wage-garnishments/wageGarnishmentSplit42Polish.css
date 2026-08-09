@@ -1,12 +1,6 @@
 /* Split 42 — remate visual de Embargos judiciales.
    El amarillo queda reservado para advertencias reales, no para navegación o decoración. */
 
-/* El contexto ya explica qué debe hacer el usuario. El bloque de tres pasos que
-   aparecía debajo repetía la misma información y ocupaba demasiado espacio. */
-.an-page-card:has(.wg-context) + section {
-  display: none !important;
-}
-
 /* Estado activo de Nuevo embargo / Historial: azul funcional, igual que el resto
    de la aplicación. Cubrimos tanto serialización hexadecimal como rgb del style inline. */
 .an-page-card:has(.wg-context) > div:last-child > button[style*="background-color: #fffbea"],
