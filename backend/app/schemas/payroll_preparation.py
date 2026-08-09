@@ -1,7 +1,7 @@
 from decimal import Decimal
 from typing import Optional
 
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, Field, field_validator
 
 
 class PayrollPreparationEnsureRequest(BaseModel):
@@ -76,16 +76,25 @@ class PayrollPreparationResponse(BaseModel):
     center_name: Optional[str] = None
     period_month: int
     period_year: int
-    lines: list[PayrollPreparationLine] = []
+    lines: list[PayrollPreparationLine] = Field(default_factory=list)
     preview: PayrollPreparationPreview
+
+
+class PayrollPreparationStatusItem(BaseModel):
+    payroll_id: int
+    contract_id: int
+    employee_id: int
+    company_id: int
+    status: str
+    generated: bool
 
 
 class PayrollGenerationRequest(BaseModel):
     period_month: int
     period_year: int
-    company_ids: list[int] = []
-    employee_ids: list[int] = []
-    contract_ids: list[int] = []
+    company_ids: list[int] = Field(default_factory=list)
+    employee_ids: list[int] = Field(default_factory=list)
+    contract_ids: list[int] = Field(default_factory=list)
     center_id: Optional[int] = None
 
     @field_validator("period_month")
@@ -122,4 +131,4 @@ class PayrollGenerationResponse(BaseModel):
     generated_count: int
     existing_count: int
     skipped_count: int
-    items: list[PayrollGenerationItem] = []
+    items: list[PayrollGenerationItem] = Field(default_factory=list)
