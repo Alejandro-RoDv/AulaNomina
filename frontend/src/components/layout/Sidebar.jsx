@@ -87,7 +87,7 @@ const groups = [
           { id: "incidents", label: "Absentismo", enabled: true, modeGroup: "incidentCategory", modeValue: "absence" },
           { id: "incidents", label: "Vacaciones", enabled: true, modeGroup: "incidentCategory", modeValue: "vacation" },
           { id: "incidents", label: "Horas extra", enabled: true, modeGroup: "incidentCategory", modeValue: "overtime" },
-          { id: "incidents", label: "Cambios", enabled: true, modeGroup: "incidentCategory", modeValue: "movement" },
+          { id: "incidents", label: "Variaciones", enabled: true, modeGroup: "incidentCategory", modeValue: "movement" },
           { id: "incidents", label: "Control nómina", enabled: true, modeGroup: "incidentCategory", modeValue: "payroll" },
           { id: "incidents", label: "Historial", enabled: true, modeGroup: "incidentCategory", modeValue: "history" },
         ],
@@ -101,16 +101,8 @@ const groups = [
     icon: Calculator,
     items: [
       { id: "payroll-monthly-preparation", label: "Preparación mensual", enabled: true },
-      {
-        id: "payroll-pages-menu",
-        label: "Nóminas",
-        enabled: true,
-        children: [
-          { id: "payroll-individual", label: "Nómina individual", enabled: true },
-          { id: "payroll-history", label: "Histórico de nóminas", enabled: true },
-        ],
-      },
-      { id: "payroll-simulation", label: "Simulación", enabled: true },
+      { id: "payroll-simulation", label: "Generar nóminas", enabled: true },
+      { id: "payroll-history", label: "Histórico de nóminas", enabled: true },
       {
         id: "payroll-concepts-menu",
         label: "Conceptos salariales",
