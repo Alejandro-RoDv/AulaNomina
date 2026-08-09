@@ -8,6 +8,7 @@ from app.agreement_parameterization_routes import router as agreement_parameteri
 from app.agreement_seniority_routes import router as agreement_seniority_router
 from app.company_preferences_routes import router as company_preferences_router
 from app.incident_routes import router as incident_router
+from app.payroll_preparation_routes import router as payroll_preparation_router
 from app.salary_table_revision_routes import router as salary_table_revision_router
 from app.crud.payroll_salary_structure import (
     create_contract_payroll_concept,
@@ -90,6 +91,7 @@ router.include_router(agreement_extra_pay_router)
 router.include_router(agreement_seniority_router)
 router.include_router(company_preferences_router)
 router.include_router(incident_router)
+router.include_router(payroll_preparation_router)
 
 
 def get_db():
