@@ -1,19 +1,18 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
-import { prepareMonthlyPayrolls } from "../../services/payrollApi";
-import PayrollReceiptModal from "./PayrollReceiptModal";
+import { fetchContracts } from "../../services/api";
+import { fetchAllEmployees } from "../../services/employeeApi";
+import {
+  createPayrollItem,
+  deletePayrollItem,
+  ensurePayrollPreparation,
+  fetchPayrollConcepts,
+  fetchPayrollPreparation,
+  updatePayrollItem,
+} from "../../services/payrollApi";
 
 const currentYear = new Date().getFullYear();
 const currentMonth = new Date().getMonth() + 1;
-
-const STATUS_LABELS = {
-  draft: "Borrador",
-  pending: "Pendiente",
-  calculated: "Calculada",
-  reviewed: "Revisada",
-  closed: "Cerrada",
-  cancelled: "Anulada",
-};
 
 function formatMoney(value) {
   return Number(value || 0).toLocaleString("es-ES", {
@@ -22,313 +21,436 @@ function formatMoney(value) {
   });
 }
 
-export default function MonthlyPayrollPreparation({ companies, workCenters, onPrepared }) {
-  const [form, setForm] = useState({
-    company_ids: [],
-    center_id: "",
-    period_month: String(currentMonth),
-    period_year: String(currentYear),
-  });
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState("");
-  const [result, setResult] = useState(null);
-  const [receiptPayrollId, setReceiptPayrollId] = useState(null);
+function employeeName(employee) {
+  return [employee?.first_name, employee?.last_name, employee?.second_last_name]
+    .filter(Boolean)
+    .join(" ")
+    .trim();
+}
 
-  const activeCompanies = companies.filter((company) => company.is_active);
+function sourceLabel(line) {
+  const source = String(line?.source_type || "").toLowerCase();
+  if (source === "manual" || source === "custom") return "Manual";
+  if (source === "incident") return "Incidencia";
+  if (source === "agreement") return "Convenio";
+  if (source === "contract") return line?.is_automatic ? "Contrato" : "Permanente";
+  if (line?.is_automatic) return "Automático";
+  return "Preparación";
+}
 
-  const filteredCenters = useMemo(() => {
-    if (form.company_ids.length !== 1) return [];
-    return workCenters.filter(
-      (center) => center.is_active && String(center.company_id) === String(form.company_ids[0])
-    );
-  }, [form.company_ids, workCenters]);
-
-  const totalProration = useMemo(
-    () => (result?.payrolls || []).reduce(
-      (total, item) => total + Number(item.extra_pay_proration || 0),
-      0
-    ),
-    [result]
-  );
-
-  const totalSeniority = useMemo(
-    () => (result?.payrolls || []).reduce(
-      (total, item) => total + Number(item.seniority_amount || 0),
-      0
-    ),
-    [result]
-  );
-
-  const handleCompanyToggle = (companyId) => {
-    setForm((prev) => {
-      const alreadySelected = prev.company_ids.includes(companyId);
-      const nextCompanyIds = alreadySelected
-        ? prev.company_ids.filter((id) => id !== companyId)
-        : [...prev.company_ids, companyId];
-      return {
-        ...prev,
-        company_ids: nextCompanyIds,
-        center_id: nextCompanyIds.length === 1 ? prev.center_id : "",
-      };
-    });
-  };
-
-  const handleSelectAllCompanies = () => {
-    setForm((prev) => ({
-      ...prev,
-      company_ids: activeCompanies.map((company) => company.id),
-      center_id: "",
-    }));
-  };
-
-  const handleClearCompanies = () => {
-    setForm((prev) => ({ ...prev, company_ids: [], center_id: "" }));
-  };
-
-  const handleChange = (event) => {
-    const { name, value } = event.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const handleSubmit = async (event) => {
-    event.preventDefault();
-    setError("");
-    setResult(null);
-    try {
-      setSubmitting(true);
-      const data = await prepareMonthlyPayrolls({
-        company_ids: form.company_ids.map(Number),
-        center_id: form.center_id ? Number(form.center_id) : null,
-        period_month: Number(form.period_month),
-        period_year: Number(form.period_year),
-        status: "pending",
-      });
-      setResult(data);
-      if (onPrepared) await onPrepared(data);
-    } catch (err) {
-      setError(err.message || "Error al preparar nóminas");
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const openFilteredHistory = () => {
-    const params = new URLSearchParams();
-    params.set("period", `${form.period_year}-${String(form.period_month).padStart(2, "0")}`);
-
-    if (form.company_ids.length === 1) {
-      const selectedCompany = companies.find((company) => String(company.id) === String(form.company_ids[0]));
-      const selectedCenter = workCenters.find((center) => String(center.id) === String(form.center_id));
-      const scopeLabel = selectedCenter?.name || selectedCompany?.name;
-      if (scopeLabel) params.set("company", scopeLabel);
-    }
-
-    window.history.replaceState(null, "", `${window.location.pathname}?${params.toString()}`);
-    window.dispatchEvent(new CustomEvent("aulanomina-open-page", { detail: { page: "payroll-history" } }));
-  };
-
+function PreviewModal({ preparation, onClose }) {
+  if (!preparation) return null;
+  const preview = preparation.preview || {};
   return (
-    <div style={styles.wrapper}>
-      <form onSubmit={handleSubmit} style={styles.form}>
-        <section style={styles.section}>
-          <div style={styles.sectionHeader}>
-            <div>
-              <h3 style={styles.sectionTitle}>Empresas</h3>
-              <p style={styles.sectionHint}>Puedes seleccionar una o varias empresas y preparar todas sus nóminas de una vez.</p>
-            </div>
-            <div style={styles.quickActions}>
-              <button type="button" onClick={handleSelectAllCompanies} style={styles.secondaryButton}>Todas</button>
-              <button type="button" onClick={handleClearCompanies} style={styles.secondaryButton}>Limpiar</button>
-            </div>
+    <div className="payroll-prep__overlay" role="dialog" aria-modal="true" aria-label="Vista previa de nómina">
+      <section className="payroll-prep__preview-modal">
+        <header>
+          <div>
+            <span>VISTA PREVIA · NO GENERADA</span>
+            <h2>{preparation.employee_name}</h2>
+            <p>{String(preparation.period_month).padStart(2, "0")}/{preparation.period_year} · {preparation.company_name}</p>
           </div>
-
-          <div style={styles.companyGrid}>
-            {activeCompanies.map((company) => (
-              <label key={company.id} style={styles.companyOption}>
-                <input
-                  type="checkbox"
-                  checked={form.company_ids.includes(company.id)}
-                  onChange={() => handleCompanyToggle(company.id)}
-                />
-                <span>
-                  <strong>{company.name}</strong>
-                  <small>{company.ccc || "Sin CCC"}</small>
-                </span>
-              </label>
-            ))}
+          <button type="button" onClick={onClose} aria-label="Cerrar">×</button>
+        </header>
+        <div className="payroll-prep__preview-body">
+          <div className="payroll-prep__preview-totals">
+            <div><span>Devengos</span><strong>{formatMoney(preview.gross_salary)} €</strong></div>
+            <div><span>Deducciones</span><strong>{formatMoney(preview.total_deductions)} €</strong></div>
+            <div className="is-primary"><span>Líquido estimado</span><strong>{formatMoney(preview.net_salary)} €</strong></div>
           </div>
-        </section>
-
-        <section style={styles.section}>
-          <h3 style={styles.sectionTitle}>Periodo y centro</h3>
-          <div style={styles.formRow}>
-            <div style={styles.formGroup}>
-              <label>Centro</label>
-              <select
-                name="center_id"
-                value={form.center_id}
-                onChange={handleChange}
-                disabled={form.company_ids.length !== 1}
-                style={styles.input}
-              >
-                <option value="">
-                  {form.company_ids.length === 1 ? "Todos los centros" : "Centro disponible al elegir una sola empresa"}
-                </option>
-                {filteredCenters.map((center) => (
-                  <option key={center.id} value={center.id}>{center.name}</option>
-                ))}
-              </select>
+          <section className="payroll-prep__preview-lines">
+            <div className="payroll-prep__preview-line payroll-prep__preview-line--head">
+              <span>Concepto</span><span>Origen</span><span>Importe</span>
             </div>
-
-            <div style={styles.formGroupSmall}>
-              <label>Mes</label>
-              <select name="period_month" value={form.period_month} onChange={handleChange} style={styles.input}>
-                {Array.from({ length: 12 }, (_, index) => index + 1).map((month) => (
-                  <option key={month} value={month}>{String(month).padStart(2, "0")}</option>
-                ))}
-              </select>
-            </div>
-
-            <div style={styles.formGroupSmall}>
-              <label>Año</label>
-              <input name="period_year" type="number" value={form.period_year} onChange={handleChange} style={styles.input} />
-            </div>
-          </div>
-        </section>
-
-        {error && <div style={styles.error}>{error}</div>}
-
-        <button type="submit" disabled={submitting || form.company_ids.length === 0} style={styles.primaryButton}>
-          {submitting ? "Preparando..." : "Preparar nóminas"}
-        </button>
-      </form>
-
-      {result && (
-        <section style={styles.resultBox} className="payroll-s42__preparation-results">
-          <div className="payroll-s42__result-toolbar">
-            <div>
-              <span className="payroll-s42__result-eyebrow">RESULTADO DE PREPARACIÓN</span>
-              <strong>{String(form.period_month).padStart(2, "0")}/{form.period_year}</strong>
-              <small>Revisa cada nómina antes de continuar con el cierre mensual.</small>
-            </div>
-            <button type="button" onClick={openFilteredHistory} className="payroll-s42__secondary payroll-s42__history-link">
-              Abrir histórico del periodo
-            </button>
-          </div>
-
-          <div style={styles.summaryGrid}>
-            <div style={styles.summaryItem}><span>Creadas</span><strong>{result.created_count}</strong></div>
-            <div style={styles.summaryItem}><span>Ya existían</span><strong>{result.existing_count}</strong></div>
-            <div style={styles.summaryItem}><span>Omitidas</span><strong>{result.skipped_count}</strong></div>
-            <div style={styles.summaryItem}><span>Antigüedad total</span><strong>{formatMoney(totalSeniority)} €</strong></div>
-            <div style={styles.summaryItem}><span>Prorrata total</span><strong>{formatMoney(totalProration)} €</strong></div>
-          </div>
-
-          <div style={styles.tableWrapper}>
-            <table style={styles.table}>
-              <thead>
-                <tr>
-                  <th style={styles.th}>Trabajador</th>
-                  <th style={styles.th}>Contrato</th>
-                  <th style={styles.th}>Empresa</th>
-                  <th style={styles.th}>Centro</th>
-                  <th style={styles.th}>Incidencias</th>
-                  <th style={styles.th}>Estado</th>
-                  <th style={styles.thRight}>Antigüedad</th>
-                  <th style={styles.thRight}>Prorrata extra</th>
-                  <th style={styles.thRight}>Bruto</th>
-                  <th style={styles.thRight}>Acciones</th>
-                </tr>
-              </thead>
-              <tbody>
-                {result.payrolls.map((item) => (
-                  <tr key={`${item.contract_id}-${item.payroll_id || "new"}`}>
-                    <td style={styles.tdStrong}>{item.employee_code ? `${item.employee_code} - ` : ""}{item.employee_name}</td>
-                    <td style={styles.td}>{item.contract_code}</td>
-                    <td style={styles.td}>{item.company_name || "-"}</td>
-                    <td style={styles.td}>{item.center_name || "-"}</td>
-                    <td style={styles.td}>{item.incident_summary?.length ? item.incident_summary.join("; ") : "Sin incidencias"}</td>
-                    <td style={styles.td}>{STATUS_LABELS[item.status] || item.status}</td>
-                    <td style={styles.tdRight}>{formatMoney(item.seniority_amount)} €</td>
-                    <td style={styles.tdRight}>{formatMoney(item.extra_pay_proration)} €</td>
-                    <td style={styles.tdRight}>{formatMoney(item.gross_salary)} €</td>
-                    <td style={styles.tdRight}>
-                      <button
-                        type="button"
-                        className="payroll-s42__table-action"
-                        disabled={!item.payroll_id}
-                        onClick={() => setReceiptPayrollId(item.payroll_id)}
-                        title={item.payroll_id ? "Abrir recibo y conceptos de la nómina" : "La nómina no está disponible para consulta"}
-                      >
-                        Ver nómina
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-
-                {result.payrolls.length === 0 && (
-                  <tr><td colSpan="10" style={styles.emptyCell}>No hay contratos activos para el periodo seleccionado.</td></tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          {result.skipped?.length > 0 && (
-            <section style={styles.skippedBox} className="payroll-s42__skipped">
-              <h3 style={styles.sectionTitle}>Omitidas con motivo</h3>
-              <div style={styles.tableWrapper}>
-                <table style={styles.table}>
-                  <thead><tr><th style={styles.th}>Trabajador</th><th style={styles.th}>Contrato</th><th style={styles.th}>Motivo</th></tr></thead>
-                  <tbody>
-                    {result.skipped.map((item, index) => (
-                      <tr key={`${item.contract_id || "sin-contrato"}-${index}`}>
-                        <td style={styles.tdStrong}>{item.employee_code ? `${item.employee_code} - ` : ""}{item.employee_name || "-"}</td>
-                        <td style={styles.td}>{item.contract_code || item.contract_id || "-"}</td>
-                        <td style={styles.td}>{item.reason}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+            {preparation.lines.map((line) => (
+              <div className="payroll-prep__preview-line" key={line.id}>
+                <div><strong>{line.name}</strong><small>{line.code}</small></div>
+                <span>{sourceLabel(line)}</span>
+                <strong>{formatMoney(line.amount)} €</strong>
               </div>
-            </section>
-          )}
-        </section>
-      )}
-
-      {receiptPayrollId && (
-        <PayrollReceiptModal payrollId={receiptPayrollId} onClose={() => setReceiptPayrollId(null)} />
-      )}
+            ))}
+          </section>
+          <div className="payroll-prep__preview-bases">
+            <div><span>Base contingencias comunes</span><strong>{formatMoney(preview.contribution_base)} €</strong></div>
+            <div><span>Base profesional</span><strong>{formatMoney(preview.professional_base)} €</strong></div>
+            <div><span>Base IRPF</span><strong>{formatMoney(preview.irpf_base)} €</strong></div>
+          </div>
+        </div>
+      </section>
     </div>
   );
 }
 
-const styles = {
-  wrapper: { display: "flex", flexDirection: "column", gap: "18px" },
-  form: { display: "flex", flexDirection: "column", gap: "16px" },
-  section: { border: "1px solid #e5e7eb", borderRadius: "10px", padding: "14px", display: "flex", flexDirection: "column", gap: "12px" },
-  sectionHeader: { display: "flex", justifyContent: "space-between", gap: "12px", alignItems: "start" },
-  sectionTitle: { margin: 0, fontSize: "15px", fontWeight: 900, color: "#111827" },
-  sectionHint: { margin: "4px 0 0", fontSize: "13px", color: "#6b7280", fontWeight: 600 },
-  quickActions: { display: "flex", gap: "8px" },
-  companyGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: "10px" },
-  companyOption: { display: "flex", alignItems: "flex-start", gap: "8px", border: "1px solid #e5e7eb", borderRadius: "8px", padding: "10px", cursor: "pointer" },
-  formRow: { display: "flex", gap: "14px", flexWrap: "wrap" },
-  formGroup: { flex: 1, minWidth: "260px", display: "flex", flexDirection: "column", gap: "6px" },
-  formGroupSmall: { width: "130px", flex: "0 0 130px", display: "flex", flexDirection: "column", gap: "6px" },
-  input: { padding: "10px 12px", border: "1px solid #ccc", borderRadius: "8px", fontSize: "14px" },
-  primaryButton: { backgroundColor: "#111827", color: "#ffffff", border: "none", borderRadius: "8px", padding: "12px 18px", cursor: "pointer", width: "fit-content", fontWeight: 900 },
-  secondaryButton: { backgroundColor: "#f3f4f6", color: "#111827", border: "1px solid #d1d5db", borderRadius: "8px", padding: "8px 10px", cursor: "pointer", fontWeight: 800 },
-  error: { backgroundColor: "#fee2e2", color: "#991b1b", padding: "10px 12px", borderRadius: "8px" },
-  resultBox: { border: "1px solid #e5e7eb", borderRadius: "10px", padding: "14px", display: "flex", flexDirection: "column", gap: "14px" },
-  skippedBox: { border: "1px solid #e5e7eb", borderRadius: "8px", backgroundColor: "#fffdf7", padding: "14px", display: "flex", flexDirection: "column", gap: "10px" },
-  summaryGrid: { display: "flex", gap: "12px", flexWrap: "wrap" },
-  summaryItem: { border: "1px solid #e5e7eb", borderRadius: "8px", padding: "10px 14px", minWidth: "120px", display: "flex", flexDirection: "column", gap: "4px" },
-  tableWrapper: { overflowX: "auto" },
-  table: { width: "100%", minWidth: "1080px", borderCollapse: "collapse" },
-  th: { textAlign: "left", padding: "11px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb", whiteSpace: "nowrap" },
-  thRight: { textAlign: "right", padding: "11px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb", whiteSpace: "nowrap" },
-  td: { padding: "11px", borderBottom: "1px solid #eee", verticalAlign: "middle" },
-  tdStrong: { padding: "11px", borderBottom: "1px solid #eee", verticalAlign: "middle", fontWeight: 800 },
-  tdRight: { padding: "11px", borderBottom: "1px solid #eee", textAlign: "right", whiteSpace: "nowrap", verticalAlign: "middle" },
-  emptyCell: { padding: "18px", color: "#6b7280", textAlign: "center" },
-};
+export default function MonthlyPayrollPreparation({ companies = [], workCenters = [], onPrepared }) {
+  const [contracts, setContracts] = useState([]);
+  const [employees, setEmployees] = useState([]);
+  const [concepts, setConcepts] = useState([]);
+  const [scope, setScope] = useState({
+    company_id: "",
+    employee_id: "",
+    contract_id: "",
+    period_month: String(currentMonth),
+    period_year: String(currentYear),
+  });
+  const [preparation, setPreparation] = useState(null);
+  const [lineAmounts, setLineAmounts] = useState({});
+  const [deletedIds, setDeletedIds] = useState([]);
+  const [newLines, setNewLines] = useState([]);
+  const [newConceptId, setNewConceptId] = useState("");
+  const [newAmount, setNewAmount] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+  const [previewOpen, setPreviewOpen] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    Promise.all([fetchContracts(), fetchAllEmployees(), fetchPayrollConcepts()])
+      .then(([contractData, employeeData, conceptData]) => {
+        if (cancelled) return;
+        setContracts(Array.isArray(contractData) ? contractData : []);
+        setEmployees(Array.isArray(employeeData) ? employeeData : []);
+        setConcepts(Array.isArray(conceptData) ? conceptData : []);
+      })
+      .catch((err) => {
+        if (!cancelled) setError(err.message || "No se pudieron cargar los datos de preparación");
+      });
+    return () => { cancelled = true; };
+  }, []);
+
+  const activeCompanies = useMemo(
+    () => companies.filter((company) => company.is_active),
+    [companies]
+  );
+
+  const companyContracts = useMemo(() => {
+    if (!scope.company_id) return [];
+    return contracts.filter(
+      (contract) => String(contract.company_id) === String(scope.company_id) && contract.status === "active"
+    );
+  }, [contracts, scope.company_id]);
+
+  const companyEmployeeIds = useMemo(
+    () => new Set(companyContracts.map((contract) => String(contract.employee_id))),
+    [companyContracts]
+  );
+
+  const companyEmployees = useMemo(
+    () => employees
+      .filter((employee) => employee.is_active && companyEmployeeIds.has(String(employee.id)))
+      .sort((a, b) => employeeName(a).localeCompare(employeeName(b), "es")),
+    [employees, companyEmployeeIds]
+  );
+
+  const employeeContracts = useMemo(() => companyContracts.filter(
+    (contract) => String(contract.employee_id) === String(scope.employee_id)
+  ), [companyContracts, scope.employee_id]);
+
+  const selectedContract = employeeContracts.find((contract) => String(contract.id) === String(scope.contract_id));
+  const selectedCenter = workCenters.find((center) => String(center.id) === String(selectedContract?.center_id));
+
+  const addableConcepts = useMemo(() => concepts.filter((concept) => {
+    if (!concept.is_active) return false;
+    if (!["DEVENGO", "DEDUCCION"].includes(String(concept.concept_type).toUpperCase())) return false;
+    const code = String(concept.code || "").toUpperCase();
+    return !code.startsWith("SS_") && code !== "IRPF";
+  }), [concepts]);
+
+  const resetPreparation = () => {
+    setPreparation(null);
+    setLineAmounts({});
+    setDeletedIds([]);
+    setNewLines([]);
+    setNewConceptId("");
+    setNewAmount("");
+    setMessage("");
+    setPreviewOpen(false);
+  };
+
+  const handleScopeChange = (event) => {
+    const { name, value } = event.target;
+    setError("");
+    resetPreparation();
+    setScope((previous) => {
+      if (name === "company_id") return { ...previous, company_id: value, employee_id: "", contract_id: "" };
+      if (name === "employee_id") {
+        const candidates = contracts.filter(
+          (contract) => String(contract.company_id) === String(previous.company_id)
+            && String(contract.employee_id) === String(value)
+            && contract.status === "active"
+        );
+        return { ...previous, employee_id: value, contract_id: candidates.length === 1 ? String(candidates[0].id) : "" };
+      }
+      return { ...previous, [name]: value };
+    });
+  };
+
+  const hydratePreparation = (data) => {
+    setPreparation(data);
+    setLineAmounts(Object.fromEntries((data.lines || []).map((line) => [line.id, String(line.amount)])));
+    setDeletedIds([]);
+    setNewLines([]);
+  };
+
+  const handleOpenPreparation = async () => {
+    if (!scope.employee_id || !scope.contract_id) return;
+    setError("");
+    setMessage("");
+    try {
+      setLoading(true);
+      const data = await ensurePayrollPreparation({
+        employee_id: Number(scope.employee_id),
+        contract_id: Number(scope.contract_id),
+        period_month: Number(scope.period_month),
+        period_year: Number(scope.period_year),
+      });
+      hydratePreparation(data);
+      if (data.generated) setMessage("La nómina de este trabajador y periodo ya está generada. Puedes consultarla desde el histórico.");
+    } catch (err) {
+      setError(err.message || "No se pudo abrir la preparación");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAddLocalLine = () => {
+    const concept = addableConcepts.find((item) => String(item.id) === String(newConceptId));
+    const amount = Number(newAmount);
+    if (!concept || Number.isNaN(amount) || amount < 0) return;
+    setNewLines((previous) => [
+      ...previous,
+      {
+        tempId: `new-${Date.now()}-${previous.length}`,
+        concept_id: concept.id,
+        name: concept.name,
+        code: concept.code,
+        source_type: "manual",
+        amount: String(amount),
+      },
+    ]);
+    setNewConceptId("");
+    setNewAmount("");
+  };
+
+  const handleSave = async () => {
+    if (!preparation || preparation.generated) return;
+    setError("");
+    setMessage("");
+    try {
+      setSaving(true);
+      const existingLines = preparation.lines || [];
+      const updates = existingLines
+        .filter((line) => !deletedIds.includes(line.id))
+        .filter((line) => Number(lineAmounts[line.id]) !== Number(line.amount))
+        .map((line) => updatePayrollItem(line.id, { amount: Number(lineAmounts[line.id] || 0) }));
+      const deletes = deletedIds.map((itemId) => deletePayrollItem(itemId));
+      const creates = newLines.map((line, index) => createPayrollItem(preparation.payroll_id, {
+        concept_id: Number(line.concept_id),
+        description: "Concepto mensual informado en preparación",
+        quantity: 1,
+        unit_price: Number(line.amount || 0),
+        amount: Number(line.amount || 0),
+        display_order: 700 + index,
+        notes: "Preparación mensual manual",
+      }));
+      await Promise.all([...updates, ...deletes, ...creates]);
+      const refreshed = await fetchPayrollPreparation(preparation.payroll_id);
+      hydratePreparation(refreshed);
+      setMessage("Preparación guardada. Todavía no se ha generado ninguna nómina.");
+      if (onPrepared) await onPrepared(refreshed);
+    } catch (err) {
+      setError(err.message || "No se pudo guardar la preparación");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handlePreview = async () => {
+    if (!preparation) return;
+    if (!preparation.generated && (deletedIds.length || newLines.length || preparation.lines.some((line) => Number(lineAmounts[line.id]) !== Number(line.amount)))) {
+      await handleSave();
+    }
+    try {
+      const refreshed = await fetchPayrollPreparation(preparation.payroll_id);
+      hydratePreparation(refreshed);
+      setPreviewOpen(true);
+    } catch (err) {
+      setError(err.message || "No se pudo calcular la vista previa");
+    }
+  };
+
+  const openHistory = () => {
+    const params = new URLSearchParams();
+    params.set("period", `${scope.period_year}-${String(scope.period_month).padStart(2, "0")}`);
+    const selectedCompany = companies.find((company) => String(company.id) === String(scope.company_id));
+    if (selectedCompany?.name) params.set("company", selectedCompany.name);
+    const selectedEmployee = employees.find((employee) => String(employee.id) === String(scope.employee_id));
+    if (selectedEmployee) params.set("employee", employeeName(selectedEmployee));
+    window.history.replaceState(null, "", `${window.location.pathname}?${params.toString()}`);
+    window.dispatchEvent(new CustomEvent("aulanomina-open-page", { detail: { page: "payroll-history" } }));
+  };
+
+  const visibleLines = (preparation?.lines || []).filter((line) => !deletedIds.includes(line.id));
+
+  return (
+    <div className="payroll-prep">
+      <section className="payroll-prep__scope">
+        <div className="payroll-prep__scope-heading">
+          <div>
+            <span>PREPARACIÓN DEL PERIODO</span>
+            <h2>Empresa, trabajador y mes</h2>
+            <p>Selecciona un trabajador para cargar sus conceptos base y permanentes. Guardar aquí no genera la nómina.</p>
+          </div>
+        </div>
+        <div className="payroll-prep__scope-grid">
+          <label>
+            <span>Empresa</span>
+            <select name="company_id" value={scope.company_id} onChange={handleScopeChange}>
+              <option value="">Seleccionar empresa</option>
+              {activeCompanies.map((company) => <option key={company.id} value={company.id}>{company.name}</option>)}
+            </select>
+          </label>
+          <label>
+            <span>Trabajador</span>
+            <select name="employee_id" value={scope.employee_id} onChange={handleScopeChange} disabled={!scope.company_id}>
+              <option value="">Seleccionar trabajador</option>
+              {companyEmployees.map((employee) => <option key={employee.id} value={employee.id}>{employeeName(employee)}</option>)}
+            </select>
+          </label>
+          <label>
+            <span>Contrato</span>
+            <select name="contract_id" value={scope.contract_id} onChange={handleScopeChange} disabled={!scope.employee_id}>
+              <option value="">Seleccionar contrato</option>
+              {employeeContracts.map((contract) => (
+                <option key={contract.id} value={contract.id}>{contract.contract_code || contract.code || `Contrato ${contract.id}`}</option>
+              ))}
+            </select>
+          </label>
+          <label className="payroll-prep__month">
+            <span>Mes</span>
+            <select name="period_month" value={scope.period_month} onChange={handleScopeChange}>
+              {Array.from({ length: 12 }, (_, index) => index + 1).map((month) => (
+                <option key={month} value={month}>{String(month).padStart(2, "0")}</option>
+              ))}
+            </select>
+          </label>
+          <label className="payroll-prep__year">
+            <span>Año</span>
+            <input name="period_year" type="number" value={scope.period_year} onChange={handleScopeChange} />
+          </label>
+        </div>
+        {selectedContract && (
+          <div className="payroll-prep__context-line">
+            <span>{selectedCenter?.name || "Sin centro asignado"}</span>
+            <span>{selectedContract.professional_category || selectedContract.job_position || "Categoría sin informar"}</span>
+          </div>
+        )}
+        <button
+          type="button"
+          className="payroll-s42__primary"
+          disabled={!scope.contract_id || loading}
+          onClick={handleOpenPreparation}
+        >
+          {loading ? "Cargando..." : "Abrir preparación"}
+        </button>
+      </section>
+
+      {error && <div className="payroll-prep__error">{error}</div>}
+      {message && <div className="payroll-prep__message">{message}</div>}
+
+      {preparation && (
+        <section className="payroll-prep__workspace">
+          <header className="payroll-prep__workspace-header">
+            <div>
+              <span>{preparation.generated ? "NÓMINA GENERADA" : "BORRADOR GUARDABLE"}</span>
+              <h2>{preparation.employee_name}</h2>
+              <p>{preparation.company_name}{preparation.center_name ? ` · ${preparation.center_name}` : ""} · {String(preparation.period_month).padStart(2, "0")}/{preparation.period_year}</p>
+            </div>
+            <div className={`payroll-prep__status${preparation.generated ? " is-generated" : ""}`}>
+              {preparation.generated ? "Generada" : "Sin generar"}
+            </div>
+          </header>
+
+          {!preparation.generated && (
+            <>
+              <div className="payroll-prep__line-head">
+                <span>Concepto</span><span>Origen</span><span>Importe</span><span></span>
+              </div>
+              <div className="payroll-prep__lines">
+                {visibleLines.map((line) => (
+                  <div className="payroll-prep__line" key={line.id}>
+                    <div><strong>{line.name}</strong><small>{line.code}</small></div>
+                    <span className="payroll-prep__source">{sourceLabel(line)}</span>
+                    <label className="payroll-prep__amount">
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={lineAmounts[line.id] ?? line.amount}
+                        onChange={(event) => setLineAmounts((previous) => ({ ...previous, [line.id]: event.target.value }))}
+                      />
+                      <span>€</span>
+                    </label>
+                    <button type="button" className="payroll-prep__remove" onClick={() => setDeletedIds((previous) => [...previous, line.id])}>Eliminar</button>
+                  </div>
+                ))}
+                {newLines.map((line) => (
+                  <div className="payroll-prep__line is-new" key={line.tempId}>
+                    <div><strong>{line.name}</strong><small>{line.code}</small></div>
+                    <span className="payroll-prep__source">Manual</span>
+                    <label className="payroll-prep__amount">
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={line.amount}
+                        onChange={(event) => setNewLines((previous) => previous.map((candidate) => candidate.tempId === line.tempId ? { ...candidate, amount: event.target.value } : candidate))}
+                      />
+                      <span>€</span>
+                    </label>
+                    <button type="button" className="payroll-prep__remove" onClick={() => setNewLines((previous) => previous.filter((candidate) => candidate.tempId !== line.tempId))}>Eliminar</button>
+                  </div>
+                ))}
+              </div>
+
+              <div className="payroll-prep__add-line">
+                <label>
+                  <span>Añadir concepto</span>
+                  <select value={newConceptId} onChange={(event) => setNewConceptId(event.target.value)}>
+                    <option value="">Seleccionar concepto</option>
+                    {addableConcepts.map((concept) => <option key={concept.id} value={concept.id}>{concept.name}</option>)}
+                  </select>
+                </label>
+                <label>
+                  <span>Importe</span>
+                  <input type="number" min="0" step="0.01" value={newAmount} onChange={(event) => setNewAmount(event.target.value)} />
+                </label>
+                <button type="button" className="payroll-s42__secondary" onClick={handleAddLocalLine} disabled={!newConceptId || newAmount === ""}>Añadir</button>
+              </div>
+            </>
+          )}
+
+          <div className="payroll-prep__summary">
+            <div><span>Devengos previstos</span><strong>{formatMoney(preparation.preview?.gross_salary)} €</strong></div>
+            <div><span>Deducciones previstas</span><strong>{formatMoney(preparation.preview?.total_deductions)} €</strong></div>
+            <div><span>Líquido previsto</span><strong>{formatMoney(preparation.preview?.net_salary)} €</strong></div>
+          </div>
+
+          <footer className="payroll-prep__actions">
+            {preparation.generated ? (
+              <button type="button" className="payroll-s42__primary" onClick={openHistory}>Abrir en histórico</button>
+            ) : (
+              <>
+                <button type="button" className="payroll-s42__secondary" onClick={handlePreview}>Vista previa</button>
+                <button type="button" className="payroll-s42__primary" onClick={handleSave} disabled={saving}>{saving ? "Guardando..." : "Guardar preparación"}</button>
+              </>
+            )}
+          </footer>
+        </section>
+      )}
+
+      {previewOpen && <PreviewModal preparation={preparation} onClose={() => setPreviewOpen(false)} />}
+    </div>
+  );
+}
