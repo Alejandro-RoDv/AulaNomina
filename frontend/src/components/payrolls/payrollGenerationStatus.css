@@ -1,0 +1,34 @@
+.payroll-generation__worker-status {
+  justify-self: end;
+  min-width: 92px;
+  padding: 5px 8px;
+  border: 1px solid #d7dde7;
+  border-radius: 999px;
+  background: #f7f9fc;
+  color: #667085;
+  font-size: 10px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.payroll-generation__worker-status.is-prepared {
+  border-color: #93c5fd;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.payroll-generation__worker-status.is-generated {
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+  color: #166534;
+}
+
+.payroll-generation__worker.is-generated {
+  background: #fafafa;
+  opacity: .78;
+}
+
+.payroll-generation__worker.is-generated label,
+.payroll-generation__worker.is-generated > span:not(.payroll-generation__worker-status) {
+  color: #667085;
+}
