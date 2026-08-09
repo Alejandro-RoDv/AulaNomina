@@ -30,17 +30,29 @@ def get_db():
 
 
 def normalize_preparation_sources(db: Session, payroll_id: int) -> None:
+    """Keep inherited contract lines separate from explicit monthly adjustments.
+
+    Older drafts may have source_type unset even when the description already tells us
+    whether the line came from the permanent contract configuration or from the
+    monthly preparation editor. Normalizing them makes the overrides-first UI stable
+    across existing demo data and newly created drafts.
+    """
     items = db.query(PayrollItem).filter(
         PayrollItem.payroll_id == payroll_id,
         PayrollItem.source_key == None,
-        PayrollItem.source_type == "manual",
     ).all()
     changed = False
     for item in items:
         description = str(item.description or "").lower()
         if "permanente" in description and "contrato" in description:
-            item.source_type = "contract"
-            changed = True
+            if item.source_type != "contract":
+                item.source_type = "contract"
+                changed = True
+            continue
+        if "concepto mensual informado en preparación" in description or "ajuste mensual" in description:
+            if item.source_type != "manual":
+                item.source_type = "manual"
+                changed = True
     if changed:
         db.commit()
 
