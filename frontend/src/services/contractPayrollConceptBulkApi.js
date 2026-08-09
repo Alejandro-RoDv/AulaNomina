@@ -27,10 +27,9 @@ async function assignToContract(contractId, payload) {
 
   const inactive = matches.find((item) => !item.is_active);
   if (inactive) {
-    const updated = await updateContractPayrollConcept(inactive.id, {
-      ...payload,
-      is_active: true,
-    });
+    const updatePayload = { ...payload, is_active: true };
+    if (updatePayload.amount === null || updatePayload.amount === undefined) delete updatePayload.amount;
+    const updated = await updateContractPayrollConcept(inactive.id, updatePayload);
     return {
       contract_id: contractId,
       status: "reactivated",
