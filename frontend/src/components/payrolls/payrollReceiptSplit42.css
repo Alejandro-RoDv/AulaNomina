@@ -544,3 +544,113 @@
   .payroll-payslip__line { grid-template-columns: minmax(0, 1fr) 70px 80px 100px; }
   .payroll-receipt-s42__explanation-list article code { grid-column: 1; }
 }
+
+/* Refinamiento de Conceptos y Bases y coste */
+.payroll-receipt-s42__tab-panel .payroll-receipt-s42__section {
+  border-radius: 4px;
+}
+
+.payroll-receipt-s42__tab-panel .payroll-receipt-s42__section-heading {
+  padding: 12px 14px;
+  background: #fff;
+}
+
+.payroll-receipt-s42__tab-panel .payroll-receipt-s42__section-heading h3 {
+  font-size: 15px;
+}
+
+.payroll-receipt-s42__tab-panel .payroll-receipt-s42__table {
+  table-layout: auto;
+}
+
+/* Los códigos y el origen son metadatos técnicos: no deben competir con el concepto. */
+.payroll-receipt-s42__tab-panel .payroll-receipt-s42__table th:first-child,
+.payroll-receipt-s42__tab-panel .payroll-receipt-s42__table td:first-child,
+.payroll-receipt-s42__tab-panel .payroll-receipt-s42__table th:nth-child(3),
+.payroll-receipt-s42__tab-panel .payroll-receipt-s42__table td:nth-child(3) {
+  display: none;
+}
+
+.payroll-receipt-s42__tab-panel .payroll-receipt-s42__table th:nth-child(2) {
+  width: auto;
+}
+
+.payroll-receipt-s42__tab-panel .payroll-receipt-s42__table th:last-child {
+  width: 150px;
+  text-align: right;
+}
+
+.payroll-receipt-s42__tab-panel .payroll-receipt-s42__table td {
+  padding: 11px 14px;
+  vertical-align: middle;
+}
+
+.payroll-receipt-s42__tab-panel .payroll-receipt-s42__table td:nth-child(2) strong {
+  display: block;
+  font-size: 13px;
+  line-height: 1.3;
+}
+
+.payroll-receipt-s42__tab-panel .payroll-receipt-s42__table td:nth-child(2) small {
+  max-width: 720px;
+  margin-top: 3px;
+  font-size: 11px;
+}
+
+.payroll-receipt-s42__tab-panel .payroll-receipt-s42__table td:last-child strong {
+  font-size: 13px;
+}
+
+/* Bases y coste: resumen continuo en lugar de tres tarjetas aisladas. */
+.payroll-receipt-s42__totals--compact {
+  gap: 0;
+  overflow: hidden;
+  border: 1px solid #d7dde7;
+  border-radius: 4px;
+  background: #fff;
+}
+
+.payroll-receipt-s42__totals--compact .payroll-receipt-s42__total {
+  min-height: 66px;
+  border: 0;
+  border-right: 1px solid #e4e7ec;
+  border-radius: 0;
+  background: transparent;
+}
+
+.payroll-receipt-s42__totals--compact .payroll-receipt-s42__total:last-child {
+  border-right: 0;
+}
+
+.payroll-receipt-s42__totals--compact .payroll-receipt-s42__total.is-primary {
+  background: #f8fbff;
+}
+
+/* En bases y costes las descripciones repetitivas del motor no aportan información visual. */
+.payroll-receipt-s42__totals--compact ~ .payroll-receipt-s42__section .payroll-receipt-s42__table td:nth-child(2) small {
+  display: none;
+}
+
+.payroll-receipt-s42__totals--compact ~ .payroll-receipt-s42__section .payroll-receipt-s42__table td {
+  padding-top: 10px;
+  padding-bottom: 10px;
+}
+
+@media (max-width: 900px) {
+  .payroll-receipt-s42__tab-panel .payroll-receipt-s42__table th:last-child {
+    width: 120px;
+  }
+
+  .payroll-receipt-s42__totals--compact {
+    grid-template-columns: 1fr;
+  }
+
+  .payroll-receipt-s42__totals--compact .payroll-receipt-s42__total {
+    border-right: 0;
+    border-bottom: 1px solid #e4e7ec;
+  }
+
+  .payroll-receipt-s42__totals--compact .payroll-receipt-s42__total:last-child {
+    border-bottom: 0;
+  }
+}
