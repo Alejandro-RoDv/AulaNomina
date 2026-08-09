@@ -94,6 +94,13 @@ export default function PayrollHistoryPage({
     return () => window.removeEventListener("aulanomina-case-context", applyCaseContext);
   }, []);
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("period") || params.get("employee") || params.get("company")) {
+      refreshPayrollList();
+    }
+  }, []);
+
   async function refreshPayrollList() {
     try {
       setRefreshingPayrolls(true);
