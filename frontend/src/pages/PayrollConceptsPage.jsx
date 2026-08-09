@@ -57,6 +57,20 @@ const CATEGORY_OPTIONS = [
   ["EMBARGO", "Embargo"],
   ["ANTICIPO", "Anticipo"],
   ["BASE_INFORMATIVA", "Base informativa"],
+  ["ANTIGUEDAD", "Antigüedad"],
+  ["IT", "IT"],
+  ["AUSENCIA", "Ausencia"],
+  ["SEGURIDAD_SOCIAL", "Seguridad Social"],
+  ["COSTE_EMPRESA", "Coste empresa"],
+  ["REGULARIZACION", "Regularización"],
+  ["AJUSTE", "Ajuste"],
+  ["INFORMATIVO", "Informativo"],
+  ["INCIDENCIA", "Incidencia"],
+  ["PRESTACION_IT", "Prestación IT"],
+  ["COMPLEMENTO_IT", "Complemento IT"],
+  ["HORAS_EXTRA", "Horas extra"],
+  ["VACACIONES", "Vacaciones"],
+  ["PERMISO", "Permiso"],
   ["OTRO", "Otro"],
 ];
 
@@ -64,18 +78,13 @@ const TYPE_OPTIONS = [
   ["DEVENGO", "Devengo"],
   ["DEDUCCION", "Deducción"],
   ["BASE_INFORMATIVA", "Base informativa"],
+  ["INFORMATIVO", "Informativo"],
 ];
 
 const NATURE_OPTIONS = [
   ["SALARIAL", "Salarial"],
   ["EXTRASALARIAL", "Extrasalarial"],
   ["INFORMATIVA", "Informativa"],
-];
-
-const EDITOR_SOURCE_OPTIONS = [
-  ["SYSTEM", "Sistema"],
-  ["CUSTOM", "Personalizado"],
-  ["AGREEMENT", "Convenio"],
 ];
 
 const SOURCE_OPTIONS = [
@@ -91,6 +100,8 @@ const SOURCE_OPTIONS = [
 const CALCULATION_OPTIONS = [
   ["FIXED_AMOUNT", "Importe fijo"],
   ["UNIT_PRICE", "Precio por unidad"],
+  ["FORMULA", "Fórmula"],
+  ["INCIDENT_ENGINE", "Motor de incidencias"],
 ];
 
 function labelFrom(options, value) {
@@ -233,7 +244,7 @@ export default function PayrollConceptsPage() {
       category: concept.category || "OTRO",
       concept_type: concept.concept_type || "DEVENGO",
       salary_nature: concept.salary_nature || "SALARIAL",
-      source_type: EDITOR_SOURCE_OPTIONS.some(([value]) => value === concept.source_type) ? concept.source_type : "CUSTOM",
+      source_type: concept.source_type || "CUSTOM",
       agreement_id: concept.agreement_id || "",
       calculation_type: concept.calculation_type || "FIXED_AMOUNT",
       default_amount: String(concept.default_amount ?? "0"),
@@ -353,7 +364,7 @@ export default function PayrollConceptsPage() {
                 </label>
                 <label className="sc-field">Origen
                   <select name="source_type" value={form.source_type} onChange={handleChange}>
-                    {EDITOR_SOURCE_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                    {SOURCE_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
                   </select>
                 </label>
                 <label className="sc-field">Convenio
