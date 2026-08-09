@@ -2,9 +2,9 @@ const HEADER_EVENT = "aulanomina-header-context";
 
 const PAYROLL_TITLES = new Set([
   "Preparar nóminas",
-  "Nómina individual",
+  "Preparación mensual",
+  "Generar nóminas",
   "Histórico de nóminas",
-  "Simulación de nóminas",
   "Conceptos permanentes",
   "Historial de conceptos",
   "Nóminas",
