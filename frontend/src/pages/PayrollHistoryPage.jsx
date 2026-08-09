@@ -36,10 +36,10 @@ function filtersFromCaseContext(context = {}) {
   const [year = "", month = ""] = period.includes("-") ? period.split("-", 2) : ["", ""];
   return {
     employee: context.employeeName || context.employeeId || "",
-    company: context.companyId || "",
+    company: context.company || context.center || context.companyName || context.companyId || "",
     year,
     month: month ? String(Number(month)) : "",
-    status: "",
+    status: context.status || "",
   };
 }
 
@@ -49,8 +49,11 @@ function getInitialFilters() {
   const urlContext = {
     employeeName: params.get("employee"),
     employeeId: params.get("employeeId"),
+    company: params.get("company"),
+    center: params.get("center"),
     companyId: params.get("companyId"),
     period: params.get("period"),
+    status: params.get("status"),
   };
   if (Object.values(urlContext).some(Boolean)) return filtersFromCaseContext(urlContext);
   try {
