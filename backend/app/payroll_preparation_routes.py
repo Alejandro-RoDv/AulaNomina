@@ -26,14 +26,24 @@ def get_db():
         db.close()
 
 
-def expose_prepared_items_in_receipt(db: Session, payroll_ids: list[int]) -> None:
-    """Tag manual/permanent preparation lines so the existing receipt uses them.
+def normalize_preparation_sources(db: Session, payroll_id: int) -> None:
+    items = db.query(PayrollItem).filter(
+        PayrollItem.payroll_id == payroll_id,
+        PayrollItem.source_key == None,
+        PayrollItem.source_type == "manual",
+    ).all()
+    changed = False
+    for item in items:
+        description = str(item.description or "").lower()
+        if "permanente" in description and "contrato" in description:
+            item.source_type = "contract"
+            changed = True
+    if changed:
+        db.commit()
 
-    The receipt renderer prefers ENGINE-prefixed items when a payroll has canonical
-    engine lines. Prepared lines do not originally have a source key, so without
-    this tag they would disappear from the generated receipt even though their
-    amounts were used for generation.
-    """
+
+def expose_prepared_items_in_receipt(db: Session, payroll_ids: list[int]) -> None:
+    """Tag manual/permanent preparation lines so the existing receipt uses them."""
     if not payroll_ids:
         return
     items = db.query(PayrollItem).filter(
@@ -51,16 +61,20 @@ def ensure_payroll_preparation_endpoint(
     request: PayrollPreparationEnsureRequest,
     db: Session = Depends(get_db),
 ):
-    return ensure_preparation(db, request)
+    result = ensure_preparation(db, request)
+    normalize_preparation_sources(db, int(result["payroll_id"]))
+    return get_preparation(db, int(result["payroll_id"]))
 
 
 @router.get("/payroll-preparations/{payroll_id}", response_model=PayrollPreparationResponse)
 def get_payroll_preparation_endpoint(payroll_id: int, db: Session = Depends(get_db)):
+    normalize_preparation_sources(db, payroll_id)
     return get_preparation(db, payroll_id)
 
 
 @router.get("/payroll-preparations/{payroll_id}/preview", response_model=PayrollPreparationResponse)
 def preview_payroll_preparation_endpoint(payroll_id: int, db: Session = Depends(get_db)):
+    normalize_preparation_sources(db, payroll_id)
     return get_preparation(db, payroll_id)
 
 
