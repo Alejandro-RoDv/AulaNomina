@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 import PageCard from "../components/layout/PageCard";
+import "../components/payrolls/salaryConceptsSplit42.css";
 import { fetchCollectiveAgreements } from "../services/collectiveAgreementApi";
 import {
   createPayrollConcept,
@@ -100,10 +101,10 @@ function formatMoney(value) {
   return Number(value || 0).toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " €";
 }
 
-function getSourceBadgeStyle(sourceType) {
-  if (sourceType === "AGREEMENT") return styles.agreementBadge;
-  if (sourceType === "CUSTOM") return styles.customBadge;
-  return styles.systemBadge;
+function sourceBadgeClass(sourceType) {
+  if (sourceType === "AGREEMENT") return "sc-badge--agreement";
+  if (sourceType === "CUSTOM") return "sc-badge--custom";
+  return "sc-badge--system";
 }
 
 export default function PayrollConceptsPage() {
@@ -111,6 +112,8 @@ export default function PayrollConceptsPage() {
   const [agreements, setAgreements] = useState([]);
   const [form, setForm] = useState(EMPTY_FORM);
   const [editingId, setEditingId] = useState(null);
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [advancedFilters, setAdvancedFilters] = useState(false);
   const [filters, setFilters] = useState(EMPTY_FILTERS);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -125,8 +128,8 @@ export default function PayrollConceptsPage() {
         fetchPayrollConcepts(true),
         fetchCollectiveAgreements(),
       ]);
-      setConcepts(conceptData || []);
-      setAgreements(agreementData || []);
+      setConcepts(Array.isArray(conceptData) ? conceptData : []);
+      setAgreements(Array.isArray(agreementData) ? agreementData : []);
     } catch (err) {
       setError(err.message || "No se han podido cargar los conceptos retributivos.");
     } finally {
@@ -136,18 +139,12 @@ export default function PayrollConceptsPage() {
 
   useEffect(() => { loadConcepts(); }, []);
 
-  const agreementById = useMemo(() => {
-    return agreements.reduce((acc, agreement) => {
-      acc[agreement.id] = agreement;
-      return acc;
-    }, {});
-  }, [agreements]);
+  const agreementById = useMemo(() => new Map(agreements.map((agreement) => [Number(agreement.id), agreement])), [agreements]);
 
   const filteredConcepts = useMemo(() => {
     const query = normalizeText(filters.search);
-
     return concepts.filter((concept) => {
-      const agreementName = concept.agreement_id ? agreementById[concept.agreement_id]?.name : "";
+      const agreementName = concept.agreement_id ? agreementById.get(Number(concept.agreement_id))?.name : "";
       const searchableText = normalizeText([
         concept.name,
         concept.code,
@@ -174,12 +171,17 @@ export default function PayrollConceptsPage() {
     });
   }, [concepts, filters, agreementById]);
 
+  const totals = useMemo(() => ({
+    all: concepts.length,
+    system: concepts.filter((concept) => concept.source_type === "SYSTEM").length,
+    custom: concepts.filter((concept) => concept.source_type === "CUSTOM").length,
+    agreement: concepts.filter((concept) => concept.source_type === "AGREEMENT").length,
+    filtered: filteredConcepts.length,
+  }), [concepts, filteredConcepts]);
+
   function handleChange(event) {
     const { name, value, type, checked } = event.target;
-    setForm((current) => ({
-      ...current,
-      [name]: type === "checkbox" ? checked : value,
-    }));
+    setForm((current) => ({ ...current, [name]: type === "checkbox" ? checked : value }));
   }
 
   function handleFilterChange(event) {
@@ -189,6 +191,14 @@ export default function PayrollConceptsPage() {
 
   function resetFilters() {
     setFilters(EMPTY_FILTERS);
+  }
+
+  function openNewConcept() {
+    setEditingId(null);
+    setForm(EMPTY_FORM);
+    setMessage("");
+    setError("");
+    setEditorOpen(true);
   }
 
   function startEdit(concept) {
@@ -213,12 +223,13 @@ export default function PayrollConceptsPage() {
     });
     setMessage("");
     setError("");
+    setEditorOpen(true);
   }
 
-  function resetForm() {
+  function closeEditor() {
+    setEditorOpen(false);
     setEditingId(null);
     setForm(EMPTY_FORM);
-    setMessage("");
     setError("");
   }
 
@@ -247,7 +258,9 @@ export default function PayrollConceptsPage() {
         await createPayrollConcept(payload);
         setMessage("Concepto retributivo creado.");
       }
-      resetForm();
+      setEditorOpen(false);
+      setEditingId(null);
+      setForm(EMPTY_FORM);
       await loadConcepts();
     } catch (err) {
       setError(err.message || "No se ha podido guardar el concepto retributivo.");
@@ -268,155 +281,234 @@ export default function PayrollConceptsPage() {
     }
   }
 
-  const totals = {
-    all: concepts.length,
-    system: concepts.filter((concept) => concept.source_type === "SYSTEM").length,
-    custom: concepts.filter((concept) => concept.source_type === "CUSTOM").length,
-    agreement: concepts.filter((concept) => concept.source_type === "AGREEMENT").length,
-    filtered: filteredConcepts.length,
-  };
-
   return (
-    <div style={styles.wrapper}>
-      <PageCard title="Catálogo de conceptos retributivos" subtitle="Conceptos disponibles para nóminas: sistema, personalizados y conceptos de convenio.">
-        <div style={styles.kpiGrid}>
-          <div style={styles.kpi}><span>Total</span><strong>{totals.all}</strong></div>
-          <div style={styles.kpi}><span>Sistema</span><strong>{totals.system}</strong></div>
-          <div style={styles.kpi}><span>Personalizados</span><strong>{totals.custom}</strong></div>
-          <div style={styles.kpi}><span>Convenio</span><strong>{totals.agreement}</strong></div>
-          <div style={styles.kpi}><span>Filtrados</span><strong>{totals.filtered}</strong></div>
+    <div className="salary-concepts">
+      <PageCard
+        title="Catálogo de conceptos retributivos"
+        subtitle="Consulta, filtra y mantiene los conceptos que pueden utilizarse en nóminas y contratos."
+        actions={(
+          <div className="sc-toolbar__actions">
+            <button type="button" className="sc-button sc-button--secondary" onClick={loadConcepts} disabled={loading}>
+              {loading ? "Actualizando..." : "Actualizar"}
+            </button>
+            <button type="button" className="sc-button sc-button--primary" onClick={openNewConcept}>Nuevo concepto</button>
+          </div>
+        )}
+      >
+        <div className="sc-metrics">
+          <div className="sc-metric"><span>Total</span><strong>{totals.all}</strong></div>
+          <div className="sc-metric"><span>Sistema</span><strong>{totals.system}</strong></div>
+          <div className="sc-metric"><span>Personalizados</span><strong>{totals.custom}</strong></div>
+          <div className="sc-metric"><span>Convenio</span><strong>{totals.agreement}</strong></div>
+          <div className="sc-metric"><span>Resultados</span><strong>{totals.filtered}</strong></div>
         </div>
 
-        <form onSubmit={handleSubmit} style={styles.form}>
-          <div style={styles.formHeader}>
-            <div>
-              <h3 style={styles.formTitle}>{editingId ? "Editar concepto" : "Nuevo concepto"}</h3>
-              <p style={styles.formSubtitle}>Define origen, convenio, tributación y forma de cálculo del concepto.</p>
+        {message && <div className="sc-feedback sc-feedback--success">{message}</div>}
+        {!editorOpen && error && <div className="sc-feedback sc-feedback--error">{error}</div>}
+
+        {editorOpen && (
+          <form className="sc-editor" onSubmit={handleSubmit}>
+            <div className="sc-editor__header">
+              <div>
+                <h3>{editingId ? "Editar concepto" : "Nuevo concepto"}</h3>
+                <p>Define identificación, origen, comportamiento salarial y valores por defecto.</p>
+              </div>
+              <button type="button" className="sc-button sc-button--ghost" onClick={closeEditor}>Cerrar</button>
             </div>
-            {editingId && <button type="button" onClick={resetForm} style={styles.secondaryButton}>Cancelar edición</button>}
-          </div>
 
-          {error && <div style={styles.error}>{error}</div>}
-          {message && <div style={styles.success}>{message}</div>}
+            {error && <div className="sc-feedback sc-feedback--error">{error}</div>}
 
-          <div style={styles.formSection}>
-            <h4 style={styles.sectionTitle}>Identificación</h4>
-            <div style={styles.formGrid}>
-              <label style={styles.field}>Nombre<input name="name" value={form.name} onChange={handleChange} style={styles.input} required /></label>
-              <label style={styles.field}>Código<input name="code" value={form.code} onChange={handleChange} placeholder="Se genera si lo dejas vacío" style={styles.input} /></label>
-              <label style={styles.field}>Origen<select name="source_type" value={form.source_type} onChange={handleChange} style={styles.input}>{SOURCE_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
-              <label style={styles.field}>Convenio<select name="agreement_id" value={form.agreement_id} onChange={handleChange} style={styles.input} disabled={form.source_type !== "AGREEMENT"}>
-                <option value="">Sin convenio asociado</option>
-                {agreements.map((agreement) => <option key={agreement.id} value={agreement.id}>{agreement.name}</option>)}
-              </select></label>
-              <label style={styles.field}>Categoría<select name="category" value={form.category} onChange={handleChange} style={styles.input}>{CATEGORY_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
-              <label style={styles.field}>Tipo<select name="concept_type" value={form.concept_type} onChange={handleChange} style={styles.input}>{TYPE_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
-              <label style={styles.field}>Naturaleza<select name="salary_nature" value={form.salary_nature} onChange={handleChange} style={styles.input}>{NATURE_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
-              <label style={styles.field}>Orden<input type="number" name="display_order" value={form.display_order} onChange={handleChange} style={styles.input} /></label>
+            <section className="sc-editor__section">
+              <h4>Identificación</h4>
+              <div className="sc-editor__grid">
+                <label className="sc-field">Nombre
+                  <input name="name" value={form.name} onChange={handleChange} required />
+                </label>
+                <label className="sc-field">Código
+                  <input name="code" value={form.code} onChange={handleChange} placeholder="Se genera desde el nombre si queda vacío" />
+                </label>
+                <label className="sc-field">Origen
+                  <select name="source_type" value={form.source_type} onChange={handleChange}>
+                    {SOURCE_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                  </select>
+                </label>
+                <label className="sc-field">Convenio
+                  <select name="agreement_id" value={form.agreement_id} onChange={handleChange} disabled={form.source_type !== "AGREEMENT"}>
+                    <option value="">Sin convenio asociado</option>
+                    {agreements.map((agreement) => <option key={agreement.id} value={agreement.id}>{agreement.name}</option>)}
+                  </select>
+                </label>
+                <label className="sc-field">Categoría
+                  <select name="category" value={form.category} onChange={handleChange}>
+                    {CATEGORY_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                  </select>
+                </label>
+                <label className="sc-field">Tipo
+                  <select name="concept_type" value={form.concept_type} onChange={handleChange}>
+                    {TYPE_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                  </select>
+                </label>
+                <label className="sc-field">Naturaleza
+                  <select name="salary_nature" value={form.salary_nature} onChange={handleChange}>
+                    {NATURE_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                  </select>
+                </label>
+                <label className="sc-field">Orden
+                  <input type="number" name="display_order" value={form.display_order} onChange={handleChange} />
+                </label>
+              </div>
+            </section>
+
+            <section className="sc-editor__section">
+              <h4>Cálculo por defecto</h4>
+              <div className="sc-editor__grid">
+                <label className="sc-field">Tipo de importe
+                  <select name="calculation_type" value={form.calculation_type} onChange={handleChange}>
+                    {CALCULATION_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                  </select>
+                </label>
+                <label className="sc-field">Importe íntegro / base
+                  <input type="number" step="0.01" name="default_amount" value={form.default_amount} onChange={handleChange} />
+                </label>
+                <label className="sc-field">Precio por unidad
+                  <input type="number" step="0.01" name="default_unit_price" value={form.default_unit_price} onChange={handleChange} />
+                </label>
+              </div>
+              <div className="sc-editor__checks">
+                <label className="sc-check"><input type="checkbox" name="applies_workday_percentage" checked={form.applies_workday_percentage} onChange={handleChange} /> Aplicar % de jornada</label>
+                <label className="sc-check"><input type="checkbox" name="is_taxable" checked={form.is_taxable} onChange={handleChange} /> Tributa IRPF</label>
+                <label className="sc-check"><input type="checkbox" name="is_contribution_base" checked={form.is_contribution_base} onChange={handleChange} /> Cotiza</label>
+                <label className="sc-check"><input type="checkbox" name="is_active" checked={form.is_active} onChange={handleChange} /> Activo</label>
+              </div>
+            </section>
+
+            <section className="sc-editor__section">
+              <label className="sc-field">Notas
+                <textarea name="notes" value={form.notes} onChange={handleChange} placeholder="Observaciones o criterio de uso" />
+              </label>
+            </section>
+
+            <div className="sc-editor__actions">
+              <button type="button" className="sc-button sc-button--secondary" onClick={closeEditor}>Cancelar</button>
+              <button type="submit" className="sc-button sc-button--primary" disabled={submitting}>
+                {submitting ? "Guardando..." : editingId ? "Guardar cambios" : "Crear concepto"}
+              </button>
             </div>
-          </div>
+          </form>
+        )}
 
-          <div style={styles.formSectionAlt}>
-            <h4 style={styles.sectionTitle}>Cálculo por defecto</h4>
-            <div style={styles.formGrid}>
-              <label style={styles.field}>Tipo de importe<select name="calculation_type" value={form.calculation_type} onChange={handleChange} style={styles.input}>{CALCULATION_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
-              <label style={styles.field}>Importe íntegro / base<input type="number" step="0.01" name="default_amount" value={form.default_amount} onChange={handleChange} style={styles.input} /></label>
-              <label style={styles.field}>Precio por unidad<input type="number" step="0.01" name="default_unit_price" value={form.default_unit_price} onChange={handleChange} style={styles.input} /></label>
-              <label style={styles.checkField}><input type="checkbox" name="applies_workday_percentage" checked={form.applies_workday_percentage} onChange={handleChange} /> Aplicar % jornada</label>
-            </div>
-          </div>
-
-          <div style={styles.flagGrid}>
-            <label style={styles.checkField}><input type="checkbox" name="is_taxable" checked={form.is_taxable} onChange={handleChange} /> Tributa IRPF</label>
-            <label style={styles.checkField}><input type="checkbox" name="is_contribution_base" checked={form.is_contribution_base} onChange={handleChange} /> Cotiza</label>
-            <label style={styles.checkField}><input type="checkbox" name="is_active" checked={form.is_active} onChange={handleChange} /> Activo</label>
-          </div>
-
-          <label style={styles.field}>Notas<textarea name="notes" value={form.notes} onChange={handleChange} style={styles.textarea} /></label>
-
-          <div style={styles.actions}><button type="submit" disabled={submitting} style={styles.primaryButton}>{submitting ? "Guardando..." : editingId ? "Guardar cambios" : "Crear concepto"}</button></div>
-        </form>
-      </PageCard>
-
-      <PageCard title="Conceptos disponibles" subtitle="Listado usado por los desplegables de nómina.">
-        <div style={styles.filtersBox}>
-          <div style={styles.filtersHeader}>
-            <h3 style={styles.filterTitle}>Filtros del catálogo</h3>
-            <div style={styles.filterActions}>
-              <button type="button" onClick={resetFilters} style={styles.secondaryButton}>Limpiar filtros</button>
-              <button type="button" onClick={loadConcepts} style={styles.secondaryButton}>{loading ? "Cargando..." : "Actualizar"}</button>
-            </div>
-          </div>
-
-          <div style={styles.mainFiltersGrid}>
-            <label style={styles.field}>Buscar
-              <input name="search" value={filters.search} onChange={handleFilterChange} placeholder="Nombre, código, categoría o convenio" style={styles.input} />
+        <div className="sc-filters">
+          <div className="sc-filters__grid">
+            <label className="sc-field">Buscar
+              <input name="search" value={filters.search} onChange={handleFilterChange} placeholder="Nombre, código, categoría o convenio" />
             </label>
-            <label style={styles.field}>Convenio
-              <select name="agreement" value={filters.agreement} onChange={handleFilterChange} style={styles.input}>
+            <label className="sc-field">Origen
+              <select name="source" value={filters.source} onChange={handleFilterChange}>
+                <option value="ALL">Todos los orígenes</option>
+                {SOURCE_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+              </select>
+            </label>
+            <label className="sc-field">Convenio
+              <select name="agreement" value={filters.agreement} onChange={handleFilterChange}>
                 <option value="ALL">Todos los convenios</option>
                 <option value="">Sin convenio asociado</option>
                 {agreements.map((agreement) => <option key={agreement.id} value={agreement.id}>{agreement.name}</option>)}
               </select>
             </label>
-            <label style={styles.field}>Origen
-              <select name="source" value={filters.source} onChange={handleFilterChange} style={styles.input}>
-                <option value="ALL">Todos los orígenes</option>
-                {SOURCE_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+            <label className="sc-field">Estado
+              <select name="status" value={filters.status} onChange={handleFilterChange}>
+                <option value="ALL">Todos</option>
+                <option value="true">Activos</option>
+                <option value="false">Inactivos</option>
               </select>
             </label>
           </div>
 
-          <div style={styles.compactFiltersGrid}>
-            <label style={styles.field}>Categoría<select name="category" value={filters.category} onChange={handleFilterChange} style={styles.input}><option value="ALL">Todas</option>{CATEGORY_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
-            <label style={styles.field}>Tipo<select name="conceptType" value={filters.conceptType} onChange={handleFilterChange} style={styles.input}><option value="ALL">Todos</option>{TYPE_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
-            <label style={styles.field}>Naturaleza<select name="salaryNature" value={filters.salaryNature} onChange={handleFilterChange} style={styles.input}><option value="ALL">Todas</option>{NATURE_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
-            <label style={styles.field}>Cálculo<select name="calculationType" value={filters.calculationType} onChange={handleFilterChange} style={styles.input}><option value="ALL">Todos</option>{CALCULATION_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
-            <label style={styles.field}>Jornada<select name="workday" value={filters.workday} onChange={handleFilterChange} style={styles.input}><option value="ALL">Todas</option><option value="true">Proporcional</option><option value="false">Íntegro</option></select></label>
-            <label style={styles.field}>Cotiza<select name="contribution" value={filters.contribution} onChange={handleFilterChange} style={styles.input}><option value="ALL">Todos</option><option value="true">Sí</option><option value="false">No</option></select></label>
-            <label style={styles.field}>Tributa<select name="taxable" value={filters.taxable} onChange={handleFilterChange} style={styles.input}><option value="ALL">Todos</option><option value="true">Sí</option><option value="false">No</option></select></label>
-            <label style={styles.field}>Estado<select name="status" value={filters.status} onChange={handleFilterChange} style={styles.input}><option value="ALL">Todos</option><option value="true">Activo</option><option value="false">Inactivo</option></select></label>
+          {advancedFilters && (
+            <div className="sc-filters__advanced">
+              <label className="sc-field">Categoría
+                <select name="category" value={filters.category} onChange={handleFilterChange}><option value="ALL">Todas</option>{CATEGORY_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
+              </label>
+              <label className="sc-field">Tipo
+                <select name="conceptType" value={filters.conceptType} onChange={handleFilterChange}><option value="ALL">Todos</option>{TYPE_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
+              </label>
+              <label className="sc-field">Naturaleza
+                <select name="salaryNature" value={filters.salaryNature} onChange={handleFilterChange}><option value="ALL">Todas</option>{NATURE_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
+              </label>
+              <label className="sc-field">Cálculo
+                <select name="calculationType" value={filters.calculationType} onChange={handleFilterChange}><option value="ALL">Todos</option>{CALCULATION_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
+              </label>
+              <label className="sc-field">Jornada
+                <select name="workday" value={filters.workday} onChange={handleFilterChange}><option value="ALL">Todas</option><option value="true">Proporcional</option><option value="false">Íntegro</option></select>
+              </label>
+              <label className="sc-field">Cotiza
+                <select name="contribution" value={filters.contribution} onChange={handleFilterChange}><option value="ALL">Todos</option><option value="true">Sí</option><option value="false">No</option></select>
+              </label>
+              <label className="sc-field">Tributa
+                <select name="taxable" value={filters.taxable} onChange={handleFilterChange}><option value="ALL">Todos</option><option value="true">Sí</option><option value="false">No</option></select>
+              </label>
+            </div>
+          )}
+
+          <div className="sc-filters__footer">
+            <span className="sc-result-info">Mostrando {filteredConcepts.length} de {concepts.length} conceptos.</span>
+            <div className="sc-actions">
+              <button type="button" className="sc-button sc-button--ghost sc-button--small" onClick={() => setAdvancedFilters((value) => !value)}>
+                {advancedFilters ? "Ocultar filtros avanzados" : "Más filtros"}
+              </button>
+              <button type="button" className="sc-button sc-button--ghost sc-button--small" onClick={resetFilters}>Limpiar filtros</button>
+            </div>
           </div>
         </div>
 
-        <div style={styles.resultInfo}>Mostrando {filteredConcepts.length} de {concepts.length} conceptos.</div>
-
-        <div style={styles.tableWrap}>
-          <table style={styles.table}>
+        <div className="sc-table-wrap">
+          <table className="sc-table">
             <thead>
               <tr>
-                <th style={styles.th}>Concepto</th>
-                <th style={styles.th}>Origen / convenio</th>
-                <th style={styles.th}>Tipo</th>
-                <th style={styles.th}>Cálculo</th>
-                <th style={styles.th}>Jornada</th>
-                <th style={styles.th}>Cotiza</th>
-                <th style={styles.th}>Tributa</th>
-                <th style={styles.th}>Estado</th>
-                <th style={styles.thActions}>Acciones</th>
+                <th>Concepto</th>
+                <th>Origen / convenio</th>
+                <th>Tipo</th>
+                <th>Cálculo</th>
+                <th>Jornada</th>
+                <th>SS / IRPF</th>
+                <th>Estado</th>
+                <th>Acciones</th>
               </tr>
             </thead>
             <tbody>
               {filteredConcepts.map((concept) => (
                 <tr key={concept.id}>
-                  <td style={styles.td}><strong>{concept.name}</strong><span style={styles.code}>{concept.code}</span></td>
-                  <td style={styles.td}>
-                    <span style={getSourceBadgeStyle(concept.source_type)}>{labelFrom(SOURCE_OPTIONS, concept.source_type)}</span>
-                    {concept.agreement_id && <span style={styles.code}>{agreementById[concept.agreement_id]?.name || `Convenio ${concept.agreement_id}`}</span>}
+                  <td>
+                    <span className="sc-table__primary">{concept.name}</span>
+                    <span className="sc-code">{concept.code}</span>
                   </td>
-                  <td style={styles.td}>{labelFrom(TYPE_OPTIONS, concept.concept_type)}<span style={styles.code}>{labelFrom(NATURE_OPTIONS, concept.salary_nature)}</span></td>
-                  <td style={styles.td}>{labelFrom(CALCULATION_OPTIONS, concept.calculation_type)}<span style={styles.code}>{concept.calculation_type === "UNIT_PRICE" ? formatMoney(concept.default_unit_price) + " / ud." : formatMoney(concept.default_amount)}</span></td>
-                  <td style={styles.td}>{concept.applies_workday_percentage ? "Proporcional" : "Íntegro"}</td>
-                  <td style={styles.td}>{concept.is_contribution_base ? "Sí" : "No"}</td>
-                  <td style={styles.td}>{concept.is_taxable ? "Sí" : "No"}</td>
-                  <td style={styles.td}>{concept.is_active ? "Activo" : "Inactivo"}</td>
-                  <td style={styles.tdActions}>
-                    <button type="button" onClick={() => startEdit(concept)} style={styles.smallButton}>Editar</button>
-                    {concept.is_active && <button type="button" onClick={() => handleDeactivate(concept)} style={styles.dangerButton}>Desactivar</button>}
+                  <td>
+                    <span className={`sc-badge ${sourceBadgeClass(concept.source_type)}`}>{labelFrom(SOURCE_OPTIONS, concept.source_type)}</span>
+                    {concept.agreement_id && <span className="sc-table__secondary">{agreementById.get(Number(concept.agreement_id))?.name || `Convenio ${concept.agreement_id}`}</span>}
+                  </td>
+                  <td>
+                    <span className="sc-table__primary">{labelFrom(TYPE_OPTIONS, concept.concept_type)}</span>
+                    <span className="sc-table__secondary">{labelFrom(NATURE_OPTIONS, concept.salary_nature)}</span>
+                  </td>
+                  <td>
+                    <span className="sc-table__primary">{labelFrom(CALCULATION_OPTIONS, concept.calculation_type)}</span>
+                    <span className="sc-table__secondary">{concept.calculation_type === "UNIT_PRICE" ? `${formatMoney(concept.default_unit_price)} / ud.` : formatMoney(concept.default_amount)}</span>
+                  </td>
+                  <td>{concept.applies_workday_percentage ? "Proporcional" : "Íntegro"}</td>
+                  <td>
+                    <span className="sc-table__primary">Cotiza: {concept.is_contribution_base ? "Sí" : "No"}</span>
+                    <span className="sc-table__secondary">IRPF: {concept.is_taxable ? "Sí" : "No"}</span>
+                  </td>
+                  <td><span className={`sc-badge ${concept.is_active ? "sc-badge--active" : "sc-badge--inactive"}`}>{concept.is_active ? "Activo" : "Inactivo"}</span></td>
+                  <td>
+                    <div className="sc-row-actions">
+                      <button type="button" className="sc-button sc-button--secondary sc-button--small" onClick={() => startEdit(concept)}>Editar</button>
+                      {concept.is_active && <button type="button" className="sc-button sc-button--danger sc-button--small" onClick={() => handleDeactivate(concept)}>Desactivar</button>}
+                    </div>
                   </td>
                 </tr>
               ))}
-              {filteredConcepts.length === 0 && <tr><td colSpan="9" style={styles.td}>No hay conceptos con estos filtros.</td></tr>}
+              {!filteredConcepts.length && <tr><td colSpan="8" className="sc-empty">No hay conceptos que coincidan con los filtros.</td></tr>}
             </tbody>
           </table>
         </div>
@@ -424,48 +516,3 @@ export default function PayrollConceptsPage() {
     </div>
   );
 }
-
-const badge = { display: "inline-block", padding: "4px 8px", borderRadius: "999px", fontSize: "12px", fontWeight: 900 };
-
-const styles = {
-  wrapper: { display: "flex", flexDirection: "column", gap: "20px" },
-  kpiGrid: { display: "grid", gridTemplateColumns: "repeat(5, minmax(0, 1fr))", gap: "12px", marginBottom: "18px" },
-  kpi: { border: "2px solid #111827", borderRadius: "12px", padding: "12px", backgroundColor: "#fffdf0", display: "flex", justifyContent: "space-between", fontWeight: 900 },
-  form: { border: "2px solid #111827", borderRadius: "14px", padding: "16px", backgroundColor: "#ffffff", boxShadow: "3px 3px 0 #e6d85c" },
-  formHeader: { display: "flex", justifyContent: "space-between", gap: "12px", marginBottom: "14px" },
-  formTitle: { margin: 0, fontSize: "18px", fontWeight: 900 },
-  formSubtitle: { margin: "4px 0 0", color: "#6b7280", fontSize: "12px", fontWeight: 700 },
-  formSection: { marginBottom: "14px" },
-  formSectionAlt: { marginBottom: "14px", border: "1px solid #e5e7eb", borderRadius: "12px", padding: "12px", backgroundColor: "#fffdf0" },
-  sectionTitle: { margin: "0 0 10px", fontSize: "14px", fontWeight: 900, color: "#111827" },
-  formGrid: { display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: "12px", alignItems: "end" },
-  flagGrid: { display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: "12px", marginBottom: "12px" },
-  field: { display: "flex", flexDirection: "column", gap: "5px", fontSize: "12px", fontWeight: 900, color: "#374151" },
-  checkField: { display: "flex", alignItems: "center", gap: "8px", fontSize: "13px", fontWeight: 900, minHeight: "40px" },
-  input: { border: "2px solid #d1d5db", borderRadius: "8px", padding: "9px", fontWeight: 700, minWidth: 0, width: "100%", boxSizing: "border-box" },
-  textarea: { border: "2px solid #d1d5db", borderRadius: "8px", padding: "9px", fontWeight: 700, minHeight: "70px" },
-  actions: { display: "flex", justifyContent: "flex-end", marginTop: "14px" },
-  primaryButton: { backgroundColor: "#111827", color: "#ffffff", border: "2px solid #111827", borderRadius: "8px", padding: "9px 16px", fontWeight: 900, cursor: "pointer" },
-  secondaryButton: { backgroundColor: "#ffffff", color: "#111827", border: "2px solid #111827", borderRadius: "8px", padding: "8px 12px", fontWeight: 900, cursor: "pointer" },
-  smallButton: { backgroundColor: "#111827", color: "#ffffff", border: "1px solid #111827", borderRadius: "8px", padding: "7px 10px", fontWeight: 800, cursor: "pointer" },
-  dangerButton: { backgroundColor: "#fee2e2", color: "#991b1b", border: "1px solid #991b1b", borderRadius: "8px", padding: "7px 10px", fontWeight: 800, cursor: "pointer" },
-  filtersBox: { border: "2px solid #111827", borderRadius: "14px", padding: "14px", backgroundColor: "#ffffff", boxShadow: "3px 3px 0 #e6d85c", marginBottom: "14px" },
-  filtersHeader: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px", marginBottom: "12px" },
-  filterTitle: { margin: 0, fontSize: "16px", fontWeight: 900, color: "#111827" },
-  filterActions: { display: "flex", gap: "8px", alignItems: "center" },
-  mainFiltersGrid: { display: "grid", gridTemplateColumns: "1.5fr 1.2fr 220px", gap: "12px", marginBottom: "12px" },
-  compactFiltersGrid: { display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: "12px" },
-  resultInfo: { marginBottom: "12px", color: "#6b7280", fontSize: "13px", fontWeight: 800 },
-  tableWrap: { overflowX: "auto" },
-  table: { width: "100%", borderCollapse: "collapse", minWidth: "1180px" },
-  th: { textAlign: "left", padding: "10px", backgroundColor: "#f3f4f6", borderBottom: "1px solid #d1d5db", fontSize: "12px" },
-  thActions: { width: "170px", textAlign: "left", padding: "10px", backgroundColor: "#f3f4f6", borderBottom: "1px solid #d1d5db", fontSize: "12px" },
-  td: { padding: "10px", borderBottom: "1px solid #e5e7eb", verticalAlign: "top" },
-  tdActions: { padding: "10px", borderBottom: "1px solid #e5e7eb", display: "flex", gap: "8px" },
-  code: { display: "block", marginTop: "3px", color: "#6b7280", fontSize: "11px", fontWeight: 800 },
-  systemBadge: { ...badge, backgroundColor: "#dbeafe", color: "#1e40af" },
-  customBadge: { ...badge, backgroundColor: "#dcfce7", color: "#166534" },
-  agreementBadge: { ...badge, backgroundColor: "#fef3c7", color: "#92400e" },
-  error: { marginBottom: "12px", padding: "10px", borderRadius: "10px", border: "1px solid #fecaca", backgroundColor: "#fef2f2", color: "#991b1b", fontWeight: 800 },
-  success: { marginBottom: "12px", padding: "10px", borderRadius: "10px", border: "1px solid #bbf7d0", backgroundColor: "#f0fdf4", color: "#166534", fontWeight: 800 },
-};
