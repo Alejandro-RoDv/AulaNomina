@@ -225,6 +225,14 @@ export default function PermanentPayrollConceptsPage({ contracts = [], employees
           </div>
         </div>
 
+        {bulkOpen && (
+          <BulkContractPayrollConceptsPanel
+            contractIds={bulkSelectedIds}
+            onClose={() => setBulkOpen(false)}
+            onCompleted={() => setBulkRevision((value) => value + 1)}
+          />
+        )}
+
         <div className="sc-table-wrap">
           <table className="sc-table">
             <thead>
@@ -247,7 +255,7 @@ export default function PermanentPayrollConceptsPage({ contracts = [], employees
                     key={contract.id}
                     className={isOpen ? "is-active-row" : ""}
                     onClick={() => openContract(contract.id)}
-                    tabIndex="0"
+                    tabIndex={0}
                     onKeyDown={(event) => {
                       if (event.key === "Enter" || event.key === " ") {
                         event.preventDefault();
@@ -262,16 +270,12 @@ export default function PermanentPayrollConceptsPage({ contracts = [], employees
                       <span className="sc-table__primary">{employeeName(contract)}</span>
                       <span className="sc-table__secondary">{employee?.employee_code || contract.employee_id} · {employee?.dni || "Sin documento"}</span>
                     </td>
-                    <td>
-                      <span className="sc-table__primary">{companyCenter(contract)}</span>
-                    </td>
+                    <td><span className="sc-table__primary">{companyCenter(contract)}</span></td>
                     <td>
                       <span className="sc-table__primary">{contract.contract_display_code}</span>
                       <span className="sc-table__secondary">{contract.contract_code || "Sin código oficial"}</span>
                     </td>
-                    <td>
-                      <span className="sc-table__primary">{contract.contract_code_description || contract.contract_type || "Contrato"}</span>
-                    </td>
+                    <td><span className="sc-table__primary">{contract.contract_code_description || contract.contract_type || "Contrato"}</span></td>
                     <td><span className={`sc-badge ${contract.status === "active" ? "sc-badge--active" : "sc-badge--inactive"}`}>{contract.status === "active" ? "Activo" : "Finalizado"}</span></td>
                   </tr>
                 );
@@ -280,14 +284,6 @@ export default function PermanentPayrollConceptsPage({ contracts = [], employees
             </tbody>
           </table>
         </div>
-
-        {bulkOpen && (
-          <BulkContractPayrollConceptsPanel
-            contractIds={bulkSelectedIds}
-            onClose={() => setBulkOpen(false)}
-            onCompleted={() => setBulkRevision((value) => value + 1)}
-          />
-        )}
 
         {selectedContract ? (
           <>
