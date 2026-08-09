@@ -100,8 +100,8 @@ class PayrollGenerationRequest(BaseModel):
     @field_validator("period_month")
     @classmethod
     def validate_period_month(cls, value: int):
-        if value < 1 or value > 15:
-            raise ValueError("period_month debe estar entre 1 y 15")
+        if value < 1 or value > 19:
+            raise ValueError("period_month debe estar entre 1 y 19")
         return value
 
     @field_validator("period_year")
