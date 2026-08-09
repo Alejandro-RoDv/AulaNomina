@@ -10,6 +10,8 @@ import {
   updatePayrollConcept,
 } from "../services/payrollApi";
 
+const PAGE_SIZE = 25;
+
 const EMPTY_FORM = {
   name: "",
   code: "",
@@ -70,10 +72,20 @@ const NATURE_OPTIONS = [
   ["INFORMATIVA", "Informativa"],
 ];
 
-const SOURCE_OPTIONS = [
+const EDITOR_SOURCE_OPTIONS = [
   ["SYSTEM", "Sistema"],
   ["CUSTOM", "Personalizado"],
   ["AGREEMENT", "Convenio"],
+];
+
+const SOURCE_OPTIONS = [
+  ["SYSTEM", "Sistema"],
+  ["CONTRACT", "Contrato"],
+  ["AGREEMENT", "Convenio"],
+  ["INCIDENT", "Incidencia"],
+  ["MANUAL", "Manual"],
+  ["CUSTOM", "Personalizado"],
+  ["REGULARIZATION", "Regularización"],
 ];
 
 const CALCULATION_OPTIONS = [
@@ -115,6 +127,7 @@ export default function PayrollConceptsPage() {
   const [editorOpen, setEditorOpen] = useState(false);
   const [advancedFilters, setAdvancedFilters] = useState(false);
   const [filters, setFilters] = useState(EMPTY_FILTERS);
+  const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState("");
@@ -179,6 +192,15 @@ export default function PayrollConceptsPage() {
     filtered: filteredConcepts.length,
   }), [concepts, filteredConcepts]);
 
+  const totalPages = Math.max(1, Math.ceil(filteredConcepts.length / PAGE_SIZE));
+  const pageStart = (page - 1) * PAGE_SIZE;
+  const pageEnd = Math.min(pageStart + PAGE_SIZE, filteredConcepts.length);
+  const visibleConcepts = filteredConcepts.slice(pageStart, pageEnd);
+
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
+
   function handleChange(event) {
     const { name, value, type, checked } = event.target;
     setForm((current) => ({ ...current, [name]: type === "checkbox" ? checked : value }));
@@ -187,10 +209,12 @@ export default function PayrollConceptsPage() {
   function handleFilterChange(event) {
     const { name, value } = event.target;
     setFilters((current) => ({ ...current, [name]: value }));
+    setPage(1);
   }
 
   function resetFilters() {
     setFilters(EMPTY_FILTERS);
+    setPage(1);
   }
 
   function openNewConcept() {
@@ -209,7 +233,7 @@ export default function PayrollConceptsPage() {
       category: concept.category || "OTRO",
       concept_type: concept.concept_type || "DEVENGO",
       salary_nature: concept.salary_nature || "SALARIAL",
-      source_type: concept.source_type || "CUSTOM",
+      source_type: EDITOR_SOURCE_OPTIONS.some(([value]) => value === concept.source_type) ? concept.source_type : "CUSTOM",
       agreement_id: concept.agreement_id || "",
       calculation_type: concept.calculation_type || "FIXED_AMOUNT",
       default_amount: String(concept.default_amount ?? "0"),
@@ -329,7 +353,7 @@ export default function PayrollConceptsPage() {
                 </label>
                 <label className="sc-field">Origen
                   <select name="source_type" value={form.source_type} onChange={handleChange}>
-                    {SOURCE_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                    {EDITOR_SOURCE_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
                   </select>
                 </label>
                 <label className="sc-field">Convenio
@@ -451,7 +475,7 @@ export default function PayrollConceptsPage() {
           )}
 
           <div className="sc-filters__footer">
-            <span className="sc-result-info">Mostrando {filteredConcepts.length} de {concepts.length} conceptos.</span>
+            <span className="sc-result-info">{filteredConcepts.length} conceptos coinciden con los filtros.</span>
             <div className="sc-actions">
               <button type="button" className="sc-button sc-button--ghost sc-button--small" onClick={() => setAdvancedFilters((value) => !value)}>
                 {advancedFilters ? "Ocultar filtros avanzados" : "Más filtros"}
@@ -476,7 +500,7 @@ export default function PayrollConceptsPage() {
               </tr>
             </thead>
             <tbody>
-              {filteredConcepts.map((concept) => (
+              {visibleConcepts.map((concept) => (
                 <tr key={concept.id}>
                   <td>
                     <span className="sc-table__primary">{concept.name}</span>
@@ -508,10 +532,23 @@ export default function PayrollConceptsPage() {
                   </td>
                 </tr>
               ))}
-              {!filteredConcepts.length && <tr><td colSpan="8" className="sc-empty">No hay conceptos que coincidan con los filtros.</td></tr>}
+              {!visibleConcepts.length && <tr><td colSpan="8" className="sc-empty">No hay conceptos que coincidan con los filtros.</td></tr>}
             </tbody>
           </table>
         </div>
+
+        {filteredConcepts.length > 0 && (
+          <div className="sc-selection-bar">
+            <div className="sc-selection-bar__summary">
+              <strong>{pageStart + 1}–{pageEnd}</strong>
+              <span>de {filteredConcepts.length} conceptos · página {page} de {totalPages}</span>
+            </div>
+            <div className="sc-actions">
+              <button type="button" className="sc-button sc-button--secondary sc-button--small" onClick={() => setPage((value) => Math.max(1, value - 1))} disabled={page <= 1}>Anterior</button>
+              <button type="button" className="sc-button sc-button--secondary sc-button--small" onClick={() => setPage((value) => Math.min(totalPages, value + 1))} disabled={page >= totalPages}>Siguiente</button>
+            </div>
+          </div>
+        )}
       </PageCard>
     </div>
   );
