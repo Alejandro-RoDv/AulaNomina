@@ -28,8 +28,17 @@ def sample_receipt():
             "tax_id": "10000002B",
             "social_security_number": "141000000002",
         },
+        "contract": {
+            "code": "100",
+            "professional_category": "Administrativo",
+            "contribution_group": "5",
+            "seniority_date": "2025-01-01",
+        },
         "period": {
             "label": "Mayo 2026",
+            "period_start": "2026-05-01",
+            "period_end": "2026-05-31",
+            "period_days": 31,
             "contribution_days": 30,
             "worked_days": 22,
             "incident_days": 8,
@@ -40,52 +49,36 @@ def sample_receipt():
             "net_salary": Decimal("1211.03"),
             "company_total_cost": Decimal("1915.02"),
         },
+        "bases": {
+            "common_contingencies": Decimal("1450.00"),
+            "professional_contingencies": Decimal("1450.00"),
+            "unemployment_training_fogasa": Decimal("1450.00"),
+            "irpf": Decimal("1450.00"),
+        },
         "earnings": [
-            {"code": "SALARIO_BASE", "name": "Salario base", "description": "Salario ordinario", "source_type": "contract", "amount": Decimal("1063.33")},
-            {"code": "PRESTACION_IT", "name": "Prestación IT", "description": "Pago delegado", "source_type": "incident", "amount": Decimal("232.00")},
-        ],
-        "deductions": [
-            {"code": "IRPF", "name": "IRPF", "description": "Retención", "source_type": "system", "amount": Decimal("145.00")},
-        ],
-        "base_lines": [
-            {"code": "BASE_CC", "name": "Base CC", "description": "Base común", "source_type": "system", "amount": Decimal("1450.00")},
-        ],
-        "company_cost_lines": [
-            {"code": "COSTE_EMPRESA_TOTAL", "name": "Coste total", "description": "Coste", "source_type": "system", "amount": Decimal("1915.02")},
-        ],
-        "base_explanations": [
             {
-                "code": "BASE_CC",
-                "title": "Base de contingencias comunes",
-                "amount": Decimal("1450.00"),
-                "formula": "Devengos cotizables comunes del periodo.",
-                "affected_by_incident": True,
-                "explanation": "Se mantiene cotización durante la IT.",
-                "learning_points": ["La IT puede mantener base de cotización."],
-            }
-        ],
-        "incident_explanations": [
-            {
-                "title": "Incapacidad temporal",
-                "net_effect": Decimal("386.67"),
-                "explanation": "Se incorpora prestación y complemento.",
-                "learning_points": ["Diferencia salario y prestación."],
-            }
-        ],
-        "line_explanations": [
+                "code": "SALARIO_BASE",
+                "name": "Salario base",
+                "description": "Salario ordinario",
+                "source_type": "contract",
+                "salary_nature": "SALARIAL",
+                "quantity": Decimal("22"),
+                "unit_price": Decimal("48.3332"),
+                "amount": Decimal("1063.33"),
+            },
             {
                 "code": "PRESTACION_IT",
                 "name": "Prestación IT",
-                "amount": Decimal("232.00"),
-                "section": "Devengo",
+                "description": "Pago delegado",
                 "source_type": "incident",
-                "affects_gross": True,
-                "affects_net": True,
-                "contribution_base": True,
-                "taxable": True,
-                "explanation": "Aparece por una incidencia procesada.",
-                "learning_points": ["Aparece por una incidencia."],
-            }
+                "salary_nature": "EXTRASALARIAL",
+                "quantity": Decimal("8"),
+                "unit_price": Decimal("29"),
+                "amount": Decimal("232.00"),
+            },
+        ],
+        "deductions": [
+            {"code": "IRPF", "name": "IRPF", "description": "Retención", "source_type": "system", "amount": Decimal("145.00")},
         ],
         "legal_footer": "Recibo de salarios simulado generado por AulaNomina.",
     }
@@ -96,19 +89,25 @@ def test_payroll_receipt_filename_is_safe_and_stable():
     assert payroll_receipt_filename({"payroll_code": "NOM 2026/05 <x>"}) == "recibo-nom-2026-05-x.html"
 
 
-def test_build_payroll_receipt_print_html_contains_printable_sections():
+def test_build_payroll_receipt_print_html_contains_spanish_payslip_sections():
     html = build_payroll_receipt_print_html(sample_receipt())
 
     assert "<!doctype html>" in html
     assert "Imprimir / Guardar como PDF" in html
-    assert "RECIBO INDIVIDUAL DE SALARIOS SIMULADO" in html
+    assert "RECIBO INDIVIDUAL DE SALARIOS" in html
+    assert "EMPRESA" in html
+    assert "TRABAJADOR/A" in html
     assert "Fundación AulaNomina" in html
     assert "Javier Romero Sánchez" in html
-    assert "Devengos" in html
-    assert "Bases y cotización" in html
-    assert "LECTURA LÍNEA POR LÍNEA" in html
-    assert "@page" in html
+    assert "DEVENGOS" in html
+    assert "TOTAL DEVENGADO" in html
+    assert "DEDUCCIONES" in html
+    assert "TOTAL A DEDUCIR" in html
+    assert "LÍQUIDO A PERCIBIR" in html
+    assert "DETERMINACIÓN BASES COTIZACIÓN A LA SEGURIDAD SOCIAL" in html
+    assert "Base sujeta a retención del IRPF" in html
     assert "1.211,03 €" in html
+    assert "@page" in html
 
 
 def test_build_payroll_receipt_print_html_escapes_user_content():
