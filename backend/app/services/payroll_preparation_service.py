@@ -17,8 +17,32 @@ from app.schemas.payroll_preparation import PayrollGenerationRequest, PayrollPre
 from app.services.payroll_amounts import calculate_social_security_amounts_from_bases, money
 from app.services.payroll_concept_engine import build_concept_lines_from_payroll
 from app.services.payroll_concept_items import ensure_engine_concept, json_safe, sync_engine_concept_items
+from app.services.payroll_core_concepts import ensure_core_payroll_concepts
 
 GENERATED_STATUSES = {"pending", "calculated", "reviewed", "closed"}
+PREPARATION_OVERRIDE_MARKER = "[PREPARATION_OVERRIDE]"
+SYSTEM_DEDUCTION_CODES = {
+    "SS_CONTINGENCIAS_COMUNES",
+    "SS_DESEMPLEO",
+    "SS_FORMACION",
+    "SS_MEI",
+    "IRPF",
+}
+SYSTEM_BASE_CODES = {
+    "BASE_CC",
+    "BASE_CP",
+    "BASE_DESEMPLEO_FORMACION_FOGASA",
+    "BASE_IRPF",
+}
+COMPANY_COST_CODES = {
+    "COSTE_EMPRESA_CC",
+    "COSTE_EMPRESA_DESEMPLEO",
+    "COSTE_EMPRESA_FOGASA",
+    "COSTE_EMPRESA_FORMACION",
+    "COSTE_EMPRESA_AT_EP",
+    "COSTE_EMPRESA_MEI",
+    "COSTE_EMPRESA_TOTAL",
+}
 
 
 def _employee_name(employee: Employee | None) -> str:
@@ -34,28 +58,58 @@ def _contract_code(contract: Contract | None) -> str | None:
     return payroll_crud.build_contract_code(contract)
 
 
-def _is_editable_item(item: PayrollItem) -> bool:
-    concept = item.concept
-    if not concept:
-        return False
-    if concept.concept_type == "DEVENGO":
-        return True
-    if concept.concept_type == "DEDUCCION" and not item.is_automatic:
-        return True
-    return False
+def _preparation_items(db: Session, payroll_id: int) -> list[PayrollItem]:
+    """Every line visible in the payroll preparation workspace.
+
+    Preparation is intentionally wider than the old editable-item subset: earnings,
+    deductions, contribution bases and company-cost lines all belong to the same
+    workspace so the student can understand and, when needed, override them.
+    """
+    return get_payroll_items(db, payroll_id)
 
 
-def _line_payload(item: PayrollItem) -> dict:
+def _is_manual_override(item: PayrollItem) -> bool:
+    source = str(item.source_type or "").lower()
+    notes = str(item.notes or "")
+    return source in {"manual", "custom"} or PREPARATION_OVERRIDE_MARKER in notes
+
+
+def _items_for_code(items: list[PayrollItem], code: str) -> list[PayrollItem]:
+    return [
+        item
+        for item in items
+        if item.concept and str(item.concept.code or "").upper() == code
+    ]
+
+
+def _resolved_code_amount(items: list[PayrollItem], code: str, fallback: Decimal) -> Decimal:
+    matches = _items_for_code(items, code)
+    overrides = [item for item in matches if _is_manual_override(item)]
+    if overrides:
+        return money(sum((money(item.amount) for item in overrides), Decimal("0.00")))
+    return money(fallback)
+
+
+def _line_payload(item: PayrollItem, effective_amounts: dict[str, Decimal] | None = None) -> dict:
     concept = item.concept
+    code = str(concept.code if concept else f"ITEM_{item.id}").upper()
+    quantity = money(item.quantity or Decimal("1.00"))
+    amount = money(item.amount)
+    if effective_amounts and code in effective_amounts:
+        amount = money(effective_amounts[code])
+    if effective_amounts and code in effective_amounts and quantity != Decimal("0.00"):
+        unit_price = money(amount / quantity)
+    else:
+        unit_price = money(item.unit_price)
     return {
         "id": item.id,
         "concept_id": item.concept_id,
-        "code": concept.code if concept else f"ITEM_{item.id}",
+        "code": code,
         "name": concept.name if concept else item.description or "Concepto",
         "description": item.description,
-        "amount": money(item.amount),
-        "quantity": money(item.quantity or Decimal("1.00")),
-        "unit_price": money(item.unit_price),
+        "amount": amount,
+        "quantity": quantity,
+        "unit_price": unit_price,
         "concept_type": concept.concept_type if concept else "DEVENGO",
         "salary_nature": concept.salary_nature if concept else "SALARIAL",
         "category": concept.category if concept else "OTRO",
@@ -69,64 +123,186 @@ def _line_payload(item: PayrollItem) -> dict:
     }
 
 
-def _editable_items(db: Session, payroll_id: int) -> list[PayrollItem]:
-    return [item for item in get_payroll_items(db, payroll_id) if _is_editable_item(item)]
-
-
 def calculate_preparation_preview(db: Session, payroll: Payroll) -> dict:
-    """Calculate a non-persistent preview from the saved preparation lines."""
-    items = _editable_items(db, payroll.id)
-    gross_salary = Decimal("0.00")
-    common_base = Decimal("0.00")
-    professional_base = Decimal("0.00")
-    irpf_base = Decimal("0.00")
-    manual_deductions = Decimal("0.00")
+    """Calculate a non-persistent preview from the preparation matrix.
+
+    Automatic SS/IRPF/base/cost rows are recalculated while the draft changes. If a
+    user edits one of those automatic rows, the PREPARATION_OVERRIDE marker makes the
+    explicit amount authoritative for that payroll only.
+    """
+    items = _preparation_items(db, payroll.id)
+    generated = payroll.status in GENERATED_STATUSES
+
+    gross_from_lines = Decimal("0.00")
+    derived_common_base = Decimal("0.00")
+    derived_professional_base = Decimal("0.00")
+    derived_irpf_base = Decimal("0.00")
+    other_deductions = Decimal("0.00")
 
     for item in items:
         concept = item.concept
+        if not concept:
+            continue
+        code = str(concept.code or "").upper()
         amount = money(item.amount)
-        if concept.concept_type == "DEVENGO":
-            if concept.affects_gross:
-                gross_salary += amount
-            if concept.is_contribution_base:
-                professional_base += amount
-                if concept.category != "HORAS_EXTRA":
-                    common_base += amount
-            if concept.is_taxable:
-                irpf_base += amount
-        elif concept.concept_type == "DEDUCCION" and concept.affects_net:
-            manual_deductions += amount
+        concept_type = str(concept.concept_type or "DEVENGO").upper()
 
-    gross_salary = money(gross_salary)
-    common_base = money(common_base)
-    professional_base = money(professional_base)
-    irpf_base = money(irpf_base)
-    manual_deductions = money(manual_deductions)
+        if concept_type == "DEVENGO":
+            if concept.affects_gross:
+                gross_from_lines += amount
+            if concept.is_contribution_base:
+                derived_professional_base += amount
+                if concept.category != "HORAS_EXTRA":
+                    derived_common_base += amount
+            if concept.is_taxable:
+                derived_irpf_base += amount
+        elif concept_type == "DEDUCCION" and concept.affects_net and code not in SYSTEM_DEDUCTION_CODES:
+            other_deductions += amount
+
+    if generated:
+        gross_salary = money(payroll.gross_salary or gross_from_lines)
+        common_default = money(payroll.common_contingencies_base or derived_common_base)
+        professional_default = money(payroll.professional_contingencies_base or derived_professional_base)
+        unemployment_default = money(payroll.unemployment_training_fogasa_base or professional_default)
+        irpf_base_default = money(payroll.irpf_base or derived_irpf_base)
+    else:
+        gross_salary = money(gross_from_lines)
+        common_default = money(derived_common_base)
+        professional_default = money(derived_professional_base)
+        unemployment_default = money(derived_professional_base)
+        irpf_base_default = money(derived_irpf_base)
+
+    common_base = _resolved_code_amount(items, "BASE_CC", common_default)
+    professional_base = _resolved_code_amount(items, "BASE_CP", professional_default)
+    unemployment_base = _resolved_code_amount(items, "BASE_DESEMPLEO_FORMACION_FOGASA", unemployment_default)
+    irpf_base = _resolved_code_amount(items, "BASE_IRPF", irpf_base_default)
 
     calculated = calculate_social_security_amounts_from_bases(
         gross_salary=gross_salary,
         common_contingencies_base=common_base,
         professional_contingencies_base=professional_base,
-        unemployment_training_fogasa_base=professional_base,
+        unemployment_training_fogasa_base=unemployment_base,
         irpf_base=irpf_base,
         irpf_percentage=money(payroll.irpf_percentage),
     )
-    total_deductions = money(calculated["total_deductions"] + manual_deductions)
-    net_salary = money(gross_salary - total_deductions)
+
+    employee_common = _resolved_code_amount(
+        items,
+        "SS_CONTINGENCIAS_COMUNES",
+        money(payroll.employee_common_contingencies) if generated else calculated["employee_common_contingencies"],
+    )
+    employee_unemployment = _resolved_code_amount(
+        items,
+        "SS_DESEMPLEO",
+        money(payroll.employee_unemployment) if generated else calculated["employee_unemployment"],
+    )
+    employee_training = _resolved_code_amount(
+        items,
+        "SS_FORMACION",
+        money(payroll.employee_training) if generated else calculated["employee_training"],
+    )
+    employee_mei = _resolved_code_amount(
+        items,
+        "SS_MEI",
+        money(payroll.employee_mei) if generated else calculated["employee_mei"],
+    )
+    irpf = _resolved_code_amount(
+        items,
+        "IRPF",
+        money(payroll.irpf) if generated else calculated["irpf"],
+    )
+    employee_social_security = money(employee_common + employee_unemployment + employee_training + employee_mei)
+
+    if generated:
+        total_deductions = money(payroll.total_deductions)
+        net_salary = money(payroll.net_salary)
+    else:
+        total_deductions = money(employee_social_security + irpf + other_deductions)
+        net_salary = money(gross_salary - total_deductions)
+
+    company_common = _resolved_code_amount(
+        items,
+        "COSTE_EMPRESA_CC",
+        money(payroll.company_common_contingencies) if generated else calculated["company_common_contingencies"],
+    )
+    company_unemployment = _resolved_code_amount(
+        items,
+        "COSTE_EMPRESA_DESEMPLEO",
+        money(payroll.company_unemployment) if generated else calculated["company_unemployment"],
+    )
+    company_fogasa = _resolved_code_amount(
+        items,
+        "COSTE_EMPRESA_FOGASA",
+        money(payroll.company_fogasa) if generated else calculated["company_fogasa"],
+    )
+    company_training = _resolved_code_amount(
+        items,
+        "COSTE_EMPRESA_FORMACION",
+        money(payroll.company_training) if generated else calculated["company_training"],
+    )
+    company_at_ep = _resolved_code_amount(
+        items,
+        "COSTE_EMPRESA_AT_EP",
+        money(payroll.company_at_ep) if generated else calculated["company_at_ep"],
+    )
+    company_mei = _resolved_code_amount(
+        items,
+        "COSTE_EMPRESA_MEI",
+        money(payroll.company_mei) if generated else calculated["company_mei"],
+    )
+    company_total_social_security = money(
+        company_common + company_unemployment + company_fogasa + company_training + company_at_ep + company_mei
+    )
+    company_total_cost = _resolved_code_amount(
+        items,
+        "COSTE_EMPRESA_TOTAL",
+        money(payroll.company_total_cost) if generated else money(gross_salary + company_total_social_security),
+    )
+
+    effective_amounts = {
+        "BASE_CC": common_base,
+        "BASE_CP": professional_base,
+        "BASE_DESEMPLEO_FORMACION_FOGASA": unemployment_base,
+        "BASE_IRPF": irpf_base,
+        "SS_CONTINGENCIAS_COMUNES": employee_common,
+        "SS_DESEMPLEO": employee_unemployment,
+        "SS_FORMACION": employee_training,
+        "SS_MEI": employee_mei,
+        "IRPF": irpf,
+        "COSTE_EMPRESA_CC": company_common,
+        "COSTE_EMPRESA_DESEMPLEO": company_unemployment,
+        "COSTE_EMPRESA_FOGASA": company_fogasa,
+        "COSTE_EMPRESA_FORMACION": company_training,
+        "COSTE_EMPRESA_AT_EP": company_at_ep,
+        "COSTE_EMPRESA_MEI": company_mei,
+        "COSTE_EMPRESA_TOTAL": company_total_cost,
+    }
 
     return {
         "payroll_id": payroll.id,
         "gross_salary": gross_salary,
         "contribution_base": common_base,
         "professional_base": professional_base,
+        "unemployment_base": unemployment_base,
         "irpf_base": irpf_base,
-        "employee_social_security": money(calculated["employee_social_security"]),
-        "irpf": money(calculated["irpf"]),
-        "manual_deductions": manual_deductions,
+        "employee_common_contingencies": employee_common,
+        "employee_unemployment": employee_unemployment,
+        "employee_training": employee_training,
+        "employee_mei": employee_mei,
+        "employee_social_security": employee_social_security,
+        "irpf": irpf,
+        "manual_deductions": money(other_deductions),
         "total_deductions": total_deductions,
         "net_salary": net_salary,
-        "company_total_social_security": money(calculated["company_total_social_security"]),
-        "company_total_cost": money(calculated["company_total_cost"]),
+        "company_common_contingencies": company_common,
+        "company_unemployment": company_unemployment,
+        "company_fogasa": company_fogasa,
+        "company_training": company_training,
+        "company_at_ep": company_at_ep,
+        "company_mei": company_mei,
+        "company_total_social_security": company_total_social_security,
+        "company_total_cost": company_total_cost,
+        "effective_amounts": effective_amounts,
         "calculated": calculated,
     }
 
@@ -138,7 +314,11 @@ def build_preparation_response(db: Session, payroll: Payroll) -> dict:
     contract = payroll.contract
     company = payroll.company
     center = payroll.work_center
-    public_preview = {key: value for key, value in preview.items() if key != "calculated"}
+    public_preview = {
+        key: value
+        for key, value in preview.items()
+        if key not in {"calculated", "effective_amounts"}
+    }
     return {
         "payroll_id": payroll.id,
         "status": payroll.status,
@@ -154,7 +334,10 @@ def build_preparation_response(db: Session, payroll: Payroll) -> dict:
         "center_name": getattr(center, "name", None),
         "period_month": payroll.period_month,
         "period_year": payroll.period_year,
-        "lines": [_line_payload(item) for item in _editable_items(db, payroll.id)],
+        "lines": [
+            _line_payload(item, preview["effective_amounts"])
+            for item in _preparation_items(db, payroll.id)
+        ],
         "preview": public_preview,
     }
 
@@ -169,12 +352,6 @@ def _find_period_payroll(db: Session, contract_id: int, period_month: int, perio
 
 
 def _create_draft_payroll(db: Session, request: PayrollPreparationEnsureRequest, contract: Contract) -> Payroll:
-    """Create a draft using the calculation engine without processing incidents as final.
-
-    The CRUD layer calculates period amounts, including the current incident
-    picture, but does not mark incidents as processed. Canonical concept lines are
-    materialized only to provide the editable starting point for the student.
-    """
     created = payroll_crud.create_payroll(
         db,
         PayrollCreate(
@@ -201,6 +378,7 @@ def _create_draft_payroll(db: Session, request: PayrollPreparationEnsureRequest,
 
 
 def ensure_preparation(db: Session, request: PayrollPreparationEnsureRequest) -> dict:
+    ensure_core_payroll_concepts(db)
     employee = db.query(Employee).filter(Employee.id == request.employee_id, Employee.is_active == True).first()
     if not employee:
         raise HTTPException(status_code=404, detail="Trabajador no encontrado")
@@ -247,7 +425,6 @@ def _sum_categories(items: list[PayrollItem], categories: set[str]) -> Decimal:
 
 
 def _sync_generated_system_items(db: Session, payroll: Payroll) -> None:
-    """Refresh only automatic deductions/bases/costs; keep prepared earnings."""
     prefix = f"ENGINE:{payroll.id}:"
     existing = db.query(PayrollItem).options(joinedload(PayrollItem.concept)).filter(
         PayrollItem.payroll_id == payroll.id,
@@ -285,9 +462,8 @@ def finalize_preparation(db: Session, payroll: Payroll) -> Payroll:
     if payroll.status != "draft":
         return payroll
 
-    items = _editable_items(db, payroll.id)
+    items = _preparation_items(db, payroll.id)
     preview = calculate_preparation_preview(db, payroll)
-    calculated = preview["calculated"]
 
     payroll.base_salary = _sum_by_code(items, "SALARIO_BASE")
     payroll.worked_base_salary = payroll.base_salary
@@ -300,29 +476,30 @@ def finalize_preparation(db: Session, payroll: Payroll) -> Payroll:
     payroll.gross_salary = preview["gross_salary"]
     payroll.common_contingencies_base = preview["contribution_base"]
     payroll.professional_contingencies_base = preview["professional_base"]
-    payroll.unemployment_training_fogasa_base = preview["professional_base"]
+    payroll.unemployment_training_fogasa_base = preview["unemployment_base"]
     payroll.irpf_base = preview["irpf_base"]
-    payroll.daily_common_base = money(preview["contribution_base"] / Decimal(str(payroll.contribution_days or 30)))
-    payroll.daily_professional_base = money(preview["professional_base"] / Decimal(str(payroll.contribution_days or 30)))
-    payroll.employee_common_contingencies = calculated["employee_common_contingencies"]
-    payroll.employee_unemployment = calculated["employee_unemployment"]
-    payroll.employee_training = calculated["employee_training"]
-    payroll.employee_mei = calculated["employee_mei"]
-    payroll.employee_social_security = calculated["employee_social_security"]
-    payroll.irpf = calculated["irpf"]
+    days = Decimal(str(payroll.contribution_days or 30))
+    payroll.daily_common_base = money(preview["contribution_base"] / days) if days else Decimal("0.00")
+    payroll.daily_professional_base = money(preview["professional_base"] / days) if days else Decimal("0.00")
+    payroll.employee_common_contingencies = preview["employee_common_contingencies"]
+    payroll.employee_unemployment = preview["employee_unemployment"]
+    payroll.employee_training = preview["employee_training"]
+    payroll.employee_mei = preview["employee_mei"]
+    payroll.employee_social_security = preview["employee_social_security"]
+    payroll.irpf = preview["irpf"]
     payroll.total_deductions = preview["total_deductions"]
     payroll.net_salary = preview["net_salary"]
-    payroll.company_common_contingencies = calculated["company_common_contingencies"]
-    payroll.company_unemployment = calculated["company_unemployment"]
-    payroll.company_fogasa = calculated["company_fogasa"]
-    payroll.company_training = calculated["company_training"]
-    payroll.company_at_ep = calculated["company_at_ep"]
-    payroll.company_mei = calculated["company_mei"]
-    payroll.company_total_social_security = calculated["company_total_social_security"]
-    payroll.company_total_cost = calculated["company_total_cost"]
+    payroll.company_common_contingencies = preview["company_common_contingencies"]
+    payroll.company_unemployment = preview["company_unemployment"]
+    payroll.company_fogasa = preview["company_fogasa"]
+    payroll.company_training = preview["company_training"]
+    payroll.company_at_ep = preview["company_at_ep"]
+    payroll.company_mei = preview["company_mei"]
+    payroll.company_total_social_security = preview["company_total_social_security"]
+    payroll.company_total_cost = preview["company_total_cost"]
     payroll.status = "calculated"
     payroll.calculation_version = int(payroll.calculation_version or 0) + 1
-    payroll.calculation_engine_version = "preparation-v1"
+    payroll.calculation_engine_version = "preparation-v2"
     payroll.calculation_fingerprint = None
     payroll.last_calculated_at = datetime.utcnow()
 
