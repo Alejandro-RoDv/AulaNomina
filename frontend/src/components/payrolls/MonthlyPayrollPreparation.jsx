@@ -8,6 +8,7 @@ import {
   ensurePayrollPreparation,
   fetchPayrollConcepts,
   previewPayrollPreparation,
+  reopenPayrollPreparation,
   updatePayrollItem,
 } from "../../services/payrollApi";
 import PayrollReceiptModal from "./PayrollReceiptModal";
@@ -54,10 +55,10 @@ function conceptFamily(concept) {
   const category = String(concept?.category || "").toUpperCase();
   const nature = String(concept?.salary_nature || "").toUpperCase();
 
-  if (category === "IT" || category === "PRESTACION_IT" || category === "COMPLEMENTO_IT") return "IT y prestaciones";
+  if (["IT", "PRESTACION_IT", "COMPLEMENTO_IT"].includes(category)) return "IT y prestaciones";
   if (category === "SEGURIDAD_SOCIAL") return "Cotización trabajador";
   if (category === "COSTE_EMPRESA") return "Coste empresa";
-  if (type === "BASE_INFORMATIVA" || type === "INFORMATIVO") return "Bases e informativos";
+  if (["BASE_INFORMATIVA", "INFORMATIVO"].includes(type)) return "Bases e informativos";
   if (type === "DEDUCCION") return "Deducciones";
   if (category === "HORAS_EXTRA") return "Horas y jornada";
   if (category === "PAGA_EXTRA") return "Pagas extraordinarias";
@@ -75,12 +76,14 @@ function parseOverrideDescription(line) {
   if (!description.startsWith(`${OVERRIDE_DESCRIPTION_PREFIX}|`)) return null;
   const match = description.match(/^\[AULANOMINA_MONTHLY_OVERRIDE\]\|q=([^|]*)\|a=([^|]*)\|d=(.*)$/);
   if (!match) return null;
+
   let originalDescription = "";
   try {
     originalDescription = decodeURIComponent(match[3] || "");
   } catch {
     originalDescription = "";
   }
+
   return {
     quantity: Number(match[1] || 0),
     amount: Number(match[2] || 0),
@@ -121,7 +124,9 @@ function PreviewTable({ title, lines }) {
                 <td className="is-code">{line.code}</td>
                 <td>
                   <strong>{line.name}</strong>
-                  {line.description && !String(line.description).startsWith(OVERRIDE_DESCRIPTION_PREFIX) && <small>{line.description}</small>}
+                  {line.description && !String(line.description).startsWith(OVERRIDE_DESCRIPTION_PREFIX) && (
+                    <small>{line.description}</small>
+                  )}
                 </td>
                 <td>{sourceLabel(line)}</td>
                 <td className="is-number">{formatQuantity(line.quantity)}</td>
@@ -140,11 +145,15 @@ function PreviewTable({ title, lines }) {
 
 function PreviewModal({ preparation, onClose }) {
   if (!preparation) return null;
+
   const preview = preparation.preview || {};
   const lines = preparation.lines || [];
   const earnings = lines.filter((line) => String(line.concept_type).toUpperCase() === "DEVENGO");
   const deductions = lines.filter((line) => String(line.concept_type).toUpperCase() === "DEDUCCION");
-  const bases = lines.filter((line) => ["BASE_INFORMATIVA", "INFORMATIVO"].includes(String(line.concept_type).toUpperCase()) && String(line.category).toUpperCase() !== "COSTE_EMPRESA");
+  const bases = lines.filter((line) =>
+    ["BASE_INFORMATIVA", "INFORMATIVO"].includes(String(line.concept_type).toUpperCase())
+    && String(line.category).toUpperCase() !== "COSTE_EMPRESA"
+  );
   const company = lines.filter((line) => String(line.category).toUpperCase() === "COSTE_EMPRESA");
 
   return (
@@ -154,14 +163,20 @@ function PreviewModal({ preparation, onClose }) {
           <div>
             <span>VISTA PREVIA · NO GENERADA</span>
             <h2>{preparation.employee_name}</h2>
-            <p>{preparation.company_name}{preparation.center_name ? ` · ${preparation.center_name}` : ""} · {String(preparation.period_month).padStart(2, "0")}/{preparation.period_year}</p>
+            <p>
+              {preparation.company_name}
+              {preparation.center_name ? ` · ${preparation.center_name}` : ""}
+              {` · ${String(preparation.period_month).padStart(2, "0")}/${preparation.period_year}`}
+            </p>
           </div>
           <button type="button" onClick={onClose} aria-label="Cerrar">×</button>
         </header>
+
         <div className="payroll-prep__preview-body">
           <div className="payroll-prep__preview-banner">
-            Cálculo completo con la configuración por defecto y los ajustes mensuales guardados. Esta vista no genera la nómina.
+            Resultado calculado con la configuración por defecto y las modificaciones mensuales guardadas. Esta vista no genera la nómina.
           </div>
+
           <div className="payroll-prep__preview-totals">
             <div><span>Total devengado</span><strong>{formatMoney(preview.gross_salary)} €</strong></div>
             <div><span>Total deducciones</span><strong>{formatMoney(preview.total_deductions)} €</strong></div>
@@ -170,6 +185,7 @@ function PreviewModal({ preparation, onClose }) {
             <div><span>IRPF</span><strong>{formatMoney(preview.irpf)} €</strong></div>
             <div><span>Coste total empresa</span><strong>{formatMoney(preview.company_total_cost)} €</strong></div>
           </div>
+
           <PreviewTable title="Devengos" lines={earnings} />
           <PreviewTable title="Deducciones" lines={deductions} />
           <PreviewTable title="Bases de cotización e IRPF" lines={bases} />
@@ -185,7 +201,13 @@ function ReadOnlyBaseTable({ lines }) {
     <div className="payroll-prep__defaults-table-wrap">
       <table className="payroll-prep__defaults-table">
         <thead>
-          <tr><th>Código</th><th>Concepto</th><th>Origen</th><th>Cantidad</th><th>Importe</th></tr>
+          <tr>
+            <th>Código</th>
+            <th>Concepto</th>
+            <th>Origen</th>
+            <th className="is-number">Cantidad</th>
+            <th className="is-number">Importe</th>
+          </tr>
         </thead>
         <tbody>
           {lines.map((line) => (
@@ -197,7 +219,13 @@ function ReadOnlyBaseTable({ lines }) {
               <td className="is-number">{formatMoney(line.amount)} €</td>
             </tr>
           ))}
-          {lines.length === 0 && <tr><td colSpan="5" className="payroll-prep__empty-cell">No hay líneas base materializadas para este periodo.</td></tr>}
+          {lines.length === 0 && (
+            <tr>
+              <td colSpan="5" className="payroll-prep__empty-cell">
+                No hay líneas base materializadas para este periodo.
+              </td>
+            </tr>
+          )}
         </tbody>
       </table>
     </div>
@@ -215,6 +243,7 @@ export default function MonthlyPayrollPreparation({ companies = [], workCenters 
     period_month: String(currentMonth),
     period_year: String(currentYear),
   });
+
   const [preparation, setPreparation] = useState(null);
   const [lineEdits, setLineEdits] = useState({});
   const [touchedLineIds, setTouchedLineIds] = useState([]);
@@ -227,6 +256,7 @@ export default function MonthlyPayrollPreparation({ companies = [], workCenters 
   const [familyFilter, setFamilyFilter] = useState("all");
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [reopening, setReopening] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -244,17 +274,26 @@ export default function MonthlyPayrollPreparation({ companies = [], workCenters 
       .catch((err) => {
         if (!cancelled) setError(err.message || "No se pudieron cargar los datos de preparación");
       });
+
     return () => { cancelled = true; };
   }, []);
 
-  const activeCompanies = useMemo(() => companies.filter((company) => company.is_active), [companies]);
+  const activeCompanies = useMemo(
+    () => companies.filter((company) => company.is_active),
+    [companies]
+  );
 
   const companyContracts = useMemo(() => {
     if (!scope.company_id) return [];
-    return contracts.filter((contract) => String(contract.company_id) === String(scope.company_id) && contract.status === "active");
+    return contracts.filter(
+      (contract) => String(contract.company_id) === String(scope.company_id) && contract.status === "active"
+    );
   }, [contracts, scope.company_id]);
 
-  const companyEmployeeIds = useMemo(() => new Set(companyContracts.map((contract) => String(contract.employee_id))), [companyContracts]);
+  const companyEmployeeIds = useMemo(
+    () => new Set(companyContracts.map((contract) => String(contract.employee_id))),
+    [companyContracts]
+  );
 
   const companyEmployees = useMemo(
     () => employees
@@ -268,17 +307,27 @@ export default function MonthlyPayrollPreparation({ companies = [], workCenters 
     [companyContracts, scope.employee_id]
   );
 
-  const selectedContract = employeeContracts.find((contract) => String(contract.id) === String(scope.contract_id));
-  const selectedCenter = workCenters.find((center) => String(center.id) === String(selectedContract?.center_id));
+  const selectedContract = employeeContracts.find(
+    (contract) => String(contract.id) === String(scope.contract_id)
+  );
+  const selectedCenter = workCenters.find(
+    (center) => String(center.id) === String(selectedContract?.center_id)
+  );
 
   const sortedConcepts = useMemo(
     () => [...concepts]
       .filter((concept) => concept.is_active)
-      .sort((a, b) => (Number(a.display_order || 0) - Number(b.display_order || 0)) || String(a.code).localeCompare(String(b.code), "es")),
+      .sort((a, b) =>
+        (Number(a.display_order || 0) - Number(b.display_order || 0))
+        || String(a.code).localeCompare(String(b.code), "es")
+      ),
     [concepts]
   );
 
-  const families = useMemo(() => [...new Set(sortedConcepts.map(conceptFamily))], [sortedConcepts]);
+  const families = useMemo(
+    () => [...new Set(sortedConcepts.map(conceptFamily))],
+    [sortedConcepts]
+  );
 
   const catalogConcepts = useMemo(() => {
     const search = conceptSearch.trim().toLocaleLowerCase("es");
@@ -294,16 +343,18 @@ export default function MonthlyPayrollPreparation({ companies = [], workCenters 
   const catalogGroups = useMemo(() => {
     const groups = new Map();
     catalogConcepts.forEach((concept) => {
-      const label = conceptFamily(concept);
-      if (!groups.has(label)) groups.set(label, []);
-      groups.get(label).push(concept);
+      const family = conceptFamily(concept);
+      if (!groups.has(family)) groups.set(family, []);
+      groups.get(family).push(concept);
     });
     return [...groups.entries()];
   }, [catalogConcepts]);
 
-  const selectedNewConcept = sortedConcepts.find((concept) => String(concept.id) === String(newConceptId));
+  const selectedNewConcept = sortedConcepts.find(
+    (concept) => String(concept.id) === String(newConceptId)
+  );
 
-  const resetPreparation = () => {
+  const resetEditorState = () => {
     setPreparation(null);
     setLineEdits({});
     setTouchedLineIds([]);
@@ -322,17 +373,26 @@ export default function MonthlyPayrollPreparation({ companies = [], workCenters 
   const handleScopeChange = (event) => {
     const { name, value } = event.target;
     setError("");
-    resetPreparation();
+    resetEditorState();
+
     setScope((previous) => {
-      if (name === "company_id") return { ...previous, company_id: value, employee_id: "", contract_id: "" };
+      if (name === "company_id") {
+        return { ...previous, company_id: value, employee_id: "", contract_id: "" };
+      }
+
       if (name === "employee_id") {
         const candidates = contracts.filter(
           (contract) => String(contract.company_id) === String(previous.company_id)
             && String(contract.employee_id) === String(value)
             && contract.status === "active"
         );
-        return { ...previous, employee_id: value, contract_id: candidates.length === 1 ? String(candidates[0].id) : "" };
+        return {
+          ...previous,
+          employee_id: value,
+          contract_id: candidates.length === 1 ? String(candidates[0].id) : "",
+        };
       }
+
       return { ...previous, [name]: value };
     });
   };
@@ -348,27 +408,36 @@ export default function MonthlyPayrollPreparation({ companies = [], workCenters 
     setNewLines([]);
   };
 
-  const handleOpenPreparation = async () => {
-    if (!scope.employee_id || !scope.contract_id) return;
-    setError("");
-    setMessage("");
-    try {
+  useEffect(() => {
+    if (!scope.employee_id || !scope.contract_id) return undefined;
+
+    let cancelled = false;
+    const load = async () => {
       setLoading(true);
-      const data = await ensurePayrollPreparation({
-        employee_id: Number(scope.employee_id),
-        contract_id: Number(scope.contract_id),
-        period_month: Number(scope.period_month),
-        period_year: Number(scope.period_year),
-      });
-      hydratePreparation(data);
-      const refreshedConcepts = await fetchPayrollConcepts();
-      setConcepts(Array.isArray(refreshedConcepts) ? refreshedConcepts : []);
-    } catch (err) {
-      setError(err.message || "No se pudo abrir la preparación del periodo");
-    } finally {
-      setLoading(false);
-    }
-  };
+      setError("");
+      setMessage("");
+      try {
+        const data = await ensurePayrollPreparation({
+          employee_id: Number(scope.employee_id),
+          contract_id: Number(scope.contract_id),
+          period_month: Number(scope.period_month),
+          period_year: Number(scope.period_year),
+        });
+        if (cancelled) return;
+        hydratePreparation(data);
+
+        const refreshedConcepts = await fetchPayrollConcepts();
+        if (!cancelled) setConcepts(Array.isArray(refreshedConcepts) ? refreshedConcepts : []);
+      } catch (err) {
+        if (!cancelled) setError(err.message || "No se pudo abrir la preparación del periodo");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    load();
+    return () => { cancelled = true; };
+  }, [scope.employee_id, scope.contract_id, scope.period_month, scope.period_year]);
 
   const baselineLines = useMemo(
     () => (preparation?.lines || []).filter((line) => !isStoredOverride(line)),
@@ -382,22 +451,30 @@ export default function MonthlyPayrollPreparation({ companies = [], workCenters 
 
   const visibleOverrideLines = useMemo(() => {
     if (!preparation) return [];
+
     const saved = savedOverrideLines.filter((line) => !removedOverrideIds.includes(line.id));
     const pending = baselineLines.filter((line) => touchedLineIds.includes(line.id));
+
     return [...saved, ...pending].sort(
-      (a, b) => (Number(a.display_order || 0) - Number(b.display_order || 0)) || String(a.code).localeCompare(String(b.code), "es")
+      (a, b) =>
+        (Number(a.display_order || 0) - Number(b.display_order || 0))
+        || String(a.code).localeCompare(String(b.code), "es")
     );
   }, [preparation, savedOverrideLines, baselineLines, removedOverrideIds, touchedLineIds]);
 
   const updateLineEdit = (lineId, field, value) => {
-    setLineEdits((previous) => ({ ...previous, [lineId]: { ...previous[lineId], [field]: value } }));
+    setLineEdits((previous) => ({
+      ...previous,
+      [lineId]: { ...previous[lineId], [field]: value },
+    }));
   };
 
-  const handleAddLocalLine = () => {
+  const handleAddModification = () => {
     const concept = selectedNewConcept;
     const amount = Number(newAmount);
     const quantity = Number(newQuantity);
-    if (!concept || Number.isNaN(amount) || amount < 0 || Number.isNaN(quantity) || quantity < 0) return;
+
+    if (!concept || Number.isNaN(amount) || Number.isNaN(quantity) || amount < 0 || quantity < 0) return;
 
     const existingSaved = savedOverrideLines.find(
       (line) => String(line.concept_id) === String(concept.id) && !removedOverrideIds.includes(line.id)
@@ -405,13 +482,19 @@ export default function MonthlyPayrollPreparation({ companies = [], workCenters 
     const existingPending = baselineLines.find(
       (line) => String(line.concept_id) === String(concept.id) && touchedLineIds.includes(line.id)
     );
-    const existingNew = newLines.find((line) => String(line.concept_id) === String(concept.id));
+    const existingNew = newLines.find(
+      (line) => String(line.concept_id) === String(concept.id)
+    );
+
     if (existingSaved || existingPending || existingNew) {
-      setMessage("Ese concepto ya está incluido entre los ajustes del mes. Edita directamente su cantidad o importe.");
+      setMessage("Ese concepto ya está en el panel. Modifica directamente su cantidad o importe.");
       return;
     }
 
-    const baseline = baselineLines.find((line) => String(line.concept_id) === String(concept.id));
+    const baseline = baselineLines.find(
+      (line) => String(line.concept_id) === String(concept.id)
+    );
+
     if (baseline) {
       setTouchedLineIds((previous) => [...previous, baseline.id]);
       setLineEdits((previous) => ({
@@ -435,6 +518,7 @@ export default function MonthlyPayrollPreparation({ companies = [], workCenters 
         },
       ]);
     }
+
     setMessage("");
     setNewConceptId("");
     setNewQuantity("1");
@@ -444,30 +528,43 @@ export default function MonthlyPayrollPreparation({ companies = [], workCenters 
   const removeModification = (line) => {
     if (touchedLineIds.includes(line.id) && !isStoredOverride(line)) {
       setTouchedLineIds((previous) => previous.filter((id) => id !== line.id));
-      setLineEdits((previous) => ({ ...previous, [line.id]: { quantity: String(line.quantity ?? 1), amount: String(line.amount ?? 0) } }));
+      setLineEdits((previous) => ({
+        ...previous,
+        [line.id]: {
+          quantity: String(line.quantity ?? 1),
+          amount: String(line.amount ?? 0),
+        },
+      }));
       return;
     }
-    setRemovedOverrideIds((previous) => previous.includes(line.id) ? previous : [...previous, line.id]);
+
+    setRemovedOverrideIds((previous) =>
+      previous.includes(line.id) ? previous : [...previous, line.id]
+    );
   };
 
   const hasPendingChanges = useMemo(() => {
     if (!preparation || preparation.generated) return false;
     if (touchedLineIds.length || removedOverrideIds.length || newLines.length) return true;
+
     return savedOverrideLines.some((line) => {
       const edit = lineEdits[line.id];
       if (!edit) return false;
-      return Number(edit.amount) !== Number(line.amount) || Number(edit.quantity) !== Number(line.quantity);
+      return Number(edit.amount) !== Number(line.amount)
+        || Number(edit.quantity) !== Number(line.quantity);
     });
   }, [preparation, touchedLineIds, removedOverrideIds, newLines, savedOverrideLines, lineEdits]);
 
   const persistPreparation = async ({ announce = true } = {}) => {
     if (!preparation || preparation.generated) return preparation;
+
     setError("");
     if (announce) setMessage("");
+
     try {
       setSaving(true);
-      const touchedOrSaved = [...visibleOverrideLines];
-      const updates = touchedOrSaved
+
+      const updates = visibleOverrideLines
         .filter((line) => {
           const edit = lineEdits[line.id];
           if (!edit) return false;
@@ -480,6 +577,7 @@ export default function MonthlyPayrollPreparation({ companies = [], workCenters 
           const quantity = Number(edit.quantity || 0);
           const amount = Number(edit.amount || 0);
           const alreadyMarked = parseOverrideDescription(line);
+
           return updatePayrollItem(line.id, {
             quantity,
             unit_price: quantity > 0 ? amount / quantity : amount,
@@ -492,8 +590,10 @@ export default function MonthlyPayrollPreparation({ companies = [], workCenters 
       const removals = removedOverrideIds.map((itemId) => {
         const line = savedOverrideLines.find((candidate) => candidate.id === itemId);
         if (!line) return Promise.resolve();
+
         const original = parseOverrideDescription(line);
         if (!original) return deletePayrollItem(itemId);
+
         return updatePayrollItem(itemId, {
           quantity: original.quantity,
           unit_price: original.quantity > 0 ? original.amount / original.quantity : original.amount,
@@ -520,11 +620,14 @@ export default function MonthlyPayrollPreparation({ companies = [], workCenters 
       await Promise.all([...updates, ...removals, ...creates]);
       const refreshed = await previewPayrollPreparation(preparation.payroll_id);
       hydratePreparation(refreshed);
-      if (announce) setMessage("Ajustes del mes guardados. La nómina continúa sin generar.");
+
+      if (announce) {
+        setMessage("Cambios guardados. La nómina sigue en borrador y puede volver a editarse.");
+      }
       if (onPrepared) await onPrepared(refreshed);
       return refreshed;
     } catch (err) {
-      setError(err.message || "No se pudieron guardar los ajustes del periodo");
+      setError(err.message || "No se pudieron guardar los cambios de la nómina");
       return null;
     } finally {
       setSaving(false);
@@ -533,6 +636,7 @@ export default function MonthlyPayrollPreparation({ companies = [], workCenters 
 
   const handlePreview = async () => {
     if (!preparation) return;
+
     if (preparation.generated) {
       setReceiptPayrollId(preparation.payroll_id);
       return;
@@ -551,23 +655,57 @@ export default function MonthlyPayrollPreparation({ companies = [], workCenters 
         return;
       }
     }
+
     setPreparation(refreshed);
     setPreviewOpen(true);
+  };
+
+  const handleReopen = async () => {
+    if (!preparation?.payroll_id) return;
+
+    const accepted = window.confirm(
+      "La nómina volverá a estado borrador para poder editarla. Dejará de considerarse generada hasta que vuelvas a generarla. ¿Continuar?"
+    );
+    if (!accepted) return;
+
+    setReopening(true);
+    setError("");
+    setMessage("");
+
+    try {
+      const reopened = await reopenPayrollPreparation(preparation.payroll_id);
+      hydratePreparation(reopened);
+      setMessage("Nómina reabierta. Ya puedes añadir, modificar o quitar conceptos del periodo.");
+    } catch (err) {
+      setError(err.message || "No se pudo reabrir la nómina para edición");
+    } finally {
+      setReopening(false);
+    }
   };
 
   const openHistory = () => {
     const params = new URLSearchParams();
     params.set("period", `${scope.period_year}-${String(scope.period_month).padStart(2, "0")}`);
-    const selectedCompany = companies.find((company) => String(company.id) === String(scope.company_id));
+
+    const selectedCompany = companies.find(
+      (company) => String(company.id) === String(scope.company_id)
+    );
     if (selectedCompany?.name) params.set("company", selectedCompany.name);
-    const selectedEmployee = employees.find((employee) => String(employee.id) === String(scope.employee_id));
+
+    const selectedEmployee = employees.find(
+      (employee) => String(employee.id) === String(scope.employee_id)
+    );
     if (selectedEmployee) params.set("employee", employeeName(selectedEmployee));
+
     window.history.replaceState(null, "", `${window.location.pathname}?${params.toString()}`);
-    window.dispatchEvent(new CustomEvent("aulanomina-open-page", { detail: { page: "payroll-history" } }));
+    window.dispatchEvent(
+      new CustomEvent("aulanomina-open-page", { detail: { page: "payroll-history" } })
+    );
   };
 
-  const adjustmentCount = visibleOverrideLines.length + newLines.length;
   const preview = preparation?.preview || {};
+  const adjustmentCount = visibleOverrideLines.length + newLines.length;
+  const readyForEditor = Boolean(scope.employee_id && scope.contract_id);
 
   return (
     <div className="payroll-prep payroll-prep--overrides">
@@ -576,7 +714,9 @@ export default function MonthlyPayrollPreparation({ companies = [], workCenters 
           <div>
             <span>PREPARACIÓN DEL PERIODO</span>
             <h2>Selecciona trabajador y periodo</h2>
-            <p>El periodo parte siempre de la configuración del contrato, convenio, conceptos permanentes e incidencias registradas.</p>
+            <p>
+              Al seleccionar contrato y periodo se carga automáticamente la nómina de trabajo. Si no introduces cambios, se utilizará íntegramente su configuración por defecto.
+            </p>
           </div>
         </div>
 
@@ -585,25 +725,44 @@ export default function MonthlyPayrollPreparation({ companies = [], workCenters 
             <span>Empresa</span>
             <select name="company_id" value={scope.company_id} onChange={handleScopeChange}>
               <option value="">Seleccionar empresa</option>
-              {activeCompanies.map((company) => <option key={company.id} value={company.id}>{company.name}</option>)}
-            </select>
-          </label>
-          <label>
-            <span>Trabajador</span>
-            <select name="employee_id" value={scope.employee_id} onChange={handleScopeChange} disabled={!scope.company_id}>
-              <option value="">Seleccionar trabajador</option>
-              {companyEmployees.map((employee) => <option key={employee.id} value={employee.id}>{employeeName(employee)}</option>)}
-            </select>
-          </label>
-          <label>
-            <span>Contrato</span>
-            <select name="contract_id" value={scope.contract_id} onChange={handleScopeChange} disabled={!scope.employee_id}>
-              <option value="">Seleccionar contrato</option>
-              {employeeContracts.map((contract) => (
-                <option key={contract.id} value={contract.id}>{contract.contract_code || contract.code || `Contrato ${contract.id}`}</option>
+              {activeCompanies.map((company) => (
+                <option key={company.id} value={company.id}>{company.name}</option>
               ))}
             </select>
           </label>
+
+          <label>
+            <span>Trabajador</span>
+            <select
+              name="employee_id"
+              value={scope.employee_id}
+              onChange={handleScopeChange}
+              disabled={!scope.company_id}
+            >
+              <option value="">Seleccionar trabajador</option>
+              {companyEmployees.map((employee) => (
+                <option key={employee.id} value={employee.id}>{employeeName(employee)}</option>
+              ))}
+            </select>
+          </label>
+
+          <label>
+            <span>Contrato</span>
+            <select
+              name="contract_id"
+              value={scope.contract_id}
+              onChange={handleScopeChange}
+              disabled={!scope.employee_id}
+            >
+              <option value="">Seleccionar contrato</option>
+              {employeeContracts.map((contract) => (
+                <option key={contract.id} value={contract.id}>
+                  {contract.contract_code || contract.code || `Contrato ${contract.id}`}
+                </option>
+              ))}
+            </select>
+          </label>
+
           <label className="payroll-prep__month">
             <span>Mes</span>
             <select name="period_month" value={scope.period_month} onChange={handleScopeChange}>
@@ -612,9 +771,15 @@ export default function MonthlyPayrollPreparation({ companies = [], workCenters 
               ))}
             </select>
           </label>
+
           <label className="payroll-prep__year">
             <span>Año</span>
-            <input name="period_year" type="number" value={scope.period_year} onChange={handleScopeChange} />
+            <input
+              name="period_year"
+              type="number"
+              value={scope.period_year}
+              onChange={handleScopeChange}
+            />
           </label>
         </div>
 
@@ -624,43 +789,32 @@ export default function MonthlyPayrollPreparation({ companies = [], workCenters 
             <span>{selectedContract.professional_category || selectedContract.job_position || "Categoría sin informar"}</span>
           </div>
         )}
-
-        <div className="payroll-prep__scope-action">
-          <div>
-            <strong>Abrir el periodo de trabajo</strong>
-            <span>No genera la nómina. Solo carga el cálculo de referencia y permite registrar ajustes del mes.</span>
-          </div>
-          <button
-            type="button"
-            className="payroll-s42__primary"
-            disabled={!scope.contract_id || loading}
-            onClick={handleOpenPreparation}
-          >
-            {loading ? "Abriendo periodo..." : "Abrir preparación"}
-          </button>
-        </div>
       </section>
 
       {error && <div className="payroll-prep__error">{error}</div>}
       {message && <div className="payroll-prep__message">{message}</div>}
 
-      {!preparation && (
+      {!readyForEditor && (
         <section className="payroll-prep__workspace payroll-prep__workspace--placeholder">
           <header className="payroll-prep__workspace-header">
             <div>
-              <span>AJUSTES DEL MES</span>
-              <h2>Conceptos a modificar o añadir</h2>
-              <p>Este es el panel operativo. Si permanece vacío, la nómina se calculará íntegramente con la configuración por defecto.</p>
+              <span>EDITOR DE NÓMINA</span>
+              <h2>Código · concepto · cantidad · importe</h2>
+              <p>Selecciona trabajador y contrato para empezar a modificar la nómina.</p>
             </div>
-            <div className="payroll-prep__status">0 ajustes</div>
+            <div className="payroll-prep__status">Sin periodo</div>
           </header>
+
           <div className="payroll-prep__default-rule">
-            <strong>Sin ajustes manuales = cálculo automático.</strong>
-            <span>Se aplicarán salario y condiciones del contrato, convenio, conceptos permanentes, incidencias, cotizaciones e IRPF configurados.</span>
+            <strong>El panel puede quedar vacío.</strong>
+            <span>Si no añades ninguna modificación, el cálculo utilizará salario, convenio, conceptos permanentes, incidencias, cotizaciones e IRPF configurados.</span>
           </div>
-          <div className="payroll-prep__empty-editor">
-            Selecciona empresa, trabajador, contrato y periodo; después abre la preparación para editar conceptos.
-          </div>
+        </section>
+      )}
+
+      {readyForEditor && loading && !preparation && (
+        <section className="payroll-prep__workspace payroll-prep__workspace--placeholder">
+          <div className="payroll-prep__empty-editor">Cargando nómina de trabajo...</div>
         </section>
       )}
 
@@ -668,12 +822,22 @@ export default function MonthlyPayrollPreparation({ companies = [], workCenters 
         <section className="payroll-prep__workspace payroll-prep__generated">
           <header className="payroll-prep__workspace-header">
             <div>
-              <span>NÓMINA GENERADA · CONSULTA</span>
+              <span>NÓMINA YA GENERADA</span>
               <h2>{preparation.employee_name}</h2>
-              <p>{preparation.company_name}{preparation.center_name ? ` · ${preparation.center_name}` : ""} · {String(preparation.period_month).padStart(2, "0")}/{preparation.period_year}</p>
+              <p>
+                {preparation.company_name}
+                {preparation.center_name ? ` · ${preparation.center_name}` : ""}
+                {` · ${String(preparation.period_month).padStart(2, "0")}/${preparation.period_year}`}
+              </p>
             </div>
             <div className="payroll-prep__status is-generated">Generada</div>
           </header>
+
+          <div className="payroll-prep__default-rule">
+            <strong>¿Quieres cambiar esta nómina?</strong>
+            <span>Pulsa «Editar nómina». Volverá a borrador, conservará sus datos actuales y aparecerá el panel de conceptos para modificarlos.</span>
+          </div>
+
           <div className="payroll-prep__summary">
             <div><span>Bruto / devengos</span><strong>{formatMoney(preview.gross_salary)} €</strong></div>
             <div><span>Deducciones</span><strong>{formatMoney(preview.total_deductions)} €</strong></div>
@@ -682,10 +846,33 @@ export default function MonthlyPayrollPreparation({ companies = [], workCenters 
             <div><span>IRPF</span><strong>{formatMoney(preview.irpf)} €</strong></div>
             <div><span>Coste empresa</span><strong>{formatMoney(preview.company_total_cost)} €</strong></div>
           </div>
+
           <footer className="payroll-prep__actions">
-            <span className="payroll-prep__action-help">El periodo ya está generado y se consulta en modo lectura.</span>
-            <button type="button" className="payroll-s42__secondary" onClick={openHistory}>Abrir histórico</button>
-            <button type="button" className="payroll-s42__primary" onClick={handlePreview}>Visualizar nómina</button>
+            <span className="payroll-prep__action-help">
+              Editar devuelve la nómina a borrador. Después podrás guardarla, visualizarla y volver a generarla.
+            </span>
+            <button
+              type="button"
+              className="payroll-s42__secondary"
+              onClick={openHistory}
+            >
+              Abrir histórico
+            </button>
+            <button
+              type="button"
+              className="payroll-s42__secondary"
+              onClick={handlePreview}
+            >
+              Visualizar
+            </button>
+            <button
+              type="button"
+              className="payroll-s42__primary"
+              onClick={handleReopen}
+              disabled={reopening}
+            >
+              {reopening ? "Abriendo edición..." : "Editar nómina"}
+            </button>
           </footer>
         </section>
       )}
@@ -694,19 +881,23 @@ export default function MonthlyPayrollPreparation({ companies = [], workCenters 
         <section className="payroll-prep__workspace">
           <header className="payroll-prep__workspace-header">
             <div>
-              <span>AJUSTES DEL MES · BORRADOR</span>
+              <span>EDITOR DE NÓMINA · BORRADOR</span>
               <h2>{preparation.employee_name}</h2>
-              <p>{preparation.company_name}{preparation.center_name ? ` · ${preparation.center_name}` : ""} · {String(preparation.period_month).padStart(2, "0")}/{preparation.period_year}</p>
+              <p>
+                {preparation.company_name}
+                {preparation.center_name ? ` · ${preparation.center_name}` : ""}
+                {` · ${String(preparation.period_month).padStart(2, "0")}/${preparation.period_year}`}
+              </p>
             </div>
             <div className="payroll-prep__workspace-meta">
               {hasPendingChanges && <span className="payroll-prep__pending">Cambios sin guardar</span>}
-              <div className="payroll-prep__status">{adjustmentCount} ajustes</div>
+              <div className="payroll-prep__status">{adjustmentCount} modificaciones</div>
             </div>
           </header>
 
           <div className="payroll-prep__default-rule">
-            <strong>La tabla puede quedar completamente vacía.</strong>
-            <span>En ese caso la generación utilizará exactamente el cálculo por defecto del trabajador. Solo añade aquí excepciones del mes: dietas, pluses, variables, IT, horas, descuentos, cotizaciones, bases o cualquier otro concepto que quieras modificar.</span>
+            <strong>Si no modificas nada, no tienes que rellenar nada.</strong>
+            <span>La nómina se generará con sus valores por defecto. Utiliza este panel únicamente para cambiar o añadir conceptos del mes.</span>
           </div>
 
           <div className="payroll-prep__reference-strip">
@@ -719,8 +910,8 @@ export default function MonthlyPayrollPreparation({ companies = [], workCenters 
 
           <div className="payroll-prep__matrix-intro payroll-prep__matrix-intro--overrides">
             <div>
-              <h3>Modificaciones del periodo</h3>
-              <p>Una fila sustituye el valor por defecto de ese concepto cuando ya existe; si el concepto no existe en la nómina base, se añade como línea nueva.</p>
+              <h3>Conceptos modificados en este mes</h3>
+              <p>Selecciona cualquier concepto del catálogo, indica cantidad e importe y añádelo. Si ya existe en la nómina por defecto, este valor lo sustituirá solo para este periodo.</p>
             </div>
             <span className="payroll-prep__catalog-count">{sortedConcepts.length} conceptos disponibles</span>
           </div>
@@ -732,14 +923,16 @@ export default function MonthlyPayrollPreparation({ companies = [], workCenters 
                 type="search"
                 value={conceptSearch}
                 onChange={(event) => setConceptSearch(event.target.value)}
-                placeholder="Código, salario, nocturnidad, IT, IRPF, cotización..."
+                placeholder="Salario base, nocturnidad, dieta, IT, IRPF, cotización..."
               />
             </label>
             <label>
               <span>Familia</span>
               <select value={familyFilter} onChange={(event) => setFamilyFilter(event.target.value)}>
                 <option value="all">Todas las familias</option>
-                {families.map((family) => <option key={family} value={family}>{family}</option>)}
+                {families.map((family) => (
+                  <option key={family} value={family}>{family}</option>
+                ))}
               </select>
             </label>
           </div>
@@ -757,11 +950,21 @@ export default function MonthlyPayrollPreparation({ companies = [], workCenters 
               </thead>
               <tbody>
                 {visibleOverrideLines.map((line) => {
-                  const edit = lineEdits[line.id] || { quantity: line.quantity, amount: line.amount };
+                  const edit = lineEdits[line.id] || {
+                    quantity: line.quantity,
+                    amount: line.amount,
+                  };
+
                   return (
                     <tr key={`override-${line.id}`}>
-                      <td className="payroll-prep__code"><strong>{line.code}</strong><small>{sourceLabel(line)}</small></td>
-                      <td className="payroll-prep__description"><strong>{line.name}</strong><small>{line.category || conceptFamily(line)}</small></td>
+                      <td className="payroll-prep__code">
+                        <strong>{line.code}</strong>
+                        <small>{sourceLabel(line)}</small>
+                      </td>
+                      <td className="payroll-prep__description">
+                        <strong>{line.name}</strong>
+                        <small>{line.category || conceptFamily(line)}</small>
+                      </td>
                       <td className="is-number">
                         <input
                           className="payroll-prep__matrix-input payroll-prep__matrix-input--quantity"
@@ -787,15 +990,23 @@ export default function MonthlyPayrollPreparation({ companies = [], workCenters 
                           <span>€</span>
                         </label>
                       </td>
-                      <td className="payroll-prep__row-action"><button type="button" onClick={() => removeModification(line)}>Quitar</button></td>
+                      <td className="payroll-prep__row-action">
+                        <button type="button" onClick={() => removeModification(line)}>Quitar</button>
+                      </td>
                     </tr>
                   );
                 })}
 
                 {newLines.map((line) => (
                   <tr key={line.tempId} className="is-new">
-                    <td className="payroll-prep__code"><strong>{line.code}</strong><small>Nuevo</small></td>
-                    <td className="payroll-prep__description"><strong>{line.name}</strong><small>{line.category}</small></td>
+                    <td className="payroll-prep__code">
+                      <strong>{line.code}</strong>
+                      <small>Nuevo</small>
+                    </td>
+                    <td className="payroll-prep__description">
+                      <strong>{line.name}</strong>
+                      <small>{line.category}</small>
+                    </td>
                     <td className="is-number">
                       <input
                         className="payroll-prep__matrix-input payroll-prep__matrix-input--quantity"
@@ -803,7 +1014,11 @@ export default function MonthlyPayrollPreparation({ companies = [], workCenters 
                         min="0"
                         step="0.01"
                         value={line.quantity}
-                        onChange={(event) => setNewLines((previous) => previous.map((candidate) => candidate.tempId === line.tempId ? { ...candidate, quantity: event.target.value } : candidate))}
+                        onChange={(event) => setNewLines((previous) => previous.map((candidate) =>
+                          candidate.tempId === line.tempId
+                            ? { ...candidate, quantity: event.target.value }
+                            : candidate
+                        ))}
                       />
                     </td>
                     <td className="is-number">
@@ -814,52 +1029,99 @@ export default function MonthlyPayrollPreparation({ companies = [], workCenters 
                           min="0"
                           step="0.01"
                           value={line.amount}
-                          onChange={(event) => setNewLines((previous) => previous.map((candidate) => candidate.tempId === line.tempId ? { ...candidate, amount: event.target.value } : candidate))}
+                          onChange={(event) => setNewLines((previous) => previous.map((candidate) =>
+                            candidate.tempId === line.tempId
+                              ? { ...candidate, amount: event.target.value }
+                              : candidate
+                          ))}
                         />
                         <span>€</span>
                       </label>
                     </td>
-                    <td className="payroll-prep__row-action"><button type="button" onClick={() => setNewLines((previous) => previous.filter((candidate) => candidate.tempId !== line.tempId))}>Quitar</button></td>
+                    <td className="payroll-prep__row-action">
+                      <button
+                        type="button"
+                        onClick={() => setNewLines((previous) =>
+                          previous.filter((candidate) => candidate.tempId !== line.tempId)
+                        )}
+                      >
+                        Quitar
+                      </button>
+                    </td>
                   </tr>
                 ))}
 
                 {visibleOverrideLines.length === 0 && newLines.length === 0 && (
                   <tr className="payroll-prep__matrix-empty-row">
                     <td colSpan="5">
-                      <strong>Sin modificaciones para este trabajador y periodo.</strong>
-                      <span>La nómina se calculará con sus valores por defecto mientras no añadas una fila.</span>
+                      <strong>No hay modificaciones.</strong>
+                      <span>La nómina se calculará automáticamente con los datos configurados para el trabajador.</span>
                     </td>
                   </tr>
                 )}
 
                 <tr className="payroll-prep__new-row payroll-prep__new-row--overrides">
                   <td>
-                    <select value={newConceptId} onChange={(event) => setNewConceptId(event.target.value)} aria-label="Código del nuevo concepto">
-                      <option value="">Seleccionar código...</option>
-                      {catalogGroups.map(([label, groupConcepts]) => (
-                        <optgroup key={label} label={label}>
+                    <select
+                      value={newConceptId}
+                      onChange={(event) => setNewConceptId(event.target.value)}
+                      aria-label="Código del concepto"
+                    >
+                      <option value="">Código...</option>
+                      {catalogGroups.map(([family, groupConcepts]) => (
+                        <optgroup key={family} label={family}>
                           {groupConcepts.map((concept) => (
-                            <option key={concept.id} value={concept.id}>{concept.code}</option>
+                            <option key={concept.id} value={concept.id}>
+                              {concept.code}
+                            </option>
                           ))}
                         </optgroup>
                       ))}
                     </select>
                   </td>
                   <td className="payroll-prep__description">
-                    <strong>{selectedNewConcept?.name || "Selecciona un concepto del catálogo"}</strong>
-                    <small>{selectedNewConcept ? `${conceptFamily(selectedNewConcept)} · ${selectedNewConcept.category}` : "El selector incluye devengos, extrasalariales, IT, deducciones, cotizaciones, bases e informativos."}</small>
+                    <strong>{selectedNewConcept?.name || "Selecciona un concepto"}</strong>
+                    <small>
+                      {selectedNewConcept
+                        ? `${conceptFamily(selectedNewConcept)} · ${selectedNewConcept.category}`
+                        : "El catálogo incluye salarios, pluses, IT, dietas, deducciones, cotizaciones, bases y costes."}
+                    </small>
                   </td>
                   <td className="is-number">
-                    <input className="payroll-prep__matrix-input payroll-prep__matrix-input--quantity" type="number" min="0" step="0.01" value={newQuantity} onChange={(event) => setNewQuantity(event.target.value)} aria-label="Cantidad del concepto" />
+                    <input
+                      className="payroll-prep__matrix-input payroll-prep__matrix-input--quantity"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={newQuantity}
+                      onChange={(event) => setNewQuantity(event.target.value)}
+                      aria-label="Cantidad del concepto"
+                    />
                   </td>
                   <td className="is-number">
                     <label className="payroll-prep__matrix-amount">
-                      <input className="payroll-prep__matrix-input" type="number" min="0" step="0.01" value={newAmount} onChange={(event) => setNewAmount(event.target.value)} aria-label="Importe del concepto" placeholder="0,00" />
+                      <input
+                        className="payroll-prep__matrix-input"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={newAmount}
+                        onChange={(event) => setNewAmount(event.target.value)}
+                        aria-label="Importe del concepto"
+                        placeholder="0,00"
+                      />
                       <span>€</span>
                     </label>
                   </td>
                   <td className="payroll-prep__row-action">
-                    <button type="button" className="is-add" onClick={handleAddLocalLine} disabled={!newConceptId || newAmount === ""}>Añadir</button>
+                    <button
+                      type="button"
+                      className="is-add"
+                      onClick={handleAddModification}
+                      disabled={!newConceptId || newAmount === ""}
+                    >
+                      Añadir
+                    </button>
                   </td>
                 </tr>
               </tbody>
@@ -868,29 +1130,52 @@ export default function MonthlyPayrollPreparation({ companies = [], workCenters 
 
           <details className="payroll-prep__defaults">
             <summary>
-              <span>Ver conceptos que se aplicarán por defecto</span>
+              <span>Ver cálculo y conceptos de partida</span>
               <strong>{baselineLines.length} líneas base</strong>
             </summary>
-            <p>Estas líneas no necesitan copiarse al panel de ajustes. Se usarán automáticamente mientras no las sustituyas arriba.</p>
+            <p>
+              Estos conceptos se aplicarán aunque el panel superior esté vacío. Para sustituir uno de ellos en este mes, selecciónalo arriba por su código y asigna el nuevo valor.
+            </p>
             <ReadOnlyBaseTable lines={baselineLines} />
           </details>
 
           <footer className="payroll-prep__actions payroll-prep__actions--overrides">
             <span className="payroll-prep__action-help">
-              Visualizar recalcula el borrador con los ajustes actuales. Guardar conserva los cambios para generar la nómina más adelante.
+              Guardar conserva la preparación. Visualizar recalcula la nómina completa sin generarla definitivamente.
             </span>
-            <button type="button" className="payroll-s42__secondary" onClick={() => persistPreparation()} disabled={saving || !hasPendingChanges}>
-              {saving ? "Guardando..." : "Guardar ajustes"}
+            <button
+              type="button"
+              className="payroll-s42__secondary"
+              onClick={() => persistPreparation()}
+              disabled={saving || !hasPendingChanges}
+            >
+              {saving ? "Guardando..." : "Guardar cambios"}
             </button>
-            <button type="button" className="payroll-s42__primary" onClick={handlePreview} disabled={saving}>
+            <button
+              type="button"
+              className="payroll-s42__primary"
+              onClick={handlePreview}
+              disabled={saving}
+            >
               {saving ? "Recalculando..." : "Visualizar nómina"}
             </button>
           </footer>
         </section>
       )}
 
-      {previewOpen && <PreviewModal preparation={preparation} onClose={() => setPreviewOpen(false)} />}
-      {receiptPayrollId && <PayrollReceiptModal payrollId={receiptPayrollId} onClose={() => setReceiptPayrollId(null)} />}
+      {previewOpen && (
+        <PreviewModal
+          preparation={preparation}
+          onClose={() => setPreviewOpen(false)}
+        />
+      )}
+
+      {receiptPayrollId && (
+        <PayrollReceiptModal
+          payrollId={receiptPayrollId}
+          onClose={() => setReceiptPayrollId(null)}
+        />
+      )}
     </div>
   );
 }
