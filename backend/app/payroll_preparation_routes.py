@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app.db import SessionLocal
@@ -113,6 +113,19 @@ def get_payroll_preparation_endpoint(payroll_id: int, db: Session = Depends(get_
 
 @router.get("/payroll-preparations/{payroll_id}/preview", response_model=PayrollPreparationResponse)
 def preview_payroll_preparation_endpoint(payroll_id: int, db: Session = Depends(get_db)):
+    normalize_preparation_sources(db, payroll_id)
+    return get_preparation(db, payroll_id)
+
+
+@router.post("/payroll-preparations/{payroll_id}/reopen", response_model=PayrollPreparationResponse)
+def reopen_payroll_preparation_endpoint(payroll_id: int, db: Session = Depends(get_db)):
+    payroll = db.query(Payroll).filter(Payroll.id == payroll_id).first()
+    if not payroll:
+        raise HTTPException(status_code=404, detail="Nómina no encontrada")
+
+    payroll.status = "draft"
+    db.commit()
+    db.refresh(payroll)
     normalize_preparation_sources(db, payroll_id)
     return get_preparation(db, payroll_id)
 
