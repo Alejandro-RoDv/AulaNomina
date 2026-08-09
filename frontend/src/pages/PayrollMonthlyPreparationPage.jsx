@@ -2,6 +2,7 @@ import { useEffect } from "react";
 
 import MonthlyPayrollPreparation from "../components/payrolls/MonthlyPayrollPreparationV4";
 import "../components/payrolls/payrollPreparationFlow.css";
+import "../components/payrolls/payrollPreparationActionPriority.css";
 
 export default function PayrollMonthlyPreparationPage({ companies = [], workCenters = [], onPrepared }) {
   useEffect(() => {
