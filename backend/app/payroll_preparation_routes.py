@@ -1,15 +1,18 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.db import SessionLocal
+from app.models.payroll import Payroll
 from app.models.payroll_salary_structure import PayrollItem
 from app.schemas.payroll_preparation import (
     PayrollGenerationRequest,
     PayrollGenerationResponse,
     PayrollPreparationEnsureRequest,
     PayrollPreparationResponse,
+    PayrollPreparationStatusItem,
 )
 from app.services.payroll_preparation_service import (
+    GENERATED_STATUSES,
     ensure_preparation,
     generate_payrolls,
     get_preparation,
@@ -64,6 +67,30 @@ def ensure_payroll_preparation_endpoint(
     result = ensure_preparation(db, request)
     normalize_preparation_sources(db, int(result["payroll_id"]))
     return get_preparation(db, int(result["payroll_id"]))
+
+
+@router.get("/payroll-preparations", response_model=list[PayrollPreparationStatusItem])
+def list_payroll_preparations_endpoint(
+    period_month: int = Query(..., ge=1, le=15),
+    period_year: int = Query(..., ge=2000, le=2100),
+    db: Session = Depends(get_db),
+):
+    payrolls = db.query(Payroll).filter(
+        Payroll.period_month == period_month,
+        Payroll.period_year == period_year,
+        Payroll.status != "cancelled",
+    ).order_by(Payroll.id.desc()).all()
+    return [
+        {
+            "payroll_id": payroll.id,
+            "contract_id": payroll.contract_id,
+            "employee_id": payroll.employee_id,
+            "company_id": payroll.company_id,
+            "status": payroll.status,
+            "generated": payroll.status in GENERATED_STATUSES,
+        }
+        for payroll in payrolls
+    ]
 
 
 @router.get("/payroll-preparations/{payroll_id}", response_model=PayrollPreparationResponse)
