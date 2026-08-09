@@ -7,15 +7,20 @@ from sqlalchemy.orm import sessionmaker
 
 import app.models  # noqa: F401
 from app.crud.payroll import get_payroll
-from app.crud.payroll_salary_structure import create_payroll_item
+from app.crud.payroll_salary_structure import create_payroll_item, update_payroll_item
 from app.db import Base
 from app.models.company import Company
 from app.models.contract import Contract
 from app.models.employee import Employee
 from app.models.payroll_salary_structure import ContractPayrollConcept, PayrollConcept
 from app.schemas.payroll_preparation import PayrollGenerationRequest, PayrollPreparationEnsureRequest
-from app.schemas.payroll_salary_structure import PayrollItemCreate
-from app.services.payroll_preparation_service import ensure_preparation, generate_payrolls, get_preparation
+from app.schemas.payroll_salary_structure import PayrollItemCreate, PayrollItemUpdate
+from app.services.payroll_preparation_service import (
+    PREPARATION_OVERRIDE_MARKER,
+    ensure_preparation,
+    generate_payrolls,
+    get_preparation,
+)
 
 
 class PayrollPreparationFlowTest(unittest.TestCase):
@@ -120,7 +125,7 @@ class PayrollPreparationFlowTest(unittest.TestCase):
         ))
         self.db.commit()
 
-    def test_draft_can_be_edited_previewed_and_generated(self):
+    def test_draft_exposes_full_matrix_can_override_and_generate(self):
         preparation = ensure_preparation(
             self.db,
             PayrollPreparationEnsureRequest(
@@ -133,8 +138,20 @@ class PayrollPreparationFlowTest(unittest.TestCase):
 
         self.assertEqual(preparation["status"], "draft")
         self.assertFalse(preparation["generated"])
-        self.assertIn("Salario base", [line["name"] for line in preparation["lines"]])
-        self.assertIn("Plus convenio", [line["name"] for line in preparation["lines"]])
+        codes = {line["code"] for line in preparation["lines"]}
+        self.assertIn("SALARIO_BASE", codes)
+        self.assertIn("PLUS_PREP", codes)
+        self.assertIn("SS_CONTINGENCIAS_COMUNES", codes)
+        self.assertIn("BASE_CC", codes)
+
+        # El catálogo de preparación incluye conceptos seleccionables aunque no
+        # sean aplicables en ese mes concreto.
+        self.assertIsNotNone(
+            self.db.query(PayrollConcept).filter(PayrollConcept.code == "PRESTACION_IT").first()
+        )
+        self.assertIsNotNone(
+            self.db.query(PayrollConcept).filter(PayrollConcept.code == "PLUS_NOCTURNIDAD").first()
+        )
 
         create_payroll_item(
             self.db,
@@ -153,6 +170,25 @@ class PayrollPreparationFlowTest(unittest.TestCase):
         self.assertEqual(refreshed["preview"]["gross_salary"], Decimal("1960.00"))
         self.assertEqual(get_payroll(self.db, preparation["payroll_id"]).status, "draft")
 
+        # Una cotización automática puede sobrescribirse expresamente desde la
+        # matriz sin tener que tocar el motor global ni el histórico.
+        ss_line = next(line for line in refreshed["lines"] if line["code"] == "SS_CONTINGENCIAS_COMUNES")
+        update_payroll_item(
+            self.db,
+            ss_line["id"],
+            PayrollItemUpdate(
+                quantity=Decimal("1.00"),
+                unit_price=Decimal("1.00"),
+                amount=Decimal("1.00"),
+                notes=PREPARATION_OVERRIDE_MARKER,
+            ),
+        )
+
+        overridden = get_preparation(self.db, preparation["payroll_id"])
+        overridden_ss = next(line for line in overridden["lines"] if line["code"] == "SS_CONTINGENCIAS_COMUNES")
+        self.assertEqual(overridden_ss["amount"], Decimal("1.00"))
+        self.assertEqual(overridden["preview"]["gross_salary"], Decimal("1960.00"))
+
         generated = generate_payrolls(
             self.db,
             PayrollGenerationRequest(
@@ -167,6 +203,7 @@ class PayrollPreparationFlowTest(unittest.TestCase):
         payroll = get_payroll(self.db, preparation["payroll_id"])
         self.assertEqual(payroll.status, "calculated")
         self.assertEqual(payroll.gross_salary, Decimal("1960.00"))
+        self.assertEqual(payroll.employee_common_contingencies, Decimal("1.00"))
         self.assertGreater(payroll.net_salary, Decimal("0.00"))
 
 
