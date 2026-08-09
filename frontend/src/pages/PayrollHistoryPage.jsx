@@ -25,8 +25,13 @@ function getMonthLabel(month) {
     10: "Octubre",
     11: "Noviembre",
     12: "Diciembre",
-    13: "Extra julio",
-    14: "Extra diciembre",
+    13: "Paga extra · Verano",
+    14: "Paga extra · Diciembre",
+    15: "Paga extra · 1",
+    16: "Paga extra · 2",
+    17: "Paga extra · 3",
+    18: "Paga extra · 4",
+    19: "Paga extra · 5",
   };
   return labels[Number(month)] || month;
 }
@@ -192,10 +197,10 @@ export default function PayrollHistoryPage({
               {availableYears.map((year) => <option key={year} value={year}>{year}</option>)}
             </select>
           </label>
-          <label className="payroll-s42__field">Mes
+          <label className="payroll-s42__field">Periodo
             <select name="month" value={filters.month} onChange={handleFilterChange}>
               <option value="">Todos</option>
-              {[1,2,3,4,5,6,7,8,9,10,11,12,13,14].map((month) => <option key={month} value={month}>{getMonthLabel(month)}</option>)}
+              {Array.from({ length: 19 }, (_, index) => index + 1).map((monthValue) => <option key={monthValue} value={monthValue}>{getMonthLabel(monthValue)}</option>)}
             </select>
           </label>
           <label className="payroll-s42__field">Estado
