@@ -81,7 +81,8 @@ export default function PermanentPayrollConceptsPage({ contracts = [], employees
     return contractsWithDisplayCodes.filter((contract) => {
       if (filters.company && String(contract.company_id) !== String(filters.company)) return false;
       if (filters.center && String(contract.center_id) !== String(filters.center)) return false;
-      if (filters.status && contract.status !== filters.status) return false;
+      if (filters.status === "active" && contract.status !== "active") return false;
+      if (filters.status === "inactive" && contract.status === "active") return false;
 
       if (query) {
         const employee = employeeById.get(String(contract.employee_id));
@@ -199,7 +200,7 @@ export default function PermanentPayrollConceptsPage({ contracts = [], employees
             <label className="sc-field">Estado del contrato
               <select name="status" value={filters.status} onChange={handleFilterChange}>
                 <option value="active">Activos</option>
-                <option value="ended">Finalizados</option>
+                <option value="inactive">Finalizados</option>
                 <option value="">Todos</option>
               </select>
             </label>
