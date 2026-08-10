@@ -5,6 +5,7 @@ import { fetchCompanies } from "../../services/companyApi";
 import { createDocument, deleteDocument, fetchDocuments, updateDocument } from "../../services/documentApi";
 import { fetchAllEmployees } from "../../services/employeeApi";
 import { fetchWorkCenters } from "../../services/workCenterApi";
+import "./DocumentsPolish.css";
 
 const initialDocumentForm = {
   employee_id: "",
@@ -140,7 +141,7 @@ export default function DocumentsRoute() {
   if (!active) return null;
 
   return (
-    <div style={styles.wrapper}>
+    <div className="documents-route" style={styles.wrapper}>
       <header style={styles.header}>
         <div>
           <span style={styles.eyebrow}>DOCUMENTACIÓN</span>
