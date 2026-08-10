@@ -1,19 +1,16 @@
-import PageCard from "../components/layout/PageCard";
 import IrpfModulePanel from "../components/payrolls/IrpfModulePanel";
+import "./irpfPage.css";
 
-export default function IrpfPage({ employees, contracts, onRefresh }) {
+export default function IrpfPage({ employees, contracts, companies, workCenters, onRefresh }) {
   return (
-    <div style={styles.wrapper}>
-      <PageCard
-        title="IRPF"
-        subtitle="Cálculo anual del trabajador, previsión mensual, IRPF voluntario, recálculo y variables futuras."
-      >
-        <IrpfModulePanel employees={employees} contracts={contracts} onRefresh={onRefresh} />
-      </PageCard>
+    <div className="irpf-page-shell">
+      <IrpfModulePanel
+        employees={employees}
+        contracts={contracts}
+        companies={companies}
+        workCenters={workCenters}
+        onRefresh={onRefresh}
+      />
     </div>
   );
 }
-
-const styles = {
-  wrapper: { display: "flex", flexDirection: "column", gap: "20px" },
-};
