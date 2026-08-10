@@ -1,0 +1,843 @@
+.irpf-workspace {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.irpf-workspace * {
+  box-sizing: border-box;
+}
+
+.irpf-eyebrow {
+  display: block;
+  margin-bottom: 4px;
+  color: #2563eb;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+}
+
+.irpf-worker-context,
+.irpf-selector-panel,
+.irpf-detail-panel,
+.irpf-subcard,
+.irpf-form-section {
+  border: 1px solid #dbe3ef;
+  background: #fff;
+  border-radius: 10px;
+}
+
+.irpf-worker-context {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.1fr) minmax(480px, 2.4fr) auto;
+  align-items: center;
+  gap: 18px;
+  padding: 14px 16px;
+}
+
+.irpf-worker-context__identity {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.irpf-worker-context__identity > strong {
+  color: #111827;
+  font-size: 15px;
+}
+
+.irpf-worker-context__identity small,
+.irpf-worker-context__meta span,
+.irpf-section-heading p,
+.irpf-detail-header p,
+.irpf-panel-toolbar p,
+.irpf-subcard p,
+.irpf-form-section__title p {
+  color: #64748b;
+}
+
+.irpf-worker-context__meta {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.irpf-worker-context__meta span {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.irpf-worker-context__meta b {
+  color: #475569;
+  font-size: 10px;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+.irpf-selector-panel {
+  padding: 16px;
+}
+
+.irpf-section-heading,
+.irpf-detail-header,
+.irpf-panel-toolbar,
+.irpf-subcard__heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.irpf-section-heading h2,
+.irpf-detail-header h2,
+.irpf-panel-toolbar h3,
+.irpf-subcard__heading h3 {
+  margin: 0;
+  color: #111827;
+}
+
+.irpf-section-heading h2,
+.irpf-detail-header h2 {
+  font-size: 18px;
+}
+
+.irpf-panel-toolbar h3,
+.irpf-subcard__heading h3 {
+  font-size: 16px;
+}
+
+.irpf-section-heading p,
+.irpf-detail-header p,
+.irpf-panel-toolbar p,
+.irpf-subcard p {
+  margin: 5px 0 0;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.irpf-filter-grid {
+  display: grid;
+  grid-template-columns: 110px minmax(200px, 1.1fr) 150px minmax(240px, 1fr) auto;
+  gap: 10px;
+  align-items: end;
+  margin-top: 14px;
+  padding: 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.irpf-filter-grid label,
+.irpf-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  color: #475569;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.irpf-filter-grid input,
+.irpf-field input,
+.irpf-field select,
+.irpf-variable-row input,
+.irpf-variable-row select,
+.irpf-field textarea {
+  width: 100%;
+  min-height: 36px;
+  border: 1px solid #cbd5e1;
+  border-radius: 7px;
+  background: #fff;
+  color: #111827;
+  padding: 7px 9px;
+  font: inherit;
+  font-size: 12px;
+}
+
+.irpf-field textarea {
+  min-height: 76px;
+  resize: vertical;
+}
+
+.irpf-filter-grid input:focus,
+.irpf-field input:focus,
+.irpf-field select:focus,
+.irpf-variable-row input:focus,
+.irpf-variable-row select:focus,
+.irpf-field textarea:focus {
+  outline: 2px solid #bfdbfe;
+  border-color: #2563eb;
+}
+
+.irpf-field input:disabled {
+  color: #94a3b8;
+  background: #f8fafc;
+}
+
+.irpf-result-count {
+  margin: 10px 0 7px;
+  color: #64748b;
+  font-size: 11px;
+}
+
+.irpf-btn {
+  min-height: 36px;
+  border-radius: 7px;
+  padding: 7px 12px;
+  border: 1px solid transparent;
+  font-size: 12px;
+  font-weight: 750;
+  cursor: pointer;
+  transition: background .15s ease, border-color .15s ease, color .15s ease;
+}
+
+.irpf-btn:disabled {
+  opacity: .48;
+  cursor: not-allowed;
+}
+
+.irpf-btn--primary {
+  background: #2563eb;
+  border-color: #2563eb;
+  color: #fff;
+}
+
+.irpf-btn--primary:hover:not(:disabled) {
+  background: #1d4ed8;
+}
+
+.irpf-btn--secondary,
+.irpf-btn--small {
+  background: #fff;
+  border-color: #cbd5e1;
+  color: #334155;
+}
+
+.irpf-btn--secondary:hover:not(:disabled),
+.irpf-btn--small:hover:not(:disabled) {
+  border-color: #94a3b8;
+  background: #f8fafc;
+}
+
+.irpf-btn--danger {
+  background: #fff;
+  border-color: #fecaca;
+  color: #b91c1c;
+}
+
+.irpf-btn--small {
+  min-height: 30px;
+  padding: 5px 9px;
+  font-size: 11px;
+}
+
+.irpf-table-shell {
+  width: 100%;
+  overflow: auto;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+}
+
+.irpf-table-shell--selector {
+  max-height: 320px;
+}
+
+.irpf-table {
+  width: 100%;
+  border-collapse: collapse;
+  color: #334155;
+  font-size: 11px;
+}
+
+.irpf-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 8px 10px;
+  border-bottom: 1px solid #dbe3ef;
+  background: #f1f5f9;
+  color: #475569;
+  text-align: left;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .03em;
+  text-transform: uppercase;
+}
+
+.irpf-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid #edf2f7;
+  vertical-align: middle;
+}
+
+.irpf-table tr:last-child td {
+  border-bottom: 0;
+}
+
+.irpf-table tbody tr:hover {
+  background: #f8fafc;
+}
+
+.irpf-table tbody tr.is-selected {
+  background: #eff6ff;
+}
+
+.irpf-table td small {
+  display: block;
+  margin-top: 2px;
+  color: #94a3b8;
+  font-size: 10px;
+}
+
+.irpf-table .is-code {
+  color: #2563eb;
+  font-weight: 800;
+}
+
+.irpf-table .is-number {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.irpf-table .is-action {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.irpf-table-empty,
+.irpf-empty-state,
+.irpf-empty-inline {
+  color: #64748b;
+  text-align: center;
+}
+
+.irpf-table-empty {
+  padding: 24px !important;
+}
+
+.irpf-empty-state,
+.irpf-empty-inline {
+  padding: 24px;
+  border: 1px dashed #cbd5e1;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.irpf-detail-panel {
+  overflow: hidden;
+}
+
+.irpf-detail-header {
+  padding: 16px 18px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.irpf-header-status {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 96px;
+  padding: 8px 12px;
+  border: 1px solid #dbe3ef;
+  border-radius: 7px;
+  background: #f8fafc;
+}
+
+.irpf-header-status span {
+  color: #64748b;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.irpf-header-status strong {
+  color: #111827;
+  font-size: 14px;
+}
+
+.irpf-tabs {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border-bottom: 1px solid #e2e8f0;
+  background: #f8fafc;
+}
+
+.irpf-tabs button {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  min-height: 58px;
+  padding: 11px 16px;
+  border: 0;
+  border-right: 1px solid #e2e8f0;
+  background: transparent;
+  color: #64748b;
+  cursor: pointer;
+  text-align: left;
+}
+
+.irpf-tabs button:last-child {
+  border-right: 0;
+}
+
+.irpf-tabs button::after {
+  position: absolute;
+  right: 14px;
+  bottom: -1px;
+  left: 14px;
+  height: 2px;
+  content: "";
+  background: transparent;
+}
+
+.irpf-tabs button strong {
+  color: #334155;
+  font-size: 12px;
+}
+
+.irpf-tabs button small {
+  font-size: 10px;
+}
+
+.irpf-tabs button.is-active {
+  background: #fff;
+}
+
+.irpf-tabs button.is-active strong {
+  color: #1d4ed8;
+}
+
+.irpf-tabs button.is-active::after {
+  background: #2563eb;
+}
+
+.irpf-banner {
+  margin: 12px 16px 0;
+  padding: 9px 11px;
+  border: 1px solid;
+  border-radius: 7px;
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.irpf-banner--info {
+  border-color: #bfdbfe;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.irpf-banner--success {
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+  color: #166534;
+}
+
+.irpf-banner--warning {
+  border-color: #fde68a;
+  background: #fffbeb;
+  color: #92400e;
+}
+
+.irpf-banner--error {
+  border-color: #fecaca;
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.irpf-tab-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px 18px 18px;
+}
+
+.irpf-status-strip {
+  display: grid;
+  grid-template-columns: 180px 180px minmax(0, 1fr);
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.irpf-status-strip > div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 10px 12px;
+  border-right: 1px solid #e2e8f0;
+  background: #f8fafc;
+}
+
+.irpf-status-strip > div:last-child {
+  border-right: 0;
+}
+
+.irpf-status-strip span,
+.irpf-kpi span,
+.irpf-mini-grid span,
+.irpf-calc-result span,
+.irpf-readonly-field span,
+.irpf-simulation-reference span,
+.irpf-impact-panel span {
+  color: #64748b;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .03em;
+}
+
+.irpf-status-strip strong,
+.irpf-readonly-field strong,
+.irpf-simulation-reference strong {
+  color: #111827;
+  font-size: 12px;
+}
+
+.irpf-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.irpf-kpi {
+  display: flex;
+  min-height: 72px;
+  flex-direction: column;
+  justify-content: center;
+  gap: 5px;
+  padding: 11px 12px;
+  border: 1px solid #dbe3ef;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.irpf-kpi strong {
+  color: #111827;
+  font-size: 17px;
+}
+
+.irpf-kpi--accent {
+  border-color: #bfdbfe;
+  background: #eff6ff;
+}
+
+.irpf-kpi--accent strong {
+  color: #1d4ed8;
+}
+
+.irpf-summary-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(330px, .9fr);
+  gap: 12px;
+}
+
+.irpf-subcard {
+  padding: 14px;
+}
+
+.irpf-mini-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.irpf-mini-grid > div {
+  display: flex;
+  min-height: 66px;
+  flex-direction: column;
+  gap: 3px;
+  padding: 9px 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 7px;
+  background: #f8fafc;
+}
+
+.irpf-mini-grid strong {
+  color: #111827;
+  font-size: 14px;
+}
+
+.irpf-mini-grid small {
+  color: #94a3b8;
+  font-size: 10px;
+}
+
+.irpf-calc-result {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 12px;
+  padding: 10px 12px;
+  border: 1px solid #bfdbfe;
+  border-radius: 7px;
+  background: #eff6ff;
+}
+
+.irpf-calc-result strong {
+  color: #1d4ed8;
+  font-size: 17px;
+}
+
+.irpf-action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.irpf-subcard .irpf-action-row {
+  margin-top: 12px;
+  justify-content: flex-start;
+}
+
+.irpf-panel-toolbar {
+  align-items: end;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.irpf-field--year {
+  width: 120px;
+}
+
+.irpf-table--forecast {
+  min-width: 820px;
+}
+
+.irpf-state {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 2px 7px;
+  border: 1px solid #dbe3ef;
+  border-radius: 999px;
+  background: #f8fafc;
+  color: #475569;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.irpf-state--real {
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+  color: #166534;
+}
+
+.irpf-state--forecast {
+  border-color: #dbe3ef;
+  background: #f8fafc;
+  color: #475569;
+}
+
+.irpf-total-row td {
+  border-top: 2px solid #cbd5e1;
+  background: #f8fafc;
+}
+
+.irpf-simulation-base {
+  display: grid;
+  grid-template-columns: minmax(220px, 300px) minmax(180px, 240px);
+  gap: 12px;
+  align-items: end;
+}
+
+.irpf-simulation-reference,
+.irpf-readonly-field {
+  display: flex;
+  min-height: 36px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 7px;
+  background: #f8fafc;
+}
+
+.irpf-variable-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.irpf-variable-row {
+  display: grid;
+  grid-template-columns: 170px 130px minmax(220px, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.irpf-impact-panel {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  overflow: hidden;
+  border: 1px solid #bfdbfe;
+  border-radius: 8px;
+  background: #eff6ff;
+}
+
+.irpf-impact-panel > div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 11px 12px;
+  border-right: 1px solid #bfdbfe;
+}
+
+.irpf-impact-panel > div:last-child {
+  border-right: 0;
+}
+
+.irpf-impact-panel strong {
+  color: #1d4ed8;
+  font-size: 14px;
+}
+
+.irpf-form-section {
+  padding: 14px;
+}
+
+.irpf-form-section__title {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.irpf-form-section__title > span {
+  display: inline-flex;
+  width: 24px;
+  height: 24px;
+  flex: 0 0 24px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  background: #eff6ff;
+  color: #2563eb;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.irpf-form-section__title h4 {
+  margin: 0;
+  color: #111827;
+  font-size: 14px;
+}
+
+.irpf-form-section__title p {
+  margin: 3px 0 0;
+  font-size: 11px;
+}
+
+.irpf-form-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.irpf-form-grid--4 {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.irpf-form-grid--3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.irpf-check-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.irpf-check-grid label {
+  display: flex;
+  min-height: 36px;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 9px;
+  border: 1px solid #e2e8f0;
+  border-radius: 7px;
+  background: #f8fafc;
+  color: #475569;
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.irpf-check-grid input {
+  accent-color: #2563eb;
+}
+
+.irpf-form-section > .irpf-field:last-child {
+  margin-top: 12px;
+}
+
+@media (max-width: 1180px) {
+  .irpf-worker-context {
+    grid-template-columns: 1fr auto;
+  }
+
+  .irpf-worker-context__meta {
+    grid-column: 1 / -1;
+  }
+
+  .irpf-filter-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .irpf-summary-split {
+    grid-template-columns: 1fr;
+  }
+
+  .irpf-kpi-grid,
+  .irpf-impact-panel,
+  .irpf-form-grid--4,
+  .irpf-check-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .irpf-worker-context,
+  .irpf-status-strip,
+  .irpf-form-grid--3,
+  .irpf-form-grid--4,
+  .irpf-kpi-grid,
+  .irpf-impact-panel,
+  .irpf-check-grid,
+  .irpf-tabs,
+  .irpf-mini-grid,
+  .irpf-simulation-base,
+  .irpf-variable-row {
+    grid-template-columns: 1fr;
+  }
+
+  .irpf-worker-context__meta {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .irpf-tabs button {
+    border-right: 0;
+    border-bottom: 1px solid #e2e8f0;
+  }
+
+  .irpf-status-strip > div,
+  .irpf-impact-panel > div {
+    border-right: 0;
+    border-bottom: 1px solid #e2e8f0;
+  }
+
+  .irpf-filter-grid {
+    grid-template-columns: 1fr;
+  }
+}
