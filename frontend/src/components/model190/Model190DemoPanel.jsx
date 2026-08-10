@@ -159,7 +159,7 @@ export default function Model190DemoPanel({ companies = [] }) {
           </button>
         ) : null}
         {canCorrect ? (
-          <button type="button" style={styles.correctButton} disabled={busy} onClick={correct}>
+          <button type="button" style={styles.secondary} disabled={busy} onClick={correct}>
             {busy ? "Corrigiendo…" : "Corregir error y conciliar 2T"}
           </button>
         ) : null}
@@ -169,20 +169,20 @@ export default function Model190DemoPanel({ companies = [] }) {
       {message ? <div style={styles.success}>{message}</div> : null}
 
       <div style={styles.explanation}>
-        <div>
+        <div style={styles.explanationCopy}>
           <b>{meta.description}</b>
           <span>{status?.next_action || "Prepara el escenario para comenzar la práctica."}</span>
         </div>
-        <strong>{completion.total ? `${completion.completed}/${completion.total}` : "0/8"}</strong>
+        <strong style={styles.progress}>{completion.total ? `${completion.completed}/${completion.total}` : "0/8"}</strong>
       </div>
 
       {company ? (
         <div style={styles.companyBanner}>
-          <span>Empresa del escenario</span>
+          <div style={styles.companyLabel}>
+            <span>Empresa del escenario</span>
+            <small>Utiliza esta empresa y el ejercicio 2026 en los espacios de cierre anual.</small>
+          </div>
           <b>{company.name} · {company.cif}</b>
-          <small>
-            Selecciona esta misma empresa y el ejercicio 2026 en los espacios de cierre anual situados debajo.
-          </small>
         </div>
       ) : null}
 
@@ -190,10 +190,21 @@ export default function Model190DemoPanel({ companies = [] }) {
         <div style={styles.checkGrid}>
           {status.checks.map((check) => (
             <article key={check.id} style={check.completed ? styles.checkDone : styles.checkPending}>
-              <span style={styles.checkMark}>{check.completed ? "✓" : "!"}</span>
-              <div>
+              <span
+                style={{
+                  ...styles.checkMark,
+                  ...(check.completed ? styles.checkMarkDone : styles.checkMarkPending),
+                }}
+              >
+                {check.completed ? "✓" : "!"}
+              </span>
+              <div style={styles.checkCopy}>
                 <b>{check.label}</b>
-                {check.state ? <small>{check.state === "pending" ? "Pendiente de corrección" : "Corregido"}</small> : null}
+                {check.state ? (
+                  <small style={styles.checkState}>
+                    {check.state === "pending" ? "Pendiente de corrección" : "Corregido"}
+                  </small>
+                ) : null}
               </div>
             </article>
           ))}
@@ -206,24 +217,30 @@ export default function Model190DemoPanel({ companies = [] }) {
 
       {status?.preview ? (
         <div style={styles.metrics}>
-          <article><span>Líneas anuales</span><strong>{status.preview.recipients}</strong></article>
-          <article><span>NIF únicos</span><strong>{status.preview.unique_nifs}</strong></article>
-          <article><span>Percepciones</span><strong>{money(status.preview.cash_income)}</strong></article>
-          <article><span>Retenciones</span><strong>{money(status.preview.withholding)}</strong></article>
+          <article style={styles.metric}><span>Líneas anuales</span><strong>{status.preview.recipients}</strong></article>
+          <article style={styles.metric}><span>NIF únicos</span><strong>{status.preview.unique_nifs}</strong></article>
+          <article style={styles.metric}><span>Percepciones</span><strong>{money(status.preview.cash_income)}</strong></article>
+          <article style={styles.metric}><span>Retenciones</span><strong>{money(status.preview.withholding)}</strong></article>
         </div>
       ) : null}
 
       {status?.validation ? (
         <div style={styles.diagnosticGrid}>
           <div style={status.validation.is_valid ? styles.diagnosticOk : styles.diagnosticError}>
-            <b>{status.validation.is_valid ? "Validación superada" : "Generación bloqueada"}</b>
+            <div style={styles.diagnosticHeading}>
+              <b>{status.validation.is_valid ? "Validación superada" : "Generación bloqueada"}</b>
+              <span aria-hidden="true">›</span>
+            </div>
             <span>
               {status.validation.counts.error} errores · {status.validation.counts.warning} avisos · {status.validation.counts.information} informaciones
             </span>
             {!status.validation.is_valid ? <small>{status.validation.codes.join(" · ")}</small> : null}
           </div>
           <div style={status.reconciliation?.is_balanced ? styles.diagnosticOk : styles.diagnosticError}>
-            <b>{status.reconciliation?.is_balanced ? "111/190 conciliados" : "Diferencia anual detectada"}</b>
+            <div style={styles.diagnosticHeading}>
+              <b>{status.reconciliation?.is_balanced ? "111/190 conciliados" : "Diferencia anual detectada"}</b>
+              <span aria-hidden="true">›</span>
+            </div>
             <span>
               {Object.entries(status.reconciliation?.quarter_status || {})
                 .map(([quarter, balanced]) => `${quarter}: ${balanced ? "OK" : "diferencia"}`)
@@ -252,36 +269,227 @@ export default function Model190DemoPanel({ companies = [] }) {
   );
 }
 
-const border = "2px solid #111111";
+const border = "1px solid #dbe3ee";
 const styles = {
-  panel: { display: "grid", gap: "15px", marginBottom: "26px", padding: "20px", border, background: "#ffffff", boxShadow: "4px 4px 0 #111111" },
-  header: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "20px" },
-  eyebrow: { display: "block", marginBottom: "5px", fontSize: "10px", fontWeight: 950, letterSpacing: ".12em" },
-  title: { margin: 0, fontSize: "23px" },
-  description: { maxWidth: "780px", margin: "7px 0 0", color: "#4b5563", lineHeight: 1.45 },
-  stage: { padding: "8px 11px", border, fontSize: "10px", fontWeight: 950, textTransform: "uppercase", whiteSpace: "nowrap" },
-  stageNeutral: { background: "#f3f4f6" },
-  stageWarning: { background: "#fed7aa", color: "#7c2d12" },
-  stageSuccess: { background: "#d9f99d", color: "#365314" },
-  selectorRow: { display: "flex", flexWrap: "wrap", alignItems: "end", gap: "10px", padding: "13px", border, background: "#fff8a6" },
-  control: { display: "grid", flex: "1 1 330px", gap: "5px", fontSize: "11px", fontWeight: 900, textTransform: "uppercase" },
-  select: { height: "39px", padding: "0 10px", border, background: "#fff", fontWeight: 750 },
-  primary: { height: "39px", padding: "0 14px", border, background: "#111", color: "#fff37a", fontWeight: 950, cursor: "pointer" },
-  correctButton: { height: "39px", padding: "0 14px", border, background: "#f97316", color: "#111", fontWeight: 950, cursor: "pointer" },
-  secondary: { height: "39px", padding: "0 13px", border, background: "#fff", fontWeight: 900, cursor: "pointer" },
-  error: { padding: "11px 13px", border: "1px solid #991b1b", background: "#fee2e2", color: "#991b1b", fontWeight: 800 },
-  success: { padding: "11px 13px", border: "1px solid #3f6212", background: "#ecfccb", color: "#365314", fontWeight: 800 },
-  explanation: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: "18px", padding: "13px", border, background: "#f9fafb" },
-  companyBanner: { display: "grid", gridTemplateColumns: "150px 1fr", gap: "3px 12px", padding: "12px", border: "1px solid #a16207", background: "#fef3c7" },
+  panel: {
+    display: "grid",
+    gap: "14px",
+    marginBottom: "26px",
+    padding: "20px",
+    border,
+    borderRadius: "11px",
+    background: "#ffffff",
+    boxShadow: "none",
+  },
+  header: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    gap: "20px",
+    paddingBottom: "14px",
+    borderBottom: "1px solid #e5ebf2",
+  },
+  eyebrow: {
+    display: "block",
+    marginBottom: "6px",
+    color: "#64748b",
+    fontSize: "9px",
+    fontWeight: 900,
+    letterSpacing: ".08em",
+  },
+  title: { margin: 0, color: "#172033", fontSize: "23px", letterSpacing: "-.02em" },
+  description: { maxWidth: "780px", margin: "7px 0 0", color: "#64748b", lineHeight: 1.45 },
+  stage: {
+    padding: "6px 9px",
+    border,
+    borderRadius: "6px",
+    fontSize: "9px",
+    fontWeight: 900,
+    textTransform: "uppercase",
+    whiteSpace: "nowrap",
+  },
+  stageNeutral: { background: "#f8fafc", color: "#475569" },
+  stageWarning: { borderColor: "#f3d19b", background: "#fffaf1", color: "#9a5b00" },
+  stageSuccess: { borderColor: "#b7dfc7", background: "#f7fcf8", color: "#167044" },
+  selectorRow: {
+    display: "flex",
+    flexWrap: "wrap",
+    alignItems: "end",
+    gap: "10px",
+    padding: "14px 16px",
+    border,
+    borderRadius: "9px",
+    background: "#f8fafc",
+  },
+  control: {
+    display: "grid",
+    flex: "1 1 330px",
+    gap: "5px",
+    color: "#475569",
+    fontSize: "10px",
+    fontWeight: 850,
+    textTransform: "uppercase",
+  },
+  select: {
+    height: "39px",
+    padding: "0 10px",
+    border: "1px solid #cbd5e1",
+    borderRadius: "7px",
+    background: "#ffffff",
+    color: "#172033",
+    fontWeight: 700,
+  },
+  primary: {
+    height: "39px",
+    padding: "0 14px",
+    border: "1px solid #2563eb",
+    borderRadius: "7px",
+    background: "#2563eb",
+    color: "#ffffff",
+    fontWeight: 850,
+    cursor: "pointer",
+  },
+  secondary: {
+    height: "39px",
+    padding: "0 13px",
+    border: "1px solid #cbd5e1",
+    borderRadius: "7px",
+    background: "#ffffff",
+    color: "#334155",
+    fontWeight: 800,
+    cursor: "pointer",
+  },
+  error: {
+    padding: "10px 12px",
+    border: "1px solid #f1c2c2",
+    borderRadius: "7px",
+    background: "#fff8f8",
+    color: "#991b1b",
+    fontWeight: 750,
+  },
+  success: {
+    padding: "10px 12px",
+    border: "1px solid #b7dfc7",
+    borderRadius: "7px",
+    background: "#f7fcf8",
+    color: "#167044",
+    fontWeight: 750,
+  },
+  explanation: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: "18px",
+    padding: "12px 14px",
+    border,
+    borderRadius: "8px",
+    background: "#ffffff",
+  },
+  explanationCopy: { display: "flex", flexWrap: "wrap", gap: "4px" },
+  progress: { color: "#172033", whiteSpace: "nowrap" },
+  companyBanner: {
+    display: "grid",
+    gridTemplateColumns: "minmax(150px, 220px) 1fr",
+    gap: "10px 16px",
+    alignItems: "start",
+    padding: "14px",
+    border: "1px solid #e2e8f0",
+    borderRadius: "8px",
+    background: "#fafaf9",
+    color: "#334155",
+  },
+  companyLabel: { display: "grid", gap: "5px", color: "#475569" },
   checkGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(230px,1fr))", gap: "9px" },
-  checkDone: { display: "flex", gap: "9px", alignItems: "center", padding: "10px", border: "1px solid #65a30d", background: "#f7fee7" },
-  checkPending: { display: "flex", gap: "9px", alignItems: "center", padding: "10px", border: "1px solid #ea580c", background: "#fff7ed" },
-  checkMark: { display: "grid", placeItems: "center", width: "24px", height: "24px", border: "1px solid #111", fontWeight: 950 },
-  empty: { padding: "16px", border: "2px dashed #9ca3af", color: "#4b5563", textAlign: "center" },
-  metrics: { display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(170px,1fr))", gap: "9px" },
+  checkDone: {
+    display: "flex",
+    gap: "10px",
+    alignItems: "center",
+    minHeight: "58px",
+    padding: "10px 11px",
+    border: "1px solid #cfe6d7",
+    borderRadius: "7px",
+    background: "#fbfefc",
+  },
+  checkPending: {
+    display: "flex",
+    gap: "10px",
+    alignItems: "center",
+    minHeight: "58px",
+    padding: "10px 11px",
+    border: "1px solid #f3d19b",
+    borderRadius: "7px",
+    background: "#fffaf3",
+  },
+  checkMark: {
+    display: "grid",
+    flex: "0 0 22px",
+    placeItems: "center",
+    width: "22px",
+    height: "22px",
+    border: "1px solid #cbd5e1",
+    borderRadius: "5px",
+    background: "#ffffff",
+    fontSize: "13px",
+    fontWeight: 900,
+  },
+  checkMarkDone: { borderColor: "#9ecdb0", color: "#167044" },
+  checkMarkPending: { borderColor: "#efbf73", color: "#b56c00" },
+  checkCopy: { display: "grid", gap: "3px", minWidth: 0, color: "#172033" },
+  checkState: { color: "#64748b", fontSize: "10px", fontWeight: 500 },
+  empty: {
+    padding: "16px",
+    border: "1px dashed #cbd5e1",
+    borderRadius: "8px",
+    background: "#f8fafc",
+    color: "#64748b",
+    textAlign: "center",
+  },
+  metrics: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit,minmax(170px,1fr))",
+    gap: "0",
+    paddingTop: "2px",
+  },
+  metric: {
+    display: "flex",
+    alignItems: "baseline",
+    gap: "4px",
+    padding: "8px 14px 8px 0",
+    color: "#334155",
+  },
   diagnosticGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(300px,1fr))", gap: "10px" },
-  diagnosticOk: { display: "grid", gap: "4px", padding: "12px", border: "1px solid #65a30d", background: "#f7fee7" },
-  diagnosticError: { display: "grid", gap: "4px", padding: "12px", border: "1px solid #dc2626", background: "#fef2f2" },
-  nextStep: { padding: "12px", border, background: "#dbeafe" },
-  completed: { padding: "13px", border, background: "#d9f99d", color: "#365314", fontWeight: 900 },
+  diagnosticHeading: { display: "flex", justifyContent: "space-between", gap: "12px", alignItems: "center" },
+  diagnosticOk: {
+    display: "grid",
+    gap: "4px",
+    padding: "12px 14px",
+    border: "1px solid #b7dfc7",
+    borderRadius: "8px",
+    background: "#f7fcf8",
+    color: "#334155",
+  },
+  diagnosticError: {
+    display: "grid",
+    gap: "4px",
+    padding: "12px 14px",
+    border: "1px solid #f1c2c2",
+    borderRadius: "8px",
+    background: "#fff8f8",
+    color: "#334155",
+  },
+  nextStep: {
+    padding: "11px 13px",
+    border: "1px solid #cfe0fb",
+    borderRadius: "8px",
+    background: "#f5f9ff",
+    color: "#334155",
+  },
+  completed: {
+    padding: "12px 13px",
+    border: "1px solid #b7dfc7",
+    borderRadius: "8px",
+    background: "#f7fcf8",
+    color: "#167044",
+    fontWeight: 800,
+  },
 };
