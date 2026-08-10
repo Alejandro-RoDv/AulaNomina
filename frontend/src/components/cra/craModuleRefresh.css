@@ -1,0 +1,575 @@
+/* Split 42 — adaptación del módulo CRA al lenguaje visual general de AulaNomina. */
+
+.cra-workspace {
+  gap: 16px;
+}
+
+/* Cabecera funcional del módulo */
+.cra-hero {
+  align-items: center;
+  gap: 24px;
+  border: 1px solid #dbe3ed;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: none;
+  padding: 18px 20px;
+}
+
+.cra-hero h2 {
+  margin: 3px 0 5px;
+  color: #172033;
+  font-size: 20px;
+  line-height: 1.25;
+  font-weight: 800;
+}
+
+.cra-hero p {
+  max-width: 760px;
+  color: #62708a;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.45;
+}
+
+.cra-eyebrow {
+  color: #2563eb;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.075em;
+}
+
+.cra-hero__summary {
+  grid-template-columns: repeat(2, minmax(130px, 1fr));
+  min-width: 300px;
+  border-left: 1px solid #dbe3ed;
+}
+
+.cra-hero__summary > div {
+  gap: 3px;
+  padding: 6px 18px;
+}
+
+.cra-hero__summary span {
+  color: #738199;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.cra-hero__summary strong {
+  color: #172033;
+  font-size: 22px;
+  line-height: 1.15;
+}
+
+/* Navegación interna: mismo patrón que Convenios, Trabajadores y Contratos. */
+.cra-tabs {
+  display: flex;
+  align-items: flex-end;
+  gap: 24px;
+  border: 0;
+  border-bottom: 1px solid #dbe3ed;
+  background: transparent;
+}
+
+.cra-tab {
+  display: inline-flex;
+  flex: 0 0 auto;
+  min-height: 44px;
+  gap: 1px;
+  border: 0;
+  border-right: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  padding: 7px 0 9px;
+  color: #60708a;
+}
+
+.cra-tab:last-child {
+  border-right: 0;
+}
+
+.cra-tab strong {
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.cra-tab small {
+  color: #8a96aa;
+  font-size: 9px;
+  font-weight: 500;
+}
+
+.cra-tab:hover {
+  color: #1d4ed8;
+}
+
+.cra-tab--active {
+  background: transparent;
+  color: #1d4ed8;
+  border-bottom-color: #2563eb;
+  box-shadow: none;
+}
+
+.cra-tab--active small {
+  color: #64748b;
+}
+
+/* Paso a paso */
+.cra-wizard {
+  border: 1px solid #dbe3ed;
+  border-radius: 8px;
+  background: #ffffff;
+  overflow: hidden;
+}
+
+.cra-wizard-step {
+  min-height: 58px;
+  gap: 9px;
+  border-right: 1px solid #e4e9f0;
+  padding: 9px 13px;
+  background: #ffffff;
+}
+
+.cra-wizard-step__number {
+  width: 26px;
+  height: 26px;
+  flex-basis: 26px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #7a879a;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.cra-wizard-step strong {
+  color: #4b5870;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.cra-wizard-step small {
+  color: #8793a7;
+  font-size: 9px;
+  font-weight: 500;
+}
+
+.cra-wizard-step--active {
+  background: #f4f8ff;
+}
+
+.cra-wizard-step--active .cra-wizard-step__number {
+  border-color: #2563eb;
+  background: #2563eb;
+  color: #ffffff;
+}
+
+.cra-wizard-step--active strong {
+  color: #172033;
+}
+
+.cra-wizard-step--done {
+  background: #ffffff;
+}
+
+.cra-wizard-step--done .cra-wizard-step__number {
+  border-color: #93c5fd;
+  background: #eff6ff;
+  color: #2563eb;
+}
+
+/* Formularios y comprobaciones */
+.cra-field > span,
+.cra-checkbox-field > span {
+  color: #46546b;
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: 0.02em;
+}
+
+.cra-field input,
+.cra-field select,
+.cra-table select,
+.cra-table-toolbar input {
+  min-height: 38px;
+  border-color: #cbd6e3;
+  border-radius: 6px;
+  padding: 7px 10px;
+  color: #172033;
+  font-size: 12px;
+  font-weight: 550;
+}
+
+.cra-check-panel {
+  gap: 0;
+  margin-top: 18px;
+  border: 1px solid #dbe3ed;
+  border-radius: 7px;
+  background: #f8fafc;
+  padding: 0;
+  overflow: hidden;
+}
+
+.cra-check-panel__item {
+  min-width: 0;
+  gap: 9px;
+  padding: 11px 13px;
+  border-right: 1px solid #e4e9f0;
+}
+
+.cra-check-panel__item:last-of-type {
+  border-right: 0;
+}
+
+.cra-check-panel__item strong {
+  color: #263349;
+  font-size: 11px;
+}
+
+.cra-check-panel__item small {
+  color: #738199;
+  font-size: 10px;
+  font-weight: 500;
+}
+
+.cra-check-icon {
+  width: 24px;
+  height: 24px;
+  flex-basis: 24px;
+  border-radius: 6px;
+  background: #eef4ff;
+  color: #2563eb;
+  font-size: 10px;
+}
+
+.cra-check-icon--ok {
+  background: #ecfdf3;
+  color: #15803d;
+}
+
+.cra-check-icon--warning {
+  background: #fff7e6;
+  color: #a16207;
+}
+
+.cra-action-bar {
+  margin-top: 18px;
+  border-top-color: #e1e7ef;
+  padding-top: 14px;
+}
+
+.cra-action-bar > span,
+.cra-action-bar__right > span {
+  color: #738199;
+  font-size: 10px;
+  font-weight: 500;
+}
+
+/* Botones: azul sólo para la acción principal. */
+.cra-button {
+  min-height: 36px;
+  border-color: #cbd6e3;
+  border-radius: 6px;
+  padding: 7px 12px;
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.cra-button--primary {
+  border-color: #2563eb;
+  background: #2563eb;
+  color: #ffffff;
+}
+
+.cra-button--primary:hover:not(:disabled) {
+  border-color: #1d4ed8;
+  background: #1d4ed8;
+}
+
+.cra-button--secondary {
+  background: #ffffff;
+  color: #344258;
+}
+
+.cra-button--send {
+  border-color: #bfdbfe;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.cra-link-button {
+  color: #2563eb;
+  font-size: 10px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.cra-link-button:hover {
+  text-decoration: underline;
+}
+
+/* Métricas: neutras salvo estados semánticos reales. */
+.cra-metrics {
+  gap: 0;
+  margin-bottom: 16px;
+  border: 1px solid #dbe3ed;
+  border-radius: 7px;
+  background: #ffffff;
+  overflow: hidden;
+}
+
+.cra-metric {
+  min-height: 66px;
+  gap: 2px;
+  border: 0;
+  border-right: 1px solid #e4e9f0;
+  background: #ffffff;
+  padding: 10px 12px;
+}
+
+.cra-metric:last-child {
+  border-right: 0;
+}
+
+.cra-metric > span {
+  color: #738199;
+  font-size: 9px;
+  font-weight: 750;
+}
+
+.cra-metric > strong {
+  color: #172033;
+  font-size: 19px;
+}
+
+.cra-metric > small {
+  color: #8793a7;
+  font-size: 9px;
+  font-weight: 500;
+}
+
+.cra-metric--highlight {
+  border: 0;
+  border-right: 1px solid #e4e9f0;
+  background: #f2f7ff;
+  box-shadow: none;
+}
+
+.cra-metric--highlight > strong {
+  color: #1d4ed8;
+}
+
+.cra-metric--success {
+  border-color: #e4e9f0;
+  background: #f7fcf8;
+}
+
+.cra-metric--warning {
+  border-color: #e4e9f0;
+  background: #fffbf2;
+}
+
+.cra-metric--danger {
+  border-color: #e4e9f0;
+  background: #fff8f8;
+}
+
+/* Tablas */
+.cra-table-toolbar {
+  margin-top: 16px;
+  border-color: #dbe3ed;
+  background: #f8fafc;
+  padding: 9px 11px;
+}
+
+.cra-table-wrap {
+  border-color: #dbe3ed;
+  border-radius: 0 0 7px 7px;
+}
+
+.cra-table th {
+  border-bottom: 1px solid #cbd6e3;
+  background: #f1f4f8;
+  padding: 7px 9px;
+  color: #4b5870;
+  font-size: 9px;
+  font-weight: 800;
+}
+
+.cra-table td {
+  padding: 7px 9px;
+  vertical-align: middle;
+}
+
+.cra-table tbody tr:hover td {
+  background: #f8fbff;
+}
+
+.cra-table td small {
+  margin-top: 2px;
+  font-size: 9px;
+}
+
+.cra-table__selected td {
+  background: #f2f7ff;
+}
+
+/* Configuración de conceptos */
+.cra-config-intro {
+  border-color: #dbe3ed;
+  border-radius: 7px;
+  background: #f8fafc;
+  padding: 11px 13px;
+}
+
+.cra-config-intro ol {
+  color: #53627a;
+  font-size: 10px;
+  font-weight: 500;
+}
+
+.cra-bulk-panel {
+  margin-top: 14px;
+  border: 1px solid #dbe3ed;
+  border-radius: 7px;
+  background: #f8fafc;
+  padding: 12px;
+}
+
+.cra-bulk-panel__title small {
+  font-weight: 500;
+}
+
+.cra-status,
+.cra-config-state {
+  padding: 3px 7px;
+  font-size: 9px;
+  font-weight: 750;
+}
+
+/* Respuestas / rectificaciones: elimina el resto del lenguaje amarillo-negro anterior. */
+.cra-validation-flow {
+  margin-bottom: 16px;
+  border: 1px solid #dbe3ed;
+  border-radius: 7px;
+  background: #f8fafc;
+  padding: 9px 12px;
+  color: #53627a;
+  font-size: 10px;
+  font-weight: 650;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.cra-validation-flow strong {
+  color: #9aa5b5;
+  font-size: 13px;
+}
+
+.cra-validation-summary-grid {
+  gap: 0;
+  border: 1px solid #dbe3ed;
+  border-radius: 7px;
+  overflow: hidden;
+}
+
+.cra-validation-summary {
+  border: 0;
+  border-right: 1px solid #e4e9f0;
+  background: #ffffff;
+  padding: 10px 11px;
+}
+
+.cra-validation-summary:last-child {
+  border-right: 0;
+}
+
+.cra-validation-summary span {
+  font-size: 9px;
+  font-weight: 750;
+}
+
+.cra-validation-summary strong {
+  font-size: 19px;
+}
+
+.cra-validation-summary--success {
+  background: #f7fcf8;
+}
+
+.cra-validation-summary--warning {
+  background: #fffbf2;
+}
+
+.cra-validation-summary--danger {
+  background: #fff8f8;
+}
+
+.cra-validation-summary--info {
+  background: #f6f9ff;
+}
+
+.cra-validation-table th {
+  border-bottom: 1px solid #cbd6e3;
+  background: #f1f4f8;
+  padding: 8px 9px;
+  font-size: 9px;
+}
+
+.cra-validation-table td {
+  padding: 8px 9px;
+}
+
+.cra-validation-table tbody tr:hover,
+.cra-validation-table tbody tr.is-selected {
+  background: #f3f7fd;
+}
+
+.cra-validation-primary {
+  border-color: #2563eb;
+  background: #2563eb;
+}
+
+.cra-validation-secondary {
+  border-color: #cbd6e3;
+  background: #ffffff;
+  color: #344258;
+}
+
+.cra-validation-detail {
+  border: 1px solid #dbe3ed;
+  border-radius: 7px;
+  background: #ffffff;
+  padding: 14px;
+  box-shadow: none;
+}
+
+@media (max-width: 900px) {
+  .cra-tabs {
+    gap: 14px;
+    overflow-x: auto;
+  }
+
+  .cra-tab {
+    min-width: max-content;
+    border-bottom: 2px solid transparent;
+  }
+
+  .cra-tab--active {
+    border-bottom-color: #2563eb;
+  }
+
+  .cra-hero__summary {
+    border-top: 1px solid #dbe3ed;
+  }
+
+  .cra-wizard-step {
+    border-bottom: 1px solid #e4e9f0;
+  }
+
+  .cra-metric,
+  .cra-validation-summary {
+    border-right: 0;
+    border-bottom: 1px solid #e4e9f0;
+  }
+}
