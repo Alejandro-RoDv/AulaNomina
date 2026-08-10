@@ -24,19 +24,19 @@ const STATUS_ORDER = ["VALIDATION_ERROR", "READY", "CONFIRMED", "GENERATED"];
 
 function StatusBadge({ status, submission = false }) {
   const settlementPalette = {
-    DRAFT: ["#f3f4f6", "#374151"],
-    VALIDATION_ERROR: ["#fee2e2", "#991b1b"],
-    READY: ["#fef3c7", "#92400e"],
-    CONFIRMED: ["#dbeafe", "#1e40af"],
-    GENERATED: ["#dcfce7", "#166534"],
-    CANCELLED: ["#e5e7eb", "#4b5563"],
+    DRAFT: ["#f1f5f9", "#475569"],
+    VALIDATION_ERROR: ["#fff1f2", "#b42318"],
+    READY: ["#fff8e7", "#9a6700"],
+    CONFIRMED: ["#eef4ff", "#2458c5"],
+    GENERATED: ["#edf8f1", "#18794e"],
+    CANCELLED: ["#f1f5f9", "#64748b"],
   };
   const submissionPalette = {
-    success: ["#dcfce7", "#166534"],
-    warning: ["#fef3c7", "#92400e"],
-    danger: ["#fee2e2", "#991b1b"],
-    info: ["#dbeafe", "#1e40af"],
-    neutral: ["#e5e7eb", "#374151"],
+    success: ["#edf8f1", "#18794e"],
+    warning: ["#fff8e7", "#9a6700"],
+    danger: ["#fff1f2", "#b42318"],
+    info: ["#eef4ff", "#2458c5"],
+    neutral: ["#f1f5f9", "#475569"],
   };
   const [backgroundColor, color] = submission
     ? submissionPalette[submissionStatusTone(status)] || submissionPalette.neutral
@@ -45,11 +45,11 @@ function StatusBadge({ status, submission = false }) {
   return <span style={{ ...styles.badge, backgroundColor, color }}>{label}</span>;
 }
 
-function SummaryCard({ label, value, hint, emphasis = false }) {
+function SummaryCard({ label, value, hint, accent = false }) {
   return (
-    <div style={{ ...styles.summaryCard, ...(emphasis ? styles.summaryCardEmphasis : {}) }}>
+    <div style={{ ...styles.summaryCard, ...(accent ? styles.summaryCardAccent : {}) }}>
       <span style={styles.summaryLabel}>{label}</span>
-      <strong style={styles.summaryValue}>{value}</strong>
+      <strong style={{ ...styles.summaryValue, ...(accent ? styles.summaryValueAccent : {}) }}>{value}</strong>
       {hint && <small style={styles.summaryHint}>{hint}</small>}
     </div>
   );
@@ -128,6 +128,7 @@ export default function SocialSecurityDashboardPage({ companies = [], onNavigate
   );
   const lastSubmission = useMemo(() => latestSubmission(submissions), [submissions]);
   const selectedCompany = activeCompanies.find((company) => String(company.id) === String(companyId));
+  const pendingProcess = stats.errors + stats.ready + stats.confirmed;
 
   const openCraFiles = () => {
     if (companyId) setSelectedCompanyId(companyId);
@@ -139,7 +140,7 @@ export default function SocialSecurityDashboardPage({ companies = [], onNavigate
     <div style={styles.page}>
       {error && <div style={styles.errorBanner}>{error}</div>}
 
-      <PageCard title="Resumen de Seguros Sociales" subtitle="Liquidaciones, estados, ficheros generados y resultados de comunicaciones.">
+      <PageCard title="Resumen de Seguros Sociales" subtitle="Liquidaciones, ficheros y estado de las comunicaciones de la empresa seleccionada.">
         <div style={styles.toolbar}>
           <label style={styles.field}>
             <span>Empresa</span>
@@ -148,37 +149,36 @@ export default function SocialSecurityDashboardPage({ companies = [], onNavigate
               {activeCompanies.map((company) => <option key={company.id} value={company.id}>{company.name}</option>)}
             </select>
           </label>
-          <button type="button" style={styles.secondaryButton} disabled={!companyId || loading} onClick={loadDashboard}>{loading ? "Actualizando..." : "Actualizar"}</button>
+          <button type="button" style={styles.secondaryButton} disabled={!companyId || loading} onClick={loadDashboard}>
+            {loading ? "Actualizando..." : "Actualizar"}
+          </button>
         </div>
 
         <div style={styles.summaryGrid}>
           <SummaryCard label="Liquidaciones" value={stats.total} hint={selectedCompany?.name || "Sin empresa"} />
-          <SummaryCard label="Con errores" value={stats.errors} hint="Requieren corrección" />
-          <SummaryCard label="Preparadas" value={stats.ready} hint="Pendientes de confirmar" />
-          <SummaryCard label="Confirmadas" value={stats.confirmed} hint="Pendientes de fichero" />
-          <SummaryCard label="Ficheros pendientes de envío" value={stats.pendingFiles} hint={`${stats.files} fichero(s) total`} />
-          <SummaryCard label="Envíos aceptados" value={stats.accepted} />
-          <SummaryCard label="Con advertencias" value={stats.warnings} />
-          <SummaryCard label="Rechazados" value={stats.rejected} />
-          <SummaryCard label="Total liquidado" value={`${formatMoney(stats.totalDue)} €`} emphasis />
+          <SummaryCard label="Pendientes de proceso" value={pendingProcess} hint={`${stats.errors} con errores · ${stats.ready} preparadas`} />
+          <SummaryCard label="Ficheros pendientes" value={stats.pendingFiles} hint={`${stats.files} fichero(s) generados`} />
+          <SummaryCard label="Envíos aceptados" value={stats.accepted} hint={`${stats.warnings} con advertencias · ${stats.rejected} rechazados`} />
+          <SummaryCard label="Total liquidado" value={`${formatMoney(stats.totalDue)} €`} accent />
         </div>
 
         <div style={styles.lastSubmissionPanel}>
-          <span style={styles.summaryLabel}>Último envío registrado</span>
-          {lastSubmission ? (
-            <div style={styles.lastSubmissionData}>
-              <strong>{lastSubmission.submission_number}</strong>
-              <StatusBadge status={lastSubmission.status} submission />
-              <span>{lastSubmission.response_code || "Sin código"}</span>
-              <span>{formatDateTime(lastSubmission.processed_at || lastSubmission.created_at)}</span>
-            </div>
-          ) : <strong>Sin envíos registrados</strong>}
-        </div>
-
-        <div style={styles.quickActions}>
-          <button type="button" style={styles.primaryButton} onClick={() => onNavigate?.("social-security-settlements")}>Abrir liquidaciones</button>
-          <button type="button" style={styles.secondaryButton} onClick={() => onNavigate?.("social-security-files")}>Ver ficheros generados</button>
-          <button type="button" style={styles.craButton} disabled={!companyId} onClick={openCraFiles}>Preparar ficheros CRA</button>
+          <div>
+            <span style={styles.summaryLabel}>Último envío registrado</span>
+            {lastSubmission ? (
+              <div style={styles.lastSubmissionData}>
+                <strong>{lastSubmission.submission_number}</strong>
+                <StatusBadge status={lastSubmission.status} submission />
+                <span>{lastSubmission.response_code || "Sin código"}</span>
+                <span>{formatDateTime(lastSubmission.processed_at || lastSubmission.created_at)}</span>
+              </div>
+            ) : <strong style={styles.noSubmission}>Sin envíos registrados</strong>}
+          </div>
+          <div style={styles.quickActions}>
+            <button type="button" style={styles.secondaryButton} onClick={() => onNavigate?.("social-security-files")}>Ficheros generados</button>
+            <button type="button" style={styles.secondaryButton} disabled={!companyId} onClick={openCraFiles}>Preparar CRA</button>
+            <button type="button" style={styles.primaryButton} onClick={() => onNavigate?.("social-security-settlements")}>Abrir liquidaciones</button>
+          </div>
         </div>
       </PageCard>
 
@@ -210,35 +210,43 @@ export default function SocialSecurityDashboardPage({ companies = [], onNavigate
   );
 }
 
-const baseButton = { borderRadius: "8px", padding: "10px 14px", cursor: "pointer", fontWeight: 900, fontSize: "13px" };
+const baseButton = {
+  minHeight: "36px",
+  borderRadius: "6px",
+  padding: "7px 12px",
+  cursor: "pointer",
+  fontWeight: 750,
+  fontSize: "12px",
+};
 
 const styles = {
-  page: { display: "flex", flexDirection: "column", gap: "20px" },
-  errorBanner: { border: "2px solid #991b1b", backgroundColor: "#fee2e2", color: "#7f1d1d", padding: "12px 14px", fontWeight: 800 },
-  toolbar: { display: "flex", alignItems: "end", gap: "12px", flexWrap: "wrap", marginBottom: "18px" },
-  field: { minWidth: "300px", display: "flex", flexDirection: "column", gap: "6px", fontSize: "13px", fontWeight: 800 },
-  input: { border: "1px solid #9ca3af", borderRadius: "8px", padding: "10px 11px", backgroundColor: "#ffffff", color: "#111827", fontSize: "14px", minHeight: "42px" },
-  summaryGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(155px, 1fr))", gap: "10px" },
-  summaryCard: { border: "1px solid #d1d5db", backgroundColor: "#ffffff", padding: "12px", display: "flex", flexDirection: "column", gap: "5px", minHeight: "82px" },
-  summaryCardEmphasis: { border: "2px solid #111111", backgroundColor: "#fff8a6", boxShadow: "3px 3px 0 #111111" },
-  summaryLabel: { color: "#6b7280", fontSize: "12px", fontWeight: 800 },
-  summaryValue: { color: "#111827", fontSize: "22px" },
-  summaryHint: { color: "#6b7280", fontWeight: 700 },
-  lastSubmissionPanel: { marginTop: "14px", padding: "12px", border: "1px solid #d1d5db", backgroundColor: "#f9fafb" },
-  lastSubmissionData: { display: "flex", alignItems: "center", flexWrap: "wrap", gap: "10px", marginTop: "5px", fontSize: "13px" },
-  quickActions: { display: "flex", gap: "10px", flexWrap: "wrap", marginTop: "18px", paddingTop: "16px", borderTop: "1px solid #e5e7eb" },
-  primaryButton: { ...baseButton, backgroundColor: "#111827", color: "#ffffff", border: "2px solid #111827" },
-  secondaryButton: { ...baseButton, backgroundColor: "#ffffff", color: "#111827", border: "1px solid #9ca3af" },
-  craButton: { ...baseButton, backgroundColor: "#dbeafe", color: "#1d4ed8", border: "1px solid #1d4ed8" },
-  emptyState: { border: "1px dashed #9ca3af", padding: "24px", color: "#6b7280", textAlign: "center", fontWeight: 700 },
-  tableWrapper: { overflowX: "auto" },
-  table: { width: "100%", minWidth: "880px", borderCollapse: "collapse" },
-  th: { textAlign: "left", padding: "11px 10px", borderBottom: "2px solid #111111", fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.03em" },
-  thRight: { textAlign: "right", padding: "11px 10px", borderBottom: "2px solid #111111", fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.03em" },
-  td: { padding: "11px 10px", borderBottom: "1px solid #e5e7eb", fontSize: "13px" },
-  tdStrong: { padding: "11px 10px", borderBottom: "1px solid #e5e7eb", fontSize: "13px", fontWeight: 900 },
-  tdRight: { padding: "11px 10px", borderBottom: "1px solid #e5e7eb", fontSize: "13px", textAlign: "right" },
-  tdRightStrong: { padding: "11px 10px", borderBottom: "1px solid #e5e7eb", fontSize: "13px", textAlign: "right", fontWeight: 900 },
-  tableButton: { ...baseButton, padding: "7px 10px", backgroundColor: "#ffffff", color: "#111827", border: "1px solid #111827" },
-  badge: { display: "inline-flex", alignItems: "center", borderRadius: "999px", padding: "5px 9px", fontSize: "12px", fontWeight: 900, whiteSpace: "nowrap" },
+  page: { display: "flex", flexDirection: "column", gap: "16px" },
+  errorBanner: { border: "1px solid #fecaca", borderLeft: "3px solid #dc2626", borderRadius: "6px", backgroundColor: "#fff7f7", color: "#991b1b", padding: "10px 12px", fontWeight: 700, fontSize: "12px" },
+  toolbar: { display: "flex", alignItems: "end", gap: "10px", flexWrap: "wrap", marginBottom: "16px" },
+  field: { minWidth: "300px", display: "flex", flexDirection: "column", gap: "5px", color: "#46546b", fontSize: "11px", fontWeight: 750 },
+  input: { border: "1px solid #cbd6e3", borderRadius: "6px", padding: "8px 10px", backgroundColor: "#ffffff", color: "#172033", fontSize: "13px", minHeight: "38px" },
+  summaryGrid: { display: "grid", gridTemplateColumns: "repeat(5, minmax(0, 1fr))", gap: 0, border: "1px solid #dbe3ed", borderRadius: "7px", overflow: "hidden" },
+  summaryCard: { borderRight: "1px solid #e4e9f0", backgroundColor: "#ffffff", padding: "11px 12px", display: "flex", flexDirection: "column", gap: "3px", minHeight: "72px" },
+  summaryCardAccent: { backgroundColor: "#f4f8ff", boxShadow: "inset 3px 0 0 #2563eb" },
+  summaryLabel: { color: "#738199", fontSize: "10px", fontWeight: 750 },
+  summaryValue: { color: "#172033", fontSize: "20px", lineHeight: 1.15 },
+  summaryValueAccent: { color: "#1d4ed8" },
+  summaryHint: { color: "#8793a7", fontWeight: 500, fontSize: "10px", lineHeight: 1.35 },
+  lastSubmissionPanel: { marginTop: "14px", padding: "12px", border: "1px solid #dbe3ed", borderRadius: "7px", backgroundColor: "#f8fafc", display: "flex", justifyContent: "space-between", alignItems: "center", gap: "16px", flexWrap: "wrap" },
+  lastSubmissionData: { display: "flex", alignItems: "center", flexWrap: "wrap", gap: "9px", marginTop: "5px", color: "#53627a", fontSize: "12px" },
+  noSubmission: { display: "block", marginTop: "5px", color: "#53627a", fontSize: "12px" },
+  quickActions: { display: "flex", gap: "8px", flexWrap: "wrap", marginLeft: "auto" },
+  primaryButton: { ...baseButton, backgroundColor: "#2563eb", color: "#ffffff", border: "1px solid #2563eb" },
+  secondaryButton: { ...baseButton, backgroundColor: "#ffffff", color: "#344258", border: "1px solid #cbd6e3" },
+  emptyState: { border: "1px dashed #cbd5e1", borderRadius: "6px", padding: "22px", color: "#738199", textAlign: "center", fontWeight: 600, fontSize: "12px", backgroundColor: "#fbfcfe" },
+  tableWrapper: { overflowX: "auto", border: "1px solid #dbe3ed", borderRadius: "7px" },
+  table: { width: "100%", minWidth: "880px", borderCollapse: "collapse", backgroundColor: "#ffffff" },
+  th: { textAlign: "left", padding: "8px 9px", borderBottom: "1px solid #cbd6e3", backgroundColor: "#f1f4f8", color: "#4b5870", fontSize: "10px", fontWeight: 800, whiteSpace: "nowrap" },
+  thRight: { textAlign: "right", padding: "8px 9px", borderBottom: "1px solid #cbd6e3", backgroundColor: "#f1f4f8", color: "#4b5870", fontSize: "10px", fontWeight: 800, whiteSpace: "nowrap" },
+  td: { padding: "8px 9px", borderBottom: "1px solid #e6ebf1", color: "#344258", fontSize: "12px" },
+  tdStrong: { padding: "8px 9px", borderBottom: "1px solid #e6ebf1", color: "#172033", fontSize: "12px", fontWeight: 750 },
+  tdRight: { padding: "8px 9px", borderBottom: "1px solid #e6ebf1", color: "#344258", fontSize: "12px", textAlign: "right" },
+  tdRightStrong: { padding: "8px 9px", borderBottom: "1px solid #e6ebf1", color: "#172033", fontSize: "12px", textAlign: "right", fontWeight: 750 },
+  tableButton: { ...baseButton, minHeight: "30px", padding: "5px 9px", backgroundColor: "#ffffff", color: "#344258", border: "1px solid #cbd6e3", fontSize: "11px" },
+  badge: { display: "inline-flex", alignItems: "center", borderRadius: "999px", padding: "3px 7px", fontSize: "10px", fontWeight: 750, whiteSpace: "nowrap" },
 };
