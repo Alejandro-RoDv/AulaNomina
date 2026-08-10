@@ -67,24 +67,49 @@ function SettlementIssuePanel({ settlement }) {
     return <div style={styles.successPanel}>Sin incidencias de validación. La liquidación está preparada para continuar.</div>;
   }
 
+  const orderedIssues = [...issues].sort((left, right) => {
+    const leftWarning = String(left.severity || "ERROR").toUpperCase() === "WARNING";
+    const rightWarning = String(right.severity || "ERROR").toUpperCase() === "WARNING";
+    if (leftWarning !== rightWarning) return leftWarning ? 1 : -1;
+    return String(left.employee_name || "").localeCompare(String(right.employee_name || ""));
+  });
+  const errors = issues.filter((issue) => String(issue.severity || "ERROR").toUpperCase() !== "WARNING").length;
+  const warnings = issues.length - errors;
+  const affectedWorkers = new Set(
+    issues.map((issue) => issue.employee_name || issue.payroll_id).filter(Boolean)
+  ).size;
+
   return (
     <section style={styles.issuePanel}>
-      <div style={styles.sectionHeadingRow}>
+      <div style={styles.validationHeader}>
         <div>
           <h3 style={styles.sectionTitle}>Validaciones</h3>
-          <p style={styles.sectionHint}>Los errores bloquean la confirmación; las advertencias permiten continuar.</p>
+          <p style={styles.sectionHint}>Corrige los errores antes de confirmar. Las advertencias no bloquean el proceso.</p>
+        </div>
+        <div style={styles.issueSummary}>
+          <span><strong>{errors}</strong> errores</span>
+          <span><strong>{warnings}</strong> avisos</span>
+          <span><strong>{affectedWorkers}</strong> trabajadores afectados</span>
         </div>
       </div>
-      <div style={styles.issueList}>
-        {issues.map((issue, index) => {
+
+      <div style={styles.issueTable}>
+        <div style={styles.issueTableHeader}>
+          <span>Tipo</span>
+          <span>Trabajador</span>
+          <span>Validación</span>
+          <span>Descripción</span>
+        </div>
+        {orderedIssues.map((issue, index) => {
           const warning = String(issue.severity || "ERROR").toUpperCase() === "WARNING";
           return (
-            <div key={`${issue.code || "issue"}-${issue.payroll_id || "general"}-${index}`} style={warning ? styles.warningIssue : styles.errorIssue}>
-              <strong>{warning ? "Advertencia" : "Error"} · {issue.code || "VALIDATION"}</strong>
-              <span>{issue.message || "Validación sin descripción"}</span>
-              {(issue.employee_name || issue.payroll_id) && (
-                <small>{issue.employee_name || `Nómina ${issue.payroll_id}`}</small>
-              )}
+            <div key={`${issue.code || "issue"}-${issue.payroll_id || "general"}-${index}`} style={styles.issueRow}>
+              <span style={warning ? styles.issueSeverityWarning : styles.issueSeverityError}>
+                {warning ? "Aviso" : "Error"}
+              </span>
+              <strong style={styles.issueWorker}>{issue.employee_name || `Nómina ${issue.payroll_id || "general"}`}</strong>
+              <span style={styles.issueCode}>{issue.code || "VALIDATION"}</span>
+              <span style={styles.issueMessage}>{issue.message || "Validación sin descripción"}</span>
             </div>
           );
         })}
@@ -101,7 +126,7 @@ function SettlementLinesTable({ settlement }) {
 
   return (
     <div style={styles.tableWrapper}>
-      <table style={{ ...styles.table, minWidth: "1380px" }}>
+      <table style={{ ...styles.table, minWidth: "1080px" }}>
         <thead>
           <tr>
             <th style={styles.th}>Trabajador</th>
@@ -110,10 +135,8 @@ function SettlementLinesTable({ settlement }) {
             <th style={styles.thRight}>Días</th>
             <th style={styles.thRight}>Base CC</th>
             <th style={styles.thRight}>Base CP</th>
-            <th style={styles.thRight}>Base desempleo</th>
             <th style={styles.thRight}>Cuota trabajador</th>
             <th style={styles.thRight}>Cuota empresa</th>
-            <th style={styles.thRight}>Bonif./reducc.</th>
             <th style={styles.thRight}>Total</th>
             <th style={styles.th}>Detalle</th>
           </tr>
@@ -123,22 +146,21 @@ function SettlementLinesTable({ settlement }) {
             const isExpanded = Boolean(expanded[line.id]);
             const lineIssues = Array.isArray(line.validation_errors) ? line.validation_errors : [];
             const hasError = lineIssues.some((item) => String(item.severity || "ERROR").toUpperCase() === "ERROR");
+            const employeeSecondary = [line.employee_code, line.document].filter(Boolean).join(" · ") || "Sin documento";
             return (
               <Fragment key={line.id}>
-                <tr style={hasError ? styles.rowWithError : undefined}>
-                  <td style={styles.tdStrong}>
-                    {line.employee_code ? `${line.employee_code} · ` : ""}{line.employee_name}
-                    <small style={styles.cellSecondary}>{line.document || "Sin documento"}</small>
+                <tr>
+                  <td style={{ ...styles.tdStrong, ...(hasError ? styles.tdIssueMarker : {}) }}>
+                    {line.employee_name}
+                    <small style={styles.cellSecondary}>{employeeSecondary}</small>
                   </td>
                   <td style={styles.td}>{line.naf || <span style={styles.missingValue}>Falta NAF</span>}</td>
                   <td style={styles.td}>{line.contribution_group || <span style={styles.missingValue}>Sin grupo</span>}</td>
                   <td style={styles.tdRight}>{line.contribution_days}</td>
                   <td style={styles.tdRight}>{formatMoney(line.common_contingencies_base)} €</td>
                   <td style={styles.tdRight}>{formatMoney(line.professional_contingencies_base)} €</td>
-                  <td style={styles.tdRight}>{formatMoney(line.unemployment_training_fogasa_base)} €</td>
                   <td style={styles.tdRight}>{formatMoney(line.employee_total)} €</td>
                   <td style={styles.tdRight}>{formatMoney(line.company_total)} €</td>
-                  <td style={styles.tdRight}>{formatMoney(Number(line.bonuses || 0) + Number(line.reductions || 0))} €</td>
                   <td style={styles.tdRightStrong}>{formatMoney(line.total_due)} €</td>
                   <td style={styles.td}>
                     <button
@@ -146,14 +168,16 @@ function SettlementLinesTable({ settlement }) {
                       style={styles.tableButton}
                       onClick={() => setExpanded((previous) => ({ ...previous, [line.id]: !previous[line.id] }))}
                     >
-                      {isExpanded ? "Ocultar" : "Ver"}
+                      {isExpanded ? "Cerrar" : "Detalle"}
                     </button>
                   </td>
                 </tr>
                 {isExpanded && (
                   <tr>
-                    <td colSpan="12" style={styles.detailCell}>
+                    <td colSpan="10" style={styles.detailCell}>
                       <div style={styles.detailGrid}>
+                        <div><span>Base desempleo</span><strong>{formatMoney(line.unemployment_training_fogasa_base)} €</strong></div>
+                        <div><span>Bonif. / reducciones</span><strong>{formatMoney(Number(line.bonuses || 0) + Number(line.reductions || 0))} €</strong></div>
                         <div><span>Horas extraordinarias</span><strong>{formatMoney(line.overtime_base)} €</strong></div>
                         <div><span>Trabajador CC</span><strong>{formatMoney(line.employee_common_contingencies)} €</strong></div>
                         <div><span>Trabajador desempleo</span><strong>{formatMoney(line.employee_unemployment)} €</strong></div>
@@ -721,6 +745,18 @@ const baseButton = {
   fontSize: "12px",
 };
 
+const severityBase = {
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  width: "54px",
+  borderRadius: "999px",
+  padding: "2px 6px",
+  fontSize: "9px",
+  fontWeight: 800,
+  lineHeight: 1.4,
+};
+
 const styles = {
   page: { display: "flex", flexDirection: "column", gap: "16px" },
   tabs: { display: "flex", alignItems: "flex-end", gap: "24px", borderBottom: "1px solid #dbe3ed" },
@@ -743,35 +779,42 @@ const styles = {
   statusBlock: { display: "flex", alignItems: "center", gap: "9px", flexWrap: "wrap", color: "#738199", fontSize: "11px", fontWeight: 600 },
   badge: { display: "inline-flex", alignItems: "center", borderRadius: "999px", padding: "3px 7px", fontSize: "10px", fontWeight: 750, whiteSpace: "nowrap" },
   actionRow: { display: "flex", gap: "8px", flexWrap: "wrap" },
-  summaryGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(135px, 1fr))", gap: 0, marginBottom: "16px", border: "1px solid #dbe3ed", borderRadius: "7px", overflow: "hidden" },
+  summaryGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(145px, 1fr))", gap: 0, marginBottom: "16px", border: "1px solid #dbe3ed", borderRadius: "7px", overflow: "hidden" },
   summaryCard: { borderRight: "1px solid #e4e9f0", backgroundColor: "#ffffff", padding: "10px 11px", display: "flex", flexDirection: "column", gap: "3px", minHeight: "64px" },
   summaryCardAccent: { backgroundColor: "#f4f8ff", boxShadow: "inset 3px 0 0 #2563eb" },
   summaryLabel: { color: "#738199", fontSize: "9px", fontWeight: 750 },
   summaryValue: { color: "#172033", fontSize: "17px", lineHeight: 1.2 },
   summaryValueAccent: { color: "#1d4ed8" },
-  issuePanel: { border: "1px solid #fde7b2", borderLeft: "3px solid #d4a106", borderRadius: "6px", backgroundColor: "#fffcf4", padding: "12px", marginBottom: "16px" },
+  issuePanel: { border: "1px solid #dbe3ed", borderRadius: "7px", backgroundColor: "#ffffff", marginBottom: "18px", overflow: "hidden" },
   successPanel: { border: "1px solid #d7eadf", borderLeft: "3px solid #2f8f5b", borderRadius: "6px", backgroundColor: "#f8fcf9", color: "#276749", padding: "10px 12px", marginBottom: "16px", fontWeight: 650, fontSize: "11px" },
-  issueList: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "8px", marginTop: "9px" },
-  errorIssue: { border: "1px solid #fecaca", borderLeft: "3px solid #dc2626", borderRadius: "5px", backgroundColor: "#ffffff", padding: "9px", display: "flex", flexDirection: "column", gap: "3px", color: "#7f1d1d", fontSize: "11px" },
-  warningIssue: { border: "1px solid #fde7b2", borderLeft: "3px solid #d4a106", borderRadius: "5px", backgroundColor: "#ffffff", padding: "9px", display: "flex", flexDirection: "column", gap: "3px", color: "#854d0e", fontSize: "11px" },
+  validationHeader: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: "16px", padding: "11px 12px", borderBottom: "1px solid #e4e9f0", backgroundColor: "#fbfcfe", flexWrap: "wrap" },
+  issueSummary: { display: "flex", alignItems: "center", gap: "14px", flexWrap: "wrap", color: "#738199", fontSize: "10px" },
+  issueTable: { overflowX: "auto" },
+  issueTableHeader: { minWidth: "850px", display: "grid", gridTemplateColumns: "70px 170px 220px minmax(320px, 1fr)", gap: "10px", alignItems: "center", padding: "7px 10px", backgroundColor: "#f1f4f8", color: "#5b687d", borderBottom: "1px solid #dbe3ed", fontSize: "9px", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.03em" },
+  issueRow: { minWidth: "850px", display: "grid", gridTemplateColumns: "70px 170px 220px minmax(320px, 1fr)", gap: "10px", alignItems: "center", padding: "7px 10px", borderBottom: "1px solid #edf0f4", color: "#344258", fontSize: "10px" },
+  issueSeverityError: { ...severityBase, backgroundColor: "#fff1f2", color: "#b42318" },
+  issueSeverityWarning: { ...severityBase, backgroundColor: "#fff8e7", color: "#9a6700" },
+  issueWorker: { color: "#263248", fontSize: "10px", fontWeight: 750, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" },
+  issueCode: { color: "#5d6980", fontFamily: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace", fontSize: "9px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" },
+  issueMessage: { color: "#536176", minWidth: 0 },
   sectionBlock: { display: "flex", flexDirection: "column", gap: "10px" },
   sectionHeadingRow: { display: "flex", justifyContent: "space-between", gap: "12px", alignItems: "start" },
   sectionTitle: { margin: 0, color: "#172033", fontSize: "14px", fontWeight: 800 },
   sectionHint: { margin: "3px 0 0", color: "#738199", fontSize: "11px", fontWeight: 500 },
   tableWrapper: { overflowX: "auto", border: "1px solid #dbe3ed", borderRadius: "7px" },
   table: { width: "100%", borderCollapse: "collapse", backgroundColor: "#ffffff" },
-  th: { padding: "8px 9px", textAlign: "left", backgroundColor: "#f1f4f8", color: "#4b5870", borderBottom: "1px solid #cbd6e3", fontSize: "10px", fontWeight: 800, whiteSpace: "nowrap" },
-  thRight: { padding: "8px 9px", textAlign: "right", backgroundColor: "#f1f4f8", color: "#4b5870", borderBottom: "1px solid #cbd6e3", fontSize: "10px", fontWeight: 800, whiteSpace: "nowrap" },
-  td: { padding: "8px 9px", borderBottom: "1px solid #e6ebf1", color: "#344258", fontSize: "11px", verticalAlign: "middle" },
-  tdStrong: { padding: "8px 9px", borderBottom: "1px solid #e6ebf1", color: "#172033", fontSize: "11px", fontWeight: 750, verticalAlign: "middle" },
-  tdRight: { padding: "8px 9px", borderBottom: "1px solid #e6ebf1", color: "#344258", textAlign: "right", fontSize: "11px", whiteSpace: "nowrap", verticalAlign: "middle" },
-  tdRightStrong: { padding: "8px 9px", borderBottom: "1px solid #e6ebf1", color: "#172033", textAlign: "right", fontSize: "11px", fontWeight: 750, whiteSpace: "nowrap", verticalAlign: "middle" },
-  cellSecondary: { display: "block", marginTop: "2px", color: "#8793a7", fontWeight: 500, fontSize: "9px" },
-  missingValue: { color: "#b42318", fontWeight: 750 },
-  rowWithError: { backgroundColor: "#fffafa" },
-  tableButton: { ...baseButton, minHeight: "30px", border: "1px solid #cbd6e3", backgroundColor: "#ffffff", color: "#344258", padding: "5px 9px", fontSize: "10px" },
-  detailCell: { padding: "12px", backgroundColor: "#f8fafc", borderBottom: "1px solid #dbe3ed" },
-  detailGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: "8px" },
+  th: { padding: "7px 8px", textAlign: "left", backgroundColor: "#f1f4f8", color: "#4b5870", borderBottom: "1px solid #cbd6e3", fontSize: "9px", fontWeight: 800, whiteSpace: "nowrap" },
+  thRight: { padding: "7px 8px", textAlign: "right", backgroundColor: "#f1f4f8", color: "#4b5870", borderBottom: "1px solid #cbd6e3", fontSize: "9px", fontWeight: 800, whiteSpace: "nowrap" },
+  td: { padding: "7px 8px", borderBottom: "1px solid #e6ebf1", color: "#344258", fontSize: "10.5px", verticalAlign: "middle" },
+  tdStrong: { padding: "7px 8px", borderBottom: "1px solid #e6ebf1", color: "#172033", fontSize: "10.5px", fontWeight: 750, verticalAlign: "middle" },
+  tdIssueMarker: { boxShadow: "inset 2px 0 0 #dc2626" },
+  tdRight: { padding: "7px 8px", borderBottom: "1px solid #e6ebf1", color: "#344258", textAlign: "right", fontSize: "10.5px", whiteSpace: "nowrap", verticalAlign: "middle" },
+  tdRightStrong: { padding: "7px 8px", borderBottom: "1px solid #e6ebf1", color: "#172033", textAlign: "right", fontSize: "10.5px", fontWeight: 750, whiteSpace: "nowrap", verticalAlign: "middle" },
+  cellSecondary: { display: "block", marginTop: "2px", color: "#8793a7", fontWeight: 500, fontSize: "8.5px" },
+  missingValue: { display: "inline-flex", borderRadius: "999px", backgroundColor: "#fff1f2", color: "#b42318", padding: "2px 6px", fontWeight: 750, fontSize: "9px", whiteSpace: "nowrap" },
+  tableButton: { ...baseButton, minHeight: "28px", border: "1px solid #cbd6e3", backgroundColor: "#ffffff", color: "#344258", padding: "4px 8px", fontSize: "9px" },
+  detailCell: { padding: "10px 12px", backgroundColor: "#f8fafc", borderBottom: "1px solid #dbe3ed" },
+  detailGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(145px, 1fr))", gap: "8px" },
   emptyState: { padding: "22px", textAlign: "center", color: "#738199", backgroundColor: "#fbfcfe", border: "1px dashed #cbd5e1", borderRadius: "6px", fontWeight: 600, fontSize: "12px" },
   communicationFilter: { display: "flex", alignItems: "end", gap: "10px", marginBottom: "14px", flexWrap: "wrap" },
   inlineActions: { display: "flex", gap: "6px", flexWrap: "wrap" },
