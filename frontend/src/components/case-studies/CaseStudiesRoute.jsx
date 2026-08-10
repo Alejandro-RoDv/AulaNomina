@@ -9,6 +9,7 @@ import StudentGroupsPage from "../../pages/StudentGroupsPage";
 import ProgressPage from "../../pages/ProgressPage";
 import StudentDemoViewPage from "../../pages/StudentDemoViewPage";
 import TeachingAlertsPage from "../../pages/TeachingAlertsPage";
+import "./teachingSplit42.css";
 
 function getTeachingRoute() {
   if (window.location.hash === "#teacher-dashboard") return "teacher-dashboard";
@@ -24,27 +25,31 @@ function getTeachingRoute() {
 }
 
 function getRouteTitle(route) {
-  if (route === "teacher-dashboard") return "Panel del profesor";
-  if (route === "assignments") return "Asignar caso";
+  if (route === "teacher-dashboard") return "Panel docente";
+  if (route === "assignments") return "Asignaciones";
   if (route === "corrections") return "Correcciones";
   if (route === "students") return "Alumnos";
   if (route === "groups") return "Grupos";
-  if (route === "progress") return "Progreso";
-  if (route === "student-demo") return "Vista alumno";
+  if (route === "progress") return "Seguimiento";
+  if (route === "student-demo") return "Mis casos prácticos";
   if (route === "teaching-alerts") return "Alertas docentes";
-  return "Casos practicos";
+  return "Casos prácticos";
 }
 
 function getRouteSubtitle(route) {
-  if (route === "teacher-dashboard") return "Resumen docente de casos, asignaciones, entregas, correcciones y vencimientos.";
-  if (route === "assignments") return "Vista rapida para asignar casos practicos a grupos o alumnos concretos.";
-  if (route === "corrections") return "Revision manual de entregas, notas y feedback del profesor.";
-  if (route === "students") return "Gestion basica de alumnos para la simulacion docente.";
-  if (route === "groups") return "Organizacion de alumnos por curso, centro o programa formativo.";
-  if (route === "progress") return "Seguimiento intuitivo del avance de casos, tareas, alumnos y correcciones.";
-  if (route === "student-demo") return "Simulacion del portal del alumno sin autenticacion real.";
-  if (route === "teaching-alerts") return "Vencimientos y avisos docentes derivados de casos, entregas y documentacion.";
-  return "Creacion y edicion de ejercicios docentes dentro del ERP.";
+  if (route === "teacher-dashboard") return "Resumen operativo de casos, asignaciones, entregas, correcciones y vencimientos.";
+  if (route === "assignments") return "Asigna casos prácticos a grupos o alumnos y controla su estado.";
+  if (route === "corrections") return "Revisa entregas, registra resultados y devuelve feedback al alumno.";
+  if (route === "students") return "Consulta y gestiona los alumnos disponibles en el entorno docente.";
+  if (route === "groups") return "Organiza alumnos por curso, centro o programa formativo.";
+  if (route === "progress") return "Seguimiento del avance de casos, tareas, alumnos y correcciones.";
+  if (route === "student-demo") return "Accede a los casos asignados y continúa la práctica desde el punto correspondiente.";
+  if (route === "teaching-alerts") return "Vencimientos y avisos derivados de casos, entregas y documentación docente.";
+  return "Creación, edición y mantenimiento de ejercicios docentes dentro del ERP.";
+}
+
+function getModuleLabel(route) {
+  return route === "student-demo" ? "Formación" : "Docencia";
 }
 
 export default function CaseStudiesRoute() {
@@ -64,15 +69,19 @@ export default function CaseStudiesRoute() {
 
   if (!route) return null;
 
+  const moduleLabel = getModuleLabel(route);
+
   return (
-    <div style={styles.wrapper}>
-      <header style={styles.header}>
+    <div className="teaching-shell" data-route={route} data-module={moduleLabel.toLowerCase()}>
+      <header className="teaching-shell__header">
         <div>
-          <h1 style={styles.title}>{getRouteTitle(route)}</h1>
-          <p style={styles.subtitle}>{getRouteSubtitle(route)}</p>
+          <span className="teaching-shell__eyebrow">{moduleLabel}</span>
+          <h1 className="teaching-shell__title">{getRouteTitle(route)}</h1>
+          <p className="teaching-shell__subtitle">{getRouteSubtitle(route)}</p>
         </div>
+        <span className="teaching-shell__module-badge">Entorno educativo</span>
       </header>
-      <main style={styles.main}>
+      <main className="teaching-shell__main">
         {route === "teacher-dashboard" && <TeacherDashboardPage />}
         {route === "assignments" && <CaseAssignmentsPage />}
         {route === "corrections" && <CorrectionsPage />}
@@ -86,40 +95,3 @@ export default function CaseStudiesRoute() {
     </div>
   );
 }
-
-const styles = {
-  wrapper: {
-    position: "fixed",
-    top: "56px",
-    left: "272px",
-    right: 0,
-    bottom: 0,
-    zIndex: 20,
-    backgroundColor: "#ffffff",
-    overflowY: "auto",
-  },
-  header: {
-    borderBottom: "3px solid #111111",
-    backgroundColor: "#ffffff",
-    padding: "24px 42px 18px 32px",
-    boxSizing: "border-box",
-  },
-  title: {
-    margin: 0,
-    color: "#111111",
-    fontSize: "32px",
-    fontWeight: 950,
-  },
-  subtitle: {
-    margin: "6px 0 0",
-    color: "#4b5563",
-    fontSize: "15px",
-    fontWeight: 700,
-  },
-  main: {
-    padding: "26px 42px 48px 32px",
-    boxSizing: "border-box",
-    maxWidth: "1320px",
-    width: "100%",
-  },
-};
