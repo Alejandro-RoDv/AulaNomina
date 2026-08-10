@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import Model190Workspace from "../model190/Model190Workspace";
 import Model111Page from "../../pages/Model111Page";
 import "../../pages/Model111Page.css";
+import "./FiscalTabsPolish.css";
 import ReportsPage from "../../pages/ReportsPage";
 import { fetchContracts } from "../../services/api";
 import { fetchCompanies } from "../../services/companyApi";
