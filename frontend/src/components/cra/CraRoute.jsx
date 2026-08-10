@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import CraFilesPage from "../../pages/CraFilesPage";
 import { fetchCompanies } from "../../services/companyApi";
 import "./craModuleClosure.css";
+import "./craModuleRefresh.css";
 
 function isCraRoute() {
   return window.location.hash === "#cra-files";
@@ -47,9 +48,9 @@ export default function CraRoute() {
     <div style={styles.wrapper}>
       <header style={styles.header}>
         <div>
-          <span style={styles.eyebrow}>Nómina · Seguros sociales</span>
+          <span style={styles.eyebrow}>Seguridad Social</span>
           <h1 style={styles.title}>Conceptos Retributivos Abonados (CRA)</h1>
-          <p style={styles.subtitle}>Configuración, generación, validación, respuesta RCA y comunicaciones correctoras mediante SILTRA simulado.</p>
+          <p style={styles.subtitle}>Configuración, generación, validación y comunicaciones CRA mediante SILTRA simulado</p>
         </div>
         <button type="button" onClick={closeCraRoute} style={styles.backButton}>Volver a Seguros Sociales</button>
       </header>
@@ -71,24 +72,75 @@ const styles = {
     right: 0,
     bottom: 0,
     zIndex: 20,
-    backgroundColor: "#ffffff",
+    backgroundColor: "#f7f9fc",
     overflowY: "auto",
   },
   header: {
-    borderBottom: "3px solid #111111",
+    borderBottom: "1px solid #dbe3ed",
     backgroundColor: "#ffffff",
-    padding: "22px 42px 16px 32px",
+    padding: "22px 32px 18px",
     boxSizing: "border-box",
     display: "flex",
     justifyContent: "space-between",
     alignItems: "center",
-    gap: "16px",
+    gap: "20px",
   },
-  eyebrow: { display: "block", marginBottom: "4px", color: "#1d4ed8", fontSize: "11px", fontWeight: 900, letterSpacing: "0.08em", textTransform: "uppercase" },
-  title: { margin: 0, color: "#111111", fontSize: "30px", fontWeight: 950 },
-  subtitle: { margin: "6px 0 0", color: "#4b5563", fontSize: "14px", fontWeight: 700 },
-  backButton: { border: "1px solid #111827", borderRadius: "5px", backgroundColor: "#ffffff", color: "#111827", padding: "9px 13px", cursor: "pointer", fontWeight: 900 },
-  main: { padding: "24px 42px 48px 32px", boxSizing: "border-box", maxWidth: "1480px", width: "100%" },
-  error: { border: "1px solid #fca5a5", backgroundColor: "#fef2f2", color: "#991b1b", padding: "12px", marginBottom: "18px", fontWeight: 800 },
-  loading: { border: "1px solid #d1d5db", backgroundColor: "#f9fafb", padding: "18px", color: "#4b5563", fontWeight: 800 },
+  eyebrow: {
+    display: "block",
+    marginBottom: "5px",
+    color: "#64748b",
+    fontSize: "10px",
+    fontWeight: 800,
+    letterSpacing: "0.08em",
+    textTransform: "uppercase",
+  },
+  title: {
+    margin: 0,
+    color: "#172033",
+    fontSize: "28px",
+    lineHeight: 1.15,
+    fontWeight: 800,
+  },
+  subtitle: {
+    margin: "7px 0 0",
+    color: "#53627a",
+    fontSize: "13px",
+    fontWeight: 400,
+  },
+  backButton: {
+    border: "1px solid #cbd6e3",
+    borderRadius: "7px",
+    backgroundColor: "#ffffff",
+    color: "#344258",
+    padding: "9px 13px",
+    cursor: "pointer",
+    fontSize: "12px",
+    fontWeight: 700,
+  },
+  main: {
+    boxSizing: "border-box",
+    width: "100%",
+    maxWidth: "1380px",
+    margin: "0 auto",
+    padding: "28px 32px 48px",
+  },
+  error: {
+    border: "1px solid #fecaca",
+    borderRadius: "7px",
+    backgroundColor: "#fef2f2",
+    color: "#991b1b",
+    padding: "11px 13px",
+    marginBottom: "16px",
+    fontSize: "12px",
+    fontWeight: 700,
+  },
+  loading: {
+    border: "1px solid #dbe3ed",
+    borderRadius: "8px",
+    backgroundColor: "#ffffff",
+    padding: "18px",
+    color: "#60708a",
+    fontSize: "12px",
+    fontWeight: 600,
+  },
 };
