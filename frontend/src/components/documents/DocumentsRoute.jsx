@@ -143,6 +143,7 @@ export default function DocumentsRoute() {
     <div style={styles.wrapper}>
       <header style={styles.header}>
         <div>
+          <span style={styles.eyebrow}>DOCUMENTACIÓN</span>
           <h1 style={styles.title}>Documentos</h1>
           <p style={styles.subtitle}>Gestión documental del expediente laboral simulado.</p>
         </div>
@@ -176,16 +177,24 @@ const styles = {
     right: 0,
     bottom: 0,
     zIndex: 20,
-    backgroundColor: "#ffffff",
+    backgroundColor: "#f8fafc",
     overflowY: "auto",
   },
   header: {
-    borderBottom: "3px solid #111111",
+    borderBottom: "1px solid #dbe3ee",
     backgroundColor: "#ffffff",
-    padding: "24px 42px 18px 32px",
+    padding: "22px 42px 18px 32px",
     boxSizing: "border-box",
   },
-  title: { margin: 0, color: "#111111", fontSize: "32px", fontWeight: 950 },
-  subtitle: { margin: "6px 0 0", color: "#4b5563", fontSize: "15px", fontWeight: 700 },
-  main: { padding: "26px 42px 48px 32px", boxSizing: "border-box", maxWidth: "1320px", width: "100%" },
+  eyebrow: {
+    display: "block",
+    marginBottom: "6px",
+    color: "#64748b",
+    fontSize: "9px",
+    fontWeight: 900,
+    letterSpacing: ".08em",
+  },
+  title: { margin: 0, color: "#172033", fontSize: "30px", fontWeight: 900, letterSpacing: "-.025em" },
+  subtitle: { margin: "6px 0 0", color: "#64748b", fontSize: "14px", fontWeight: 500 },
+  main: { padding: "28px 42px 48px 32px", boxSizing: "border-box", maxWidth: "1360px", width: "100%" },
 };
