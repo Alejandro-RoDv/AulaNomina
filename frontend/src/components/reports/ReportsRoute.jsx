@@ -4,6 +4,7 @@ import Model190Workspace from "../model190/Model190Workspace";
 import Model111Page from "../../pages/Model111Page";
 import "../../pages/Model111Page.css";
 import "./FiscalTabsPolish.css";
+import "./ReportsPolish.css";
 import ReportsPage from "../../pages/ReportsPage";
 import { fetchContracts } from "../../services/api";
 import { fetchCompanies } from "../../services/companyApi";
@@ -129,7 +130,7 @@ export default function ReportsRoute() {
   }
 
   return (
-    <div style={styles.wrapper}>
+    <div className="reports-route" style={styles.wrapper}>
       <header style={styles.header}>
         <div>
           <span style={styles.eyebrow}>DOCUMENTACIÓN</span>
