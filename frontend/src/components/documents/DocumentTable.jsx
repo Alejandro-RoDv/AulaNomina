@@ -30,6 +30,13 @@ function formatDate(value) {
   return `${day}/${month}/${year}`;
 }
 
+function formatFileSize(bytes) {
+  if (!Number.isFinite(bytes) || bytes <= 0) return "";
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
 function toEditForm(document) {
   return {
     center_id: document.center_id || null,
@@ -56,6 +63,9 @@ export default function DocumentTable({
   const [editingDocument, setEditingDocument] = useState(null);
   const [editForm, setEditForm] = useState(null);
   const [editError, setEditError] = useState("");
+  const [deliveryDraft, setDeliveryDraft] = useState(null);
+  const [deliverySaving, setDeliverySaving] = useState(false);
+  const [deliveryError, setDeliveryError] = useState("");
 
   if (loading) {
     return <section style={styles.card}>Cargando documentos...</section>;
@@ -71,6 +81,12 @@ export default function DocumentTable({
     setEditingDocument(null);
     setEditForm(null);
     setEditError("");
+  };
+
+  const closeDelivery = () => {
+    if (deliverySaving) return;
+    setDeliveryDraft(null);
+    setDeliveryError("");
   };
 
   const handleEditChange = (event) => {
@@ -98,10 +114,51 @@ export default function DocumentTable({
     const action = event.target.value;
     event.target.value = "";
 
-    if (action === "received") await onMarkReceived(document);
-    if (action === "pending") await onMarkPending(document);
-    if (action === "expired") await onMarkExpired(document);
-    if (action === "not_applicable") await onMarkNotApplicable(document);
+    try {
+      if (action === "received") await onMarkReceived(document);
+      if (action === "pending") await onMarkPending(document);
+      if (action === "expired") await onMarkExpired(document);
+      if (action === "not_applicable") await onMarkNotApplicable(document);
+    } catch {
+      // El mensaje de error se muestra desde el contenedor de documentos.
+    }
+  };
+
+  const handleFileSelected = (event, document) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+
+    setDeliveryDraft({
+      document,
+      fileName: file.name,
+      fileSize: file.size,
+    });
+    setDeliveryError("");
+  };
+
+  const handleSaveDelivery = async () => {
+    if (!deliveryDraft?.fileName || deliverySaving) return;
+
+    const document = deliveryDraft.document;
+    const current = toEditForm(document);
+
+    try {
+      setDeliverySaving(true);
+      setDeliveryError("");
+      await onSaveDocument(document, {
+        ...current,
+        status: "received",
+        issue_date: current.issue_date || null,
+        expiry_date: current.expiry_date || null,
+        notes: current.notes || null,
+      });
+      setDeliveryDraft(null);
+    } catch (err) {
+      setDeliveryError(err.message || "No se ha podido registrar la entrega.");
+    } finally {
+      setDeliverySaving(false);
+    }
   };
 
   return (
@@ -146,6 +203,14 @@ export default function DocumentTable({
                   <td style={styles.td}>{formatDate(document.issue_date)}</td>
                   <td style={styles.td}>{formatDate(document.expiry_date)}</td>
                   <td style={styles.tdActions}>
+                    <label style={styles.attachButton} title="Selecciona un archivo para simular su entrega">
+                      <input
+                        type="file"
+                        style={styles.hiddenFileInput}
+                        onChange={(event) => handleFileSelected(event, document)}
+                      />
+                      {document.status === "received" ? "Adjuntar otro archivo" : "Adjuntar archivo"}
+                    </label>
                     <button type="button" style={styles.smallButton} onClick={() => openEdit(document)}>Editar</button>
                     <select defaultValue="" style={styles.actionSelect} onChange={(event) => handleStatusAction(event, document)}>
                       <option value="" disabled>Cambiar estado</option>
@@ -161,6 +226,50 @@ export default function DocumentTable({
           </tbody>
         </table>
       </div>
+
+      {deliveryDraft && (
+        <div style={styles.modalBackdrop}>
+          <div style={styles.deliveryModal}>
+            <div style={styles.modalHeader}>
+              <div>
+                <span style={styles.modalKicker}>ENTREGA DOCUMENTAL SIMULADA</span>
+                <h3 style={styles.modalTitle}>Adjuntar archivo</h3>
+                <p style={styles.modalSubtitle}>
+                  {typeLabels[deliveryDraft.document.document_type] || deliveryDraft.document.document_name || "Documento"}
+                </p>
+              </div>
+              <button type="button" onClick={closeDelivery} style={styles.closeButton} aria-label="Cerrar">×</button>
+            </div>
+
+            <div style={styles.deliveryFileCard}>
+              <div style={styles.fileIcon}>↥</div>
+              <div style={styles.fileCopy}>
+                <strong style={styles.fileName}>{deliveryDraft.fileName}</strong>
+                <span style={styles.fileMeta}>{formatFileSize(deliveryDraft.fileSize) || "Archivo seleccionado"}</span>
+              </div>
+              <span style={styles.fileReady}>Listo</span>
+            </div>
+
+            <p style={styles.simulationNote}>
+              El archivo se selecciona únicamente para simular el flujo de entrega. No se sube ni se almacena en AulaNómina.
+            </p>
+
+            {deliveryError ? <p style={styles.deliveryError}>{deliveryError}</p> : null}
+
+            <div style={styles.deliveryActions}>
+              <button type="button" onClick={closeDelivery} style={styles.cancelButton} disabled={deliverySaving}>Cancelar</button>
+              <button
+                type="button"
+                onClick={handleSaveDelivery}
+                style={styles.deliverySaveButton}
+                disabled={!deliveryDraft.fileName || deliverySaving}
+              >
+                {deliverySaving ? "Guardando..." : "Guardar entrega"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {editingDocument && editForm && (
         <div style={styles.modalBackdrop}>
@@ -227,38 +336,52 @@ export default function DocumentTable({
 }
 
 function getStatusStyle(status) {
-  const base = { display: "inline-block", border: "2px solid #111", padding: "4px 8px", fontSize: "12px", fontWeight: 900 };
-  if (status === "received") return { ...base, background: "#dcfce7" };
-  if (status === "expired") return { ...base, background: "#fee2e2" };
-  if (status === "not_applicable") return { ...base, background: "#e5e7eb" };
-  return { ...base, background: "#fef3c7" };
+  const base = { display: "inline-block", border: "1px solid #dbe3ee", borderRadius: "999px", padding: "4px 8px", fontSize: "12px", fontWeight: 700 };
+  if (status === "received") return { ...base, borderColor: "#cfe7d7", background: "#f8fcf9", color: "#166534" };
+  if (status === "expired") return { ...base, borderColor: "#f2c9c9", background: "#fffafa", color: "#991b1b" };
+  if (status === "not_applicable") return { ...base, background: "#f8fafc", color: "#64748b" };
+  return { ...base, borderColor: "#e7d7b0", background: "#fffaf2", color: "#8a5a13" };
 }
 
 const styles = {
-  card: { border: "2px solid #111", background: "#fff", padding: "18px", boxShadow: "5px 5px 0 #f0df62" },
+  card: { border: "1px solid #dbe3ee", borderRadius: "10px", background: "#fff", padding: "16px", boxShadow: "none" },
   headerRow: { display: "flex", justifyContent: "space-between", gap: "18px", marginBottom: "14px" },
-  title: { margin: 0, fontSize: "22px", fontWeight: 900, color: "#111" },
-  subtitle: { margin: "4px 0 0", color: "#4b5563", fontSize: "13px", fontWeight: 600 },
+  title: { margin: 0, fontSize: "20px", fontWeight: 750, color: "#172033" },
+  subtitle: { margin: "4px 0 0", color: "#64748b", fontSize: "13px", fontWeight: 500 },
   tableWrapper: { overflowX: "auto" },
   table: { width: "100%", borderCollapse: "collapse", fontSize: "13px" },
-  th: { borderBottom: "3px solid #111", textAlign: "left", padding: "10px", fontSize: "12px", textTransform: "uppercase", fontWeight: 900, color: "#111" },
-  td: { borderBottom: "1px solid #d1d5db", padding: "10px", fontWeight: 700, verticalAlign: "top" },
-  tdActions: { borderBottom: "1px solid #d1d5db", padding: "10px", display: "flex", flexWrap: "wrap", gap: "8px", alignItems: "center" },
-  smallButton: { border: "2px solid #111", background: "#fff", padding: "7px 10px", fontWeight: 900, cursor: "pointer" },
-  actionSelect: { border: "2px solid #111", background: "#fff", padding: "7px 10px", fontWeight: 900, cursor: "pointer", minWidth: "150px" },
-  empty: { padding: "18px", textAlign: "center", fontWeight: 800, color: "#6b7280" },
-  modalBackdrop: { position: "fixed", inset: 0, backgroundColor: "rgba(17, 24, 39, 0.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, padding: "24px" },
-  modal: { width: "min(860px, 100%)", backgroundColor: "#fff", border: "3px solid #111", boxShadow: "8px 8px 0 #f0df62", padding: "22px" },
-  modalHeader: { display: "flex", justifyContent: "space-between", alignItems: "start", gap: "16px", marginBottom: "18px", borderBottom: "2px solid #111", paddingBottom: "12px" },
-  modalTitle: { margin: 0, fontSize: "22px", fontWeight: 900, color: "#111" },
-  modalSubtitle: { margin: "4px 0 0", color: "#4b5563", fontSize: "13px", fontWeight: 800 },
-  closeButton: { border: "none", backgroundColor: "transparent", fontSize: "28px", lineHeight: 1, cursor: "pointer", fontWeight: 900 },
+  th: { borderBottom: "1px solid #cbd5e1", textAlign: "left", padding: "9px 10px", fontSize: "11px", textTransform: "uppercase", fontWeight: 700, color: "#475569", background: "#f8fafc" },
+  td: { borderBottom: "1px solid #e2e8f0", padding: "9px 10px", fontWeight: 600, verticalAlign: "middle", color: "#334155" },
+  tdActions: { borderBottom: "1px solid #e2e8f0", padding: "8px 10px", display: "flex", flexWrap: "wrap", gap: "7px", alignItems: "center" },
+  attachButton: { display: "inline-flex", alignItems: "center", justifyContent: "center", border: "1px solid #8fb2f5", borderRadius: "6px", background: "#eef5ff", color: "#1d4ed8", padding: "7px 10px", fontWeight: 700, fontSize: "12px", cursor: "pointer", whiteSpace: "nowrap" },
+  hiddenFileInput: { display: "none" },
+  smallButton: { border: "1px solid #cbd5e1", borderRadius: "6px", background: "#fff", color: "#334155", padding: "7px 10px", fontWeight: 700, cursor: "pointer" },
+  actionSelect: { border: "1px solid #cbd5e1", borderRadius: "6px", background: "#fff", color: "#334155", padding: "7px 9px", fontWeight: 600, cursor: "pointer", minWidth: "140px" },
+  empty: { padding: "18px", textAlign: "center", fontWeight: 600, color: "#64748b" },
+  modalBackdrop: { position: "fixed", inset: 0, backgroundColor: "rgba(15, 23, 42, 0.48)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, padding: "24px" },
+  modal: { width: "min(860px, 100%)", backgroundColor: "#fff", border: "1px solid #dbe3ee", borderRadius: "12px", boxShadow: "0 20px 50px rgba(15, 23, 42, 0.18)", padding: "22px" },
+  deliveryModal: { width: "min(620px, 100%)", backgroundColor: "#fff", border: "1px solid #dbe3ee", borderRadius: "12px", boxShadow: "0 20px 50px rgba(15, 23, 42, 0.18)", padding: "22px" },
+  modalHeader: { display: "flex", justifyContent: "space-between", alignItems: "start", gap: "16px", marginBottom: "18px", borderBottom: "1px solid #e2e8f0", paddingBottom: "14px" },
+  modalKicker: { display: "block", marginBottom: "5px", color: "#2563eb", fontSize: "10px", fontWeight: 800, letterSpacing: ".06em" },
+  modalTitle: { margin: 0, fontSize: "21px", fontWeight: 750, color: "#172033" },
+  modalSubtitle: { margin: "4px 0 0", color: "#64748b", fontSize: "13px", fontWeight: 600 },
+  closeButton: { border: "none", backgroundColor: "transparent", color: "#475569", fontSize: "26px", lineHeight: 1, cursor: "pointer", fontWeight: 600 },
+  deliveryFileCard: { display: "grid", gridTemplateColumns: "42px minmax(0, 1fr) auto", gap: "12px", alignItems: "center", border: "1px solid #dbe3ee", borderRadius: "8px", background: "#f8fafc", padding: "13px 14px" },
+  fileIcon: { width: "38px", height: "38px", display: "grid", placeItems: "center", borderRadius: "8px", background: "#eef5ff", color: "#1d4ed8", fontSize: "20px", fontWeight: 800 },
+  fileCopy: { display: "flex", minWidth: 0, flexDirection: "column", gap: "3px" },
+  fileName: { overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "#172033", fontSize: "14px", fontWeight: 700 },
+  fileMeta: { color: "#64748b", fontSize: "12px" },
+  fileReady: { border: "1px solid #cfe7d7", borderRadius: "999px", background: "#f8fcf9", color: "#166534", padding: "4px 8px", fontSize: "11px", fontWeight: 700 },
+  simulationNote: { margin: "14px 0 0", padding: "10px 12px", borderLeft: "3px solid #8fb2f5", background: "#f8fafc", color: "#64748b", fontSize: "12px", lineHeight: 1.5 },
+  deliveryError: { margin: "12px 0 0", padding: "9px 10px", border: "1px solid #f2c9c9", borderRadius: "6px", background: "#fffafa", color: "#991b1b", fontSize: "12px", fontWeight: 600 },
+  deliveryActions: { display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "18px" },
   form: { display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "14px" },
-  label: { display: "flex", flexDirection: "column", gap: "6px", fontSize: "12px", fontWeight: 900, textTransform: "uppercase", color: "#111" },
-  input: { border: "2px solid #111", padding: "9px 10px", fontSize: "14px", fontWeight: 700, background: "#fff", color: "#111" },
+  label: { display: "flex", flexDirection: "column", gap: "6px", fontSize: "12px", fontWeight: 700, color: "#334155" },
+  input: { border: "1px solid #cbd5e1", borderRadius: "6px", padding: "9px 10px", fontSize: "14px", fontWeight: 500, background: "#fff", color: "#172033" },
   modalActions: { gridColumn: "1 / -1", display: "flex", justifyContent: "flex-end", gap: "10px" },
-  cancelButton: { border: "2px solid #111", background: "#fff", padding: "9px 12px", fontWeight: 900, cursor: "pointer" },
-  saveButton: { border: "3px solid #111", background: "#f0df62", padding: "9px 14px", fontWeight: 900, cursor: "pointer", boxShadow: "3px 3px 0 #111" },
-  error: { gridColumn: "1 / -1", background: "#fee2e2", border: "2px solid #991b1b", color: "#991b1b", padding: "10px", fontWeight: 800, margin: "0 0 12px" },
-  success: { background: "#dcfce7", border: "2px solid #166534", color: "#166534", padding: "10px", fontWeight: 800, margin: "0 0 12px" },
+  cancelButton: { border: "1px solid #cbd5e1", borderRadius: "6px", background: "#fff", color: "#334155", padding: "9px 12px", fontWeight: 700, cursor: "pointer" },
+  saveButton: { border: "1px solid #2563eb", borderRadius: "6px", background: "#2563eb", color: "#fff", padding: "9px 14px", fontWeight: 700, cursor: "pointer" },
+  deliverySaveButton: { border: "1px solid #2563eb", borderRadius: "6px", background: "#2563eb", color: "#fff", padding: "9px 14px", fontWeight: 700, cursor: "pointer" },
+  error: { gridColumn: "1 / -1", background: "#fffafa", border: "1px solid #f2c9c9", borderRadius: "6px", color: "#991b1b", padding: "10px", fontWeight: 600, margin: "0 0 12px" },
+  success: { background: "#f8fcf9", border: "1px solid #cfe7d7", borderRadius: "6px", color: "#166534", padding: "10px", fontWeight: 600, margin: "0 0 12px" },
 };
