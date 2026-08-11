@@ -194,7 +194,7 @@ export default function DocumentTable({
               </tr>
             ) : (
               documents.map((document) => (
-                <tr key={document.id}>
+                <tr key={document.id} style={styles.row}>
                   <td style={styles.td}>{document.employee_name || document.employee_id}</td>
                   <td style={styles.td}>{document.company_name || document.company_id}</td>
                   <td style={styles.td}>{document.center_name || "-"}</td>
@@ -350,13 +350,14 @@ const styles = {
   subtitle: { margin: "4px 0 0", color: "#64748b", fontSize: "13px", fontWeight: 500 },
   tableWrapper: { overflowX: "auto" },
   table: { width: "100%", borderCollapse: "collapse", fontSize: "13px" },
+  row: { height: "58px" },
   th: { borderBottom: "1px solid #cbd5e1", textAlign: "left", padding: "9px 10px", fontSize: "11px", textTransform: "uppercase", fontWeight: 700, color: "#475569", background: "#f8fafc" },
-  td: { borderBottom: "1px solid #e2e8f0", padding: "9px 10px", fontWeight: 600, verticalAlign: "middle", color: "#334155" },
-  tdActions: { borderBottom: "1px solid #e2e8f0", padding: "8px 10px", display: "flex", flexWrap: "nowrap", gap: "7px", alignItems: "center", minWidth: "360px", whiteSpace: "nowrap" },
-  attachButton: { display: "inline-flex", flexShrink: 0, alignItems: "center", justifyContent: "center", border: "1px solid #8fb2f5", borderRadius: "6px", background: "#eef5ff", color: "#1d4ed8", padding: "7px 10px", fontWeight: 700, fontSize: "12px", cursor: "pointer", whiteSpace: "nowrap" },
+  td: { borderBottom: "1px solid #e2e8f0", padding: "8px 10px", height: "58px", boxSizing: "border-box", lineHeight: 1.25, fontWeight: 600, verticalAlign: "middle", color: "#334155" },
+  tdActions: { borderBottom: "1px solid #e2e8f0", padding: "8px 10px", height: "58px", boxSizing: "border-box", display: "flex", flexWrap: "nowrap", gap: "7px", alignItems: "center", minWidth: "360px", whiteSpace: "nowrap" },
+  attachButton: { display: "inline-flex", flexShrink: 0, height: "34px", boxSizing: "border-box", alignItems: "center", justifyContent: "center", border: "1px solid #8fb2f5", borderRadius: "6px", background: "#eef5ff", color: "#1d4ed8", padding: "0 10px", fontWeight: 700, fontSize: "12px", cursor: "pointer", whiteSpace: "nowrap" },
   hiddenFileInput: { display: "none" },
-  smallButton: { flexShrink: 0, border: "1px solid #cbd5e1", borderRadius: "6px", background: "#fff", color: "#334155", padding: "7px 10px", fontWeight: 700, cursor: "pointer" },
-  actionSelect: { flexShrink: 0, border: "1px solid #cbd5e1", borderRadius: "6px", background: "#fff", color: "#334155", padding: "7px 9px", fontWeight: 600, cursor: "pointer", minWidth: "140px" },
+  smallButton: { flexShrink: 0, height: "34px", boxSizing: "border-box", border: "1px solid #cbd5e1", borderRadius: "6px", background: "#fff", color: "#334155", padding: "0 10px", fontWeight: 700, cursor: "pointer" },
+  actionSelect: { flexShrink: 0, height: "34px", boxSizing: "border-box", border: "1px solid #cbd5e1", borderRadius: "6px", background: "#fff", color: "#334155", padding: "0 9px", fontWeight: 600, cursor: "pointer", minWidth: "140px" },
   empty: { padding: "18px", textAlign: "center", fontWeight: 600, color: "#64748b" },
   modalBackdrop: { position: "fixed", inset: 0, backgroundColor: "rgba(15, 23, 42, 0.48)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, padding: "24px" },
   modal: { width: "min(860px, 100%)", backgroundColor: "#fff", border: "1px solid #dbe3ee", borderRadius: "12px", boxShadow: "0 20px 50px rgba(15, 23, 42, 0.18)", padding: "22px" },
