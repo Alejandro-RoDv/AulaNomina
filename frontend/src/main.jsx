@@ -28,6 +28,7 @@ import "./components/employees/employeeHeaderContextBridge.js";
 import "./components/contracts/contractPrintSplit42Bridge.js";
 import "./components/payrolls/payrollHeaderContextBridge.js";
 import App from "./App.jsx";
+import "./components/layout/settingsOverlayFix.css";
 import AccessibilityBridge from "./components/accessibility/AccessibilityBridge.jsx";
 import FooterBridge from "./components/layout/FooterBridge.jsx";
 import MotionBridge from "./components/motion/MotionBridge.jsx";
