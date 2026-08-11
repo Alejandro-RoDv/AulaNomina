@@ -184,7 +184,7 @@ export default function DocumentTable({
               <th style={styles.th}>Estado</th>
               <th style={styles.th}>Emisión</th>
               <th style={styles.th}>Caducidad</th>
-              <th style={styles.th}>Acciones</th>
+              <th style={{ ...styles.th, minWidth: "360px" }}>Acciones</th>
             </tr>
           </thead>
           <tbody>
@@ -352,11 +352,11 @@ const styles = {
   table: { width: "100%", borderCollapse: "collapse", fontSize: "13px" },
   th: { borderBottom: "1px solid #cbd5e1", textAlign: "left", padding: "9px 10px", fontSize: "11px", textTransform: "uppercase", fontWeight: 700, color: "#475569", background: "#f8fafc" },
   td: { borderBottom: "1px solid #e2e8f0", padding: "9px 10px", fontWeight: 600, verticalAlign: "middle", color: "#334155" },
-  tdActions: { borderBottom: "1px solid #e2e8f0", padding: "8px 10px", display: "flex", flexWrap: "wrap", gap: "7px", alignItems: "center" },
-  attachButton: { display: "inline-flex", alignItems: "center", justifyContent: "center", border: "1px solid #8fb2f5", borderRadius: "6px", background: "#eef5ff", color: "#1d4ed8", padding: "7px 10px", fontWeight: 700, fontSize: "12px", cursor: "pointer", whiteSpace: "nowrap" },
+  tdActions: { borderBottom: "1px solid #e2e8f0", padding: "8px 10px", display: "flex", flexWrap: "nowrap", gap: "7px", alignItems: "center", minWidth: "360px", whiteSpace: "nowrap" },
+  attachButton: { display: "inline-flex", flexShrink: 0, alignItems: "center", justifyContent: "center", border: "1px solid #8fb2f5", borderRadius: "6px", background: "#eef5ff", color: "#1d4ed8", padding: "7px 10px", fontWeight: 700, fontSize: "12px", cursor: "pointer", whiteSpace: "nowrap" },
   hiddenFileInput: { display: "none" },
-  smallButton: { border: "1px solid #cbd5e1", borderRadius: "6px", background: "#fff", color: "#334155", padding: "7px 10px", fontWeight: 700, cursor: "pointer" },
-  actionSelect: { border: "1px solid #cbd5e1", borderRadius: "6px", background: "#fff", color: "#334155", padding: "7px 9px", fontWeight: 600, cursor: "pointer", minWidth: "140px" },
+  smallButton: { flexShrink: 0, border: "1px solid #cbd5e1", borderRadius: "6px", background: "#fff", color: "#334155", padding: "7px 10px", fontWeight: 700, cursor: "pointer" },
+  actionSelect: { flexShrink: 0, border: "1px solid #cbd5e1", borderRadius: "6px", background: "#fff", color: "#334155", padding: "7px 9px", fontWeight: 600, cursor: "pointer", minWidth: "140px" },
   empty: { padding: "18px", textAlign: "center", fontWeight: 600, color: "#64748b" },
   modalBackdrop: { position: "fixed", inset: 0, backgroundColor: "rgba(15, 23, 42, 0.48)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, padding: "24px" },
   modal: { width: "min(860px, 100%)", backgroundColor: "#fff", border: "1px solid #dbe3ee", borderRadius: "12px", boxShadow: "0 20px 50px rgba(15, 23, 42, 0.18)", padding: "22px" },
