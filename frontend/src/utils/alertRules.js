@@ -39,8 +39,6 @@ function buildAlert({
   status,
   metadata = {},
 }) {
-  const dueDays = diffDays(dueDate);
-
   return {
     id,
     source,
@@ -52,7 +50,7 @@ function buildAlert({
     companyName,
     centerName,
     dueDate,
-    dueDays,
+    dueDays: diffDays(dueDate),
     status,
     metadata,
   };
@@ -136,9 +134,11 @@ function generateContractAlerts(contracts = [], collections, now) {
       alerts.push(buildAlert({
         id: `contract-ending-${contract.id}`,
         source: "contract",
-        severity: daysToEnd < 0 ? "critical" : daysToEnd <= 7 ? "critical" : "high",
+        severity: daysToEnd < 0 || daysToEnd <= 7 ? "critical" : "high",
         title: daysToEnd < 0 ? "Contrato activo con fecha de fin vencida" : "Contrato próximo a finalizar",
-        description: daysToEnd < 0 ? "Contrato activo cuya fecha de finalización ya ha pasado. Revisar baja, prórroga o nuevo contrato." : `Finaliza en ${daysToEnd} días. Revisar prórroga, baja o nuevo contrato.`,
+        description: daysToEnd < 0
+          ? "Contrato activo cuya fecha de finalización ya ha pasado. Revisar baja, prórroga o nuevo contrato."
+          : `Finaliza en ${daysToEnd} días. Revisar prórroga, baja o nuevo contrato.`,
         dueDate: contract.end_date,
         status: daysToEnd < 0 ? "Vencido" : "Vencimiento",
         metadata: { contractId: contract.id, contractType: contract.contract_type },
@@ -221,6 +221,54 @@ export function generateAlerts({ documents = [], contracts = [], incidents = [],
     if (!a.dueDate) return 1;
     if (!b.dueDate) return -1;
     return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+  });
+}
+
+export function groupAlertsForDisplay(alerts = []) {
+  const groupedDocuments = new Map();
+  const passthrough = [];
+
+  alerts.forEach((alert) => {
+    if (alert.source !== "document" || alert.status !== "Pendiente") {
+      passthrough.push(alert);
+      return;
+    }
+
+    const key = alert.employeeId || alert.employeeName;
+    if (!groupedDocuments.has(key)) {
+      groupedDocuments.set(key, {
+        ...alert,
+        id: `document-group-${key}`,
+        severity: "medium",
+        dueDate: null,
+        dueDays: null,
+        isGroupedDocumentAlert: true,
+        metadata: { documents: [] },
+      });
+    }
+
+    groupedDocuments.get(key).metadata.documents.push(
+      alert.metadata?.documentName || alert.title.replace("Documento pendiente: ", "")
+    );
+  });
+
+  const grouped = Array.from(groupedDocuments.values()).map((alert) => {
+    const documents = alert.metadata.documents;
+    return {
+      ...alert,
+      title: `${alert.employeeName} tiene ${documents.length} documentos pendientes`,
+      description: documents.slice(0, 4).join(" · ") + (documents.length > 4 ? " · …" : ""),
+    };
+  });
+
+  return [...passthrough, ...grouped].sort((a, b) => {
+    const severityOrder = { critical: 0, high: 1, medium: 2, low: 3 };
+    const severityDiff = (severityOrder[a.severity] ?? 9) - (severityOrder[b.severity] ?? 9);
+    if (severityDiff !== 0) return severityDiff;
+    const aDays = typeof a.dueDays === "number" ? a.dueDays : Number.POSITIVE_INFINITY;
+    const bDays = typeof b.dueDays === "number" ? b.dueDays : Number.POSITIVE_INFINITY;
+    if (aDays !== bDays) return aDays - bDays;
+    return String(a.title || "").localeCompare(String(b.title || ""), "es");
   });
 }
 
