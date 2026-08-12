@@ -15,6 +15,7 @@ import "./components/payrolls/payrollPreparationFlow.css";
 import "./components/payrolls/payrollPreparationMatrix.css";
 import "./components/payrolls/payrollGenerationStatus.css";
 import "./components/payrolls/salaryConceptsPalette.css";
+import "./components/payrolls/payrollHistoryRefinements.css";
 import "./components/wage-garnishments/wageGarnishmentSplit42Polish.css";
 import "./components/affiliation/affiliationFilesCompact.css";
 import "./components/mail/mailScenarioValidation.css";
