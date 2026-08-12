@@ -4,23 +4,25 @@
   align-items: center;
   gap: 7px;
   padding: 4px 8px 4px 5px;
-  border: 1px solid #111111;
+  border: 1px solid #dbe3ef;
+  border-radius: 7px;
   background: #ffffff;
-  color: #111111;
+  color: #1f2937;
   font: inherit;
   font-size: 12px;
-  font-weight: 900;
-  text-transform: uppercase;
+  font-weight: 700;
   cursor: pointer;
+  transition: border-color 140ms ease, background 140ms ease, color 140ms ease;
 }
 
 .mail-global-launcher:hover {
-  background: #eef8fe;
-  border-color: #087fc4;
+  background: #f7faff;
+  border-color: #93b4de;
+  color: #155eaa;
 }
 
 .mail-global-launcher:focus-visible {
-  outline: 3px solid rgba(8, 127, 196, 0.28);
+  outline: 3px solid rgba(37, 99, 235, 0.2);
   outline-offset: 2px;
 }
 
@@ -39,7 +41,7 @@
   border-radius: 999px;
   padding: 0 5px;
   box-sizing: border-box;
-  background: #087fc4;
+  background: #2563eb;
   color: #ffffff;
   font-size: 11px;
   line-height: 1;
