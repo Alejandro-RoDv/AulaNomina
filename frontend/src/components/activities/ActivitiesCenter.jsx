@@ -259,7 +259,10 @@ export default function ActivitiesCenter() {
                   <div>
                     <span className="activity-center__unit">{selectedActivity.unit}</span>
                     <h3>{selectedActivity.display_number} · {selectedActivity.title}</h3>
-                    <p className="activity-center__detail-meta">Tema {selectedActivity.topic_order} · {selectedActivity.topic_title}</p>
+                    <p className="activity-center__detail-meta">
+                      Tema {selectedActivity.topic_order} · {selectedActivity.topic_title}
+                      {selectedActivity.case_total_steps ? ` · Paso ${selectedActivity.case_step} de ${selectedActivity.case_total_steps}` : ""}
+                    </p>
                   </div>
                   <span className={`activity-center__status${selectedActivity.is_completed ? " is-done" : ""}`}>
                     {selectedActivity.is_completed ? <Check size={14} aria-hidden="true" /> : null}
@@ -267,52 +270,61 @@ export default function ActivitiesCenter() {
                   </span>
                 </div>
 
-                <section className="activity-center__context-card">
-                  <span className="activity-center__section-label">Contexto</span>
-                  <p>{selectedActivity.situation}</p>
-                </section>
+                <section className="activity-center__brief-card">
+                  <span className="activity-center__section-label">Encargo</span>
+                  <p className="activity-center__brief-text">{selectedActivity.situation}</p>
 
-                {selectedActivity.requires_mail && (
-                  <div className="activity-center__mail-note">
-                    <Mail size={17} aria-hidden="true" />
-                    <span>La información necesaria parte de una comunicación recibida. Consulta Correo antes de resolver la actividad.</span>
-                  </div>
-                )}
+                  {selectedActivity.case_data?.length > 0 && (
+                    <div className="activity-center__case-data">
+                      <span className="activity-center__case-data-title">Datos del caso</span>
+                      <dl>
+                        {selectedActivity.case_data.map((item) => (
+                          <div key={`${item.label}-${item.value}`}>
+                            <dt>{item.label}</dt>
+                            <dd>{item.value}</dd>
+                          </div>
+                        ))}
+                      </dl>
+                    </div>
+                  )}
+
+                  {selectedActivity.requires_mail && (
+                    <div className="activity-center__mail-note">
+                      <Mail size={17} aria-hidden="true" />
+                      <span>La información necesaria parte de una comunicación recibida. Consulta Correo antes de resolver la actividad.</span>
+                    </div>
+                  )}
+                </section>
 
                 <section className="activity-center__task-block">
                   <span className="activity-center__section-label">Tu tarea</span>
                   <p>{selectedActivity.instructions}</p>
                 </section>
 
-                <section className={`activity-center__completion-card${selectedActivity.is_completed ? " is-completed" : ""}`}>
-                  <div className="activity-center__completion-heading">
-                    <span className="activity-center__section-label">Se completará cuando</span>
+                <section className={`activity-center__result-card${selectedActivity.is_completed ? " is-completed" : ""}`}>
+                  <div className="activity-center__result-heading">
+                    <span className="activity-center__section-label">Resultado esperado</span>
                     <span className={`activity-center__validation-mode${selectedActivity.is_completed ? " is-done" : ""}`}>
                       {selectedActivity.is_completed
                         ? "Completado"
                         : selectedActivity.completion_condition?.automatic
                           ? "Comprobación automática"
-                          : "Confirmación manual"}
+                          : "Verificación manual"}
                     </span>
                   </div>
-                  <p>{selectedActivity.objective}</p>
+
+                  <ul className="activity-center__expected-list">
+                    {(selectedActivity.expected_items?.length ? selectedActivity.expected_items : [selectedActivity.objective]).map((item) => (
+                      <li key={item}><Check size={16} aria-hidden="true" /><span>{item}</span></li>
+                    ))}
+                  </ul>
 
                   {!selectedActivity.is_completed && selectedActivity.completion_condition?.automatic && (
-                    <small className="activity-center__completion-note">
+                    <small className="activity-center__result-note">
                       {checkingId === selectedActivity.id
                         ? "Comprobando el resultado actual…"
-                        : "AulaNomina comprobará el resultado al realizar la operación correspondiente."}
+                        : "AulaNomina comprobará el resultado automáticamente al realizar la operación correspondiente."}
                     </small>
-                  )}
-
-                  {!selectedActivity.is_completed && !selectedActivity.completion_condition?.automatic && (
-                    <div className="activity-center__manual-validation">
-                      <small>Cuando hayas terminado la operación indicada, confirma la actividad para continuar.</small>
-                      <button type="button" className="activity-center__quiet-button" onClick={completeSelectedManually} disabled={checkingId === selectedActivity.id}>
-                        <Check size={15} aria-hidden="true" />
-                        {checkingId === selectedActivity.id ? "Confirmando…" : "Confirmar actividad"}
-                      </button>
-                    </div>
                   )}
                 </section>
 
@@ -338,6 +350,19 @@ export default function ActivitiesCenter() {
                     </div>
                   </details>
                 </section>
+
+                {!selectedActivity.is_completed && !selectedActivity.completion_condition?.automatic && (
+                  <section className="activity-center__manual-action">
+                    <div>
+                      <strong>¿Has terminado la actividad?</strong>
+                      <span>Esta actividad no dispone todavía de una comprobación automática fiable.</span>
+                    </div>
+                    <button type="button" className="activity-center__quiet-button" onClick={completeSelectedManually} disabled={checkingId === selectedActivity.id}>
+                      <Check size={15} aria-hidden="true" />
+                      {checkingId === selectedActivity.id ? "Confirmando…" : "Confirmar que he terminado"}
+                    </button>
+                  </section>
+                )}
               </article>
             )}
           </main>
