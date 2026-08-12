@@ -15,3 +15,15 @@ export function validateActivity(assignmentId, taskId) {
     "No se ha podido comprobar automáticamente la actividad"
   );
 }
+
+export function completeActivityManually(assignmentId, taskId) {
+  return apiRequest(
+    `/case-assignments/${assignmentId}/steps/${taskId}`,
+    {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: "completed" }),
+    },
+    "No se ha podido confirmar la actividad"
+  );
+}
