@@ -129,7 +129,6 @@ export default function ActivitiesCenter() {
       await validateActivity(activity.assignment_id, activity.task_id);
       await loadCourse({ preserveSelection: true });
     } catch (requestError) {
-      // Una actividad futura puede estar bloqueada por otra anterior. Se mantiene consultable sin romper el visor.
       if (requestError?.code !== "BLOCKING_STEP_PENDING" && requestError?.status !== 409) {
         setError(requestError.message || "No se ha podido comprobar la actividad.");
       }
@@ -269,7 +268,7 @@ export default function ActivitiesCenter() {
                   {!selectedActivity.completion_condition?.automatic && !selectedActivity.is_completed && (
                     <div className="activity-center__manual-validation">
                       <small>Esta actividad todavía no dispone de una comprobación automática suficientemente fiable.</small>
-                      <button type="button" onClick={completeSelectedManually} disabled={checkingId === selectedActivity.id}>
+                      <button type="button" className="activity-center__quiet-button" onClick={completeSelectedManually} disabled={checkingId === selectedActivity.id}>
                         <Check size={15} aria-hidden="true" />
                         {checkingId === selectedActivity.id ? "Confirmando…" : "Confirmar objetivo"}
                       </button>
