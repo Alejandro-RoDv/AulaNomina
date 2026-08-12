@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-import MailWorkspace from "./MailWorkspace";
+import SimpleMailWorkspace from "./SimpleMailWorkspace";
 
 function isMailRoute() {
   return window.location.hash === "#mail";
@@ -31,5 +31,5 @@ export default function MailRoute() {
 
   if (!active) return null;
 
-  return <MailWorkspace onClose={leaveMailRoute} />;
+  return <SimpleMailWorkspace onClose={leaveMailRoute} />;
 }
