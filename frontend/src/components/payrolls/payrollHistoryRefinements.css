@@ -1,0 +1,390 @@
+/* Histórico de nóminas — refinamientos visuales Split 42.
+   Capa de compatibilidad para los componentes antiguos sin alterar su lógica. */
+
+/* =========================================================
+   DESGLOSE DE CONCEPTOS
+   ========================================================= */
+
+section.no-print {
+  overflow: hidden !important;
+  border: 1px solid var(--an-color-border) !important;
+  border-radius: var(--an-radius-lg) !important;
+  background: var(--an-color-surface) !important;
+  box-shadow: none !important;
+}
+
+section.no-print > div:first-child {
+  margin: 0 !important;
+  padding: 14px 16px !important;
+  border-bottom: 1px solid var(--an-color-border) !important;
+  background: var(--an-color-surface) !important;
+}
+
+section.no-print > div:first-child h4 {
+  font-size: 17px !important;
+  font-weight: var(--an-font-weight-bold) !important;
+}
+
+section.no-print > div:first-child p {
+  margin-top: 3px !important;
+  color: var(--an-color-text-secondary) !important;
+  font-size: 12px !important;
+  font-weight: var(--an-font-weight-regular) !important;
+}
+
+/* Resumen superior: una sola banda compacta en lugar de seis tarjetas aisladas. */
+section.no-print > div[style*="repeat(auto-fit"] {
+  display: grid !important;
+  gap: 0 !important;
+  margin: 12px 16px 14px !important;
+  overflow: hidden !important;
+  border: 1px solid var(--an-color-border) !important;
+  border-radius: var(--an-radius-md) !important;
+  background: var(--an-color-surface) !important;
+}
+
+section.no-print > div[style*="repeat(auto-fit"] > div {
+  min-height: 54px !important;
+  padding: 9px 11px !important;
+  border: 0 !important;
+  border-right: 1px solid var(--an-color-border) !important;
+  border-radius: 0 !important;
+  background: var(--an-color-surface) !important;
+  box-shadow: none !important;
+}
+
+section.no-print > div[style*="repeat(auto-fit"] > div:nth-child(even) {
+  background: var(--an-color-neutral-50) !important;
+}
+
+section.no-print > div[style*="repeat(auto-fit"] > div:last-child {
+  border-right: 0 !important;
+  background: var(--an-color-primary-50) !important;
+}
+
+section.no-print > div[style*="repeat(auto-fit"] span {
+  color: var(--an-color-text-secondary) !important;
+  font-size: 11px !important;
+  line-height: 1.25 !important;
+}
+
+section.no-print > div[style*="repeat(auto-fit"] strong {
+  color: var(--an-color-text-primary) !important;
+  font-size: 14px !important;
+}
+
+/* Los bloques de conceptos pasan a comportarse como filas de una misma tabla. */
+section.no-print > div[style*="grid-template-columns: 1fr"] {
+  display: grid !important;
+  gap: 0 !important;
+  margin: 0 16px !important;
+}
+
+section.no-print > div[style*="grid-template-columns: 1fr"] > div {
+  min-height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  border: 1px solid var(--an-color-border) !important;
+  border-bottom: 0 !important;
+  border-radius: 0 !important;
+  background: var(--an-color-surface) !important;
+  box-shadow: none !important;
+}
+
+section.no-print > div[style*="grid-template-columns: 1fr"] > div:first-child {
+  border-radius: var(--an-radius-md) var(--an-radius-md) 0 0 !important;
+}
+
+section.no-print > div[style*="grid-template-columns: 1fr"] > div:last-child {
+  margin-bottom: 12px !important;
+  border-bottom: 1px solid var(--an-color-border) !important;
+  border-radius: 0 0 var(--an-radius-md) var(--an-radius-md) !important;
+}
+
+section.no-print > div[style*="grid-template-columns: 1fr"] > div:nth-child(even),
+section.no-print > div[style*="grid-template-columns: 1fr"] > div:nth-child(even) h5 {
+  background: var(--an-color-neutral-50) !important;
+}
+
+section.no-print > div[style*="grid-template-columns: 1fr"] h5 {
+  margin: 0 !important;
+  padding: 8px 11px !important;
+  border-bottom: 1px solid var(--an-color-neutral-100) !important;
+  background: var(--an-color-surface) !important;
+  color: var(--an-color-text-primary) !important;
+  font-size: 12px !important;
+  font-weight: var(--an-font-weight-bold) !important;
+}
+
+section.no-print > div[style*="grid-template-columns: 1fr"] p {
+  min-height: 34px !important;
+  margin: 0 !important;
+  padding: 8px 11px !important;
+  background: transparent !important;
+  color: var(--an-color-text-muted) !important;
+  font-size: 11px !important;
+  font-weight: var(--an-font-weight-regular) !important;
+}
+
+section.no-print table {
+  border-collapse: collapse !important;
+}
+
+section.no-print table th {
+  padding: 7px 9px !important;
+  background: var(--an-color-neutral-100) !important;
+  color: var(--an-color-text-secondary) !important;
+  font-size: 10px !important;
+  font-weight: var(--an-font-weight-semibold) !important;
+  letter-spacing: .03em !important;
+  text-transform: uppercase !important;
+}
+
+section.no-print table td {
+  padding: 7px 9px !important;
+  border-top: 0 !important;
+  border-bottom: 1px solid var(--an-color-neutral-100) !important;
+  background: var(--an-color-surface) !important;
+}
+
+section.no-print table tbody tr:nth-child(even) td {
+  background: var(--an-color-neutral-50) !important;
+}
+
+section.no-print table tbody tr:last-child td {
+  border-bottom: 0 !important;
+}
+
+section.no-print form {
+  margin: 4px 16px 0 !important;
+  padding: 14px 0 16px !important;
+  border-top: 1px solid var(--an-color-border) !important;
+}
+
+/* =========================================================
+   DETALLE DE NÓMINA
+   ========================================================= */
+
+/* Overlay completo y modal integrado con el sistema visual actual. */
+div[style*="position: fixed"]:has(> [role="dialog"][aria-modal="true"] > button[aria-label="Cerrar detalle de nómina"]) {
+  padding: 64px 24px 28px !important;
+  background: var(--an-color-overlay) !important;
+}
+
+[role="dialog"][aria-modal="true"]:has(> button[aria-label="Cerrar detalle de nómina"]) {
+  width: min(1080px, 100%) !important;
+  max-height: calc(100vh - 92px) !important;
+  padding: 0 !important;
+  overflow: auto !important;
+  border: 1px solid var(--an-color-border) !important;
+  border-radius: var(--an-radius-xl) !important;
+  background: var(--an-color-surface) !important;
+  box-shadow: var(--an-shadow-lg) !important;
+}
+
+[role="dialog"][aria-modal="true"]:has(> button[aria-label="Cerrar detalle de nómina"]) > button[aria-label="Cerrar detalle de nómina"] {
+  position: absolute !important;
+  top: 14px !important;
+  right: 14px !important;
+  float: none !important;
+  width: 32px !important;
+  height: 32px !important;
+  margin: 0 !important;
+  border: 1px solid var(--an-color-border-strong) !important;
+  border-radius: var(--an-radius-pill) !important;
+  background: var(--an-color-surface) !important;
+  color: var(--an-color-text-secondary) !important;
+  box-shadow: none !important;
+  font-size: 20px !important;
+}
+
+/* Cabecera de aplicación: sustituye visualmente a la antigua cabecera de recibo. */
+[role="dialog"][aria-modal="true"]:has(> button[aria-label="Cerrar detalle de nómina"]) > div:first-of-type {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 2 !important;
+  margin: 0 !important;
+  padding: 16px 58px 16px 20px !important;
+  border-bottom: 1px solid var(--an-color-border) !important;
+  background: var(--an-color-surface) !important;
+}
+
+[role="dialog"][aria-modal="true"]:has(> button[aria-label="Cerrar detalle de nómina"]) > div:first-of-type h3 {
+  font-size: 18px !important;
+  font-weight: var(--an-font-weight-bold) !important;
+}
+
+[role="dialog"][aria-modal="true"]:has(> button[aria-label="Cerrar detalle de nómina"]) > div:first-of-type p {
+  color: var(--an-color-text-secondary) !important;
+  font-size: 12px !important;
+  font-weight: var(--an-font-weight-regular) !important;
+}
+
+/* Imprimir = acción principal azul; cerrar = secundaria neutra. */
+[role="dialog"][aria-modal="true"]:has(> button[aria-label="Cerrar detalle de nómina"]) > div:first-of-type > div:last-child > button:first-child {
+  border: 1px solid var(--an-color-primary-600) !important;
+  background: var(--an-color-primary-600) !important;
+  color: var(--an-color-neutral-0) !important;
+  box-shadow: none !important;
+}
+
+[role="dialog"][aria-modal="true"]:has(> button[aria-label="Cerrar detalle de nómina"]) > div:first-of-type > div:last-child > button:last-child {
+  border: 1px solid var(--an-color-border-strong) !important;
+  background: var(--an-color-surface) !important;
+  color: var(--an-color-text-primary) !important;
+  box-shadow: none !important;
+}
+
+/* El recibo deja de presentarse como un documento enmarcado dentro del modal. */
+[role="dialog"][aria-modal="true"]:has(> button[aria-label="Cerrar detalle de nómina"]) > section:first-of-type {
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 18px 20px 20px !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: var(--an-color-neutral-50) !important;
+  box-shadow: none !important;
+}
+
+/* La antigua cabecera de recibo es redundante con la cabecera del modal. */
+[role="dialog"][aria-modal="true"]:has(> button[aria-label="Cerrar detalle de nómina"]) > section:first-of-type > div:first-child {
+  display: none !important;
+}
+
+/* Empresa y trabajador como dos bloques de contexto ligeros. */
+[role="dialog"][aria-modal="true"]:has(> button[aria-label="Cerrar detalle de nómina"]) > section:first-of-type > div:nth-of-type(2) {
+  gap: 12px !important;
+  margin: 0 0 12px !important;
+}
+
+[role="dialog"][aria-modal="true"]:has(> button[aria-label="Cerrar detalle de nómina"]) > section:first-of-type > div:nth-of-type(2) > div {
+  padding: 12px !important;
+  border: 1px solid var(--an-color-border) !important;
+  border-radius: var(--an-radius-md) !important;
+  background: var(--an-color-surface) !important;
+  box-shadow: none !important;
+}
+
+[role="dialog"][aria-modal="true"]:has(> button[aria-label="Cerrar detalle de nómina"]) > section:first-of-type > div:nth-of-type(2) > div > div:first-child {
+  margin: 0 0 8px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  color: var(--an-color-text-muted) !important;
+  font-size: 10px !important;
+  font-weight: var(--an-font-weight-bold) !important;
+  letter-spacing: .05em !important;
+  text-transform: uppercase !important;
+}
+
+[role="dialog"][aria-modal="true"]:has(> button[aria-label="Cerrar detalle de nómina"]) > section:first-of-type > div:nth-of-type(2) p {
+  margin: 2px 0 !important;
+  color: var(--an-color-text-primary) !important;
+  font-size: 12px !important;
+}
+
+/* Periodo / contrato / días / estado como banda neutra. */
+[role="dialog"][aria-modal="true"]:has(> button[aria-label="Cerrar detalle de nómina"]) > section:first-of-type > div:nth-of-type(3) {
+  gap: 10px !important;
+  margin: 0 0 12px !important;
+  padding: 10px 12px !important;
+  border: 1px solid var(--an-color-border) !important;
+  border-radius: var(--an-radius-md) !important;
+  background: var(--an-color-surface) !important;
+  box-shadow: none !important;
+  font-size: 12px !important;
+}
+
+/* Cuadros de devengos, deducciones, bases y coste: una tabla de aplicación, no un recibo antiguo. */
+[role="dialog"][aria-modal="true"]:has(> button[aria-label="Cerrar detalle de nómina"]) > section:first-of-type > div:has(> section) {
+  gap: 12px !important;
+  margin-bottom: 12px !important;
+}
+
+[role="dialog"][aria-modal="true"]:has(> button[aria-label="Cerrar detalle de nómina"]) > section:first-of-type section {
+  overflow: hidden !important;
+  border: 1px solid var(--an-color-border) !important;
+  border-radius: var(--an-radius-md) !important;
+  background: var(--an-color-surface) !important;
+  box-shadow: none !important;
+}
+
+[role="dialog"][aria-modal="true"]:has(> button[aria-label="Cerrar detalle de nómina"]) > section:first-of-type section h4 {
+  padding: 8px 10px !important;
+  border-bottom: 1px solid var(--an-color-border) !important;
+  background: var(--an-color-neutral-100) !important;
+  color: var(--an-color-text-primary) !important;
+  font-size: 12px !important;
+  font-weight: var(--an-font-weight-bold) !important;
+}
+
+[role="dialog"][aria-modal="true"]:has(> button[aria-label="Cerrar detalle de nómina"]) > section:first-of-type table td {
+  padding: 7px 9px !important;
+  border-bottom: 1px solid var(--an-color-neutral-100) !important;
+  background: var(--an-color-surface) !important;
+  font-size: 12px !important;
+}
+
+[role="dialog"][aria-modal="true"]:has(> button[aria-label="Cerrar detalle de nómina"]) > section:first-of-type table tbody tr:nth-child(even) td {
+  background: var(--an-color-neutral-50) !important;
+}
+
+[role="dialog"][aria-modal="true"]:has(> button[aria-label="Cerrar detalle de nómina"]) > section:first-of-type table tbody tr[style*="background"] td {
+  background: var(--an-color-neutral-100) !important;
+  font-weight: var(--an-font-weight-bold) !important;
+}
+
+[role="dialog"][aria-modal="true"]:has(> button[aria-label="Cerrar detalle de nómina"]) > section:first-of-type section > table + div {
+  padding: 9px 10px !important;
+  border-top: 1px solid var(--an-color-primary-200) !important;
+  background: var(--an-color-primary-50) !important;
+  color: var(--an-color-primary-800) !important;
+  font-size: 14px !important;
+  box-shadow: none !important;
+}
+
+[role="dialog"][aria-modal="true"]:has(> button[aria-label="Cerrar detalle de nómina"]) > section:first-of-type > p:last-child {
+  margin-top: 4px !important;
+  padding-top: 8px !important;
+  border-top: 1px solid var(--an-color-border) !important;
+  color: var(--an-color-text-muted) !important;
+  font-size: 10px !important;
+}
+
+/* Edición básica separada del detalle, con la misma jerarquía visual del ERP. */
+[role="dialog"][aria-modal="true"]:has(> button[aria-label="Cerrar detalle de nómina"]) > form {
+  margin: 0 !important;
+  padding: 16px 20px 20px !important;
+  border-top: 1px solid var(--an-color-border) !important;
+  background: var(--an-color-surface) !important;
+}
+
+[role="dialog"][aria-modal="true"]:has(> button[aria-label="Cerrar detalle de nómina"]) > form input,
+[role="dialog"][aria-modal="true"]:has(> button[aria-label="Cerrar detalle de nómina"]) > form select {
+  min-height: 38px !important;
+  border: 1px solid var(--an-color-border-strong) !important;
+  border-radius: var(--an-radius-md) !important;
+  background: var(--an-color-surface) !important;
+}
+
+[role="dialog"][aria-modal="true"]:has(> button[aria-label="Cerrar detalle de nómina"]) button[style*="background-color: rgb(17, 24, 39)"] {
+  border-color: var(--an-color-primary-600) !important;
+  background: var(--an-color-primary-600) !important;
+  color: var(--an-color-neutral-0) !important;
+}
+
+@media (max-width: 820px) {
+  div[style*="position: fixed"]:has(> [role="dialog"][aria-modal="true"] > button[aria-label="Cerrar detalle de nómina"]) {
+    padding: 24px 12px !important;
+  }
+
+  [role="dialog"][aria-modal="true"]:has(> button[aria-label="Cerrar detalle de nómina"]) > section:first-of-type > div:nth-of-type(2),
+  [role="dialog"][aria-modal="true"]:has(> button[aria-label="Cerrar detalle de nómina"]) > section:first-of-type > div:has(> section) {
+    grid-template-columns: 1fr !important;
+  }
+
+  [role="dialog"][aria-modal="true"]:has(> button[aria-label="Cerrar detalle de nómina"]) > section:first-of-type > div:nth-of-type(3) {
+    grid-template-columns: 1fr 1fr !important;
+  }
+}
