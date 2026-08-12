@@ -309,11 +309,6 @@ export default function SimpleMailWorkspace({ onClose }) {
                     <section key={message.id} className={`simple-mail__conversation-item simple-mail__conversation-item--${message.direction}`}>
                       <header><div><strong>{message.sender_name}</strong><span>{message.sender_address}</span></div><time>{formatMessageDate(message.sent_at)}</time></header>
                       <div>{splitBody(message.body_text).map((paragraph, index) => <p key={`${message.id}-${index}`}>{paragraph}</p>)}</div>
-                      {message.attachments?.length > 0 && (
-                        <div className="simple-mail__attachments">
-                          {message.attachments.map((attachment) => <button type="button" key={attachment.id} onClick={() => setAttachmentViewer(attachment)}><Paperclip size={14} /> {attachment.filename}</button>)}
-                        </div>
-                      )}
                     </section>
                   ))}
                 </div>
