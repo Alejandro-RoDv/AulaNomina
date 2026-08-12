@@ -30,29 +30,29 @@ const DEFAULT_YEAR = String(currentDate.getFullYear());
 
 function StatusBadge({ status, communication = false }) {
   const palette = {
-    DRAFT: ["#f3f4f6", "#374151"],
-    VALIDATING: ["#dbeafe", "#1d4ed8"],
-    VALIDATION_ERROR: ["#fee2e2", "#991b1b"],
-    READY: ["#fef3c7", "#92400e"],
-    CONFIRMED: ["#dbeafe", "#1e40af"],
-    GENERATED: ["#dcfce7", "#166534"],
-    SENT: ["#e0e7ff", "#3730a3"],
-    PROCESSING: ["#e0f2fe", "#075985"],
-    ACCEPTED: ["#dcfce7", "#166534"],
-    ACCEPTED_WITH_WARNINGS: ["#fef3c7", "#92400e"],
-    REJECTED: ["#fee2e2", "#991b1b"],
-    CANCELLED: ["#e5e7eb", "#4b5563"],
+    DRAFT: ["#f1f5f9", "#475569"],
+    VALIDATING: ["#eef4ff", "#2458c5"],
+    VALIDATION_ERROR: ["#fff1f2", "#b42318"],
+    READY: ["#fff8e7", "#9a6700"],
+    CONFIRMED: ["#eef4ff", "#2458c5"],
+    GENERATED: ["#edf8f1", "#18794e"],
+    SENT: ["#eef4ff", "#2458c5"],
+    PROCESSING: ["#eef4ff", "#2458c5"],
+    ACCEPTED: ["#edf8f1", "#18794e"],
+    ACCEPTED_WITH_WARNINGS: ["#fff8e7", "#9a6700"],
+    REJECTED: ["#fff1f2", "#b42318"],
+    CANCELLED: ["#f1f5f9", "#64748b"],
   };
   const [backgroundColor, color] = palette[status] || palette.DRAFT;
   const label = communication ? communicationStatusLabel(status) : settlementStatusLabel(status);
   return <span style={{ ...styles.badge, backgroundColor, color }}>{label}</span>;
 }
 
-function SummaryCard({ label, value, emphasis = false }) {
+function SummaryCard({ label, value, accent = false }) {
   return (
-    <div style={{ ...styles.summaryCard, ...(emphasis ? styles.summaryCardEmphasis : {}) }}>
+    <div style={{ ...styles.summaryCard, ...(accent ? styles.summaryCardAccent : {}) }}>
       <span style={styles.summaryLabel}>{label}</span>
-      <strong style={styles.summaryValue}>{value}</strong>
+      <strong style={{ ...styles.summaryValue, ...(accent ? styles.summaryValueAccent : {}) }}>{value}</strong>
     </div>
   );
 }
@@ -64,27 +64,52 @@ function EmptyState({ children }) {
 function SettlementIssuePanel({ settlement }) {
   const issues = getSettlementIssues(settlement);
   if (!issues.length) {
-    return <div style={styles.successPanel}>La liquidación no contiene incidencias de validación.</div>;
+    return <div style={styles.successPanel}>Sin incidencias de validación. La liquidación está preparada para continuar.</div>;
   }
+
+  const orderedIssues = [...issues].sort((left, right) => {
+    const leftWarning = String(left.severity || "ERROR").toUpperCase() === "WARNING";
+    const rightWarning = String(right.severity || "ERROR").toUpperCase() === "WARNING";
+    if (leftWarning !== rightWarning) return leftWarning ? 1 : -1;
+    return String(left.employee_name || "").localeCompare(String(right.employee_name || ""));
+  });
+  const errors = issues.filter((issue) => String(issue.severity || "ERROR").toUpperCase() !== "WARNING").length;
+  const warnings = issues.length - errors;
+  const affectedWorkers = new Set(
+    issues.map((issue) => issue.employee_name || issue.payroll_id).filter(Boolean)
+  ).size;
 
   return (
     <section style={styles.issuePanel}>
-      <div style={styles.sectionHeadingRow}>
+      <div style={styles.validationHeader}>
         <div>
           <h3 style={styles.sectionTitle}>Validaciones</h3>
-          <p style={styles.sectionHint}>Los errores bloquean la confirmación. Las advertencias permiten continuar.</p>
+          <p style={styles.sectionHint}>Corrige los errores antes de confirmar. Las advertencias no bloquean el proceso.</p>
+        </div>
+        <div style={styles.issueSummary}>
+          <span><strong>{errors}</strong> errores</span>
+          <span><strong>{warnings}</strong> avisos</span>
+          <span><strong>{affectedWorkers}</strong> trabajadores afectados</span>
         </div>
       </div>
-      <div style={styles.issueList}>
-        {issues.map((issue, index) => {
+
+      <div style={styles.issueTable}>
+        <div style={styles.issueTableHeader}>
+          <span>Tipo</span>
+          <span>Trabajador</span>
+          <span>Validación</span>
+          <span>Descripción</span>
+        </div>
+        {orderedIssues.map((issue, index) => {
           const warning = String(issue.severity || "ERROR").toUpperCase() === "WARNING";
           return (
-            <div key={`${issue.code || "issue"}-${issue.payroll_id || "general"}-${index}`} style={warning ? styles.warningIssue : styles.errorIssue}>
-              <strong>{warning ? "Advertencia" : "Error"} · {issue.code || "VALIDATION"}</strong>
-              <span>{issue.message || "Validación sin descripción"}</span>
-              {(issue.employee_name || issue.payroll_id) && (
-                <small>{issue.employee_name || `Nómina ${issue.payroll_id}`}</small>
-              )}
+            <div key={`${issue.code || "issue"}-${issue.payroll_id || "general"}-${index}`} style={styles.issueRow}>
+              <span style={warning ? styles.issueSeverityWarning : styles.issueSeverityError}>
+                {warning ? "Aviso" : "Error"}
+              </span>
+              <strong style={styles.issueWorker}>{issue.employee_name || `Nómina ${issue.payroll_id || "general"}`}</strong>
+              <span style={styles.issueCode}>{issue.code || "VALIDATION"}</span>
+              <span style={styles.issueMessage}>{issue.message || "Validación sin descripción"}</span>
             </div>
           );
         })}
@@ -101,7 +126,7 @@ function SettlementLinesTable({ settlement }) {
 
   return (
     <div style={styles.tableWrapper}>
-      <table style={{ ...styles.table, minWidth: "1380px" }}>
+      <table style={{ ...styles.table, minWidth: "1080px" }}>
         <thead>
           <tr>
             <th style={styles.th}>Trabajador</th>
@@ -110,10 +135,8 @@ function SettlementLinesTable({ settlement }) {
             <th style={styles.thRight}>Días</th>
             <th style={styles.thRight}>Base CC</th>
             <th style={styles.thRight}>Base CP</th>
-            <th style={styles.thRight}>Base desempleo</th>
             <th style={styles.thRight}>Cuota trabajador</th>
             <th style={styles.thRight}>Cuota empresa</th>
-            <th style={styles.thRight}>Bonif./reducc.</th>
             <th style={styles.thRight}>Total</th>
             <th style={styles.th}>Detalle</th>
           </tr>
@@ -122,22 +145,22 @@ function SettlementLinesTable({ settlement }) {
           {lines.map((line) => {
             const isExpanded = Boolean(expanded[line.id]);
             const lineIssues = Array.isArray(line.validation_errors) ? line.validation_errors : [];
+            const hasError = lineIssues.some((item) => String(item.severity || "ERROR").toUpperCase() === "ERROR");
+            const employeeSecondary = [line.employee_code, line.document].filter(Boolean).join(" · ") || "Sin documento";
             return (
               <Fragment key={line.id}>
-                <tr style={lineIssues.some((item) => String(item.severity || "ERROR").toUpperCase() === "ERROR") ? styles.rowWithError : undefined}>
-                  <td style={styles.tdStrong}>
-                    {line.employee_code ? `${line.employee_code} · ` : ""}{line.employee_name}
-                    <small style={styles.cellSecondary}>{line.document || "Sin documento"}</small>
+                <tr>
+                  <td style={{ ...styles.tdStrong, ...(hasError ? styles.tdIssueMarker : {}) }}>
+                    {line.employee_name}
+                    <small style={styles.cellSecondary}>{employeeSecondary}</small>
                   </td>
                   <td style={styles.td}>{line.naf || <span style={styles.missingValue}>Falta NAF</span>}</td>
                   <td style={styles.td}>{line.contribution_group || <span style={styles.missingValue}>Sin grupo</span>}</td>
                   <td style={styles.tdRight}>{line.contribution_days}</td>
                   <td style={styles.tdRight}>{formatMoney(line.common_contingencies_base)} €</td>
                   <td style={styles.tdRight}>{formatMoney(line.professional_contingencies_base)} €</td>
-                  <td style={styles.tdRight}>{formatMoney(line.unemployment_training_fogasa_base)} €</td>
                   <td style={styles.tdRight}>{formatMoney(line.employee_total)} €</td>
                   <td style={styles.tdRight}>{formatMoney(line.company_total)} €</td>
-                  <td style={styles.tdRight}>{formatMoney(Number(line.bonuses || 0) + Number(line.reductions || 0))} €</td>
                   <td style={styles.tdRightStrong}>{formatMoney(line.total_due)} €</td>
                   <td style={styles.td}>
                     <button
@@ -145,14 +168,16 @@ function SettlementLinesTable({ settlement }) {
                       style={styles.tableButton}
                       onClick={() => setExpanded((previous) => ({ ...previous, [line.id]: !previous[line.id] }))}
                     >
-                      {isExpanded ? "Ocultar" : "Ver"}
+                      {isExpanded ? "Cerrar" : "Detalle"}
                     </button>
                   </td>
                 </tr>
                 {isExpanded && (
                   <tr>
-                    <td colSpan="12" style={styles.detailCell}>
+                    <td colSpan="10" style={styles.detailCell}>
                       <div style={styles.detailGrid}>
+                        <div><span>Base desempleo</span><strong>{formatMoney(line.unemployment_training_fogasa_base)} €</strong></div>
+                        <div><span>Bonif. / reducciones</span><strong>{formatMoney(Number(line.bonuses || 0) + Number(line.reductions || 0))} €</strong></div>
                         <div><span>Horas extraordinarias</span><strong>{formatMoney(line.overtime_base)} €</strong></div>
                         <div><span>Trabajador CC</span><strong>{formatMoney(line.employee_common_contingencies)} €</strong></div>
                         <div><span>Trabajador desempleo</span><strong>{formatMoney(line.employee_unemployment)} €</strong></div>
@@ -440,14 +465,14 @@ export default function SocialSecuritySettlementsPage({ companies = [], initialS
 
   return (
     <div style={styles.page}>
-      <div style={styles.tabs}>
+      <nav style={styles.tabs} aria-label="Secciones de cotización">
         <button type="button" style={section === "settlements" ? styles.tabActive : styles.tab} onClick={() => setSection("settlements")}>
           Liquidaciones
         </button>
         <button type="button" style={section === "communications" ? styles.tabActive : styles.tab} onClick={() => setSection("communications")}>
           Ficheros generados
         </button>
-      </div>
+      </nav>
 
       {error && <div style={styles.errorBanner}>{error}</div>}
       {success && <div style={styles.successBanner}>{success}</div>}
@@ -455,8 +480,8 @@ export default function SocialSecuritySettlementsPage({ companies = [], initialS
       {section === "settlements" && (
         <>
           <PageCard
-            title="Preparar liquidación de Seguridad Social"
-            subtitle="Agrupa las nóminas mensuales por empresa y CCC, valida los datos y genera un fichero educativo de liquidación."
+            title="Preparar liquidación"
+            subtitle="Selecciona empresa, CCC y periodo. AulaNomina agrupa las nóminas y valida la información antes de confirmar."
           >
             <form onSubmit={handlePrepare} style={styles.form}>
               <div style={styles.formGrid}>
@@ -500,8 +525,8 @@ export default function SocialSecuritySettlementsPage({ companies = [], initialS
 
               <div style={styles.formFooter}>
                 <div style={styles.contextText}>
-                  <strong>{selectedCompany?.name || "Sin empresa"}</strong>
-                  <span>{selectedCcc?.label || "Selecciona un CCC para recuperar las nóminas"}</span>
+                  <strong>{selectedCompany?.name || "Selecciona una empresa"}</strong>
+                  <span>{selectedCcc?.label || "Elige un CCC para recuperar las nóminas del periodo."}</span>
                 </div>
                 <button type="submit" disabled={busy || !form.company_id || !form.ccc_id} style={styles.primaryButton}>
                   {busyAction === "prepare" ? "Preparando..." : selectedSettlement ? "Recalcular liquidación" : "Preparar liquidación"}
@@ -531,7 +556,7 @@ export default function SocialSecuritySettlementsPage({ companies = [], initialS
                   </button>
                   <button
                     type="button"
-                    style={styles.confirmButton}
+                    style={styles.secondaryButton}
                     disabled={busy || !canConfirmSettlement(selectedSettlement)}
                     onClick={handleConfirm}
                   >
@@ -539,7 +564,7 @@ export default function SocialSecuritySettlementsPage({ companies = [], initialS
                   </button>
                   <button
                     type="button"
-                    style={styles.generateButton}
+                    style={styles.primaryButton}
                     disabled={busy || !canGenerateSettlement(selectedSettlement)}
                     onClick={handleGenerate}
                   >
@@ -556,13 +581,13 @@ export default function SocialSecuritySettlementsPage({ companies = [], initialS
               <div style={styles.summaryGrid}>
                 <SummaryCard label="Trabajadores" value={selectedSettlement.worker_count} />
                 <SummaryCard label="Días cotizados" value={selectedSettlement.contribution_days} />
-                <SummaryCard label="Base contingencias comunes" value={`${formatMoney(selectedSettlement.common_contingencies_base)} €`} />
-                <SummaryCard label="Base contingencias profesionales" value={`${formatMoney(selectedSettlement.professional_contingencies_base)} €`} />
+                <SummaryCard label="Base CC" value={`${formatMoney(selectedSettlement.common_contingencies_base)} €`} />
+                <SummaryCard label="Base CP" value={`${formatMoney(selectedSettlement.professional_contingencies_base)} €`} />
                 <SummaryCard label="Cuota trabajadores" value={`${formatMoney(selectedSettlement.employee_total)} €`} />
                 <SummaryCard label="Cuota empresa" value={`${formatMoney(selectedSettlement.company_total)} €`} />
                 <SummaryCard label="Bonificaciones" value={`${formatMoney(selectedSettlement.bonuses)} €`} />
                 <SummaryCard label="Reducciones" value={`${formatMoney(selectedSettlement.reductions)} €`} />
-                <SummaryCard label="Total a ingresar" value={`${formatMoney(selectedSettlement.total_due)} €`} emphasis />
+                <SummaryCard label="Total a ingresar" value={`${formatMoney(selectedSettlement.total_due)} €`} accent />
               </div>
 
               <SettlementIssuePanel settlement={selectedSettlement} />
@@ -571,7 +596,7 @@ export default function SocialSecuritySettlementsPage({ companies = [], initialS
                 <div style={styles.sectionHeadingRow}>
                   <div>
                     <h3 style={styles.sectionTitle}>Trabajadores incluidos</h3>
-                    <p style={styles.sectionHint}>Las cantidades son una fotografía de las nóminas en el momento de preparar la liquidación.</p>
+                    <p style={styles.sectionHint}>Importes calculados a partir de las nóminas incluidas cuando se preparó la liquidación.</p>
                   </div>
                 </div>
                 <SettlementLinesTable settlement={selectedSettlement} />
@@ -579,7 +604,7 @@ export default function SocialSecuritySettlementsPage({ companies = [], initialS
             </PageCard>
           )}
 
-          <PageCard title="Historial de liquidaciones" subtitle="Abre una liquidación anterior para revisar sus líneas, validaciones y fichero asociado.">
+          <PageCard title="Historial de liquidaciones" subtitle="Consulta liquidaciones anteriores y vuelve a abrir su detalle cuando sea necesario.">
             {loadingHistory ? (
               <EmptyState>Cargando historial...</EmptyState>
             ) : settlements.length === 0 ? (
@@ -623,23 +648,12 @@ export default function SocialSecuritySettlementsPage({ companies = [], initialS
               </div>
             )}
           </PageCard>
-
-          <PageCard title="Checklist de pruebas" subtitle="Casos mínimos para validar el módulo antes de continuar con SILTRA.">
-            <div style={styles.checklistGrid}>
-              <div style={styles.checkItem}><strong>1. Caso correcto</strong><span>Nóminas con CCC, NAF y grupo de cotización. Debe quedar READY.</span></div>
-              <div style={styles.checkItem}><strong>2. NAF ausente</strong><span>Debe mostrar NAF_REQUIRED y bloquear Confirmar.</span></div>
-              <div style={styles.checkItem}><strong>3. Grupo ausente</strong><span>Debe mostrar CONTRIBUTION_GROUP_REQUIRED.</span></div>
-              <div style={styles.checkItem}><strong>4. Varios CCC</strong><span>Cada liquidación debe incluir únicamente las nóminas de su CCC.</span></div>
-              <div style={styles.checkItem}><strong>5. Confirmación</strong><span>Una liquidación READY debe pasar a CONFIRMED.</span></div>
-              <div style={styles.checkItem}><strong>6. Generación</strong><span>Debe crear un fichero, descargarlo y dejar ambos registros en GENERATED.</span></div>
-            </div>
-          </PageCard>
         </>
       )}
 
       {section === "communications" && (
         <>
-          <PageCard title="Ficheros de liquidación generados" subtitle="Repositorio común de comunicaciones de Seguridad Social generado desde las liquidaciones confirmadas.">
+          <PageCard title="Ficheros de liquidación" subtitle="Consulta y descarga los ficheros generados desde liquidaciones confirmadas.">
             <div style={styles.communicationFilter}>
               <label style={styles.fieldWide}>
                 <span>Empresa</span>
@@ -705,13 +719,13 @@ export default function SocialSecuritySettlementsPage({ companies = [], initialS
                   <StatusBadge status={selectedCommunication.status} communication />
                   <span>Generado {formatDateTime(selectedCommunication.generated_at)}</span>
                 </div>
-                <button type="button" style={styles.generateButton} onClick={() => handleDownloadCommunication(selectedCommunication)}>Descargar fichero</button>
+                <button type="button" style={styles.primaryButton} onClick={() => handleDownloadCommunication(selectedCommunication)}>Descargar fichero</button>
               </div>
               <div style={styles.fileMetadata}>
-                <span><strong>Tipo:</strong> {selectedCommunication.file_type}</span>
-                <span><strong>Liquidación:</strong> {selectedCommunication.metadata?.settlement_id || "-"}</span>
-                <span><strong>Trabajadores:</strong> {selectedCommunication.metadata?.worker_count ?? "-"}</span>
-                <span><strong>Total:</strong> {selectedCommunication.metadata?.total_due ? `${formatMoney(selectedCommunication.metadata.total_due)} €` : "-"}</span>
+                <span><strong>Tipo</strong>{selectedCommunication.file_type}</span>
+                <span><strong>Liquidación</strong>{selectedCommunication.metadata?.settlement_id || "-"}</span>
+                <span><strong>Trabajadores</strong>{selectedCommunication.metadata?.worker_count ?? "-"}</span>
+                <span><strong>Total</strong>{selectedCommunication.metadata?.total_due ? `${formatMoney(selectedCommunication.metadata.total_due)} €` : "-"}</span>
               </div>
               <pre style={styles.codePreview}>{selectedCommunication.content || "El fichero no contiene contenido."}</pre>
             </PageCard>
@@ -723,71 +737,88 @@ export default function SocialSecuritySettlementsPage({ companies = [], initialS
 }
 
 const baseButton = {
-  borderRadius: "8px",
-  padding: "10px 14px",
+  minHeight: "36px",
+  borderRadius: "6px",
+  padding: "7px 12px",
   cursor: "pointer",
-  fontWeight: 900,
-  fontSize: "13px",
+  fontWeight: 750,
+  fontSize: "12px",
+};
+
+const severityBase = {
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  width: "54px",
+  borderRadius: "999px",
+  padding: "2px 6px",
+  fontSize: "9px",
+  fontWeight: 800,
+  lineHeight: 1.4,
 };
 
 const styles = {
-  page: { display: "flex", flexDirection: "column", gap: "20px" },
-  tabs: { display: "flex", gap: "8px", borderBottom: "2px solid #111111", paddingBottom: "8px" },
-  tab: { ...baseButton, backgroundColor: "#ffffff", color: "#111111", border: "1px solid #111111" },
-  tabActive: { ...baseButton, backgroundColor: "#f5ef9c", color: "#111111", border: "2px solid #111111" },
-  errorBanner: { border: "2px solid #991b1b", backgroundColor: "#fee2e2", color: "#7f1d1d", padding: "12px 14px", fontWeight: 800 },
-  successBanner: { border: "2px solid #166534", backgroundColor: "#dcfce7", color: "#14532d", padding: "12px 14px", fontWeight: 800 },
-  form: { display: "flex", flexDirection: "column", gap: "18px" },
-  formGrid: { display: "grid", gridTemplateColumns: "minmax(220px, 1fr) minmax(300px, 1.5fr) 110px 130px", gap: "14px", alignItems: "start" },
-  field: { display: "flex", flexDirection: "column", gap: "6px", fontSize: "13px", fontWeight: 800 },
-  fieldWide: { display: "flex", flexDirection: "column", gap: "6px", fontSize: "13px", fontWeight: 800, minWidth: "280px" },
-  fieldSmall: { display: "flex", flexDirection: "column", gap: "6px", fontSize: "13px", fontWeight: 800 },
-  input: { border: "1px solid #9ca3af", borderRadius: "8px", padding: "10px 11px", backgroundColor: "#ffffff", color: "#111827", fontSize: "14px", minHeight: "42px" },
-  fieldError: { color: "#991b1b", fontWeight: 700 },
-  formFooter: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: "16px", flexWrap: "wrap" },
-  contextText: { display: "flex", flexDirection: "column", gap: "3px", color: "#4b5563", fontSize: "13px" },
-  primaryButton: { ...baseButton, backgroundColor: "#111827", color: "#ffffff", border: "2px solid #111827", padding: "12px 18px" },
-  secondaryButton: { ...baseButton, backgroundColor: "#ffffff", color: "#111827", border: "1px solid #9ca3af" },
-  confirmButton: { ...baseButton, backgroundColor: "#f5ef9c", color: "#111111", border: "2px solid #111111" },
-  generateButton: { ...baseButton, backgroundColor: "#111827", color: "#ffffff", border: "2px solid #111827" },
-  settlementHeader: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: "16px", flexWrap: "wrap", marginBottom: "16px" },
-  statusBlock: { display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap", color: "#4b5563", fontSize: "13px", fontWeight: 700 },
-  badge: { display: "inline-flex", alignItems: "center", borderRadius: "999px", padding: "5px 9px", fontSize: "12px", fontWeight: 900, whiteSpace: "nowrap" },
+  page: { display: "flex", flexDirection: "column", gap: "16px" },
+  tabs: { display: "flex", alignItems: "flex-end", gap: "24px", borderBottom: "1px solid #dbe3ed" },
+  tab: { border: 0, borderBottom: "2px solid transparent", backgroundColor: "transparent", color: "#60708a", padding: "9px 0 10px", cursor: "pointer", fontSize: "12px", fontWeight: 750 },
+  tabActive: { border: 0, borderBottom: "2px solid #2563eb", backgroundColor: "transparent", color: "#1d4ed8", padding: "9px 0 10px", cursor: "pointer", fontSize: "12px", fontWeight: 800 },
+  errorBanner: { border: "1px solid #fecaca", borderLeft: "3px solid #dc2626", borderRadius: "6px", backgroundColor: "#fff7f7", color: "#991b1b", padding: "10px 12px", fontWeight: 700, fontSize: "12px" },
+  successBanner: { border: "1px solid #bbf7d0", borderLeft: "3px solid #16a34a", borderRadius: "6px", backgroundColor: "#f7fcf8", color: "#166534", padding: "10px 12px", fontWeight: 700, fontSize: "12px" },
+  form: { display: "flex", flexDirection: "column", gap: "14px" },
+  formGrid: { display: "grid", gridTemplateColumns: "minmax(220px, 1fr) minmax(300px, 1.5fr) 100px 120px", gap: "10px", alignItems: "start" },
+  field: { display: "flex", flexDirection: "column", gap: "5px", color: "#46546b", fontSize: "11px", fontWeight: 750 },
+  fieldWide: { display: "flex", flexDirection: "column", gap: "5px", color: "#46546b", fontSize: "11px", fontWeight: 750, minWidth: "280px" },
+  fieldSmall: { display: "flex", flexDirection: "column", gap: "5px", color: "#46546b", fontSize: "11px", fontWeight: 750 },
+  input: { border: "1px solid #cbd6e3", borderRadius: "6px", padding: "8px 10px", backgroundColor: "#ffffff", color: "#172033", fontSize: "13px", minHeight: "38px" },
+  fieldError: { color: "#b42318", fontWeight: 650, fontSize: "10px" },
+  formFooter: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: "16px", flexWrap: "wrap", borderTop: "1px solid #e4e9f0", paddingTop: "12px" },
+  contextText: { display: "flex", flexDirection: "column", gap: "2px", color: "#738199", fontSize: "11px" },
+  primaryButton: { ...baseButton, backgroundColor: "#2563eb", color: "#ffffff", border: "1px solid #2563eb" },
+  secondaryButton: { ...baseButton, backgroundColor: "#ffffff", color: "#344258", border: "1px solid #cbd6e3" },
+  settlementHeader: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: "16px", flexWrap: "wrap", marginBottom: "14px" },
+  statusBlock: { display: "flex", alignItems: "center", gap: "9px", flexWrap: "wrap", color: "#738199", fontSize: "11px", fontWeight: 600 },
+  badge: { display: "inline-flex", alignItems: "center", borderRadius: "999px", padding: "3px 7px", fontSize: "10px", fontWeight: 750, whiteSpace: "nowrap" },
   actionRow: { display: "flex", gap: "8px", flexWrap: "wrap" },
-  summaryGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: "10px", marginBottom: "18px" },
-  summaryCard: { border: "1px solid #d1d5db", backgroundColor: "#ffffff", padding: "12px", display: "flex", flexDirection: "column", gap: "5px", minHeight: "68px" },
-  summaryCardEmphasis: { border: "2px solid #111111", backgroundColor: "#fff8a6", boxShadow: "3px 3px 0 #111111" },
-  summaryLabel: { color: "#6b7280", fontSize: "12px", fontWeight: 800 },
-  summaryValue: { color: "#111827", fontSize: "18px" },
-  issuePanel: { border: "1px solid #f59e0b", backgroundColor: "#fffbeb", padding: "14px", marginBottom: "18px" },
-  successPanel: { border: "1px solid #22c55e", backgroundColor: "#f0fdf4", color: "#166534", padding: "12px", marginBottom: "18px", fontWeight: 800 },
-  issueList: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "8px", marginTop: "10px" },
-  errorIssue: { borderLeft: "5px solid #dc2626", backgroundColor: "#ffffff", padding: "10px", display: "flex", flexDirection: "column", gap: "4px", color: "#7f1d1d" },
-  warningIssue: { borderLeft: "5px solid #d97706", backgroundColor: "#ffffff", padding: "10px", display: "flex", flexDirection: "column", gap: "4px", color: "#78350f" },
-  sectionBlock: { display: "flex", flexDirection: "column", gap: "12px" },
+  summaryGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(145px, 1fr))", gap: 0, marginBottom: "16px", border: "1px solid #dbe3ed", borderRadius: "7px", overflow: "hidden" },
+  summaryCard: { borderRight: "1px solid #e4e9f0", backgroundColor: "#ffffff", padding: "10px 11px", display: "flex", flexDirection: "column", gap: "3px", minHeight: "64px" },
+  summaryCardAccent: { backgroundColor: "#f4f8ff", boxShadow: "inset 3px 0 0 #2563eb" },
+  summaryLabel: { color: "#738199", fontSize: "9px", fontWeight: 750 },
+  summaryValue: { color: "#172033", fontSize: "17px", lineHeight: 1.2 },
+  summaryValueAccent: { color: "#1d4ed8" },
+  issuePanel: { border: "1px solid #dbe3ed", borderRadius: "7px", backgroundColor: "#ffffff", marginBottom: "18px", overflow: "hidden" },
+  successPanel: { border: "1px solid #d7eadf", borderLeft: "3px solid #2f8f5b", borderRadius: "6px", backgroundColor: "#f8fcf9", color: "#276749", padding: "10px 12px", marginBottom: "16px", fontWeight: 650, fontSize: "11px" },
+  validationHeader: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: "16px", padding: "11px 12px", borderBottom: "1px solid #e4e9f0", backgroundColor: "#fbfcfe", flexWrap: "wrap" },
+  issueSummary: { display: "flex", alignItems: "center", gap: "14px", flexWrap: "wrap", color: "#738199", fontSize: "10px" },
+  issueTable: { overflowX: "auto" },
+  issueTableHeader: { minWidth: "850px", display: "grid", gridTemplateColumns: "70px 170px 220px minmax(320px, 1fr)", gap: "10px", alignItems: "center", padding: "7px 10px", backgroundColor: "#f1f4f8", color: "#5b687d", borderBottom: "1px solid #dbe3ed", fontSize: "9px", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.03em" },
+  issueRow: { minWidth: "850px", display: "grid", gridTemplateColumns: "70px 170px 220px minmax(320px, 1fr)", gap: "10px", alignItems: "center", padding: "7px 10px", borderBottom: "1px solid #edf0f4", color: "#344258", fontSize: "10px" },
+  issueSeverityError: { ...severityBase, backgroundColor: "#fff1f2", color: "#b42318" },
+  issueSeverityWarning: { ...severityBase, backgroundColor: "#fff8e7", color: "#9a6700" },
+  issueWorker: { color: "#263248", fontSize: "10px", fontWeight: 750, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" },
+  issueCode: { color: "#5d6980", fontFamily: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace", fontSize: "9px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" },
+  issueMessage: { color: "#536176", minWidth: 0 },
+  sectionBlock: { display: "flex", flexDirection: "column", gap: "10px" },
   sectionHeadingRow: { display: "flex", justifyContent: "space-between", gap: "12px", alignItems: "start" },
-  sectionTitle: { margin: 0, color: "#111827", fontSize: "15px", fontWeight: 900 },
-  sectionHint: { margin: "4px 0 0", color: "#6b7280", fontSize: "13px", fontWeight: 600 },
-  tableWrapper: { overflowX: "auto", border: "1px solid #d1d5db" },
+  sectionTitle: { margin: 0, color: "#172033", fontSize: "14px", fontWeight: 800 },
+  sectionHint: { margin: "3px 0 0", color: "#738199", fontSize: "11px", fontWeight: 500 },
+  tableWrapper: { overflowX: "auto", border: "1px solid #dbe3ed", borderRadius: "7px" },
   table: { width: "100%", borderCollapse: "collapse", backgroundColor: "#ffffff" },
-  th: { padding: "10px", textAlign: "left", backgroundColor: "#f8f3b5", color: "#111111", borderBottom: "2px solid #111111", fontSize: "12px", fontWeight: 900, whiteSpace: "nowrap" },
-  thRight: { padding: "10px", textAlign: "right", backgroundColor: "#f8f3b5", color: "#111111", borderBottom: "2px solid #111111", fontSize: "12px", fontWeight: 900, whiteSpace: "nowrap" },
-  td: { padding: "10px", borderBottom: "1px solid #e5e7eb", fontSize: "13px", verticalAlign: "top" },
-  tdStrong: { padding: "10px", borderBottom: "1px solid #e5e7eb", fontSize: "13px", fontWeight: 800, verticalAlign: "top" },
-  tdRight: { padding: "10px", borderBottom: "1px solid #e5e7eb", textAlign: "right", fontSize: "13px", whiteSpace: "nowrap", verticalAlign: "top" },
-  tdRightStrong: { padding: "10px", borderBottom: "1px solid #e5e7eb", textAlign: "right", fontSize: "13px", fontWeight: 900, whiteSpace: "nowrap", verticalAlign: "top" },
-  cellSecondary: { display: "block", marginTop: "3px", color: "#6b7280", fontWeight: 600 },
-  missingValue: { color: "#b91c1c", fontWeight: 900 },
-  rowWithError: { backgroundColor: "#fff7f7" },
-  tableButton: { border: "1px solid #111827", borderRadius: "6px", backgroundColor: "#ffffff", color: "#111827", padding: "6px 9px", cursor: "pointer", fontSize: "12px", fontWeight: 900 },
-  detailCell: { padding: "12px", backgroundColor: "#f9fafb", borderBottom: "2px solid #d1d5db" },
-  detailGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: "8px" },
-  emptyState: { padding: "28px", textAlign: "center", color: "#6b7280", backgroundColor: "#f9fafb", border: "1px dashed #9ca3af", fontWeight: 700 },
-  checklistGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "10px" },
-  checkItem: { border: "1px solid #111111", backgroundColor: "#fffdf0", padding: "12px", display: "flex", flexDirection: "column", gap: "5px", fontSize: "13px" },
-  communicationFilter: { display: "flex", alignItems: "end", gap: "12px", marginBottom: "16px", flexWrap: "wrap" },
+  th: { padding: "7px 8px", textAlign: "left", backgroundColor: "#f1f4f8", color: "#4b5870", borderBottom: "1px solid #cbd6e3", fontSize: "9px", fontWeight: 800, whiteSpace: "nowrap" },
+  thRight: { padding: "7px 8px", textAlign: "right", backgroundColor: "#f1f4f8", color: "#4b5870", borderBottom: "1px solid #cbd6e3", fontSize: "9px", fontWeight: 800, whiteSpace: "nowrap" },
+  td: { padding: "7px 8px", borderBottom: "1px solid #e6ebf1", color: "#344258", fontSize: "10.5px", verticalAlign: "middle" },
+  tdStrong: { padding: "7px 8px", borderBottom: "1px solid #e6ebf1", color: "#172033", fontSize: "10.5px", fontWeight: 750, verticalAlign: "middle" },
+  tdIssueMarker: { boxShadow: "inset 2px 0 0 #dc2626" },
+  tdRight: { padding: "7px 8px", borderBottom: "1px solid #e6ebf1", color: "#344258", textAlign: "right", fontSize: "10.5px", whiteSpace: "nowrap", verticalAlign: "middle" },
+  tdRightStrong: { padding: "7px 8px", borderBottom: "1px solid #e6ebf1", color: "#172033", textAlign: "right", fontSize: "10.5px", fontWeight: 750, whiteSpace: "nowrap", verticalAlign: "middle" },
+  cellSecondary: { display: "block", marginTop: "2px", color: "#8793a7", fontWeight: 500, fontSize: "8.5px" },
+  missingValue: { display: "inline-flex", borderRadius: "999px", backgroundColor: "#fff1f2", color: "#b42318", padding: "2px 6px", fontWeight: 750, fontSize: "9px", whiteSpace: "nowrap" },
+  tableButton: { ...baseButton, minHeight: "28px", border: "1px solid #cbd6e3", backgroundColor: "#ffffff", color: "#344258", padding: "4px 8px", fontSize: "9px" },
+  detailCell: { padding: "10px 12px", backgroundColor: "#f8fafc", borderBottom: "1px solid #dbe3ed" },
+  detailGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(145px, 1fr))", gap: "8px" },
+  emptyState: { padding: "22px", textAlign: "center", color: "#738199", backgroundColor: "#fbfcfe", border: "1px dashed #cbd5e1", borderRadius: "6px", fontWeight: 600, fontSize: "12px" },
+  communicationFilter: { display: "flex", alignItems: "end", gap: "10px", marginBottom: "14px", flexWrap: "wrap" },
   inlineActions: { display: "flex", gap: "6px", flexWrap: "wrap" },
   fileHeader: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px", flexWrap: "wrap", marginBottom: "12px" },
-  fileMetadata: { display: "flex", gap: "18px", flexWrap: "wrap", border: "1px solid #d1d5db", backgroundColor: "#f9fafb", padding: "10px", marginBottom: "12px", fontSize: "13px" },
-  codePreview: { margin: 0, maxHeight: "520px", overflow: "auto", backgroundColor: "#111827", color: "#f9fafb", padding: "16px", fontSize: "12px", lineHeight: 1.55, whiteSpace: "pre-wrap", wordBreak: "break-word" },
+  fileMetadata: { display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", border: "1px solid #dbe3ed", borderRadius: "7px", backgroundColor: "#f8fafc", marginBottom: "12px", overflow: "hidden" },
+  codePreview: { margin: 0, maxHeight: "520px", overflow: "auto", borderRadius: "7px", backgroundColor: "#111827", color: "#e5e7eb", padding: "14px", fontSize: "11px", lineHeight: 1.5, whiteSpace: "pre-wrap", wordBreak: "break-word" },
 };

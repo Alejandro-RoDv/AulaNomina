@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
 
-import PageCard from "../components/layout/PageCard";
 import PayrollTable from "../components/payrolls/PayrollTable";
 import { fetchPayrolls } from "../services/payrollApi";
 
@@ -26,8 +25,13 @@ function getMonthLabel(month) {
     10: "Octubre",
     11: "Noviembre",
     12: "Diciembre",
-    13: "Extra julio",
-    14: "Extra diciembre",
+    13: "Paga extra · Verano",
+    14: "Paga extra · Diciembre",
+    15: "Paga extra · 1",
+    16: "Paga extra · 2",
+    17: "Paga extra · 3",
+    18: "Paga extra · 4",
+    19: "Paga extra · 5",
   };
   return labels[Number(month)] || month;
 }
@@ -37,10 +41,10 @@ function filtersFromCaseContext(context = {}) {
   const [year = "", month = ""] = period.includes("-") ? period.split("-", 2) : ["", ""];
   return {
     employee: context.employeeName || context.employeeId || "",
-    company: context.companyId || "",
+    company: context.company || context.center || context.companyName || context.companyId || "",
     year,
     month: month ? String(Number(month)) : "",
-    status: "",
+    status: context.status || "",
   };
 }
 
@@ -50,8 +54,11 @@ function getInitialFilters() {
   const urlContext = {
     employeeName: params.get("employee"),
     employeeId: params.get("employeeId"),
+    company: params.get("company"),
+    center: params.get("center"),
     companyId: params.get("companyId"),
     period: params.get("period"),
+    status: params.get("status"),
   };
   if (Object.values(urlContext).some(Boolean)) return filtersFromCaseContext(urlContext);
   try {
@@ -90,6 +97,13 @@ export default function PayrollHistoryPage({
     };
     window.addEventListener("aulanomina-case-context", applyCaseContext);
     return () => window.removeEventListener("aulanomina-case-context", applyCaseContext);
+  }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("period") || params.get("employee") || params.get("company")) {
+      refreshPayrollList();
+    }
   }, []);
 
   async function refreshPayrollList() {
@@ -152,88 +166,70 @@ export default function PayrollHistoryPage({
   }, [filteredPayrolls]);
 
   return (
-    <div style={styles.wrapper}>
-      <PageCard
-        title="Histórico de nóminas"
-        subtitle="Consulta de nóminas generadas, revisión de conceptos, detalle de recibo y anulación."
-      >
-        <div style={styles.kpiGrid}>
-          <div style={styles.kpi}><span>Nóminas</span><strong>{filteredPayrolls.length}</strong></div>
-          <div style={styles.kpi}><span>Bruto filtrado</span><strong>{totals.gross.toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</strong></div>
-          <div style={styles.kpi}><span>Neto filtrado</span><strong>{totals.net.toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</strong></div>
-        </div>
+    <div className="payroll-s42 payroll-s42--history">
+      <section className="payroll-s42__kpi-grid" aria-label="Resumen del histórico">
+        <div className="payroll-s42__kpi"><span>Nóminas</span><strong>{filteredPayrolls.length}</strong></div>
+        <div className="payroll-s42__kpi"><span>Bruto filtrado</span><strong>{totals.gross.toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</strong></div>
+        <div className="payroll-s42__kpi"><span>Neto filtrado</span><strong>{totals.net.toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</strong></div>
+      </section>
 
-        <div style={styles.filtersBox}>
-          <div style={styles.filtersHeader}>
-            <h3 style={styles.blockTitle}>Filtros</h3>
-            <div style={styles.actions}>
-              <button type="button" onClick={refreshPayrollList} style={styles.secondaryButton}>{refreshingPayrolls ? "Actualizando..." : "Actualizar"}</button>
-              <button type="button" onClick={clearFilters} style={styles.clearButton}>Limpiar filtros</button>
-            </div>
-          </div>
-          <div style={styles.filtersGrid}>
-            <label style={styles.field}>Trabajador
-              <input name="employee" value={filters.employee} onChange={handleFilterChange} placeholder="Nombre, DNI o código" style={styles.input} />
-            </label>
-            <label style={styles.field}>Empresa / centro
-              <input name="company" value={filters.company} onChange={handleFilterChange} placeholder="Empresa, centro, CIF o CCC" style={styles.input} />
-            </label>
-            <label style={styles.field}>Año
-              <select name="year" value={filters.year} onChange={handleFilterChange} style={styles.input}>
-                <option value="">Todos</option>
-                {availableYears.map((year) => <option key={year} value={year}>{year}</option>)}
-              </select>
-            </label>
-            <label style={styles.field}>Mes
-              <select name="month" value={filters.month} onChange={handleFilterChange} style={styles.input}>
-                <option value="">Todos</option>
-                {[1,2,3,4,5,6,7,8,9,10,11,12,13,14].map((month) => <option key={month} value={month}>{getMonthLabel(month)}</option>)}
-              </select>
-            </label>
-            <label style={styles.field}>Estado
-              <select name="status" value={filters.status} onChange={handleFilterChange} style={styles.input}>
-                <option value="">Todos</option>
-                <option value="pending">Pendiente</option>
-                <option value="calculated">Calculada</option>
-                <option value="reviewed">Revisada</option>
-                <option value="closed">Cerrada</option>
-                <option value="cancelled">Anulada</option>
-              </select>
-            </label>
+      <section className="payroll-s42__filters">
+        <div className="payroll-s42__filters-header">
+          <h2>Filtros</h2>
+          <div className="payroll-s42__filters-actions">
+            <button type="button" onClick={refreshPayrollList} className="payroll-s42__primary">
+              {refreshingPayrolls ? "Actualizando..." : "Actualizar"}
+            </button>
+            <button type="button" onClick={clearFilters} className="payroll-s42__secondary">Limpiar filtros</button>
           </div>
         </div>
 
-        {refreshMessage && <div style={styles.notice}>{refreshMessage}</div>}
-        <div style={styles.resultInfo}>
-          {refreshingPayrolls ? "Actualizando listado..." : `Mostrando ${filteredPayrolls.length} de ${localPayrolls.length} nóminas`}
+        <div className="payroll-s42__filters-grid">
+          <label className="payroll-s42__field">Trabajador
+            <input name="employee" value={filters.employee} onChange={handleFilterChange} placeholder="Nombre, DNI o código" />
+          </label>
+          <label className="payroll-s42__field">Empresa / centro
+            <input name="company" value={filters.company} onChange={handleFilterChange} placeholder="Empresa, centro, CIF o CCC" />
+          </label>
+          <label className="payroll-s42__field">Año
+            <select name="year" value={filters.year} onChange={handleFilterChange}>
+              <option value="">Todos</option>
+              {availableYears.map((year) => <option key={year} value={year}>{year}</option>)}
+            </select>
+          </label>
+          <label className="payroll-s42__field">Periodo
+            <select name="month" value={filters.month} onChange={handleFilterChange}>
+              <option value="">Todos</option>
+              {Array.from({ length: 19 }, (_, index) => index + 1).map((monthValue) => <option key={monthValue} value={monthValue}>{getMonthLabel(monthValue)}</option>)}
+            </select>
+          </label>
+          <label className="payroll-s42__field">Estado
+            <select name="status" value={filters.status} onChange={handleFilterChange}>
+              <option value="">Todos</option>
+              <option value="pending">Pendiente</option>
+              <option value="calculated">Calculada</option>
+              <option value="reviewed">Revisada</option>
+              <option value="closed">Cerrada</option>
+              <option value="cancelled">Anulada</option>
+            </select>
+          </label>
         </div>
-        <PayrollTable
-          loading={loading || refreshingPayrolls}
-          payrolls={filteredPayrolls}
-          contracts={contracts}
-          employees={employees}
-          onUpdatePayroll={onUpdatePayroll}
-          onDeletePayroll={onDeletePayroll}
-          submitting={payrollSubmitting}
-        />
-      </PageCard>
+      </section>
+
+      {refreshMessage && <div className="payroll-s42__message">{refreshMessage}</div>}
+      <div className="payroll-s42__result-info">
+        {refreshingPayrolls ? "Actualizando listado..." : `${filteredPayrolls.length} resultados de ${localPayrolls.length}`}
+      </div>
+
+      <PayrollTable
+        loading={loading || refreshingPayrolls}
+        payrolls={filteredPayrolls}
+        contracts={contracts}
+        employees={employees}
+        onUpdatePayroll={onUpdatePayroll}
+        onDeletePayroll={onDeletePayroll}
+        submitting={payrollSubmitting}
+      />
     </div>
   );
 }
-
-const styles = {
-  wrapper: { display: "flex", flexDirection: "column", gap: "20px" },
-  kpiGrid: { display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: "12px", marginBottom: "16px" },
-  kpi: { border: "2px solid #111827", borderRadius: "12px", padding: "11px 12px", backgroundColor: "#fffdf0", display: "flex", justifyContent: "space-between", gap: "12px", fontWeight: 900 },
-  filtersBox: { border: "2px solid #111827", borderRadius: "14px", padding: "14px", backgroundColor: "#ffffff", marginBottom: "16px", boxShadow: "3px 3px 0 #e6d85c" },
-  filtersHeader: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px", marginBottom: "12px" },
-  blockTitle: { margin: 0, fontSize: "17px", fontWeight: 900, color: "#111827" },
-  actions: { display: "flex", gap: "8px", alignItems: "center" },
-  filtersGrid: { display: "grid", gridTemplateColumns: "1.2fr 1.4fr 120px 150px 150px", gap: "12px", alignItems: "end" },
-  field: { display: "flex", flexDirection: "column", gap: "6px", fontSize: "12px", fontWeight: 900, color: "#374151" },
-  input: { width: "100%", boxSizing: "border-box", padding: "10px 12px", border: "2px solid #d1d5db", borderRadius: "8px", fontSize: "14px", fontWeight: 700 },
-  secondaryButton: { backgroundColor: "#e6d85c", color: "#111827", border: "2px solid #111827", borderRadius: "8px", padding: "8px 12px", cursor: "pointer", fontWeight: 900 },
-  clearButton: { backgroundColor: "#ffffff", color: "#111827", border: "2px solid #111827", borderRadius: "8px", padding: "8px 12px", cursor: "pointer", fontWeight: 900 },
-  resultInfo: { marginBottom: "16px", color: "#6b7280", fontSize: "13px", fontWeight: 700 },
-  notice: { marginBottom: "12px", backgroundColor: "#dcfce7", color: "#166534", padding: "10px 12px", borderRadius: "8px", fontWeight: 800 },
-};

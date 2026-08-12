@@ -1,128 +1,546 @@
 .afi-page {
   display: flex;
+  width: 100%;
+  max-width: 92rem;
+  margin: 0 auto;
   flex-direction: column;
-  gap: 18px;
+  gap: var(--an-space-6);
 }
 
-.afi-page-tabs {
-  display: flex;
-  gap: 8px;
-  padding-bottom: 8px;
-  border-bottom: 2px solid #111;
+/* Navigation already lives in the sidebar. Keep the page focused on work. */
+.afi-page > .afi-page-tabs {
+  display: none;
 }
 
-.afi-page-tabs button,
-.afi-files-toolbar button,
-.afi-files-actions button {
-  min-height: 34px;
-  border: 1px solid #111827;
-  border-radius: 6px;
-  background: #fff;
-  color: #111827;
-  padding: 7px 11px;
-  font: inherit;
-  font-size: 12px;
-  font-weight: 900;
-  cursor: pointer;
+.afi-page .an-page-card {
+  border: 1px solid var(--an-color-border);
+  border-radius: var(--an-radius-lg);
+  background: var(--an-color-surface);
+  box-shadow: var(--an-shadow-xs);
 }
 
-.afi-page-tabs button.is-active {
-  border: 2px solid #111;
-  background: #f5ef9c;
-}
-
-.afi-page-panel {
+.afi-page .afi-page-panel {
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
   box-shadow: none;
 }
 
-.afi-page-table-wrap {
-  max-height: 420px;
+/* Section header --------------------------------------------------------- */
+.afi-page .afi-panel-title {
+  display: flex;
+  min-height: auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--an-space-4);
+  padding: 0 0 var(--an-space-4);
+  border: 0;
+  border-bottom: 1px solid var(--an-color-border);
+  background: transparent;
+  color: var(--an-color-text-primary);
+  font-size: var(--an-font-size-sm);
+  font-weight: var(--an-font-weight-semibold);
 }
 
+.afi-page .afi-panel-title > span {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--an-space-2);
+}
+
+.afi-page .afi-panel-title > span::first-letter {
+  color: var(--an-color-text-muted);
+}
+
+/* Buttons ---------------------------------------------------------------- */
+.afi-page .afi-panel-title button,
+.afi-page .afi-selection-actions button,
+.afi-page .afi-file-actions button,
+.afi-page .afi-files-toolbar button,
+.afi-page .afi-files-actions button {
+  min-height: var(--an-control-height-md);
+  padding: 0 var(--an-space-4);
+  border: 1px solid var(--an-color-border-strong);
+  border-radius: var(--an-radius-md);
+  background: var(--an-color-surface);
+  color: var(--an-color-text-primary);
+  box-shadow: none;
+  font: inherit;
+  font-size: var(--an-font-size-sm);
+  font-weight: var(--an-font-weight-semibold);
+  cursor: pointer;
+}
+
+.afi-page .afi-panel-title button:hover:not(:disabled),
+.afi-page .afi-selection-actions button:hover:not(:disabled),
+.afi-page .afi-file-actions button:hover:not(:disabled),
+.afi-page .afi-files-toolbar button:hover:not(:disabled),
+.afi-page .afi-files-actions button:hover:not(:disabled) {
+  border-color: var(--an-color-neutral-400);
+  background: var(--an-color-neutral-50);
+}
+
+.afi-page .afi-selection-actions button,
+.afi-page .afi-file-actions .afi-primary-button,
+.afi-page .afi-files-actions .afi-files-upload {
+  border-color: var(--an-color-action-primary);
+  background: var(--an-color-action-primary);
+  color: var(--an-color-text-inverse);
+}
+
+.afi-page .afi-selection-actions button:hover:not(:disabled),
+.afi-page .afi-file-actions .afi-primary-button:hover:not(:disabled),
+.afi-page .afi-files-actions .afi-files-upload:hover:not(:disabled) {
+  border-color: var(--an-color-action-primary-hover);
+  background: var(--an-color-action-primary-hover);
+}
+
+.afi-page button:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
+/* Search/filter area ----------------------------------------------------- */
+.afi-page .afi-filters {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: var(--an-space-3);
+  margin-top: var(--an-space-4);
+  padding: var(--an-space-4);
+  border: 1px solid var(--an-color-border);
+  border-radius: var(--an-radius-lg);
+  background: var(--an-color-surface-subtle);
+}
+
+.afi-page .afi-filters label,
+.afi-page .afi-draft-toolbar label {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: var(--an-space-1);
+}
+
+.afi-page .afi-filters label span,
+.afi-page .afi-draft-toolbar label span,
+.afi-page .afi-file-actions div span {
+  color: var(--an-color-text-secondary);
+  font-size: var(--an-font-size-xs);
+  font-weight: var(--an-font-weight-semibold);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.afi-page .afi-filters input,
+.afi-page .afi-filters select,
+.afi-page .afi-draft-toolbar select {
+  width: 100%;
+  min-height: var(--an-control-height-md);
+  box-sizing: border-box;
+  padding: 0 var(--an-space-3);
+  border: 1px solid var(--an-color-border-strong);
+  border-radius: var(--an-radius-md);
+  background: var(--an-color-surface);
+  color: var(--an-color-text-primary);
+  font: inherit;
+  font-size: var(--an-font-size-sm);
+}
+
+.afi-page .afi-filters input:focus,
+.afi-page .afi-filters select:focus,
+.afi-page .afi-draft-toolbar select:focus {
+  outline: 2px solid color-mix(in srgb, var(--an-color-action-primary) 20%, transparent);
+  outline-offset: 1px;
+  border-color: var(--an-color-action-primary);
+}
+
+/* Tables ---------------------------------------------------------------- */
+.afi-page .afi-page-table-wrap {
+  max-height: 26rem;
+  margin-top: var(--an-space-4);
+  overflow: auto;
+  border: 1px solid var(--an-color-border);
+  border-radius: var(--an-radius-lg);
+  background: var(--an-color-surface);
+}
+
+.afi-page .afi-table {
+  width: 100%;
+  border-collapse: collapse;
+  color: var(--an-color-text-secondary);
+  font-size: var(--an-font-size-sm);
+}
+
+.afi-page .afi-table th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  padding: var(--an-space-3) var(--an-space-4);
+  border: 0;
+  border-bottom: 1px solid var(--an-color-border);
+  background: var(--an-color-neutral-50);
+  color: var(--an-color-text-secondary);
+  font-size: var(--an-font-size-xs);
+  font-weight: var(--an-font-weight-semibold);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.afi-page .afi-table td {
+  padding: var(--an-space-3) var(--an-space-4);
+  border: 0;
+  border-bottom: 1px solid var(--an-color-border);
+  color: var(--an-color-text-secondary);
+  vertical-align: middle;
+}
+
+.afi-page .afi-table tbody tr:nth-child(even) {
+  background: transparent;
+}
+
+.afi-page .afi-table tbody tr:hover,
+.afi-page .afi-files-table tbody tr.is-selected {
+  background: var(--an-color-neutral-50);
+}
+
+.afi-page .afi-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.afi-page .afi-table td strong {
+  display: block;
+  color: var(--an-color-text-primary);
+  font-weight: var(--an-font-weight-semibold);
+}
+
+.afi-page .afi-table td small {
+  display: block;
+  margin-top: 0.15rem;
+  color: var(--an-color-text-muted);
+  font-size: var(--an-font-size-xs);
+}
+
+.afi-page .afi-table input[type="checkbox"] {
+  width: 1rem;
+  height: 1rem;
+  accent-color: var(--an-color-action-primary);
+}
+
+.afi-page .afi-empty {
+  padding: var(--an-space-8) var(--an-space-4) !important;
+  color: var(--an-color-text-muted);
+  font-size: var(--an-font-size-sm);
+  text-align: center !important;
+}
+
+/* Movement/status labels: classification stays neutral. ---------------- */
+.afi-page .afi-movement,
+.afi-page .afi-status {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.5rem;
+  padding: 0 var(--an-space-2);
+  border-radius: var(--an-radius-pill);
+  background: var(--an-color-neutral-100);
+  color: var(--an-color-text-secondary);
+  font-size: var(--an-font-size-xs);
+  font-weight: var(--an-font-weight-semibold);
+  letter-spacing: 0;
+  text-transform: none;
+  white-space: nowrap;
+}
+
+.afi-page .afi-status--ok {
+  background: var(--an-color-success-50);
+  color: var(--an-color-success-700);
+}
+
+.afi-page .afi-status--error {
+  background: var(--an-color-danger-50);
+  color: var(--an-color-danger-700);
+}
+
+.afi-page .afi-status--pending,
+.afi-page .afi-status--neutral {
+  background: var(--an-color-neutral-100);
+  color: var(--an-color-text-secondary);
+}
+
+/* Selection/footer ------------------------------------------------------ */
+.afi-page .afi-selection-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--an-space-4);
+  margin-top: var(--an-space-3);
+  padding: var(--an-space-3) 0 0;
+  border: 0;
+  background: transparent;
+}
+
+.afi-page .afi-selection-actions span {
+  color: var(--an-color-text-secondary);
+  font-size: var(--an-font-size-sm);
+  font-weight: var(--an-font-weight-medium);
+}
+
+/* Draft ----------------------------------------------------------------- */
+.afi-page .afi-draft-toolbar {
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-start;
+  gap: var(--an-space-4);
+  margin-top: var(--an-space-4);
+  padding: var(--an-space-4);
+  border: 1px solid var(--an-color-border);
+  border-radius: var(--an-radius-lg);
+  background: var(--an-color-surface-subtle);
+}
+
+.afi-page .afi-draft-toolbar label {
+  flex: 1 1 26rem;
+  min-width: 16rem;
+}
+
+.afi-page .afi-draft-facts {
+  display: flex;
+  align-items: center;
+  flex: 2 1 34rem;
+  flex-wrap: wrap;
+  gap: var(--an-space-2) var(--an-space-4);
+  min-height: var(--an-control-height-md);
+}
+
+.afi-page .afi-draft-facts > span:not(.afi-status) {
+  padding: 0;
+  border: 0;
+  color: var(--an-color-text-secondary);
+  font-size: var(--an-font-size-sm);
+  font-weight: var(--an-font-weight-medium);
+}
+
+.afi-page .afi-link-button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--an-color-action-primary);
+  font: inherit;
+  font-size: var(--an-font-size-sm);
+  font-weight: var(--an-font-weight-semibold);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.afi-page .afi-link-button:hover:not(:disabled) {
+  text-decoration: underline;
+}
+
+.afi-page .afi-file-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--an-space-2);
+  margin-top: var(--an-space-4);
+  padding: var(--an-space-4) 0 0;
+  border: 0;
+  border-top: 1px solid var(--an-color-border);
+  background: transparent;
+}
+
+.afi-page .afi-file-actions > div {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--an-space-1);
+  margin-right: var(--an-space-4);
+}
+
+.afi-page .afi-file-actions > div strong {
+  overflow: hidden;
+  color: var(--an-color-text-primary);
+  font-size: var(--an-font-size-sm);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Messages -------------------------------------------------------------- */
+.afi-page .afi-message {
+  padding: var(--an-space-3) var(--an-space-4);
+  border: 1px solid var(--an-color-border);
+  border-radius: var(--an-radius-md);
+  font-size: var(--an-font-size-sm);
+  font-weight: var(--an-font-weight-medium);
+}
+
+.afi-page .afi-message--error {
+  border-color: var(--an-color-danger-100);
+  background: var(--an-color-danger-50);
+  color: var(--an-color-danger-700);
+}
+
+.afi-page .afi-message--info {
+  border-color: var(--an-color-primary-200);
+  background: var(--an-color-primary-50);
+  color: var(--an-color-text-primary);
+}
+
+/* Generated files ------------------------------------------------------- */
 .afi-files-toolbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 14px;
-  margin-bottom: 14px;
+  gap: var(--an-space-4);
+  margin-bottom: var(--an-space-4);
 }
 
-.afi-files-toolbar div {
+.afi-files-toolbar > div {
   display: flex;
   align-items: baseline;
-  gap: 7px;
-  color: #4b5563;
-  font-size: 13px;
-  font-weight: 700;
+  gap: var(--an-space-2);
+  color: var(--an-color-text-secondary);
+  font-size: var(--an-font-size-sm);
 }
 
 .afi-files-toolbar strong {
-  color: #111827;
-  font-size: 22px;
+  color: var(--an-color-text-primary);
+  font-size: var(--an-font-size-xl);
 }
 
-.afi-files-empty {
-  border: 1px dashed #9ca3af;
-  background: #f9fafb;
+.afi-page .afi-files-empty {
+  border: 1px dashed var(--an-color-border-strong);
+  border-radius: var(--an-radius-lg);
+  background: var(--an-color-surface-subtle);
 }
 
-.afi-files-table tbody tr.is-selected {
-  background: #fff8b8;
-}
-
-.afi-files-actions {
+.afi-page .afi-files-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: var(--an-space-2);
 }
 
-.afi-files-actions button:disabled {
-  cursor: not-allowed;
-  opacity: 0.45;
-}
-
-.afi-files-actions .afi-files-upload {
-  border-color: #145f9b;
-  background: #1f78b4;
-  color: #fff;
-}
-
-.afi-file-detail-header {
+.afi-page .afi-file-detail-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 12px;
+  gap: var(--an-space-4);
+  margin-bottom: var(--an-space-4);
   flex-wrap: wrap;
 }
 
-.afi-file-detail-header > div:first-child {
+.afi-page .afi-file-detail-header > div:first-child {
   display: flex;
   align-items: center;
-  gap: 10px;
-  color: #4b5563;
-  font-size: 13px;
-  font-weight: 700;
+  gap: var(--an-space-3);
+  color: var(--an-color-text-secondary);
+  font-size: var(--an-font-size-sm);
+  font-weight: var(--an-font-weight-medium);
 }
 
-.afi-file-preview {
-  max-height: 440px;
+.afi-page .afi-file-preview {
+  max-height: 30rem;
   overflow: auto;
   margin: 0;
-  border: 1px solid #9ca3af;
-  background: #111827;
-  color: #e5e7eb;
-  padding: 14px;
-  font-size: 12px;
-  line-height: 1.5;
+  padding: var(--an-space-4);
+  border: 1px solid var(--an-color-border);
+  border-radius: var(--an-radius-lg);
+  background: var(--an-color-neutral-50);
+  color: var(--an-color-text-secondary);
+  font-family: var(--an-font-mono);
+  font-size: var(--an-font-size-xs);
+  line-height: 1.6;
   white-space: pre-wrap;
   word-break: break-word;
 }
 
-@media (max-width: 900px) {
+/* Response panel -------------------------------------------------------- */
+.afi-page .afi-response-panel {
+  padding: var(--an-space-4);
+  border: 1px solid var(--an-color-border);
+  border-radius: var(--an-radius-lg);
+  background: var(--an-color-surface);
+  box-shadow: none;
+}
+
+.afi-page .afi-response-summary {
+  display: grid;
+  grid-template-columns: minmax(14rem, 1fr) auto auto minmax(18rem, 2fr);
+  align-items: center;
+  gap: var(--an-space-4);
+}
+
+.afi-page .afi-response-summary p {
+  margin: 0;
+  color: var(--an-color-text-secondary);
+  font-size: var(--an-font-size-sm);
+}
+
+.afi-page .afi-response-lines {
+  display: grid;
+  gap: var(--an-space-2);
+  margin-top: var(--an-space-4);
+}
+
+.afi-page .afi-response-line {
+  display: grid;
+  grid-template-columns: 5rem 1fr;
+  gap: var(--an-space-3);
+  padding: var(--an-space-3) var(--an-space-4);
+  border: 1px solid var(--an-color-border);
+  border-left: 3px solid var(--an-color-border-strong);
+  border-radius: var(--an-radius-md);
+  background: var(--an-color-surface-subtle);
+  font-size: var(--an-font-size-sm);
+}
+
+.afi-page .afi-response-line--error {
+  border-left-color: var(--an-color-danger-700);
+  background: var(--an-color-danger-50);
+}
+
+@media (max-width: 78rem) {
+  .afi-page .afi-filters {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .afi-page .afi-response-summary {
+    grid-template-columns: 1fr auto auto;
+  }
+
+  .afi-page .afi-response-summary p {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 48rem) {
+  .afi-page {
+    gap: var(--an-space-4);
+  }
+
+  .afi-page .afi-filters {
+    grid-template-columns: 1fr;
+  }
+
+  .afi-page .afi-draft-toolbar,
+  .afi-page .afi-selection-actions,
+  .afi-page .afi-file-actions,
   .afi-files-toolbar,
-  .afi-file-detail-header {
+  .afi-page .afi-file-detail-header {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .afi-page .afi-draft-toolbar label {
+    min-width: 0;
+  }
+
+  .afi-page .afi-file-actions > div {
+    margin-right: 0;
+  }
+
+  .afi-page .afi-files-actions button,
+  .afi-page .afi-selection-actions button,
+  .afi-page .afi-file-actions button {
+    width: 100%;
   }
 }

@@ -19,6 +19,18 @@ const checklistTemplates = [
   ["DATA_CONSENT", "Consentimiento datos"],
 ];
 
+const documentTypeOptions = [
+  ["DNI_NIE", "DNI / NIE"],
+  ["NAF", "NAF"],
+  ["SIGNED_CONTRACT", "Contrato firmado"],
+  ["MODEL_145", "Modelo 145"],
+  ["SEXUAL_OFFENCES_CERTIFICATE", "Certificado delitos sexuales"],
+  ["CONFIDENTIALITY_COMMITMENT", "Compromiso confidencialidad"],
+  ["DATA_CONSENT", "Consentimiento datos"],
+  ["DEGREE_CERTIFICATE", "Titulación"],
+  ["OTHER", "Otros"],
+];
+
 const statusPriority = { expired: 0, pending: 1, received: 2, not_applicable: 3 };
 const statusLabels = { pending: "Pendiente", received: "Entregado", expired: "Caducado", not_applicable: "No aplica" };
 
@@ -30,11 +42,32 @@ function mergeDocuments(baseDocuments, updatedDocument) {
   return baseDocuments.map((document) => Number(document.id) === Number(updatedDocument.id) ? { ...document, ...updatedDocument } : document);
 }
 
-export default function DocumentsPage({ loading, documents, employees, companies, workCenters, documentForm, onDocumentChange, onDocumentSubmit, onUpdateDocument, onDeleteDocument, documentSubmitting, documentError, documentSuccess }) {
+function matchesDocumentFilters(document, filters) {
+  if (filters.document_type && document.document_type !== filters.document_type) return false;
+  if (filters.status && document.status !== filters.status) return false;
+  if (filters.only_critical && !["pending", "expired"].includes(document.status)) return false;
+  return true;
+}
+
+export default function DocumentsPage({
+  loading,
+  documents,
+  employees,
+  companies,
+  workCenters,
+  documentForm,
+  onDocumentChange,
+  onDocumentSubmit,
+  onUpdateDocument,
+  documentSubmitting,
+  documentError,
+  documentSuccess,
+}) {
   const [filters, setFilters] = useState(initialFilters);
   const [employeeFilters, setEmployeeFilters] = useState(initialEmployeeFilters);
   const [localDocuments, setLocalDocuments] = useState(null);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState(null);
+  const [showCreateForm, setShowCreateForm] = useState(false);
   const [checklistMessage, setChecklistMessage] = useState("");
   const [checklistError, setChecklistError] = useState("");
   const [checklistLoading, setChecklistLoading] = useState(false);
@@ -44,10 +77,14 @@ export default function DocumentsPage({ loading, documents, employees, companies
   const visibleDocuments = localDocuments || documents;
   const selectedEmployee = employees.find((employee) => Number(employee.id) === Number(selectedEmployeeId));
   const hasSelectedCompany = Boolean(employeeFilters.company_id);
+  const hasDocumentFilters = Boolean(filters.document_type || filters.status || filters.only_critical);
 
   const companyMap = useMemo(() => companies.reduce((acc, company) => ({ ...acc, [company.id]: company }), {}), [companies]);
   const centerMap = useMemo(() => workCenters.reduce((acc, center) => ({ ...acc, [center.id]: center }), {}), [workCenters]);
-  const availableCenters = useMemo(() => workCenters.filter((center) => String(center.company_id) === String(employeeFilters.company_id)), [workCenters, employeeFilters.company_id]);
+  const availableCenters = useMemo(
+    () => workCenters.filter((center) => String(center.company_id) === String(employeeFilters.company_id)),
+    [workCenters, employeeFilters.company_id],
+  );
 
   const scopedDocuments = useMemo(() => {
     if (!hasSelectedCompany) return [];
@@ -64,6 +101,11 @@ export default function DocumentsPage({ loading, documents, employees, companies
     return String(a.expiry_date || "9999-12-31").localeCompare(String(b.expiry_date || "9999-12-31"));
   }), [scopedDocuments]);
 
+  const filteredScopeDocuments = useMemo(
+    () => sortedDocuments.filter((document) => matchesDocumentFilters(document, filters)),
+    [sortedDocuments, filters],
+  );
+
   const employeeRows = useMemo(() => {
     if (!hasSelectedCompany) return [];
 
@@ -78,7 +120,9 @@ export default function DocumentsPage({ loading, documents, employees, companies
         return true;
       })
       .map((employee) => {
-        const employeeDocuments = scopedDocuments.filter((document) => Number(document.employee_id) === Number(employee.id));
+        const employeeDocuments = filteredScopeDocuments.filter((document) => Number(document.employee_id) === Number(employee.id));
+        if (hasDocumentFilters && employeeDocuments.length === 0) return null;
+
         const companyName = employee.company_id ? companyMap[employee.company_id]?.name || "-" : "Sin empresa";
         const centerName = employee.center_id ? centerMap[employee.center_id]?.name || "-" : "Sin centro";
         return {
@@ -91,23 +135,21 @@ export default function DocumentsPage({ loading, documents, employees, companies
           received: employeeDocuments.filter((document) => document.status === "received").length,
         };
       })
+      .filter(Boolean)
       .filter(({ employee }) => {
         const visibleCode = normalizeText(employee.employee_code || employee.id);
         const fullName = normalizeText(`${employee.first_name} ${employee.last_name}`);
         const dni = normalizeText(employee.dni);
-        return (!codeFilter || visibleCode.includes(codeFilter) || String(employee.id).includes(codeFilter)) &&
-          (!nameFilter || fullName.includes(nameFilter)) &&
-          (!dniFilter || dni.includes(dniFilter));
+        return (!codeFilter || visibleCode.includes(codeFilter) || String(employee.id).includes(codeFilter))
+          && (!nameFilter || fullName.includes(nameFilter))
+          && (!dniFilter || dni.includes(dniFilter));
       });
-  }, [employees, scopedDocuments, employeeFilters, hasSelectedCompany, companyMap, centerMap]);
+  }, [employees, filteredScopeDocuments, employeeFilters, hasSelectedCompany, hasDocumentFilters, companyMap, centerMap]);
 
-  const filteredDocuments = useMemo(() => sortedDocuments.filter((document) => {
+  const filteredDocuments = useMemo(() => filteredScopeDocuments.filter((document) => {
     if (selectedEmployeeId && Number(document.employee_id) !== Number(selectedEmployeeId)) return false;
-    if (filters.document_type && document.document_type !== filters.document_type) return false;
-    if (filters.status && document.status !== filters.status) return false;
-    if (filters.only_critical && !["pending", "expired"].includes(document.status)) return false;
     return true;
-  }), [sortedDocuments, selectedEmployeeId, filters]);
+  }), [filteredScopeDocuments, selectedEmployeeId]);
 
   const selectedEmployeeDocuments = useMemo(() => {
     if (!selectedEmployee) return [];
@@ -145,9 +187,31 @@ export default function DocumentsPage({ loading, documents, employees, companies
     setSelectedEmployeeId(null);
   };
 
-  const clearEmployeeFilters = () => {
+  const clearAllFilters = () => {
     setEmployeeFilters(initialEmployeeFilters);
+    setFilters(initialFilters);
     setSelectedEmployeeId(null);
+  };
+
+  const clearEmployeeSearch = () => {
+    setEmployeeFilters((prev) => ({ ...prev, code: "", name: "", dni: "" }));
+  };
+
+  const setDocumentField = (name, value) => {
+    onDocumentChange({ target: { name, value: value == null ? "" : String(value) } });
+  };
+
+  const handleOpenCreateForm = () => {
+    if (selectedEmployee) {
+      setDocumentField("employee_id", selectedEmployee.id);
+      setDocumentField("company_id", selectedEmployee.company_id || "");
+      setDocumentField("center_id", selectedEmployee.center_id || "");
+    } else if (employeeFilters.company_id) {
+      setDocumentField("employee_id", "");
+      setDocumentField("company_id", employeeFilters.company_id);
+      setDocumentField("center_id", employeeFilters.center_id || "");
+    }
+    setShowCreateForm(true);
   };
 
   const handleStatusChange = async (document, status) => {
@@ -211,7 +275,11 @@ export default function DocumentsPage({ loading, documents, employees, companies
     try {
       setChecklistLoading(true);
       const currentDocuments = localDocuments || documents;
-      const existingTypes = new Set(currentDocuments.filter((document) => Number(document.employee_id) === Number(employee.id)).map((document) => document.document_type));
+      const existingTypes = new Set(
+        currentDocuments
+          .filter((document) => Number(document.employee_id) === Number(employee.id))
+          .map((document) => document.document_type),
+      );
       const missingTemplates = checklistTemplates.filter(([documentType]) => !existingTypes.has(documentType));
 
       if (missingTemplates.length === 0) {
@@ -240,129 +308,264 @@ export default function DocumentsPage({ loading, documents, employees, companies
     }
   };
 
+  const openEmployee = (employeeId) => {
+    setSelectedEmployeeId(employeeId);
+    setChecklistMessage("");
+    setChecklistError("");
+    setDocumentActionMessage("");
+    setDocumentActionError("");
+  };
+
   return (
-    <div style={styles.page}>
-      <section style={styles.scopeCard}>
-        <div>
-          <h2 style={styles.title}>Ámbito de trabajo</h2>
-          <p style={styles.muted}>Selecciona primero una empresa. Después se muestran solo sus trabajadores y documentos.</p>
+    <div className="documents-workspace">
+      <section className="documents-controls">
+        <div className="documents-controls__header">
+          <div>
+            <span className="documents-section-kicker">Consulta documental</span>
+            <h2>Filtros y ámbito</h2>
+            <p>Selecciona una empresa y acota el listado por centro, tipo o estado documental.</p>
+          </div>
+          <button
+            type="button"
+            className="documents-new-button"
+            onClick={() => (showCreateForm ? setShowCreateForm(false) : handleOpenCreateForm())}
+          >
+            {showCreateForm ? "Cerrar nuevo documento" : "+ Nuevo documento"}
+          </button>
         </div>
-        <div style={styles.scopeFilters}>
-          <label style={styles.label}>Empresa<select name="company_id" value={employeeFilters.company_id} onChange={handleEmployeeFilterChange} style={styles.input}><option value="">Seleccionar empresa</option>{companies.map((company) => <option key={company.id} value={company.id}>{company.name}</option>)}</select></label>
-          <label style={styles.label}>Centro<select name="center_id" value={employeeFilters.center_id} onChange={handleEmployeeFilterChange} style={styles.input} disabled={!employeeFilters.company_id}><option value="">Todos los centros</option>{availableCenters.map((center) => <option key={center.id} value={center.id}>{center.name}</option>)}</select></label>
-          <button type="button" onClick={clearEmployeeFilters} style={styles.secondaryButton}>Limpiar ámbito</button>
+
+        <div className="documents-filter-grid">
+          <label className="documents-field documents-field--company">
+            <span>Empresa</span>
+            <select name="company_id" value={employeeFilters.company_id} onChange={handleEmployeeFilterChange}>
+              <option value="">Seleccionar empresa</option>
+              {companies.map((company) => <option key={company.id} value={company.id}>{company.name}</option>)}
+            </select>
+          </label>
+
+          <label className="documents-field">
+            <span>Centro</span>
+            <select name="center_id" value={employeeFilters.center_id} onChange={handleEmployeeFilterChange} disabled={!employeeFilters.company_id}>
+              <option value="">Todos los centros</option>
+              {availableCenters.map((center) => <option key={center.id} value={center.id}>{center.name}</option>)}
+            </select>
+          </label>
+
+          <label className="documents-field">
+            <span>Tipo documental</span>
+            <select name="document_type" value={filters.document_type} onChange={handleFilterChange} disabled={!hasSelectedCompany}>
+              <option value="">Todos los tipos</option>
+              {documentTypeOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+            </select>
+          </label>
+
+          <label className="documents-field">
+            <span>Estado</span>
+            <select name="status" value={filters.status} onChange={handleFilterChange} disabled={!hasSelectedCompany}>
+              <option value="">Todos los estados</option>
+              <option value="pending">Pendiente</option>
+              <option value="received">Entregado</option>
+              <option value="expired">Caducado</option>
+              <option value="not_applicable">No aplica</option>
+            </select>
+          </label>
+
+          <label className={`documents-critical-toggle${!hasSelectedCompany ? " is-disabled" : ""}`}>
+            <input type="checkbox" name="only_critical" checked={filters.only_critical} onChange={handleFilterChange} disabled={!hasSelectedCompany} />
+            <span>Solo pendientes o caducados</span>
+          </label>
+
+          <button type="button" className="documents-clear-button" onClick={clearAllFilters}>
+            Limpiar filtros
+          </button>
         </div>
       </section>
 
-      <section style={styles.cardsGrid}>
-        <SummaryCard title="Documentos del ámbito" value={totals.total} />
-        <SummaryCard title="Pendientes" value={totals.pending} />
-        <SummaryCard title="Caducados" value={totals.expired} />
-        <SummaryCard title="Entregados" value={totals.received} />
-      </section>
-
-      <section style={styles.criticalCard}>
-        <div style={styles.reportActions}>
-          <button type="button" style={styles.reportButton} onClick={() => openReportPreset({ category: "documents", reportId: "documents-pending" })} disabled={!hasSelectedCompany}>Exportar documentación pendiente</button>
-          <button type="button" style={styles.reportButtonSecondary} onClick={() => openReportPreset({ category: "documents", reportId: "documents-all" })} disabled={!hasSelectedCompany}>Estado documental completo</button>
+      {showCreateForm && (
+        <div className="documents-create-area">
+          {(documentError || documentSuccess) && (
+            <div className={`documents-inline-message ${documentError ? "is-error" : "is-success"}`}>
+              {documentError || documentSuccess}
+            </div>
+          )}
+          <DocumentForm
+            form={documentForm}
+            employees={employees}
+            companies={companies}
+            workCenters={workCenters}
+            onChange={onDocumentChange}
+            onSubmit={onDocumentSubmit}
+            onCancel={() => setShowCreateForm(false)}
+            submitting={documentSubmitting}
+          />
         </div>
-        <h2 style={styles.title}>Pendientes críticos</h2>
-        {!hasSelectedCompany ? <p style={styles.muted}>Selecciona una empresa para cargar los pendientes críticos.</p> : criticalDocuments.length === 0 ? <p style={styles.muted}>No hay pendientes críticos en la empresa seleccionada.</p> : (
-          <ul style={styles.criticalList}>{criticalDocuments.map((document) => <li key={document.id} style={styles.criticalItem}><strong>{document.status === "expired" ? "Caducado" : "Pendiente"}:</strong> {document.document_name} — {document.employee_name || document.employee_id}</li>)}</ul>
-        )}
+      )}
+
+      <section className="documents-summary-grid" aria-label="Resumen documental">
+        <SummaryCard title="Documentos" value={totals.total} />
+        <SummaryCard title="Pendientes" value={totals.pending} tone={totals.pending ? "warning" : "neutral"} />
+        <SummaryCard title="Caducados" value={totals.expired} tone={totals.expired ? "danger" : "neutral"} />
+        <SummaryCard title="Entregados" value={totals.received} tone={totals.received ? "success" : "neutral"} />
       </section>
 
-      <section style={styles.browserCard}>
+      {hasSelectedCompany && (
+        <section className={`documents-critical-strip ${criticalDocuments.length ? "is-warning" : "is-clear"}`}>
+          <div>
+            <span className="documents-section-kicker">Control documental</span>
+            <h2>Pendientes críticos</h2>
+          </div>
+          {criticalDocuments.length === 0 ? (
+            <p>No hay documentos pendientes o caducados en el ámbito seleccionado.</p>
+          ) : (
+            <div className="documents-critical-items">
+              {criticalDocuments.map((document) => (
+                <span key={document.id} className={document.status === "expired" ? "is-expired" : "is-pending"}>
+                  {document.status === "expired" ? "Caducado" : "Pendiente"} · {document.document_name} · {document.employee_name || document.employee_id}
+                </span>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
+
+      <section className="documents-browser-card">
         {!selectedEmployee ? (
           <>
-            <div style={styles.browserHeader}><div><h2 style={styles.title}>Expedientes documentales por trabajador</h2><p style={styles.muted}>{hasSelectedCompany ? "Vista limitada a la empresa seleccionada." : "Selecciona una empresa para ver sus trabajadores."}</p></div></div>
+            <div className="documents-browser-header">
+              <div>
+                <span className="documents-section-kicker">Expedientes</span>
+                <h2>Documentación por trabajador</h2>
+                <p>
+                  {hasSelectedCompany
+                    ? `${employeeRows.length} trabajador${employeeRows.length === 1 ? "" : "es"} visible${employeeRows.length === 1 ? "" : "s"} con los filtros actuales.`
+                    : "Selecciona una empresa en los filtros superiores para cargar sus trabajadores."}
+                </p>
+              </div>
+              <div className="documents-report-actions">
+                <button type="button" onClick={() => openReportPreset({ category: "documents", reportId: "documents-pending" })} disabled={!hasSelectedCompany}>
+                  Pendientes
+                </button>
+                <button type="button" onClick={() => openReportPreset({ category: "documents", reportId: "documents-all" })} disabled={!hasSelectedCompany}>
+                  Estado completo
+                </button>
+              </div>
+            </div>
+
             {hasSelectedCompany && (
-              <div style={styles.employeeFiltersCard}>
-                <label style={styles.label}>Código<input name="code" value={employeeFilters.code} onChange={handleEmployeeFilterChange} style={styles.input} /></label>
-                <label style={styles.label}>Nombre<input name="name" value={employeeFilters.name} onChange={handleEmployeeFilterChange} style={styles.input} /></label>
-                <label style={styles.label}>DNI<input name="dni" value={employeeFilters.dni} onChange={handleEmployeeFilterChange} style={styles.input} /></label>
-                <button type="button" onClick={() => setEmployeeFilters((prev) => ({ ...prev, code: "", name: "", dni: "" }))} style={styles.secondaryButton}>Limpiar búsqueda</button>
+              <div className="documents-employee-search">
+                <label className="documents-field">
+                  <span>Código</span>
+                  <input name="code" value={employeeFilters.code} onChange={handleEmployeeFilterChange} placeholder="Código de trabajador" />
+                </label>
+                <label className="documents-field">
+                  <span>Nombre</span>
+                  <input name="name" value={employeeFilters.name} onChange={handleEmployeeFilterChange} placeholder="Nombre o apellidos" />
+                </label>
+                <label className="documents-field">
+                  <span>DNI / NIE</span>
+                  <input name="dni" value={employeeFilters.dni} onChange={handleEmployeeFilterChange} placeholder="Documento de identidad" />
+                </label>
+                <button type="button" onClick={clearEmployeeSearch}>Limpiar búsqueda</button>
               </div>
             )}
+
             {!hasSelectedCompany ? (
-              <div style={styles.emptyCompanyState}><strong>Empresa obligatoria.</strong><p>No se muestra ningún trabajador hasta seleccionar empresa. Esto evita listados masivos y mantiene el módulo gestionable.</p></div>
+              <div className="documents-empty-state">
+                <strong>Selecciona una empresa</strong>
+                <p>El selector está en la parte superior del módulo. Al elegirla se cargarán sus trabajadores, centros y documentación.</p>
+              </div>
+            ) : employeeRows.length === 0 ? (
+              <div className="documents-empty-state">
+                <strong>Sin resultados</strong>
+                <p>No hay trabajadores que coincidan con los filtros actuales.</p>
+              </div>
             ) : (
-              <div style={styles.employeeList}>
-                <div style={styles.employeeListHeader}><span>Trabajador</span><span>Empresa / centro</span><span>Documentos</span><span>Acción</span></div>
-                {employeeRows.length === 0 ? <p style={styles.emptyList}>No hay trabajadores que coincidan con los filtros dentro de esta empresa.</p> : employeeRows.map(({ employee, companyName, centerName, total, pending, expired, received }) => (
-                  <button key={employee.id} type="button" style={styles.employeeRow} onClick={() => { setSelectedEmployeeId(employee.id); setChecklistMessage(""); setChecklistError(""); setDocumentActionMessage(""); setDocumentActionError(""); }}>
-                    <span style={styles.employeeMainCell}><strong>{employee.first_name} {employee.last_name}</strong><small>{employee.employee_code || employee.id} · {employee.dni}</small></span>
-                    <span style={styles.employeeSecondaryCell}>{companyName}<small>{centerName}</small></span>
-                    <span style={styles.employeeStatsCell}>Total: {total} · Pendientes: {pending} · Caducados: {expired} · Entregados: {received}</span>
-                    <span style={styles.openBadge}>Abrir expediente</span>
-                  </button>
+              <div className="documents-employee-list">
+                <div className="documents-employee-list__header">
+                  <span>Trabajador</span>
+                  <span>Empresa / centro</span>
+                  <span>Documentos</span>
+                  <span>Acción</span>
+                </div>
+                {employeeRows.map(({ employee, companyName, centerName, total, pending, expired, received }) => (
+                  <div key={employee.id} className="documents-employee-row">
+                    <div className="documents-employee-main">
+                      <strong>{employee.first_name} {employee.last_name}</strong>
+                      <small>{employee.employee_code || employee.id} · {employee.dni}</small>
+                    </div>
+                    <div className="documents-employee-company">
+                      <span>{companyName}</span>
+                      <small>{centerName}</small>
+                    </div>
+                    <div className="documents-employee-stats">
+                      <span>Total <strong>{total}</strong></span>
+                      <span>Pend. <strong>{pending}</strong></span>
+                      <span>Cad. <strong>{expired}</strong></span>
+                      <span>Ent. <strong>{received}</strong></span>
+                    </div>
+                    <button type="button" className="documents-open-button" onClick={() => openEmployee(employee.id)}>
+                      Abrir expediente
+                    </button>
+                  </div>
                 ))}
               </div>
             )}
           </>
         ) : (
           <>
-            <div style={styles.browserHeaderSelected}>
-              <button type="button" style={styles.secondaryButton} onClick={() => setSelectedEmployeeId(null)}>← Volver al listado</button>
-              <div style={styles.selectedInfo}><h2 style={styles.title}>{selectedEmployee.first_name} {selectedEmployee.last_name}</h2><p style={styles.muted}>{selectedEmployee.employee_code || selectedEmployee.id} · {selectedEmployee.dni} · {companyMap[selectedEmployee.company_id]?.name || "Sin empresa"}</p></div>
-              <div style={styles.selectedStats}><strong>Total: {selectedTotals.total}</strong><span>Pendientes: {selectedTotals.pending}</span><span>Caducados: {selectedTotals.expired}</span><span>Entregados: {selectedTotals.received}</span></div>
+            <div className="documents-selected-header">
+              <button type="button" onClick={() => setSelectedEmployeeId(null)}>← Volver</button>
+              <div>
+                <span className="documents-section-kicker">Expediente documental</span>
+                <h2>{selectedEmployee.first_name} {selectedEmployee.last_name}</h2>
+                <p>{selectedEmployee.employee_code || selectedEmployee.id} · {selectedEmployee.dni} · {companyMap[selectedEmployee.company_id]?.name || "Sin empresa"}</p>
+              </div>
+              <div className="documents-selected-stats">
+                <span>Total <strong>{selectedTotals.total}</strong></span>
+                <span>Pendientes <strong>{selectedTotals.pending}</strong></span>
+                <span>Caducados <strong>{selectedTotals.expired}</strong></span>
+                <span>Entregados <strong>{selectedTotals.received}</strong></span>
+              </div>
             </div>
 
-            <DocumentChecklistPanel selectedEmployee={selectedEmployee} checklistLoading={checklistLoading} checklistMessage={checklistMessage} checklistError={checklistError} onGenerateChecklist={handleGenerateChecklist} />
+            <DocumentChecklistPanel
+              selectedEmployee={selectedEmployee}
+              checklistLoading={checklistLoading}
+              checklistMessage={checklistMessage}
+              checklistError={checklistError}
+              onGenerateChecklist={handleGenerateChecklist}
+            />
 
-            <section style={styles.filtersCard}>
-              <label style={styles.label}>Tipo<select name="document_type" value={filters.document_type} onChange={handleFilterChange} style={styles.input}><option value="">Todos</option><option value="DNI_NIE">DNI / NIE</option><option value="NAF">NAF</option><option value="SIGNED_CONTRACT">Contrato firmado</option><option value="MODEL_145">Modelo 145</option><option value="SEXUAL_OFFENCES_CERTIFICATE">Certificado delitos sexuales</option><option value="CONFIDENTIALITY_COMMITMENT">Compromiso confidencialidad</option><option value="DATA_CONSENT">Consentimiento datos</option><option value="DEGREE_CERTIFICATE">Titulación</option><option value="OTHER">Otros</option></select></label>
-              <label style={styles.label}>Estado<select name="status" value={filters.status} onChange={handleFilterChange} style={styles.input}><option value="">Todos</option><option value="pending">Pendiente</option><option value="received">Entregado</option><option value="expired">Caducado</option><option value="not_applicable">No aplica</option></select></label>
-              <label style={styles.checkboxLabel}><input type="checkbox" name="only_critical" checked={filters.only_critical} onChange={handleFilterChange} />Ver solo pendientes/caducados</label>
-            </section>
-            <DocumentTable loading={loading} documents={filteredDocuments} statusMessage={documentActionMessage || documentSuccess} statusError={documentActionError || documentError} onMarkReceived={(document) => handleStatusChange(document, "received")} onMarkPending={(document) => handleStatusChange(document, "pending")} onMarkExpired={(document) => handleStatusChange(document, "expired")} onMarkNotApplicable={(document) => handleStatusChange(document, "not_applicable")} onSaveDocument={handleSaveDocument} />
+            <div className="documents-selected-toolbar">
+              <p>{filteredDocuments.length} documento{filteredDocuments.length === 1 ? "" : "s"} con los filtros actuales.</p>
+              <button type="button" className="documents-new-button documents-new-button--compact" onClick={handleOpenCreateForm}>
+                + Nuevo documento para este trabajador
+              </button>
+            </div>
+
+            <DocumentTable
+              loading={loading}
+              documents={filteredDocuments}
+              statusMessage={documentActionMessage || documentSuccess}
+              statusError={documentActionError || documentError}
+              onMarkReceived={(document) => handleStatusChange(document, "received")}
+              onMarkPending={(document) => handleStatusChange(document, "pending")}
+              onMarkExpired={(document) => handleStatusChange(document, "expired")}
+              onMarkNotApplicable={(document) => handleStatusChange(document, "not_applicable")}
+              onSaveDocument={handleSaveDocument}
+            />
           </>
         )}
       </section>
-
-      <DocumentForm form={documentForm} employees={employees} companies={companies} workCenters={workCenters} onChange={onDocumentChange} onSubmit={onDocumentSubmit} submitting={documentSubmitting} />
     </div>
   );
 }
 
-function SummaryCard({ title, value }) {
-  return <article style={styles.summaryCard}><p style={styles.summaryTitle}>{title}</p><p style={styles.summaryValue}>{value}</p></article>;
+function SummaryCard({ title, value, tone = "neutral" }) {
+  return (
+    <article className={`documents-summary-card is-${tone}`}>
+      <span>{title}</span>
+      <strong>{value}</strong>
+    </article>
+  );
 }
-
-const styles = {
-  page: { display: "flex", flexDirection: "column", gap: "18px" },
-  scopeCard: { border: "2px solid #111", background: "#fff", padding: "16px", boxShadow: "4px 4px 0 #f0df62", display: "grid", gridTemplateColumns: "1fr 1.4fr", gap: "16px", alignItems: "end" },
-  scopeFilters: { display: "grid", gridTemplateColumns: "1fr 1fr auto", gap: "12px", alignItems: "end" },
-  cardsGrid: { display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: "14px" },
-  summaryCard: { border: "3px solid #111", background: "#fff", padding: "16px", boxShadow: "4px 4px 0 #f0df62" },
-  summaryTitle: { margin: 0, fontSize: "12px", fontWeight: 900, textTransform: "uppercase", color: "#4b5563" },
-  summaryValue: { margin: "8px 0 0", fontSize: "32px", fontWeight: 900, color: "#111" },
-  criticalCard: { border: "2px solid #111", background: "#fff7c2", padding: "16px", boxShadow: "4px 4px 0 #111" },
-  reportActions: { display: "flex", gap: "10px", justifyContent: "flex-end", marginBottom: "14px" },
-  reportButton: { backgroundColor: "#111827", color: "#fff", border: "1px solid #111827", borderRadius: "7px", padding: "9px 12px", cursor: "pointer", fontWeight: 900 },
-  reportButtonSecondary: { backgroundColor: "#fff", color: "#111827", border: "1px solid #d1d5db", borderRadius: "7px", padding: "9px 12px", cursor: "pointer", fontWeight: 900 },
-  browserCard: { border: "2px solid #111", background: "#fff", padding: "18px", boxShadow: "5px 5px 0 #f0df62" },
-  browserHeader: { display: "flex", justifyContent: "space-between", gap: "16px", marginBottom: "14px" },
-  browserHeaderSelected: { display: "grid", gridTemplateColumns: "auto 1fr auto", gap: "16px", alignItems: "center", borderBottom: "3px solid #111", paddingBottom: "14px", marginBottom: "14px" },
-  selectedInfo: { display: "grid", gap: "2px" },
-  selectedStats: { display: "flex", flexWrap: "wrap", gap: "8px", justifyContent: "flex-end", fontWeight: 900 },
-  employeeFiltersCard: { border: "2px solid #111", background: "#fff", padding: "14px", display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr)) auto", gap: "12px", alignItems: "end", marginBottom: "14px" },
-  employeeList: { border: "2px solid #111" },
-  employeeListHeader: { display: "grid", gridTemplateColumns: "1.4fr 1.2fr 1.4fr auto", gap: "14px", padding: "10px 14px", borderBottom: "3px solid #111", fontSize: "12px", fontWeight: 900, textTransform: "uppercase", background: "#f9fafb" },
-  employeeRow: { width: "100%", display: "grid", gridTemplateColumns: "1.4fr 1.2fr 1.4fr auto", gap: "14px", alignItems: "center", border: "none", borderBottom: "1px solid #d1d5db", background: "#fff", padding: "12px 14px", textAlign: "left", cursor: "pointer", fontWeight: 800 },
-  employeeMainCell: { display: "grid", gap: "4px" },
-  employeeSecondaryCell: { display: "grid", gap: "4px" },
-  employeeStatsCell: { fontWeight: 800 },
-  openBadge: { border: "2px solid #111", background: "#f0df62", padding: "7px 10px", fontWeight: 900, whiteSpace: "nowrap" },
-  emptyList: { margin: 0, padding: "16px", fontWeight: 800, color: "#6b7280" },
-  emptyCompanyState: { border: "2px dashed #d1d5db", background: "#f9fafb", padding: "18px", color: "#4b5563", fontWeight: 800 },
-  secondaryButton: { border: "2px solid #111", background: "#fff", padding: "9px 12px", fontWeight: 900, cursor: "pointer" },
-  title: { margin: "0 0 10px", fontSize: "20px", fontWeight: 900, color: "#111" },
-  muted: { margin: 0, color: "#6b7280", fontWeight: 700 },
-  criticalList: { margin: 0, paddingLeft: "20px", display: "grid", gap: "6px" },
-  criticalItem: { fontWeight: 800, color: "#111" },
-  filtersCard: { border: "2px solid #111", background: "#fff", padding: "14px", display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: "12px", alignItems: "end", marginBottom: "14px" },
-  label: { display: "flex", flexDirection: "column", gap: "6px", fontSize: "12px", fontWeight: 900, textTransform: "uppercase", color: "#111" },
-  checkboxLabel: { display: "flex", gap: "8px", alignItems: "center", fontSize: "12px", fontWeight: 900, textTransform: "uppercase", color: "#111", border: "2px solid #111", padding: "9px 10px", background: "#fff" },
-  input: { border: "2px solid #111", padding: "9px 10px", fontSize: "14px", fontWeight: 700, background: "#fff", color: "#111" },
-};

@@ -23,6 +23,14 @@ def money_text(value: Any) -> str:
     return f"{amount:,.2f} €".replace(",", "X").replace(".", ",").replace("X", ".")
 
 
+def decimal_text(value: Any, digits: int = 2) -> str:
+    try:
+        amount = Decimal(str(value or "0"))
+    except Exception:
+        amount = Decimal("0")
+    return f"{amount:.{digits}f}".replace(".", ",")
+
+
 def html_text(value: Any, fallback: str = "-") -> str:
     return escape(as_text(value, fallback))
 
@@ -34,99 +42,139 @@ def payroll_receipt_filename(receipt: dict) -> str:
     return f"recibo-{safe or 'nomina'}.html"
 
 
-def party_block(title: str, party: dict | None) -> str:
+def address_text(party: dict | None) -> str:
     party = party or {}
-    rows = [
-        ("Nombre", party.get("name")),
-        ("Código", party.get("code")),
-        ("NIF/CIF", party.get("tax_id")),
-        ("NAF/CCC", party.get("social_security_number") or party.get("contribution_account")),
-        ("Dirección", " · ".join(str(part) for part in [party.get("address"), party.get("city"), party.get("province")] if part)),
-    ]
-    body = "".join(f"<dt>{html_text(label)}</dt><dd>{html_text(value)}</dd>" for label, value in rows)
-    return f"<section class='card'><h2>{html_text(title)}</h2><dl>{body}</dl></section>"
+    return " · ".join(
+        str(part)
+        for part in [party.get("address"), party.get("city"), party.get("province")]
+        if part
+    ) or "-"
 
 
-def metric(label: str, value: Any, strong: bool = False) -> str:
-    cls = "metric strong" if strong else "metric"
-    return f"<div class='{cls}'><span>{html_text(label)}</span><b>{html_text(value)}</b></div>"
+def info_row(label: str, value: Any) -> str:
+    return f"<div class='info-row'><span>{html_text(label)}</span><strong>{html_text(value)}</strong></div>"
 
 
-def line_table(title: str, lines: list[dict]) -> str:
-    rows = []
+def company_panel(company: dict) -> str:
+    return (
+        "<section class='party party-company'>"
+        "<h2>EMPRESA</h2>"
+        f"{info_row('Nombre:', company.get('name'))}"
+        f"{info_row('Domicilio:', address_text(company))}"
+        f"{info_row('CIF:', company.get('tax_id'))}"
+        f"{info_row('Código Cuenta cotización S.S.:', company.get('contribution_account'))}"
+        "</section>"
+    )
+
+
+def employee_panel(employee: dict, contract: dict) -> str:
+    category = contract.get("professional_category") or contract.get("job_position")
+    return (
+        "<section class='party party-employee'>"
+        "<h2>TRABAJADOR/A</h2>"
+        f"{info_row('Nombre:', employee.get('name'))}"
+        f"{info_row('DNI:', employee.get('tax_id'))}"
+        f"{info_row('Número de afiliación a la S.S.:', employee.get('social_security_number'))}"
+        f"{info_row('Categoría o grupo profesional:', category)}"
+        f"{info_row('Grupo de cotización:', contract.get('contribution_group'))}"
+        f"{info_row('Fecha de antigüedad:', contract.get('seniority_date'))}"
+        "</section>"
+    )
+
+
+def filler_rows(count: int, columns: int = 4) -> str:
+    if count <= 0:
+        return ""
+    return "".join(f"<tr class='filler'><td colspan='{columns}'>&nbsp;</td></tr>" for _ in range(count))
+
+
+def earning_rows(lines: list[dict]) -> str:
+    salary_lines: list[dict] = []
+    non_salary_lines: list[dict] = []
     for line in lines:
+        nature = str(line.get("salary_nature") or "SALARIAL").upper()
+        if nature in {"EXTRASALARIAL", "NO_SALARIAL", "NO SALARIAL"}:
+            non_salary_lines.append(line)
+        else:
+            salary_lines.append(line)
+
+    rows: list[str] = ["<tr class='subheading'><td colspan='4'>Percepciones salariales:</td></tr>"]
+
+    def append_lines(items: list[dict]) -> None:
+        for line in items:
+            quantity = line.get("quantity")
+            unit_price = line.get("unit_price")
+            rows.append(
+                "<tr>"
+                f"<td>{html_text(line.get('name') or line.get('code'))}</td>"
+                f"<td class='num'>{decimal_text(quantity) if quantity is not None else ''}</td>"
+                f"<td class='num'>{money_text(unit_price) if unit_price is not None else ''}</td>"
+                f"<td class='num'>{money_text(line.get('amount'))}</td>"
+                "</tr>"
+            )
+
+    append_lines(salary_lines)
+    rows.append("<tr class='subheading subsection'><td colspan='4'>Percepciones no salariales:</td></tr>")
+    append_lines(non_salary_lines)
+
+    visible_rows = len(rows)
+    rows.append(filler_rows(max(0, 10 - visible_rows)))
+    return "".join(rows)
+
+
+def deduction_rate_text(line: dict) -> str:
+    trace = line.get("trace") or {}
+    raw = None
+    for key in ("rate", "percentage", "percent", "employee_rate", "irpf_rate"):
+        if trace.get(key) is not None:
+            raw = trace.get(key)
+            break
+    if raw is None:
+        return ""
+    try:
+        rate = Decimal(str(raw))
+        if abs(rate) <= 1:
+            rate *= 100
+        return f"{rate.normalize()}%".replace(".", ",")
+    except Exception:
+        return ""
+
+
+def deduction_rows(lines: list[dict]) -> str:
+    social_security: list[dict] = []
+    other: list[dict] = []
+    for line in lines:
+        code = str(line.get("code") or "").upper()
+        name = str(line.get("name") or "").lower()
+        is_ss = code.startswith("SS_") or any(
+            token in name for token in ("contingencias", "desempleo", "formación profesional", "mei")
+        )
+        (social_security if is_ss else other).append(line)
+
+    rows: list[str] = []
+    if social_security:
         rows.append(
-            "<tr>"
-            f"<td>{html_text(line.get('code'))}</td>"
-            f"<td><b>{html_text(line.get('name'))}</b><small>{html_text(line.get('description'), '')}</small></td>"
-            f"<td>{html_text(line.get('source_type'))}</td>"
-            f"<td class='amount'>{money_text(line.get('amount'))}</td>"
-            "</tr>"
+            "<tr class='subheading'><td colspan='4'>Aportación del trabajador a las cotizaciones de la Seguridad Social:</td></tr>"
         )
+
+    def append_lines(items: list[dict]) -> None:
+        for line in items:
+            rows.append(
+                "<tr>"
+                f"<td>{html_text(line.get('name') or line.get('code'))}</td>"
+                "<td></td>"
+                f"<td class='num rate'>{html_text(deduction_rate_text(line), '')}</td>"
+                f"<td class='num'>{money_text(line.get('amount'))}</td>"
+                "</tr>"
+            )
+
+    append_lines(social_security)
+    append_lines(other)
     if not rows:
-        rows.append("<tr><td colspan='4' class='empty'>Sin líneas</td></tr>")
-    return (
-        f"<section class='card wide'><h2>{html_text(title)}</h2>"
-        "<table><thead><tr><th>Código</th><th>Concepto</th><th>Origen</th><th>Importe</th></tr></thead>"
-        f"<tbody>{''.join(rows)}</tbody></table></section>"
-    )
+        rows.append("<tr><td colspan='4' class='empty'>Sin deducciones</td></tr>")
 
-
-def explanation_cards(title: str, eyebrow: str, explanations: list[dict], *, amount_key: str = "amount") -> str:
-    if not explanations:
-        return ""
-    cards = []
-    for item in explanations:
-        points = "".join(f"<li>{html_text(point)}</li>" for point in item.get("learning_points") or [])
-        formula = f"<p class='formula'>{html_text(item.get('formula'))}</p>" if item.get("formula") else ""
-        badge = " afectada" if item.get("affected_by_incident") else ""
-        cards.append(
-            f"<article class='explanation{badge}'>"
-            f"<header><b>{html_text(item.get('title') or item.get('name') or item.get('code'))}</b>"
-            f"<span>{money_text(item.get(amount_key))}</span></header>"
-            f"{formula}"
-            f"<p>{html_text(item.get('explanation'))}</p>"
-            f"<ul>{points}</ul>"
-            "</article>"
-        )
-    return (
-        f"<section class='teaching'><p class='eyebrow'>{html_text(eyebrow)}</p>"
-        f"<h2>{html_text(title)}</h2><div class='explanation-grid'>{''.join(cards)}</div></section>"
-    )
-
-
-def line_explanation_cards(explanations: list[dict]) -> str:
-    if not explanations:
-        return ""
-    cards = []
-    for item in explanations:
-        chips = [
-            item.get("section"),
-            item.get("source_type"),
-            "bruto" if item.get("affects_gross") else "no bruto",
-            "neto" if item.get("affects_net") else "no neto",
-            "cotiza" if item.get("contribution_base") else "no cotiza",
-            "tributa" if item.get("taxable") else "no tributa",
-        ]
-        chip_html = "".join(f"<span>{html_text(chip)}</span>" for chip in chips if chip)
-        points = "".join(f"<li>{html_text(point)}</li>" for point in item.get("learning_points") or [])
-        formula = f"<p class='formula'>{html_text(item.get('formula'))}</p>" if item.get("formula") else ""
-        cards.append(
-            "<article class='line-explanation'>"
-            f"<header><b>{html_text(item.get('code'))}</b><span>{money_text(item.get('amount'))}</span></header>"
-            f"<h3>{html_text(item.get('name'))}</h3>"
-            f"<div class='chips'>{chip_html}</div>"
-            f"{formula}"
-            f"<p>{html_text(item.get('explanation'))}</p>"
-            f"<ul>{points}</ul>"
-            "</article>"
-        )
-    return (
-        "<section class='teaching page-break'>"
-        "<p class='eyebrow'>LECTURA LÍNEA POR LÍNEA</p>"
-        "<h2>Qué significa cada concepto del recibo</h2>"
-        f"<div class='line-grid'>{''.join(cards)}</div></section>"
-    )
+    rows.append(filler_rows(max(0, 8 - len(rows))))
+    return "".join(rows)
 
 
 def build_payroll_receipt_print_html(receipt: dict) -> str:
@@ -134,7 +182,15 @@ def build_payroll_receipt_print_html(receipt: dict) -> str:
     totals = receipt.get("totals") or {}
     company = receipt.get("company") or {}
     employee = receipt.get("employee") or {}
+    contract = receipt.get("contract") or {}
+    bases = receipt.get("bases") or {}
+    work_center = receipt.get("work_center") or {}
+
+    period_start = html_text(period.get("period_start"))
+    period_end = html_text(period.get("period_end"))
+    total_days = period.get("period_days") or period.get("contribution_days") or 30
     title = f"Recibo de nómina {receipt.get('payroll_code')}"
+
     return f"""<!doctype html>
 <html lang="es">
 <head>
@@ -142,91 +198,122 @@ def build_payroll_receipt_print_html(receipt: dict) -> str:
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>{html_text(title)}</title>
   <style>
-    :root {{ font-family: Arial, Helvetica, sans-serif; color: #111827; background: #f3f4f6; }}
-    body {{ margin: 0; padding: 24px; }}
-    .sheet {{ max-width: 1040px; margin: 0 auto; background: white; border: 2px solid #111827; padding: 24px; }}
-    .toolbar {{ max-width: 1040px; margin: 0 auto 12px; display: flex; justify-content: flex-end; gap: 8px; }}
-    button {{ border: 2px solid #111827; background: #e6d85c; padding: 10px 14px; font-weight: 800; cursor: pointer; }}
-    header.main {{ display: flex; justify-content: space-between; gap: 24px; border-bottom: 3px solid #111827; padding-bottom: 16px; margin-bottom: 16px; }}
-    h1 {{ margin: 0; font-size: 26px; }}
-    h2 {{ margin: 0 0 10px; font-size: 16px; }}
-    h3 {{ margin: 4px 0; font-size: 13px; }}
-    .muted {{ color: #6b7280; font-size: 12px; font-weight: 700; }}
-    .grid {{ display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 14px; }}
-    .two {{ display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }}
-    .card, .teaching {{ border: 2px solid #111827; padding: 12px; margin-bottom: 12px; break-inside: avoid; }}
-    .wide {{ grid-column: span 1; }}
-    dl {{ display: grid; grid-template-columns: 86px 1fr; gap: 4px 8px; margin: 0; font-size: 12px; }}
-    dt {{ color: #6b7280; font-weight: 800; }} dd {{ margin: 0; font-weight: 700; }}
-    .metrics {{ display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 12px 0; }}
-    .metric {{ border: 1px solid #111827; padding: 8px; display: flex; flex-direction: column; gap: 4px; }}
-    .metric span {{ font-size: 11px; color: #6b7280; font-weight: 800; }}
-    .metric b {{ font-size: 15px; }} .metric.strong {{ background: #e6d85c; }}
-    table {{ width: 100%; border-collapse: collapse; font-size: 12px; }}
-    th, td {{ border-bottom: 1px solid #d1d5db; text-align: left; padding: 7px; vertical-align: top; }}
-    th {{ background: #f9fafb; }} .amount {{ text-align: right; white-space: nowrap; font-weight: 800; }}
-    small {{ display: block; color: #6b7280; margin-top: 2px; }}
-    .eyebrow {{ margin: 0 0 4px; font-size: 10px; letter-spacing: .08em; font-weight: 900; color: #4f46e5; }}
-    .explanation-grid, .line-grid {{ display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }}
-    .explanation, .line-explanation {{ border: 1px solid #111827; padding: 10px; break-inside: avoid; }}
-    .explanation.afectada {{ background: #fffdf0; }}
-    .explanation header, .line-explanation header {{ display: flex; justify-content: space-between; gap: 10px; font-size: 13px; }}
-    .formula {{ color: #92400e; font-size: 11px; font-weight: 800; margin: 6px 0; }}
-    p {{ font-size: 12px; line-height: 1.45; }}
-    ul {{ margin: 6px 0 0; padding-left: 18px; font-size: 11px; line-height: 1.4; }}
-    .chips {{ display: flex; flex-wrap: wrap; gap: 4px; margin: 6px 0; }}
-    .chips span {{ border: 1px solid #111827; border-radius: 999px; padding: 3px 7px; font-size: 10px; font-weight: 800; }}
-    .footer {{ border-top: 2px solid #d1d5db; margin-top: 14px; padding-top: 10px; color: #6b7280; font-size: 11px; font-weight: 700; }}
-    .page-break {{ break-before: page; }}
+    :root {{ font-family: Arial, Helvetica, sans-serif; color: #171717; background: #ececec; }}
+    * {{ box-sizing: border-box; }}
+    body {{ margin: 0; padding: 22px; }}
+    .toolbar {{ width: min(210mm, calc(100vw - 32px)); margin: 0 auto 12px; display: flex; justify-content: flex-end; }}
+    .toolbar button {{ border: 1px solid #98a2b3; border-radius: 4px; background: #fff; padding: 10px 15px; color: #101828; font-weight: 700; cursor: pointer; }}
+    .sheet {{ width: min(210mm, calc(100vw - 32px)); min-height: 297mm; margin: 0 auto; padding: 18mm 10mm 13mm; background: #fff; border: 1px solid #c8c8c8; box-shadow: 0 10px 32px rgba(0,0,0,.10); }}
+    .parties {{ display: grid; grid-template-columns: 1fr 1fr; border: 1.4px solid #111; }}
+    .party {{ min-height: 44mm; }}
+    .party + .party {{ border-left: 1px solid #111; }}
+    .party h2 {{ margin: 0; padding: 4px 8px; background: #f2f2f2; border-bottom: 1px solid #c8c8c8; font-size: 16px; line-height: 1.1; text-align: center; }}
+    .party .info-row {{ display: grid; grid-template-columns: 42% 58%; gap: 7px; padding: 2px 8px; font-size: 12.2px; line-height: 1.25; }}
+    .party .info-row:first-of-type {{ padding-top: 7px; }}
+    .party .info-row span {{ color: #202020; }}
+    .party .info-row strong {{ font-weight: 500; overflow-wrap: anywhere; }}
+    .period {{ display: grid; grid-template-columns: 1.7fr .9fr .9fr .7fr; border: 1.4px solid #111; border-top: 0; font-size: 12px; }}
+    .period > div {{ min-height: 38px; padding: 5px 8px; display: flex; align-items: center; }}
+    .period .center {{ justify-content: center; text-align: center; font-style: italic; line-height: 1.2; }}
+    .period .days {{ justify-content: flex-end; text-align: right; }}
+    table {{ width: 100%; border-collapse: collapse; table-layout: fixed; }}
+    .payroll-table {{ border-left: 1.4px solid #111; border-right: 1.4px solid #111; font-size: 12.2px; }}
+    .payroll-table th {{ padding: 4px 7px; background: #f1f1f1; border-bottom: 1px solid #c8c8c8; font-size: 13px; line-height: 1.15; }}
+    .payroll-table th:first-child {{ width: 58%; text-align: left; }}
+    .payroll-table th:nth-child(2) {{ width: 14%; }}
+    .payroll-table th:nth-child(3) {{ width: 14%; }}
+    .payroll-table th:nth-child(4) {{ width: 14%; }}
+    .payroll-table td {{ height: 23px; padding: 3px 7px; vertical-align: middle; }}
+    .payroll-table td.num {{ text-align: right; white-space: nowrap; font-style: italic; }}
+    .payroll-table td.rate {{ color: #333; }}
+    .payroll-table .subheading td {{ height: 25px; padding-top: 5px; padding-bottom: 2px; font-weight: 700; font-style: normal; }}
+    .payroll-table .subsection td {{ padding-top: 8px; }}
+    .payroll-table .filler td {{ height: 22px; padding: 0; }}
+    .payroll-table .empty {{ padding: 12px; color: #6b7280; text-align: center; }}
+    .total-row {{ display: grid; grid-template-columns: 1fr 44mm; border: 1.4px solid #111; border-top: 0; font-size: 13px; font-weight: 700; }}
+    .total-row span, .total-row strong {{ min-height: 28px; padding: 5px 8px; display: flex; align-items: center; }}
+    .total-row strong {{ justify-content: flex-end; text-align: right; font-style: italic; }}
+    .deductions-title {{ display: grid; grid-template-columns: 1fr 44mm; margin-top: 7mm; border-left: 1.4px solid #111; border-right: 1.4px solid #111; border-top: 1.4px solid #111; background: #f1f1f1; font-size: 13px; font-weight: 700; }}
+    .deductions-title span {{ padding: 5px 8px; }}
+    .deductions-title span:last-child {{ text-align: center; }}
+    .net-row {{ display: grid; grid-template-columns: 1fr 44mm; margin-top: 5mm; border: 1.4px solid #111; font-size: 14px; font-weight: 800; }}
+    .net-row span, .net-row strong {{ min-height: 32px; padding: 6px 8px; display: flex; align-items: center; }}
+    .net-row strong {{ justify-content: flex-end; border-left: 1px solid #111; background: #f7f7f7; text-align: right; font-style: italic; }}
+    .payment {{ display: grid; grid-template-columns: 1.15fr .85fr; min-height: 23mm; border-left: 1.4px solid #111; border-right: 1.4px solid #111; border-bottom: 1.4px solid #111; font-size: 12px; }}
+    .payment > div {{ padding: 6px 8px; line-height: 1.45; }}
+    .payment .signature {{ display: flex; align-items: center; justify-content: center; font-size: 12.5px; }}
+    .bases {{ margin-top: 7mm; min-height: 42mm; border: 1.4px solid #111; }}
+    .bases h2 {{ margin: 0; padding: 5px 8px; background: #f1f1f1; font-size: 13px; }}
+    .bases h3 {{ margin: 0; padding: 5px 8px 3px; font-size: 13px; }}
+    .base-row {{ display: grid; grid-template-columns: 1fr 44mm; padding: 3px 8px; font-size: 12px; line-height: 1.25; }}
+    .base-row strong {{ text-align: right; font-style: italic; font-weight: 500; }}
+    .footer {{ margin-top: 6mm; color: #7a7a7a; font-size: 9px; line-height: 1.4; text-align: center; }}
+    @media (max-width: 820px) {{
+      body {{ padding: 8px; }}
+      .toolbar, .sheet {{ width: 100%; }}
+      .sheet {{ padding: 24px 16px; }}
+      .party .info-row {{ grid-template-columns: 46% 54%; font-size: 11px; }}
+    }}
     @media print {{
-      body {{ background: white; padding: 0; }} .toolbar {{ display: none; }} .sheet {{ border: 0; padding: 0; max-width: none; }}
-      @page {{ size: A4; margin: 14mm; }}
+      :root {{ background: white; }}
+      body {{ padding: 0; background: white; }}
+      .toolbar {{ display: none; }}
+      .sheet {{ width: 100%; min-height: 0; border: 0; box-shadow: none; padding: 0; }}
+      @page {{ size: A4; margin: 10mm; }}
     }}
   </style>
 </head>
 <body>
   <div class="toolbar"><button onclick="window.print()">Imprimir / Guardar como PDF</button></div>
   <main class="sheet">
-    <header class="main">
-      <div><p class="eyebrow">RECIBO INDIVIDUAL DE SALARIOS SIMULADO</p><h1>{html_text(title)}</h1><p class="muted">{html_text(period.get('label'))}</p></div>
-      <div><b>{html_text(company.get('name'))}</b><p class="muted">Trabajador: {html_text(employee.get('name'))}</p></div>
-    </header>
-
-    <section class="grid">
-      {party_block('Empresa', receipt.get('company'))}
-      {party_block('Centro', receipt.get('work_center') or receipt.get('company'))}
-      {party_block('Trabajador', receipt.get('employee'))}
+    <section class="parties">
+      {company_panel(company)}
+      {employee_panel(employee, contract)}
     </section>
 
-    <section class="metrics">
-      {metric('Días cotización', period.get('contribution_days'))}
-      {metric('Días trabajados', period.get('worked_days'))}
-      {metric('Días incidencia', period.get('incident_days'))}
-      {metric('Estado', receipt.get('status'))}
+    <section class="period">
+      <div>Periodo de liquidación: <strong>&nbsp;{html_text(period.get('label'))}</strong></div>
+      <div class="center">Fecha inicial<br><strong>{period_start}</strong></div>
+      <div class="center">Fecha final<br><strong>{period_end}</strong></div>
+      <div class="days">Total días: <strong>&nbsp;{html_text(total_days)}</strong></div>
     </section>
 
-    <section class="metrics">
-      {metric('Total devengos', money_text(totals.get('total_earnings')))}
-      {metric('Total deducciones', money_text(totals.get('total_deductions')))}
-      {metric('Líquido a percibir', money_text(totals.get('net_salary')), True)}
-      {metric('Coste empresa', money_text(totals.get('company_total_cost')))}
+    <table class="payroll-table">
+      <thead><tr><th>DEVENGOS</th><th>CANTIDAD</th><th>PRECIO</th><th>TOTALES</th></tr></thead>
+      <tbody>{earning_rows(receipt.get('earnings') or [])}</tbody>
+    </table>
+    <div class="total-row"><span>TOTAL DEVENGADO</span><strong>{money_text(totals.get('total_earnings'))}</strong></div>
+
+    <div class="deductions-title"><span>DEDUCCIONES</span><span>TOTALES</span></div>
+    <table class="payroll-table">
+      <tbody>{deduction_rows(receipt.get('deductions') or [])}</tbody>
+    </table>
+    <div class="total-row"><span>TOTAL A DEDUCIR</span><strong>{money_text(totals.get('total_deductions'))}</strong></div>
+
+    <div class="net-row"><span>LÍQUIDO A PERCIBIR</span><strong>{money_text(totals.get('net_salary'))}</strong></div>
+
+    <section class="payment">
+      <div>
+        <div>Fecha de ingreso de la nómina: -</div>
+        <div>Entidad financiera (banco): -</div>
+        <div>Número de cuenta: -</div>
+      </div>
+      <div class="signature">Firma del trabajador</div>
     </section>
 
-    <section class="two">
-      {line_table('Devengos', receipt.get('earnings') or [])}
-      {line_table('Deducciones', receipt.get('deductions') or [])}
+    <section class="bases">
+      <h2>DETERMINACIÓN BASES COTIZACIÓN A LA SEGURIDAD SOCIAL</h2>
+      <h3>TOTAL BASE S.S.</h3>
+      <div class="base-row"><span>Base de cotización de contingencias comunes</span><strong>{money_text(bases.get('common_contingencies'))}</strong></div>
+      <div class="base-row"><span>Base de cotización de contingencias profesionales</span><strong>{money_text(bases.get('professional_contingencies'))}</strong></div>
+      <div class="base-row"><span>Base de desempleo, formación profesional y FOGASA</span><strong>{money_text(bases.get('unemployment_training_fogasa'))}</strong></div>
+      <div class="base-row"><span>Base sujeta a retención del IRPF</span><strong>{money_text(bases.get('irpf'))}</strong></div>
     </section>
 
-    <section class="two">
-      {line_table('Bases de cotización e IRPF', receipt.get('base_lines') or [])}
-      {line_table('Coste de empresa', receipt.get('company_cost_lines') or [])}
-    </section>
-
-    {explanation_cards('Bases y cotización', 'LECTURA DIDÁCTICA', receipt.get('base_explanations') or [])}
-    {explanation_cards('Incidencias aplicadas', 'INCIDENCIAS', receipt.get('incident_explanations') or [], amount_key='net_effect')}
-    {line_explanation_cards(receipt.get('line_explanations') or [])}
-
-    <section class="footer">{html_text(receipt.get('legal_footer'))}</section>
+    <footer class="footer">
+      {html_text(receipt.get('legal_footer'))}<br>
+      Centro de trabajo: {html_text(work_center.get('name'))} · Contrato: {html_text(contract.get('code'))} · Nómina: {html_text(receipt.get('payroll_code'))}
+    </footer>
   </main>
 </body>
 </html>"""

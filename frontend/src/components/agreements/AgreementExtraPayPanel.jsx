@@ -13,11 +13,21 @@ import {
 } from "../../services/agreementExtraPayApi";
 
 const MONTHS = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
-const EMPTY_PAY = { id: null, name: "", code: "", payment_month: "7", accrual_start_month: "1", accrual_end_month: "6", accrual_months: "6", proration_allowed: true, proration_default: false, notes: "" };
+const EXTRA_PAY_PERIODS = [
+  { value: "13", label: "Paga extra · Verano" },
+  { value: "14", label: "Paga extra · Diciembre" },
+  { value: "15", label: "Paga extra · 1" },
+  { value: "16", label: "Paga extra · 2" },
+  { value: "17", label: "Paga extra · 3" },
+  { value: "18", label: "Paga extra · 4" },
+  { value: "19", label: "Paga extra · 5" },
+];
+const EMPTY_PAY = { id: null, name: "", code: "", payroll_period: "13", payment_month: "7", accrual_start_month: "1", accrual_end_month: "6", accrual_months: "6", proration_allowed: true, proration_default: false, notes: "" };
 const EMPTY_LINE = { id: null, concept_key: "", concept_name: "", scope: "general", calculation_mode: "percentage", percentage: "100", fixed_amount: "", display_order: "10", notes: "" };
 
 const money = (value) => value === null || value === undefined || value === "" ? "—" : `${Number(value).toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`;
 const month = (value) => MONTHS[Number(value) - 1] || "—";
+const extraPeriod = (value) => EXTRA_PAY_PERIODS.find((item) => Number(item.value) === Number(value))?.label || `Periodo ${value || "—"}`;
 
 function payToForm(pay) {
   if (!pay) return { ...EMPTY_PAY };
@@ -25,6 +35,7 @@ function payToForm(pay) {
     id: pay.id,
     name: pay.name || "",
     code: pay.code || "",
+    payroll_period: String(pay.payroll_period || 13),
     payment_month: String(pay.payment_month),
     accrual_start_month: String(pay.accrual_start_month),
     accrual_end_month: String(pay.accrual_end_month),
@@ -129,6 +140,7 @@ export default function AgreementExtraPayPanelV2({ agreement, onChanged }) {
         salary_table_id: Number(table.id),
         code: payForm.code.trim() || null,
         name: payForm.name.trim(),
+        payroll_period: Number(payForm.payroll_period),
         payment_month: Number(payForm.payment_month),
         accrual_start_month: Number(payForm.accrual_start_month),
         accrual_end_month: Number(payForm.accrual_end_month),
@@ -263,16 +275,17 @@ export default function AgreementExtraPayPanelV2({ agreement, onChanged }) {
         <div style={s.layout}>
           <aside style={s.aside}>
             <div style={s.asideHead}><strong>Pagas configuradas</strong><button type="button" onClick={startNewPay} style={s.link}>Nueva paga</button></div>
-            {pays.map((pay) => <button key={pay.id} type="button" onClick={() => setSelectedPayId(pay.id)} style={Number(selectedPayId) === Number(pay.id) ? s.payActive : s.pay}><span><strong>{pay.name}</strong><small>Abono: {month(pay.payment_month)}</small></span><em>{pay.concept_lines?.length || 0}</em></button>)}
+            {pays.map((pay) => <button key={pay.id} type="button" onClick={() => setSelectedPayId(pay.id)} style={Number(selectedPayId) === Number(pay.id) ? s.payActive : s.pay}><span><strong>{pay.name}</strong><small>{extraPeriod(pay.payroll_period)} · Abono: {month(pay.payment_month)}</small></span><em>{pay.concept_lines?.length || 0}</em></button>)}
             {!pays.length && <span style={s.empty}>No hay pagas configuradas.</span>}
           </aside>
 
           <main style={s.main}>
             <form onSubmit={savePay} style={s.card}>
-              <div style={s.cardHead}><div><h4 style={s.cardTitle}>{payForm.id ? "Datos de la paga" : "Nueva paga extraordinaria"}</h4><p style={s.sub}>Configuración versionada para {table?.name}.</p></div>{payForm.id && <button type="button" onClick={removePay} style={s.danger}>Eliminar paga</button>}</div>
+              <div style={s.cardHead}><div><h4 style={s.cardTitle}>{payForm.id ? "Datos de la paga" : "Nueva paga extraordinaria"}</h4><p style={s.sub}>El periodo identifica la paga en Generar nóminas; el mes de abono indica cuándo se paga realmente.</p></div>{payForm.id && <button type="button" onClick={removePay} style={s.danger}>Eliminar paga</button>}</div>
               <div style={s.grid}>
                 <Field label="Denominación"><input required value={payForm.name} onChange={(e) => setPayForm({ ...payForm, name: e.target.value })} style={s.input} /></Field>
                 <Field label="Código interno"><input value={payForm.code} onChange={(e) => setPayForm({ ...payForm, code: e.target.value })} style={s.input} placeholder="PAGA_VERANO" /></Field>
+                <Field label="Periodo de nómina"><select value={payForm.payroll_period} onChange={(e) => setPayForm({ ...payForm, payroll_period: e.target.value })} style={s.input}>{EXTRA_PAY_PERIODS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></Field>
                 <Field label="Mes de abono"><MonthSelect value={payForm.payment_month} onChange={(value) => setPayForm({ ...payForm, payment_month: value })} /></Field>
                 <Field label="Inicio de devengo"><MonthSelect value={payForm.accrual_start_month} onChange={(value) => setPayForm({ ...payForm, accrual_start_month: value })} /></Field>
                 <Field label="Fin de devengo"><MonthSelect value={payForm.accrual_end_month} onChange={(value) => setPayForm({ ...payForm, accrual_end_month: value })} /></Field>
@@ -304,7 +317,7 @@ export default function AgreementExtraPayPanelV2({ agreement, onChanged }) {
 
               <section style={s.card}>
                 <div style={s.cardHead}><div><h4 style={s.cardTitle}>Vista previa: {category?.name}</h4><p style={s.sub}>Cálculo teórico según la tabla seleccionada.</p></div><button type="button" onClick={calculatePreview} style={s.yellow}>Calcular</button></div>
-                {preview && <><div style={s.stats}><Stat label="Importe íntegro" value={money(preview.total_amount)} /><Stat label="Prorrata mensual" value={preview.proration_allowed ? money(preview.monthly_proration_amount) : "No permitida"} /><Stat label="Abono" value={month(preview.payment_month)} /><Stat label="Devengo" value={`${month(preview.accrual_start_month)} – ${month(preview.accrual_end_month)}`} /></div>
+                {preview && <><div style={s.stats}><Stat label="Importe íntegro" value={money(preview.total_amount)} /><Stat label="Prorrata mensual" value={preview.proration_allowed ? money(preview.monthly_proration_amount) : "No permitida"} /><Stat label="Periodo" value={extraPeriod(preview.payroll_period)} /><Stat label="Abono" value={month(preview.payment_month)} /><Stat label="Devengo" value={`${month(preview.accrual_start_month)} – ${month(preview.accrual_end_month)}`} /></div>
                   <div style={s.scroll}><table style={s.table}><thead><tr><th>Concepto</th><th>Base</th><th>Regla</th><th>Computa</th></tr></thead><tbody>{preview.lines.map((line) => <tr key={line.concept_line_id}><td><strong>{line.concept_name}</strong>{line.warning && <small style={s.warnText}>{line.warning}</small>}</td><td>{money(line.base_amount)}</td><td>{line.calculation_mode === "fixed" ? money(line.fixed_amount) : `${Number(line.percentage || 0).toLocaleString("es-ES")} %`}</td><td>{money(line.computed_amount)}</td></tr>)}</tbody></table></div>
                   {preview.warnings?.length > 0 && <div style={s.warning}>{preview.warnings.map((item) => <span key={item}>{item}</span>)}</div>}</>}
               </section>

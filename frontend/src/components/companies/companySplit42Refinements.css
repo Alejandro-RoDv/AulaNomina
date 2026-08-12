@@ -1,0 +1,217 @@
+/* Split 42.1 — refinamientos visuales tras revisión */
+
+.company-page-commandbar--compact {
+  min-height: 48px;
+  padding-bottom: var(--an-space-4);
+}
+
+.company-page-commandbar__metrics {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--an-space-4);
+}
+
+.company-page-commandbar__metric {
+  display: inline-grid;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: auto auto;
+  align-items: center;
+  column-gap: var(--an-space-2);
+  row-gap: 1px;
+  color: var(--an-color-text-muted);
+}
+
+.company-page-commandbar__metric strong {
+  grid-row: 1 / 3;
+  color: var(--an-color-text-primary);
+  font-size: 1.25rem;
+  font-weight: var(--an-font-weight-bold);
+  line-height: 1;
+}
+
+.company-page-commandbar__metric > span:last-child {
+  align-self: end;
+  color: var(--an-color-text-secondary);
+  font-size: var(--an-font-size-xs);
+  font-weight: var(--an-font-weight-semibold);
+  line-height: 1.2;
+}
+
+.company-page-commandbar__metric--active {
+  grid-template-columns: auto auto 1fr;
+}
+
+.company-page-commandbar__metric-dot {
+  width: 7px;
+  height: 7px;
+  align-self: center;
+  border-radius: 999px;
+  background: var(--an-color-success-500, #22c55e);
+}
+
+.company-page-commandbar__metric--active strong {
+  grid-column: 2;
+}
+
+.company-page-commandbar__metric--active > span:last-child {
+  grid-column: 3;
+  grid-row: 1 / 3;
+  align-self: center;
+}
+
+.company-page-commandbar__divider {
+  width: 1px;
+  height: 28px;
+  background: var(--an-color-border);
+}
+
+.company-directory-surface .an-data-table__summary {
+  justify-content: flex-start;
+  margin-bottom: var(--an-space-3);
+}
+
+.company-directory-surface .an-data-table__summary strong {
+  display: none;
+}
+
+.company-directory-surface .an-data-table__summary span {
+  color: var(--an-color-text-muted);
+  font-size: var(--an-font-size-xs);
+  font-weight: var(--an-font-weight-semibold);
+}
+
+/* Alta de empresa: más aire entre bloques y una jerarquía de documento más clara. */
+.company-create-workspace .an-form {
+  gap: 0;
+}
+
+.company-create-workspace .an-form-section {
+  padding-block: var(--an-space-7);
+  border-bottom: 0;
+}
+
+.company-create-workspace .an-form-section:first-child {
+  padding-top: 0;
+  padding-bottom: var(--an-space-7);
+}
+
+.company-create-workspace .an-form-section + .an-form-section {
+  margin-top: var(--an-space-6);
+  padding-top: var(--an-space-8);
+  border-top: 1px solid var(--an-color-border);
+}
+
+.company-create-workspace .an-form-section__header {
+  margin-bottom: var(--an-space-1);
+}
+
+.company-create-workspace .an-form-section__heading {
+  max-width: 72ch;
+  text-align: left;
+}
+
+.company-create-workspace .an-form-section__title {
+  font-size: 1.05rem;
+  line-height: 1.3;
+}
+
+.company-create-workspace .an-form-section__description {
+  max-width: 68ch;
+  margin-top: var(--an-space-2);
+  text-align: left;
+}
+
+.company-create-workspace .an-form-section__content {
+  gap: var(--an-space-6);
+}
+
+.company-create-workspace .an-form-grid {
+  row-gap: var(--an-space-5);
+}
+
+.company-create-workspace .an-form-presets {
+  padding-top: var(--an-space-2);
+}
+
+/* Ficha existente: mismo principio que el alta, con espacio y separadores en lugar de cards. */
+.company-detail-form .company-detail-section {
+  gap: var(--an-space-6);
+  padding-block: var(--an-space-7);
+  border-bottom: 0;
+}
+
+.company-detail-form .company-detail-section:first-child {
+  padding-top: var(--an-space-4);
+}
+
+.company-detail-form .company-detail-section + .company-detail-section {
+  margin-top: var(--an-space-6);
+  padding-top: var(--an-space-8);
+  border-top: 1px solid var(--an-color-border);
+}
+
+.company-detail-form .company-detail-section-heading {
+  margin-bottom: var(--an-space-1);
+}
+
+.company-detail-form .company-detail-section-heading > div {
+  max-width: 72ch;
+  text-align: left;
+}
+
+.company-detail-form .company-detail-section-heading h3 {
+  font-size: 1.05rem;
+  line-height: 1.3;
+}
+
+.company-detail-form .company-detail-section-heading p {
+  max-width: 68ch;
+  margin-top: var(--an-space-2);
+  text-align: left;
+  line-height: var(--an-line-height-body);
+}
+
+.company-detail-form .company-detail-grid {
+  column-gap: var(--an-space-4);
+  row-gap: var(--an-space-5);
+}
+
+.company-detail-form .company-detail-checks {
+  margin-top: var(--an-space-1);
+  gap: var(--an-space-4) var(--an-space-6);
+}
+
+.company-detail-form .company-detail-checks + .company-detail-grid {
+  margin-top: var(--an-space-1);
+}
+
+.company-detail-form .company-detail-savebar {
+  margin-top: var(--an-space-7);
+}
+
+@media (max-width: 48rem) {
+  .company-page-commandbar--compact {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .company-page-commandbar--compact .an-button {
+    width: 100%;
+  }
+
+  .company-page-commandbar__metrics {
+    gap: var(--an-space-3);
+  }
+
+  .company-page-commandbar__divider {
+    display: none;
+  }
+
+  .company-create-workspace .an-form-section + .an-form-section,
+  .company-detail-form .company-detail-section + .company-detail-section {
+    margin-top: var(--an-space-4);
+    padding-top: var(--an-space-7);
+  }
+}

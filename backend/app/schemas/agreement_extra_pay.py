@@ -4,6 +4,9 @@ from typing import Literal, Optional
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
+ExtraPayPeriod = Literal[13, 14, 15, 16, 17, 18, 19]
+
+
 class AgreementExtraPayConceptBase(BaseModel):
     professional_category_id: Optional[int] = None
     concept_key: str
@@ -59,7 +62,7 @@ class AgreementExtraPayBase(BaseModel):
     salary_table_id: Optional[int] = None
     code: Optional[str] = None
     name: str
-    payroll_period: Literal[13, 14, 15] = 13
+    payroll_period: ExtraPayPeriod = 13
     payment_month: int = Field(ge=1, le=12)
     accrual_start_month: int = Field(ge=1, le=12)
     accrual_end_month: int = Field(ge=1, le=12)
@@ -101,7 +104,7 @@ class AgreementExtraPayUpdate(BaseModel):
     salary_table_id: Optional[int] = None
     code: Optional[str] = None
     name: Optional[str] = None
-    payroll_period: Optional[Literal[13, 14, 15]] = None
+    payroll_period: Optional[ExtraPayPeriod] = None
     payment_month: Optional[int] = Field(default=None, ge=1, le=12)
     accrual_start_month: Optional[int] = Field(default=None, ge=1, le=12)
     accrual_end_month: Optional[int] = Field(default=None, ge=1, le=12)

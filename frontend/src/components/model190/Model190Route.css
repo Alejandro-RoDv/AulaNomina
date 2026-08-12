@@ -1,3 +1,54 @@
+.model190-route {
+  --m190-route-border: #dbe3ee;
+  --m190-route-text: #172033;
+  --m190-route-muted: #64748b;
+  --m190-route-primary: #2563eb;
+  background: #ffffff !important;
+}
+
+.model190-route > header {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  padding: 20px 32px 18px !important;
+  border-bottom: 1px solid var(--m190-route-border) !important;
+  background: #ffffff !important;
+}
+
+.model190-route > header h1 {
+  color: var(--m190-route-text) !important;
+  font-size: 30px !important;
+  letter-spacing: -0.025em;
+}
+
+.model190-route > header p {
+  color: var(--m190-route-muted) !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+}
+
+.model190-route > header button {
+  min-height: 38px;
+  padding: 8px 13px !important;
+  border: 1px solid #cbd5e1 !important;
+  border-radius: 7px !important;
+  background: #ffffff !important;
+  color: #334155 !important;
+  box-shadow: none !important;
+  font-weight: 800 !important;
+}
+
+.model190-route > header button:hover {
+  border-color: #9fb5d3 !important;
+  background: #f8fafc !important;
+}
+
+.model190-route > main {
+  max-width: 1380px !important;
+  padding: 28px 32px 48px !important;
+  background: #f6f8fb;
+}
+
 @media (max-width: 1050px) {
   .model190-route {
     left: 230px !important;

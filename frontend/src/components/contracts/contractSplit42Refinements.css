@@ -1,0 +1,365 @@
+/* Split 42 · Contratación
+   Normaliza la navegación visual y mejora la lectura del histórico sin tocar la lógica del módulo. */
+
+.contract-page-split42 {
+  width: 100%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.contract-history-scope {
+  width: 100%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.contract-history-scope__bar {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 0 0 18px;
+  border-bottom: 1px solid #dbe3ef;
+}
+
+.contract-history-scope__copy {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.contract-history-scope__copy strong {
+  color: #0f172a;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.contract-history-scope__copy span {
+  color: #64748b;
+  font-size: 13px;
+}
+
+.contract-history-scope__bar select {
+  width: min(420px, 100%);
+  min-height: 42px;
+  padding: 9px 38px 9px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #1e293b;
+  font: inherit;
+}
+
+.contract-history-scope__bar select:focus {
+  outline: 2px solid rgb(37 99 235 / 18%);
+  border-color: #2563eb;
+}
+
+.contract-history-scope__empty {
+  min-height: 150px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 32px;
+  border: 1px dashed #cbd5e1;
+  border-radius: 10px;
+  background: #f8fafc;
+  text-align: center;
+}
+
+.contract-history-scope__empty strong {
+  color: #0f172a;
+  font-size: 15px;
+}
+
+.contract-history-scope__empty span {
+  max-width: 620px;
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.contract-history-scope__summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.contract-history-scope__summary strong {
+  color: #0f172a;
+  font-size: 14px;
+}
+
+.contract-history-workspace {
+  width: 100%;
+  min-width: 0;
+}
+
+/* Resumen: mantener solo los datos operativos que ayudan a leer el listado. */
+.contract-history-workspace > div:first-child {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 12px !important;
+  margin-bottom: 16px !important;
+}
+
+.contract-history-workspace > div:first-child > div:nth-child(n + 3) {
+  display: none !important;
+}
+
+.contract-history-workspace > div:first-child > div {
+  min-height: 72px;
+  justify-content: center;
+  padding: 14px 16px !important;
+  border: 1px solid #dbe3ef !important;
+  border-radius: 10px !important;
+  background: #ffffff !important;
+  box-shadow: none !important;
+}
+
+.contract-history-workspace > div:first-child > div > span:first-child {
+  color: #64748b !important;
+  letter-spacing: 0.035em;
+}
+
+.contract-history-workspace > div:first-child > div > strong {
+  color: #0f172a !important;
+  font-size: 20px !important;
+}
+
+/* Barra de búsqueda y filtros. */
+.contract-history-workspace > div:nth-child(2) {
+  gap: 12px !important;
+  margin-bottom: 16px !important;
+  padding: 14px !important;
+  border: 1px solid #dbe3ef !important;
+  border-radius: 10px !important;
+  background: #ffffff !important;
+}
+
+.contract-history-workspace input,
+.contract-history-workspace select {
+  min-height: 40px;
+  border-color: #cbd5e1 !important;
+  border-radius: 8px !important;
+  color: #1e293b !important;
+  background: #ffffff !important;
+}
+
+.contract-history-workspace input:focus,
+.contract-history-workspace select:focus {
+  outline: 2px solid rgb(37 99 235 / 18%);
+  outline-offset: 0;
+  border-color: #2563eb !important;
+}
+
+/* Más filtros, densidad y limpiar son acciones secundarias. */
+.contract-history-workspace > div:nth-child(2) > div:last-child > button {
+  min-height: 40px;
+  padding: 9px 12px !important;
+  border: 1px solid #cbd5e1 !important;
+  border-radius: 8px !important;
+  background: #ffffff !important;
+  color: #334155 !important;
+  box-shadow: none !important;
+}
+
+.contract-history-workspace > div:nth-child(2) > div:last-child > button:hover {
+  border-color: #94a3b8 !important;
+  background: #f8fafc !important;
+}
+
+/* Filtros avanzados: bloque operativo plano. */
+.contract-history-workspace > div:nth-child(3):not(:has(> table)) {
+  border-color: #dbe3ef !important;
+  border-radius: 10px !important;
+  background: #ffffff !important;
+}
+
+/* Resumen de resultados: una sola cifra útil + orden actual. */
+.contract-history-workspace > div:has(+ div > table) {
+  margin: 2px 0 10px !important;
+  color: #64748b !important;
+  font-size: 0 !important;
+}
+
+.contract-history-workspace > div:has(+ div > table) strong {
+  color: #0f172a;
+  font-size: 13.5px !important;
+}
+
+.contract-history-workspace > div:has(+ div > table) strong::after {
+  content: " resultados";
+  font-weight: 600;
+  color: #64748b;
+}
+
+.contract-history-workspace > div:has(+ div > table) span {
+  color: #64748b;
+  font-size: 12.5px !important;
+  font-weight: 600;
+}
+
+/* Tabla: más legible por defecto y algo menos ancha. */
+.contract-history-workspace > div:has(> table) {
+  overflow: auto !important;
+  border: 1px solid #dbe3ef !important;
+  border-radius: 10px !important;
+  background: #ffffff;
+}
+
+.contract-history-workspace table {
+  min-width: 1400px !important;
+  font-size: 13.5px !important;
+  color: #1e293b;
+}
+
+.contract-history-workspace thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  padding: 13px 11px !important;
+  border-bottom: 1px solid #cbd5e1 !important;
+  background: #f8fafc !important;
+  color: #475569 !important;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+}
+
+.contract-history-workspace thead button {
+  color: #475569 !important;
+  font-weight: 800 !important;
+}
+
+.contract-history-workspace tbody td {
+  padding: 14px 11px !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+  line-height: 1.35;
+  vertical-align: middle !important;
+}
+
+.contract-history-workspace tbody tr:last-child td {
+  border-bottom: 0 !important;
+}
+
+.contract-history-workspace tbody tr:hover td {
+  background: #f8fafc;
+}
+
+.contract-history-workspace tbody td strong {
+  color: #0f172a;
+  font-size: 14px;
+}
+
+.contract-history-workspace tbody td small {
+  margin-top: 4px !important;
+  color: #64748b !important;
+  font-size: 11.5px !important;
+  line-height: 1.25;
+}
+
+/* Empresa, convenio y categoría admiten dos líneas para evitar columnas gigantes. */
+.contract-history-workspace th:nth-child(3),
+.contract-history-workspace td:nth-child(3) { width: 190px !important; }
+.contract-history-workspace th:nth-child(4),
+.contract-history-workspace td:nth-child(4) { width: 160px !important; }
+.contract-history-workspace th:nth-child(5),
+.contract-history-workspace td:nth-child(5) { width: 130px !important; }
+
+.contract-history-workspace td:nth-child(3),
+.contract-history-workspace td:nth-child(4),
+.contract-history-workspace td:nth-child(5) {
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+}
+
+.contract-history-workspace th:nth-child(1),
+.contract-history-workspace td:nth-child(1) { width: 72px !important; }
+.contract-history-workspace th:nth-child(2),
+.contract-history-workspace td:nth-child(2) { width: 180px !important; }
+.contract-history-workspace th:nth-child(6),
+.contract-history-workspace td:nth-child(6) { width: 110px !important; }
+.contract-history-workspace th:nth-child(7),
+.contract-history-workspace td:nth-child(7) { width: 120px !important; }
+.contract-history-workspace th:nth-child(8),
+.contract-history-workspace td:nth-child(8),
+.contract-history-workspace th:nth-child(9),
+.contract-history-workspace td:nth-child(9) { width: 92px !important; }
+.contract-history-workspace th:nth-child(10),
+.contract-history-workspace td:nth-child(10) { width: 100px !important; }
+.contract-history-workspace th:nth-child(11),
+.contract-history-workspace td:nth-child(11) { width: 112px !important; }
+.contract-history-workspace th:nth-child(12),
+.contract-history-workspace td:nth-child(12) { width: 88px !important; }
+
+/* La jornada es informativa, no una advertencia. */
+.contract-history-workspace tbody td:nth-child(7) > span {
+  background: #eff6ff !important;
+  color: #1d4ed8 !important;
+}
+
+/* Editar es una acción normal del ERP: azul principal, no negro. */
+.contract-history-workspace tbody td:nth-child(12) > button {
+  padding: 7px 11px !important;
+  border: 1px solid #2563eb !important;
+  border-radius: 7px !important;
+  background: #2563eb !important;
+  color: #ffffff !important;
+  box-shadow: none !important;
+}
+
+.contract-history-workspace tbody td:nth-child(12) > button:hover {
+  background: #1d4ed8 !important;
+  border-color: #1d4ed8 !important;
+}
+
+@media (max-width: 1100px) {
+  .contract-history-scope__bar {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .contract-history-scope__bar select {
+    width: 100%;
+  }
+
+  .contract-history-workspace > div:first-child {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .contract-history-workspace > div:nth-child(2) {
+    grid-template-columns: minmax(240px, 1fr) repeat(2, minmax(130px, 180px)) !important;
+  }
+
+  .contract-history-workspace > div:nth-child(2) > div:last-child {
+    grid-column: 1 / -1;
+    justify-content: flex-start !important;
+  }
+}
+
+@media (max-width: 700px) {
+  .contract-history-scope__summary {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .contract-history-workspace > div:first-child {
+    grid-template-columns: 1fr !important;
+  }
+
+  .contract-history-workspace > div:nth-child(2) {
+    grid-template-columns: 1fr !important;
+  }
+}

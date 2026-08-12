@@ -1,0 +1,290 @@
+/* Split 42 · Edición de contratos
+   Lleva los modales heredados al mismo lenguaje visual del resto del ERP
+   y mantiene un tamaño estable al cambiar entre Resumen, Contrato, Jornada,
+   Retribución y Seguridad Social. */
+
+/* Backdrop */
+.contract-history-workspace > div[style*="position: fixed"] {
+  padding: 24px !important;
+  background: rgb(15 23 42 / 48%) !important;
+  backdrop-filter: blur(1px);
+}
+
+/* Modal principal: tamaño constante entre pestañas. */
+.contract-history-workspace > div[style*="position: fixed"] > div[style*="1180px"] {
+  width: min(1180px, calc(100vw - 48px)) !important;
+  height: min(780px, calc(100vh - 48px)) !important;
+  max-height: calc(100vh - 48px) !important;
+  min-height: min(680px, calc(100vh - 48px));
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+  padding: 0 !important;
+  border: 1px solid #cbd5e1 !important;
+  border-radius: 14px !important;
+  background: #ffffff !important;
+  box-shadow: 0 24px 70px rgb(15 23 42 / 22%) !important;
+}
+
+/* Cabecera siempre visible. */
+.contract-history-workspace > div[style*="position: fixed"] > div[style*="1180px"] > div:first-child {
+  flex: 0 0 auto;
+  margin: 0 !important;
+  padding: 20px 24px 16px !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+  background: #ffffff !important;
+  z-index: 4;
+}
+
+.contract-history-workspace > div[style*="position: fixed"] > div[style*="1180px"] > div:first-child h3 {
+  color: #0f172a !important;
+  font-size: 20px !important;
+  letter-spacing: -0.01em;
+}
+
+.contract-history-workspace > div[style*="position: fixed"] > div[style*="1180px"] > div:first-child p {
+  color: #64748b !important;
+  font-weight: 600 !important;
+}
+
+.contract-history-workspace > div[style*="position: fixed"] > div[style*="1180px"] > div:first-child button {
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent !important;
+  border-radius: 8px !important;
+  background: #ffffff !important;
+  color: #475569 !important;
+  font-size: 24px !important;
+}
+
+.contract-history-workspace > div[style*="position: fixed"] > div[style*="1180px"] > div:first-child button:hover {
+  border-color: #e2e8f0 !important;
+  background: #f8fafc !important;
+  color: #0f172a !important;
+}
+
+/* El formulario ocupa siempre el mismo espacio; solo hace scroll el contenido central. */
+.contract-history-workspace > div[style*="position: fixed"] > div[style*="1180px"] > form {
+  flex: 1 1 auto !important;
+  min-height: 0;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 0 !important;
+  overflow: hidden;
+  padding: 0 24px 18px !important;
+}
+
+.contract-history-workspace > div[style*="position: fixed"] > div[style*="1180px"] > form > div:first-child {
+  flex: 1 1 auto;
+  min-height: 0;
+  grid-template-columns: 184px minmax(0, 1fr) !important;
+  gap: 24px !important;
+  overflow: hidden;
+  padding-top: 18px;
+}
+
+/* Navegación lateral: plana, azul y sin estética antigua de tarjetas. */
+.contract-history-workspace > div[style*="position: fixed"] > div[style*="1180px"] aside {
+  position: static !important;
+  height: 100%;
+  min-height: 0;
+  gap: 4px !important;
+  padding: 0 18px 0 0 !important;
+  border: 0 !important;
+  border-right: 1px solid #e2e8f0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  overflow-y: auto;
+}
+
+.contract-history-workspace > div[style*="position: fixed"] > div[style*="1180px"] aside > div:first-child {
+  margin: 0 0 10px !important;
+  padding: 0 0 14px !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+  color: #64748b !important;
+  line-height: 1.45;
+}
+
+.contract-history-workspace > div[style*="position: fixed"] > div[style*="1180px"] aside > button:not(:last-child) {
+  width: 100%;
+  min-height: 40px;
+  padding: 9px 11px !important;
+  border: 0 !important;
+  border-radius: 7px !important;
+  background: transparent !important;
+  color: #475569 !important;
+  box-shadow: none !important;
+}
+
+/* React serializa el negro antiguo como hex o rgb según navegador. */
+.contract-history-workspace > div[style*="position: fixed"] > div[style*="1180px"] button[style*="#111827"],
+.contract-history-workspace > div[style*="position: fixed"] > div[style*="1180px"] button[style*="17, 24, 39"] {
+  border-color: #2563eb !important;
+  background: #2563eb !important;
+  color: #ffffff !important;
+  box-shadow: none !important;
+}
+
+.contract-history-workspace > div[style*="position: fixed"] > div[style*="1180px"] aside > button:not(:last-child):hover {
+  background: #f1f5f9 !important;
+  color: #0f172a !important;
+}
+
+/* La acción destructiva conserva semántica roja pero sin exceso de peso. */
+.contract-history-workspace > div[style*="position: fixed"] > div[style*="1180px"] aside > button:last-child {
+  margin-top: 8px;
+  border: 1px solid #fecaca !important;
+  background: #fff1f2 !important;
+  color: #b91c1c !important;
+  box-shadow: none !important;
+}
+
+/* Contenido de la pestaña: scroll interno y estructura plana. */
+.contract-history-workspace > div[style*="position: fixed"] > div[style*="1180px"] main {
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  gap: 18px !important;
+  padding: 0 8px 24px 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.contract-history-workspace > div[style*="position: fixed"] > div[style*="1180px"] main > section {
+  padding: 2px 0 22px !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+}
+
+.contract-history-workspace > div[style*="position: fixed"] > div[style*="1180px"] main > section h4 {
+  margin-bottom: 16px !important;
+  color: #0f172a !important;
+  font-size: 15px !important;
+}
+
+/* Métricas del resumen: pueden ser superficies, pero neutras. */
+.contract-history-workspace > div[style*="position: fixed"] > div[style*="1180px"] main [style*="box-shadow"] {
+  box-shadow: none !important;
+}
+
+.contract-history-workspace > div[style*="position: fixed"] > div[style*="1180px"] main > section > div > div {
+  border-color: #dbe3ef !important;
+}
+
+/* Inputs coherentes con el resto del Split 42. */
+.contract-history-workspace > div[style*="position: fixed"] > div[style*="1180px"] input,
+.contract-history-workspace > div[style*="position: fixed"] > div[style*="1180px"] select,
+.contract-history-workspace > div[style*="position: fixed"] > div[style*="1180px"] textarea {
+  border-color: #cbd5e1 !important;
+  border-radius: 8px !important;
+  background: #ffffff !important;
+  color: #1e293b !important;
+}
+
+.contract-history-workspace > div[style*="position: fixed"] > div[style*="1180px"] input:focus,
+.contract-history-workspace > div[style*="position: fixed"] > div[style*="1180px"] select:focus,
+.contract-history-workspace > div[style*="position: fixed"] > div[style*="1180px"] textarea:focus {
+  outline: 2px solid rgb(37 99 235 / 18%);
+  outline-offset: 0;
+  border-color: #2563eb !important;
+}
+
+/* El aviso de recálculo de jornada es informativo, no advertencia. */
+.contract-history-workspace > div[style*="position: fixed"] > div[style*="1180px"] main [style*="254, 243, 199"],
+.contract-history-workspace > div[style*="position: fixed"] > div[style*="1180px"] main [style*="#fef3c7"] {
+  border: 1px solid #bfdbfe !important;
+  background: #eff6ff !important;
+  color: #1e40af !important;
+}
+
+/* Footer de acciones fijo dentro del modal. */
+.contract-history-workspace > div[style*="position: fixed"] > div[style*="1180px"] > form > div:last-child {
+  flex: 0 0 auto;
+  margin: 0 !important;
+  padding: 14px 0 0 !important;
+  border-top: 1px solid #e2e8f0 !important;
+  background: #ffffff;
+}
+
+.contract-history-workspace > div[style*="position: fixed"] > div[style*="1180px"] > form > div:last-child button {
+  min-height: 40px;
+  border-radius: 8px !important;
+  box-shadow: none !important;
+}
+
+/* Modal de baja: mismo sistema visual y mejor lectura del resumen superior. */
+.contract-history-workspace > div[style*="position: fixed"] > div[style*="760px"] {
+  width: min(720px, calc(100vw - 48px)) !important;
+  padding: 0 !important;
+  border: 1px solid #cbd5e1 !important;
+  border-radius: 14px !important;
+  background: #ffffff !important;
+  box-shadow: 0 24px 70px rgb(15 23 42 / 22%) !important;
+  overflow: hidden;
+}
+
+.contract-history-workspace > div[style*="position: fixed"] > div[style*="760px"] > div:first-child {
+  margin: 0 !important;
+  padding: 20px 22px 16px !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+}
+
+.contract-history-workspace > div[style*="position: fixed"] > div[style*="760px"] > div:nth-child(2) {
+  gap: 0 !important;
+  margin: 0 !important;
+  padding: 14px 22px 0 !important;
+}
+
+.contract-history-workspace > div[style*="position: fixed"] > div[style*="760px"] > div:nth-child(2) > div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 0 12px;
+  border-bottom: 1px solid #e2e8f0;
+  color: #64748b;
+}
+
+.contract-history-workspace > div[style*="position: fixed"] > div[style*="760px"] > div:nth-child(2) strong {
+  color: #0f172a;
+}
+
+.contract-history-workspace > div[style*="position: fixed"] > div[style*="760px"] > div:nth-child(3),
+.contract-history-workspace > div[style*="position: fixed"] > div[style*="760px"] > div:nth-child(4),
+.contract-history-workspace > div[style*="position: fixed"] > div[style*="760px"] > div:nth-child(5) {
+  margin-left: 22px;
+  margin-right: 22px;
+}
+
+.contract-history-workspace > div[style*="position: fixed"] > div[style*="760px"] > div:last-child {
+  padding: 16px 22px 20px !important;
+  border-top: 1px solid #e2e8f0;
+}
+
+@media (max-width: 760px) {
+  .contract-history-workspace > div[style*="position: fixed"] {
+    padding: 12px !important;
+  }
+
+  .contract-history-workspace > div[style*="position: fixed"] > div[style*="1180px"] {
+    width: calc(100vw - 24px) !important;
+    height: calc(100vh - 24px) !important;
+    max-height: calc(100vh - 24px) !important;
+    min-height: 0;
+  }
+
+  .contract-history-workspace > div[style*="position: fixed"] > div[style*="1180px"] > form > div:first-child {
+    grid-template-columns: 1fr !important;
+    overflow-y: auto;
+  }
+
+  .contract-history-workspace > div[style*="position: fixed"] > div[style*="1180px"] aside {
+    height: auto;
+    padding: 0 0 12px !important;
+    border-right: 0 !important;
+    border-bottom: 1px solid #e2e8f0 !important;
+  }
+}

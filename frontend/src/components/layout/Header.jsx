@@ -39,6 +39,13 @@ const contractTabs = [
   { mode: "print", label: "Impresión contratos" },
 ];
 
+const contractTitles = new Set([
+  "Contratos",
+  "Nuevo contrato",
+  "Historial de contratos",
+  "Impresión de contratos",
+]);
+
 const overlayHashes = new Set(["#documents", "#alerts", "#reports"]);
 
 function getSeverityClass(severity) {
@@ -88,6 +95,7 @@ export default function Header({
   const [alertsLoading, setAlertsLoading] = useState(false);
   const [alertsError, setAlertsError] = useState("");
   const [contractMode, setContractMode] = useState(getStoredContractMode);
+  const [pageContext, setPageContext] = useState(null);
   const [alertData, setAlertData] = useState({
     documents: [],
     contracts: [],
@@ -98,16 +106,19 @@ export default function Header({
     workCenters: [],
   });
 
+  const effectiveTitle = pageContext?.title || title;
+  const effectiveSubtitle = pageContext?.subtitle ?? subtitle;
+  const effectiveEyebrow = pageContext?.eyebrow || "AulaNomina";
   const alerts = useMemo(() => generateAlerts(alertData), [alertData]);
   const alertStats = useMemo(() => getAlertStats(alerts), [alerts]);
   const previewAlerts = alerts.slice(0, 5);
-  const showWorkerTabs = isWorkerTitle(title);
-  const showContractTabs = title === "Contratos";
-  const isPanel = title === "Dashboard";
-  const displayTitle = isPanel ? "Panel" : title;
+  const showWorkerTabs = isWorkerTitle(effectiveTitle);
+  const showContractTabs = contractTitles.has(effectiveTitle) || effectiveEyebrow === "Contratación";
+  const isPanel = effectiveTitle === "Dashboard";
+  const displayTitle = isPanel ? "Panel" : effectiveTitle;
   const displaySubtitle = isPanel
     ? "Visión general de la actividad y procesos pendientes"
-    : subtitle;
+    : effectiveSubtitle;
 
   const loadHeaderAlerts = async () => {
     try {
@@ -134,11 +145,14 @@ export default function Header({
     loadHeaderAlerts();
     const handleRefresh = () => loadHeaderAlerts();
     const handleContractMode = () => setContractMode(getStoredContractMode());
+    const handleHeaderContext = (event) => setPageContext(event.detail || null);
     window.addEventListener("aulanomina-alerts-refresh", handleRefresh);
     window.addEventListener("aulanomina-contract-mode", handleContractMode);
+    window.addEventListener("aulanomina-header-context", handleHeaderContext);
     return () => {
       window.removeEventListener("aulanomina-alerts-refresh", handleRefresh);
       window.removeEventListener("aulanomina-contract-mode", handleContractMode);
+      window.removeEventListener("aulanomina-header-context", handleHeaderContext);
     };
   }, []);
 
@@ -153,6 +167,7 @@ export default function Header({
     setContractMode(mode);
     clearOverlayHash();
     window.dispatchEvent(new Event("aulanomina-contract-mode"));
+    window.dispatchEvent(new Event("aulanomina-route-change"));
     window.dispatchEvent(new CustomEvent("aulanomina-open-page", { detail: { page: "contracts" } }));
   };
 
@@ -263,7 +278,7 @@ export default function Header({
 
       <div className={`an-header__page${isPanel ? " an-header__page--panel" : ""}`}>
         <div>
-          {!isPanel && <p className="an-header__eyebrow">AulaNomina</p>}
+          {!isPanel && <p className="an-header__eyebrow">{effectiveEyebrow}</p>}
           <h1 className="an-header__title">{displayTitle}</h1>
           {displaySubtitle && <p className="an-header__subtitle">{displaySubtitle}</p>}
         </div>
@@ -276,7 +291,7 @@ export default function Header({
               key={tab.page}
               type="button"
               onClick={() => openAppPage(tab.page)}
-              className={`an-header__tab${tab.titles.includes(title) ? " is-active" : ""}`}
+              className={`an-header__tab${tab.titles.includes(effectiveTitle) ? " is-active" : ""}`}
             >
               {tab.label}
             </button>

@@ -1,0 +1,302 @@
+/* Split 42.2 — Personas / Trabajadores
+   Convierte el listado y el expediente en workspaces planos y normaliza la paleta. */
+
+/* La navegación de Trabajadores vive en el sidebar, no se duplica bajo la cabecera. */
+.an-header__tabs[aria-label="Navegación trabajador"] {
+  display: none;
+}
+
+/* El PageCard exterior deja de actuar como una gran tarjeta. */
+.an-page-card:has(select[name="companyId"]) {
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.an-page-card:has(select[name="companyId"]) > .an-page-card__header {
+  margin-bottom: 24px !important;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--an-color-border, #e2e8f0);
+}
+
+.an-page-card:has(select[name="companyId"]) .an-page-card__title {
+  font-size: 1.125rem;
+}
+
+/* Ámbito y filtros: controles de aplicación, no bloques decorativos. */
+.an-page-card:has(select[name="companyId"]) input:not([type="checkbox"]):not([type="radio"]),
+.an-page-card:has(select[name="companyId"]) select,
+.an-page-card:has(select[name="companyId"]) textarea {
+  border-color: var(--an-color-border-strong, #cbd5e1) !important;
+  border-radius: var(--an-radius-md, 7px) !important;
+  background: #fff !important;
+}
+
+.an-page-card:has(select[name="companyId"]) input:not([type="checkbox"]):not([type="radio"]):focus,
+.an-page-card:has(select[name="companyId"]) select:focus,
+.an-page-card:has(select[name="companyId"]) textarea:focus {
+  border-color: var(--an-color-action-primary, #2563eb) !important;
+  outline: none;
+  box-shadow: 0 0 0 3px rgb(37 99 235 / 12%);
+}
+
+.an-page-card:has(select[name="companyId"]) input[type="checkbox"],
+.an-page-card:has(select[name="companyId"]) input[type="radio"] {
+  accent-color: var(--an-color-action-primary, #2563eb);
+}
+
+/* Solo los botones con fondo negro heredado se convierten en primarios azules.
+   Así los botones secundarios blancos conservan su jerarquía neutra. */
+.an-page-card:has(select[name="companyId"]) button[style*="background-color: rgb(17, 24, 39)"],
+.an-page-card:has(select[name="companyId"]) button[style*="background-color: #111827"] {
+  border-color: var(--an-color-action-primary, #2563eb) !important;
+  background: var(--an-color-action-primary, #2563eb) !important;
+  color: #fff !important;
+}
+
+/* Acciones no disponibles, incluidos los informes sin empresa seleccionada, quedan neutras. */
+.an-page-card:has(select[name="companyId"]) button:disabled {
+  border-color: var(--an-color-border, #e2e8f0) !important;
+  background: var(--an-color-surface-subtle, #f8fafc) !important;
+  color: var(--an-color-text-muted, #94a3b8) !important;
+  opacity: 1 !important;
+  cursor: not-allowed !important;
+}
+
+/* Expediente era amarillo: pasa a acción principal azul. */
+.an-page-card:has(select[name="companyId"]) button[style*="rgb(248, 243, 181)"],
+.an-page-card:has(select[name="companyId"]) button[style*="#f8f3b5"] {
+  border-color: var(--an-color-action-primary, #2563eb) !important;
+  background: var(--an-color-action-primary, #2563eb) !important;
+  color: #fff !important;
+}
+
+/* En tablas, Editar es secundaria; Expediente conserva el foco principal. */
+.an-page-card:has(select[name="companyId"]) table button[style*="rgb(17, 24, 39)"],
+.an-page-card:has(select[name="companyId"]) table button[style*="#111827"] {
+  border-color: var(--an-color-border-strong, #cbd5e1) !important;
+  background: #fff !important;
+  color: var(--an-color-text-primary, #0f172a) !important;
+}
+
+.an-page-card:has(select[name="companyId"]) table button[style*="rgb(248, 243, 181)"],
+.an-page-card:has(select[name="companyId"]) table button[style*="#f8f3b5"] {
+  border-color: #bfdbfe !important;
+  background: #eff6ff !important;
+  color: #1d4ed8 !important;
+}
+
+/* Tabla: cabecera tenue y filas algo más ligeras. */
+.an-page-card:has(select[name="companyId"]) table thead th {
+  background: var(--an-color-surface-subtle, #f8fafc) !important;
+  color: var(--an-color-text-secondary, #475569) !important;
+}
+
+.an-page-card:has(select[name="companyId"]) table tbody tr:hover td {
+  background: #f8fbff;
+}
+
+/* Tabs del expediente: navegación plana con subrayado, no botones rellenos. */
+.an-page-card:has(select[name="companyId"]) div[style*="padding-bottom: 10px"] > button {
+  min-height: 38px !important;
+  padding: 0 2px 10px !important;
+  border: 0 !important;
+  border-bottom: 2px solid transparent !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  color: var(--an-color-text-secondary, #475569) !important;
+}
+
+.an-page-card:has(select[name="companyId"]) div[style*="padding-bottom: 10px"] > button[style*="rgb(17, 24, 39)"],
+.an-page-card:has(select[name="companyId"]) div[style*="padding-bottom: 10px"] > button[style*="#111827"] {
+  border-bottom-color: var(--an-color-action-primary, #2563eb) !important;
+  background: transparent !important;
+  color: #1d4ed8 !important;
+}
+
+/* La cabecera-resumen del empleado se mantiene como contexto, pero más discreta. */
+.an-page-card:has(select[name="companyId"]) div[style*="min-width: 320px"][style*="background-color: rgb(249, 250, 251)"],
+.an-page-card:has(select[name="companyId"]) div[style*="min-width: 320px"][style*="#f9fafb"] {
+  border-color: var(--an-color-border, #e2e8f0) !important;
+  background: var(--an-color-surface-subtle, #f8fafc) !important;
+}
+
+/* Los KPI sí representan resumen agregado, por eso se mantienen como superficies suaves. */
+.an-page-card:has(select[name="companyId"]) div[style*="min-width: 120px"][style*="padding: 12px"][style*="background-color: rgb(249, 250, 251)"],
+.an-page-card:has(select[name="companyId"]) div[style*="min-width: 120px"][style*="padding: 12px"][style*="#f9fafb"] {
+  border-color: var(--an-color-border, #e2e8f0) !important;
+  border-radius: var(--an-radius-md, 7px) !important;
+  background: #fff !important;
+}
+
+/* Paneles del expediente: espacio + divisor en lugar de tarjeta dentro de tarjeta. */
+.an-page-card:has(select[name="companyId"]) div[style*="border-radius: 12px"][style*="padding: 16px"] {
+  border: 0 !important;
+  border-top: 1px solid var(--an-color-border, #e2e8f0) !important;
+  border-radius: 0 !important;
+  padding: 22px 0 0 !important;
+  background: transparent !important;
+}
+
+/* Datos personales: definición en rejilla, sin una tarjeta por dato. */
+.an-page-card:has(select[name="companyId"]) div[style*="border-radius: 10px"][style*="padding: 10px"][style*="flex-direction: column"] {
+  border: 0 !important;
+  border-bottom: 1px solid var(--an-color-border, #e2e8f0) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  padding: 8px 0 12px !important;
+}
+
+/* Los estados semánticos conservan verde/rojo; el resto de interacción es azul/neutro. */
+.an-page-card:has(select[name="companyId"]) span[style*="rgb(220, 252, 231)"] {
+  background: #ecfdf3 !important;
+  color: #15803d !important;
+}
+
+/* Alta de trabajador: igual que Empresas, las secciones se distinguen con espacio + divisor. */
+.an-page-card:has(> form select[name="company_id"]) {
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.an-page-card:has(> form select[name="company_id"]) > .an-page-card__header {
+  display: none;
+}
+
+.an-page-card > form:has(select[name="company_id"]) {
+  gap: 10px !important;
+}
+
+.an-page-card > form:has(select[name="company_id"]) > section[style*="border-radius: 12px"] {
+  margin-top: 8px;
+  padding: 26px 0 6px !important;
+  border: 0 !important;
+  border-top: 1px solid var(--an-color-border, #e2e8f0) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+}
+
+.an-page-card > form:has(select[name="company_id"]) > section[style*="border-radius: 12px"] h3 {
+  margin-bottom: 18px !important;
+  font-size: 1rem !important;
+}
+
+.an-page-card > form:has(select[name="company_id"]) input:not([type="checkbox"]):not([type="radio"]),
+.an-page-card > form:has(select[name="company_id"]) select,
+.an-page-card > form:has(select[name="company_id"]) textarea {
+  border-color: var(--an-color-border-strong, #cbd5e1) !important;
+  border-radius: var(--an-radius-md, 7px) !important;
+  background: #fff !important;
+}
+
+.an-page-card > form:has(select[name="company_id"]) input:not([type="checkbox"]):not([type="radio"]):focus,
+.an-page-card > form:has(select[name="company_id"]) select:focus,
+.an-page-card > form:has(select[name="company_id"]) textarea:focus {
+  border-color: var(--an-color-action-primary, #2563eb) !important;
+  outline: none;
+  box-shadow: 0 0 0 3px rgb(37 99 235 / 12%);
+}
+
+.an-page-card > form:has(select[name="company_id"]) button[style*="background-color: rgb(17, 24, 39)"],
+.an-page-card > form:has(select[name="company_id"]) button[style*="background-color: #111827"] {
+  border-color: var(--an-color-action-primary, #2563eb) !important;
+  background: var(--an-color-action-primary, #2563eb) !important;
+  color: #fff !important;
+}
+
+/* Modal de trabajador: cabecera fija para conservar siempre título y cierre. */
+.an-page-card div[style*="max-height: 90vh"][style*="overflow-y: auto"] {
+  scrollbar-gutter: stable;
+}
+
+.an-page-card div[style*="max-height: 90vh"][style*="overflow-y: auto"] > div:first-child {
+  position: sticky !important;
+  top: -22px;
+  z-index: 20;
+  margin-inline: -22px !important;
+  padding: 18px 22px 14px !important;
+  background: #fff !important;
+  box-shadow: 0 1px 0 var(--an-color-border, #e2e8f0), 0 8px 18px rgb(15 23 42 / 5%);
+}
+
+.an-page-card div[style*="max-height: 90vh"][style*="overflow-y: auto"] > div:first-child button {
+  display: inline-flex;
+  width: 36px;
+  height: 36px;
+  flex: 0 0 36px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--an-color-border, #e2e8f0) !important;
+  border-radius: 8px !important;
+  background: #fff !important;
+  color: var(--an-color-text-secondary, #475569) !important;
+  font-size: 24px !important;
+}
+
+.an-page-card div[style*="max-height: 90vh"][style*="overflow-y: auto"] > div:first-child button:hover {
+  background: var(--an-color-surface-subtle, #f8fafc) !important;
+  color: var(--an-color-text-primary, #0f172a) !important;
+}
+
+/* Edición: secciones más respiradas y jerarquía equivalente a los formularios nuevos. */
+.an-page-card div[style*="max-height: 90vh"][style*="overflow-y: auto"] form > h4 {
+  margin: 28px 0 16px !important;
+  padding-top: 24px !important;
+  border-top: 1px solid var(--an-color-border, #e2e8f0) !important;
+  font-size: 0.95rem !important;
+}
+
+.an-page-card div[style*="max-height: 90vh"][style*="overflow-y: auto"] form > h4:first-child {
+  margin-top: 0 !important;
+  padding-top: 0 !important;
+  border-top: 0 !important;
+}
+
+.an-page-card div[style*="max-height: 90vh"][style*="overflow-y: auto"] form > div[style*="flex-wrap: wrap"] {
+  gap: 16px 18px !important;
+}
+
+.an-page-card div[style*="max-height: 90vh"][style*="overflow-y: auto"] form input:not([type="checkbox"]):not([type="radio"]),
+.an-page-card div[style*="max-height: 90vh"][style*="overflow-y: auto"] form select,
+.an-page-card div[style*="max-height: 90vh"][style*="overflow-y: auto"] form textarea {
+  border-color: var(--an-color-border-strong, #cbd5e1) !important;
+  border-radius: var(--an-radius-md, 7px) !important;
+  background: #fff !important;
+}
+
+.an-page-card div[style*="max-height: 90vh"][style*="overflow-y: auto"] form input:not([type="checkbox"]):not([type="radio"]):focus,
+.an-page-card div[style*="max-height: 90vh"][style*="overflow-y: auto"] form select:focus,
+.an-page-card div[style*="max-height: 90vh"][style*="overflow-y: auto"] form textarea:focus {
+  border-color: var(--an-color-action-primary, #2563eb) !important;
+  outline: none;
+  box-shadow: 0 0 0 3px rgb(37 99 235 / 12%);
+}
+
+.an-page-card div[style*="max-height: 90vh"][style*="overflow-y: auto"] form input[type="checkbox"] {
+  accent-color: var(--an-color-action-primary, #2563eb);
+}
+
+/* Responsive */
+@media (max-width: 64rem) {
+  .an-page-card:has(select[name="companyId"]) div[style*="grid-template-columns: repeat(4"] {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+
+@media (max-width: 48rem) {
+  .an-page-card:has(select[name="companyId"]) div[style*="grid-template-columns: repeat(4"],
+  .an-page-card:has(select[name="companyId"]) div[style*="grid-template-columns: repeat(2"] {
+    grid-template-columns: 1fr !important;
+  }
+
+  .an-page-card div[style*="max-height: 90vh"][style*="overflow-y: auto"] > div:first-child {
+    top: -16px;
+    margin-inline: -16px !important;
+    padding-inline: 16px !important;
+  }
+}

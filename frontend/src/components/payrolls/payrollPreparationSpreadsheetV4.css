@@ -1,0 +1,179 @@
+.payroll-sheet--numeric-codes {
+  font-size: 13px;
+}
+
+.payroll-sheet--numeric-codes label > span {
+  font-size: 12px;
+}
+
+.payroll-sheet--numeric-codes input,
+.payroll-sheet--numeric-codes select {
+  min-height: 42px;
+  font-size: 13px;
+}
+
+.payroll-sheet--numeric-codes .payroll-sheet__workspace-head h2 {
+  font-size: 20px;
+}
+
+.payroll-sheet--numeric-codes .payroll-sheet__workspace-head p,
+.payroll-sheet--numeric-codes .payroll-sheet__rule strong,
+.payroll-sheet--numeric-codes .payroll-sheet__rule span,
+.payroll-sheet--numeric-codes .payroll-sheet__grid-head p {
+  font-size: 12px;
+}
+
+.payroll-sheet--numeric-codes .payroll-sheet__grid-head h3 {
+  font-size: 17px;
+}
+
+.payroll-sheet--numeric-codes .payroll-sheet__grid th {
+  height: 42px;
+  padding: 0 12px;
+  font-size: 11.5px;
+}
+
+.payroll-sheet--numeric-codes .payroll-sheet__grid td {
+  height: 50px;
+  font-size: 13px;
+}
+
+.payroll-sheet--numeric-codes .payroll-sheet__grid td > input,
+.payroll-sheet--numeric-codes .payroll-sheet__grid td .payroll-sheet__money input,
+.payroll-sheet--numeric-codes .payroll-sheet__code-entry input {
+  height: 49px;
+  min-height: 49px;
+  font-size: 13px;
+}
+
+.payroll-sheet--numeric-codes .payroll-sheet__code-entry {
+  height: 49px;
+  grid-template-columns: minmax(0, 1fr) 42px;
+}
+
+.payroll-sheet--numeric-codes .cell-code,
+.payroll-sheet--numeric-codes .cell-concept {
+  padding: 7px 12px !important;
+}
+
+.payroll-sheet--numeric-codes .cell-code--numeric strong,
+.payroll-sheet--numeric-codes .cell-code--numeric span {
+  color: #101828;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.payroll-sheet--numeric-codes .cell-code small,
+.payroll-sheet--numeric-codes .cell-concept small {
+  margin-top: 3px;
+  font-size: 10px;
+}
+
+.payroll-sheet--numeric-codes .cell-concept strong {
+  font-size: 13px;
+}
+
+.payroll-sheet--numeric-codes .payroll-sheet__placeholder {
+  font-size: 12px;
+}
+
+.payroll-sheet--numeric-codes .payroll-sheet__money > span {
+  font-size: 12px;
+}
+
+.payroll-sheet--numeric-codes .payroll-sheet__row-tools button,
+.payroll-sheet--numeric-codes .payroll-sheet__actions strong {
+  font-size: 12px;
+}
+
+.payroll-sheet--numeric-codes .payroll-sheet__row-tools span,
+.payroll-sheet--numeric-codes .payroll-sheet__actions span {
+  font-size: 11px;
+}
+
+.payroll-sheet__catalog-modal--numeric {
+  width: min(1220px, 96vw);
+}
+
+.payroll-sheet__catalog-modal--numeric > header {
+  padding: 22px 24px;
+}
+
+.payroll-sheet__catalog-modal--numeric header > div > span {
+  font-size: 11px;
+}
+
+.payroll-sheet__catalog-modal--numeric h2 {
+  font-size: 23px;
+}
+
+.payroll-sheet__catalog-modal--numeric header p {
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.payroll-sheet__catalog-modal--numeric .payroll-sheet__catalog-filters {
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 16px;
+  padding: 18px 24px;
+}
+
+.payroll-sheet__catalog-modal--numeric .payroll-sheet__catalog-filters label > span {
+  font-size: 12px;
+}
+
+.payroll-sheet__catalog-modal--numeric .payroll-sheet__catalog-filters input,
+.payroll-sheet__catalog-modal--numeric .payroll-sheet__catalog-filters select {
+  min-height: 44px;
+  padding: 0 12px;
+  font-size: 14px;
+}
+
+.payroll-sheet__catalog-table--numeric th,
+.payroll-sheet__catalog-table--numeric td {
+  padding: 13px 15px;
+  font-size: 12.5px;
+}
+
+.payroll-sheet__catalog-table--numeric th {
+  font-size: 11.5px;
+}
+
+.payroll-sheet__catalog-table--numeric td:nth-child(2) strong {
+  font-size: 13.5px;
+}
+
+.payroll-sheet__catalog-table--numeric .is-functional-code strong {
+  color: #101828;
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 850;
+}
+
+.payroll-sheet__catalog-table--numeric .is-action button {
+  min-width: 108px;
+  min-height: 34px;
+  font-size: 12px;
+}
+
+.payroll-sheet__catalog-modal--numeric .payroll-sheet__catalog-table-wrap {
+  max-height: 62vh;
+}
+
+.payroll-sheet__preview-table .is-functional-code {
+  color: #101828;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+@media (max-width: 1100px) {
+  .payroll-sheet--numeric-codes {
+    width: calc(100vw - 40px);
+  }
+
+  .payroll-sheet__catalog-modal--numeric .payroll-sheet__catalog-filters {
+    grid-template-columns: 1fr;
+  }
+}

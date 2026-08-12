@@ -3,10 +3,35 @@ import { useEffect, useRef, useState } from "react";
 import PageCard from "../components/layout/PageCard";
 import ContractForm from "../components/ContractFormProfessional";
 import ContractPrintPage from "../components/ContractPrintPageV5";
-import ContractTable from "../components/ContractTable";
+import ContractHistoryScope from "../components/contracts/ContractHistoryScope";
+import "../components/contracts/contractSplit42Refinements.css";
+import "../components/contracts/contractEditSplit42.css";
+import "../components/contracts/contractHistoryTableCompact.css";
 
 function getStoredMode() {
-  return window.sessionStorage.getItem("aulanomina:contractsMode") || "new";
+  return window.sessionStorage.getItem("aulanomina:contractsMode") || "history";
+}
+
+function getHeaderContext(mode) {
+  if (mode === "new") {
+    return {
+      eyebrow: "Contratación",
+      title: "Nuevo contrato",
+      subtitle: "Alta y configuración de la relación contractual del trabajador",
+    };
+  }
+  if (mode === "print") {
+    return {
+      eyebrow: "Contratación",
+      title: "Impresión de contratos",
+      subtitle: "Generación y revisión de documentación contractual",
+    };
+  }
+  return {
+    eyebrow: "Contratación",
+    title: "Historial de contratos",
+    subtitle: "Consulta, filtrado y seguimiento de contratos laborales",
+  };
 }
 
 function normalize(value) {
@@ -58,11 +83,22 @@ export default function ContractsPage({
 }) {
   const [contractMode, setContractMode] = useState(getStoredMode);
   const appliedContextRef = useRef("");
+  const currentMode = mode || contractMode;
+  const isHistory = currentMode === "history";
+  const isPrint = currentMode === "print";
 
   useEffect(() => {
     const syncContractMode = () => setContractMode(getStoredMode());
     window.addEventListener("aulanomina-contract-mode", syncContractMode);
     return () => window.removeEventListener("aulanomina-contract-mode", syncContractMode);
+  }, []);
+
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent("aulanomina-header-context", { detail: getHeaderContext(currentMode) }));
+  }, [currentMode]);
+
+  useEffect(() => () => {
+    window.dispatchEvent(new CustomEvent("aulanomina-header-context", { detail: null }));
   }, []);
 
   useEffect(() => {
@@ -87,6 +123,7 @@ export default function ContractsPage({
 
       window.sessionStorage.setItem("aulanomina:contractsMode", "new");
       setContractMode("new");
+      window.dispatchEvent(new Event("aulanomina-contract-mode"));
       if (employeeId) onContractChange({ target: { name: "employee_id", value: String(employeeId) } });
       if (companyId) onContractChange({ target: { name: "company_id", value: String(companyId) } });
       if (centerId) onContractChange({ target: { name: "center_id", value: String(centerId) } });
@@ -102,58 +139,52 @@ export default function ContractsPage({
     return () => window.removeEventListener("aulanomina-case-context", handleContext);
   }, [employees, onContractChange]);
 
-  const currentMode = mode || contractMode;
-  const isHistory = currentMode === "history";
-  const isPrint = currentMode === "print";
-
   return (
-    <div style={styles.wrapper}>
+    <div className="contract-page-split42">
       {!isHistory && !isPrint && (
-        <PageCard title="Nuevo contrato" subtitle="Alta contractual, retribución, jornada, bonificaciones, afiliación y registro.">
-          <ContractForm
-            form={contractForm}
-            employees={employees}
-            companies={companies}
-            workCenters={workCenters}
-            contracts={contracts}
-            collectiveAgreements={collectiveAgreements}
-            onChange={onContractChange}
-            onSubmit={onContractSubmit}
-            error={contractError}
-            success={contractSuccess}
-            submitting={contractSubmitting}
-          />
-        </PageCard>
+        <div className="contract-new-workspace">
+          <PageCard>
+            <ContractForm
+              form={contractForm}
+              employees={employees}
+              companies={companies}
+              workCenters={workCenters}
+              contracts={contracts}
+              collectiveAgreements={collectiveAgreements}
+              onChange={onContractChange}
+              onSubmit={onContractSubmit}
+              error={contractError}
+              success={contractSuccess}
+              submitting={contractSubmitting}
+            />
+          </PageCard>
+        </div>
       )}
 
       {isHistory && (
-        <PageCard>
-          <ContractTable
-            loading={loading}
-            contracts={contracts}
-            employees={employees}
-            companies={companies}
-            workCenters={workCenters}
-            onUpdateContract={onUpdateContract}
-            onDeleteContract={onDeleteContract}
-            submitting={contractSubmitting}
-          />
-        </PageCard>
-      )}
-
-      {isPrint && (
-        <ContractPrintPage
+        <ContractHistoryScope
           loading={loading}
           contracts={contracts}
           employees={employees}
           companies={companies}
           workCenters={workCenters}
+          onUpdateContract={onUpdateContract}
+          onDeleteContract={onDeleteContract}
+          submitting={contractSubmitting}
         />
+      )}
+
+      {isPrint && (
+        <div className="contract-print-workspace">
+          <ContractPrintPage
+            loading={loading}
+            contracts={contracts}
+            employees={employees}
+            companies={companies}
+            workCenters={workCenters}
+          />
+        </div>
       )}
     </div>
   );
 }
-
-const styles = {
-  wrapper: { display: "flex", flexDirection: "column", gap: "20px" },
-};

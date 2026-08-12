@@ -28,6 +28,7 @@ export default function DocumentForm({
   workCenters,
   onChange,
   onSubmit,
+  onCancel,
   submitting,
 }) {
   const selectedEmployee = findSelectedEmployee(employees, form.employee_id);
@@ -44,18 +45,24 @@ export default function DocumentForm({
   };
 
   return (
-    <section style={styles.card}>
-      <div style={styles.headerRow}>
+    <section className="documents-form-card">
+      <div className="documents-form-card__header">
         <div>
-          <h2 style={styles.title}>Nuevo documento</h2>
-          <p style={styles.subtitle}>Registra documentación laboral simulada asociada a un trabajador.</p>
+          <span className="documents-section-kicker">Alta documental</span>
+          <h2>Nuevo documento</h2>
+          <p>Registra documentación laboral simulada asociada a un trabajador.</p>
         </div>
+        {onCancel && (
+          <button type="button" className="documents-form-card__close" onClick={onCancel}>
+            Cerrar
+          </button>
+        )}
       </div>
 
-      <form onSubmit={onSubmit} style={styles.form}>
-        <label style={styles.label}>
-          Trabajador
-          <select name="employee_id" value={form.employee_id} onChange={handleEmployeeChange} required style={styles.input}>
+      <form onSubmit={onSubmit} className="documents-form">
+        <label className="documents-field">
+          <span>Trabajador</span>
+          <select name="employee_id" value={form.employee_id} onChange={handleEmployeeChange} required>
             <option value="">Seleccionar trabajador</option>
             {employees.map((employee) => (
               <option key={employee.id} value={employee.id}>
@@ -65,19 +72,19 @@ export default function DocumentForm({
           </select>
         </label>
 
-        <label style={styles.label}>
-          Empresa
-          <select name="company_id" value={form.company_id} onChange={onChange} required style={styles.input}>
-            <option value="">Empresa</option>
+        <label className="documents-field">
+          <span>Empresa</span>
+          <select name="company_id" value={form.company_id} onChange={onChange} required>
+            <option value="">Seleccionar empresa</option>
             {companies.map((company) => (
               <option key={company.id} value={company.id}>{company.name}</option>
             ))}
           </select>
         </label>
 
-        <label style={styles.label}>
-          Centro
-          <select name="center_id" value={form.center_id} onChange={onChange} style={styles.input}>
+        <label className="documents-field">
+          <span>Centro</span>
+          <select name="center_id" value={form.center_id} onChange={onChange}>
             <option value="">Sin centro</option>
             {workCenters
               .filter((center) => !form.company_id || String(center.company_id) === String(form.company_id))
@@ -88,54 +95,59 @@ export default function DocumentForm({
         </label>
 
         {selectedEmployee && (
-          <div style={styles.employeeContext}>
-            <span><strong>Trabajador:</strong> {selectedEmployee.first_name} {selectedEmployee.last_name}</span>
-            <span><strong>Empresa:</strong> {selectedCompany?.name || "Sin empresa"}</span>
-            <span><strong>Centro:</strong> {selectedCenter?.name || "Sin centro"}</span>
+          <div className="documents-form-context">
+            <span><small>Trabajador</small>{selectedEmployee.first_name} {selectedEmployee.last_name}</span>
+            <span><small>Empresa</small>{selectedCompany?.name || "Sin empresa"}</span>
+            <span><small>Centro</small>{selectedCenter?.name || "Sin centro"}</span>
           </div>
         )}
 
-        <label style={styles.label}>
-          Tipo documental
-          <select name="document_type" value={form.document_type} onChange={onChange} required style={styles.input}>
-            <option value="">Tipo</option>
+        <label className="documents-field">
+          <span>Tipo documental</span>
+          <select name="document_type" value={form.document_type} onChange={onChange} required>
+            <option value="">Seleccionar tipo</option>
             {documentTypes.map(([value, label]) => (
               <option key={value} value={value}>{label}</option>
             ))}
           </select>
         </label>
 
-        <label style={styles.label}>
-          Nombre documento
-          <input name="document_name" value={form.document_name} onChange={onChange} required style={styles.input} />
+        <label className="documents-field">
+          <span>Nombre del documento</span>
+          <input name="document_name" value={form.document_name} onChange={onChange} required />
         </label>
 
-        <label style={styles.label}>
-          Estado
-          <select name="status" value={form.status} onChange={onChange} required style={styles.input}>
+        <label className="documents-field">
+          <span>Estado</span>
+          <select name="status" value={form.status} onChange={onChange} required>
             {statuses.map(([value, label]) => (
               <option key={value} value={value}>{label}</option>
             ))}
           </select>
         </label>
 
-        <label style={styles.label}>
-          Fecha emisión
-          <input type="date" name="issue_date" value={form.issue_date} onChange={onChange} style={styles.input} />
+        <label className="documents-field">
+          <span>Fecha de emisión</span>
+          <input type="date" name="issue_date" value={form.issue_date} onChange={onChange} />
         </label>
 
-        <label style={styles.label}>
-          Caducidad
-          <input type="date" name="expiry_date" value={form.expiry_date} onChange={onChange} style={styles.input} />
+        <label className="documents-field">
+          <span>Caducidad</span>
+          <input type="date" name="expiry_date" value={form.expiry_date} onChange={onChange} />
         </label>
 
-        <label style={{ ...styles.label, gridColumn: "1 / -1" }}>
-          Notas
-          <textarea name="notes" value={form.notes} onChange={onChange} style={{ ...styles.input, minHeight: "74px" }} />
+        <label className="documents-field documents-field--wide">
+          <span>Notas</span>
+          <textarea name="notes" value={form.notes} onChange={onChange} rows={3} />
         </label>
 
-        <div style={styles.actions}>
-          <button type="submit" disabled={submitting} style={styles.button}>
+        <div className="documents-form-actions">
+          {onCancel && (
+            <button type="button" onClick={onCancel} disabled={submitting}>
+              Cancelar
+            </button>
+          )}
+          <button type="submit" disabled={submitting}>
             {submitting ? "Guardando..." : "Guardar documento"}
           </button>
         </div>
@@ -143,16 +155,3 @@ export default function DocumentForm({
     </section>
   );
 }
-
-const styles = {
-  card: { border: "2px solid #111", background: "#fff", padding: "18px", boxShadow: "5px 5px 0 #f0df62", marginBottom: "22px" },
-  headerRow: { display: "flex", justifyContent: "space-between", gap: "18px", marginBottom: "14px" },
-  title: { margin: 0, fontSize: "22px", fontWeight: 900, color: "#111" },
-  subtitle: { margin: "4px 0 0", color: "#4b5563", fontSize: "13px", fontWeight: 600 },
-  form: { display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: "14px" },
-  label: { display: "flex", flexDirection: "column", gap: "6px", fontSize: "12px", fontWeight: 900, textTransform: "uppercase", color: "#111" },
-  input: { border: "2px solid #111", padding: "9px 10px", fontSize: "14px", fontWeight: 700, background: "#fff", color: "#111" },
-  employeeContext: { gridColumn: "1 / -1", display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: "10px", border: "2px solid #111", background: "#fffdf0", padding: "10px 12px", fontWeight: 800 },
-  actions: { gridColumn: "1 / -1", display: "flex", justifyContent: "flex-end" },
-  button: { border: "3px solid #111", background: "#f0df62", padding: "10px 16px", fontWeight: 900, cursor: "pointer", boxShadow: "3px 3px 0 #111" },
-};

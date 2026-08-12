@@ -1,18 +1,22 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
-import { prepareMonthlyPayrolls } from "../../services/payrollApi";
+import { fetchContracts } from "../../services/api";
+import { fetchAllEmployees } from "../../services/employeeApi";
+import {
+  createPayrollItem,
+  deletePayrollItem,
+  ensurePayrollPreparation,
+  fetchPayrollConcepts,
+  previewPayrollPreparation,
+  reopenPayrollPreparation,
+  updatePayrollItem,
+} from "../../services/payrollApi";
+import PayrollReceiptModal from "./PayrollReceiptModal";
 
 const currentYear = new Date().getFullYear();
 const currentMonth = new Date().getMonth() + 1;
-
-const STATUS_LABELS = {
-  draft: "Borrador",
-  pending: "Pendiente",
-  calculated: "Calculada",
-  reviewed: "Revisada",
-  closed: "Cerrada",
-  cancelled: "Anulada",
-};
+const OVERRIDE_MARKER = "[PREPARATION_OVERRIDE] Edición desde preparación mensual";
+const OVERRIDE_DESCRIPTION_PREFIX = "[AULANOMINA_MONTHLY_OVERRIDE]";
 
 function formatMoney(value) {
   return Number(value || 0).toLocaleString("es-ES", {
@@ -21,270 +25,1157 @@ function formatMoney(value) {
   });
 }
 
-export default function MonthlyPayrollPreparation({ companies, workCenters, onPrepared }) {
-  const [form, setForm] = useState({
-    company_ids: [],
-    center_id: "",
-    period_month: String(currentMonth),
-    period_year: String(currentYear),
-  });
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState("");
-  const [result, setResult] = useState(null);
+function formatQuantity(value) {
+  const numeric = Number(value || 0);
+  return Number.isInteger(numeric)
+    ? String(numeric)
+    : numeric.toLocaleString("es-ES", { maximumFractionDigits: 2 });
+}
 
-  const activeCompanies = companies.filter((company) => company.is_active);
+function employeeName(employee) {
+  return [employee?.first_name, employee?.last_name, employee?.second_last_name]
+    .filter(Boolean)
+    .join(" ")
+    .trim();
+}
 
-  const filteredCenters = useMemo(() => {
-    if (form.company_ids.length !== 1) return [];
-    return workCenters.filter(
-      (center) => center.is_active && String(center.company_id) === String(form.company_ids[0])
-    );
-  }, [form.company_ids, workCenters]);
+function sourceLabel(line) {
+  const source = String(line?.source_type || "").toLowerCase();
+  if (source === "manual" || source === "custom") return "Manual";
+  if (source === "incident") return "Incidencia";
+  if (source === "agreement") return "Convenio";
+  if (source === "contract") return line?.is_automatic ? "Contrato" : "Permanente";
+  if (source === "regularization") return "Regularización";
+  if (line?.is_automatic || source === "system") return "Automático";
+  return "Preparación";
+}
 
-  const totalProration = useMemo(
-    () => (result?.payrolls || []).reduce(
-      (total, item) => total + Number(item.extra_pay_proration || 0),
-      0
-    ),
-    [result]
+function conceptFamily(concept) {
+  const type = String(concept?.concept_type || "").toUpperCase();
+  const category = String(concept?.category || "").toUpperCase();
+  const nature = String(concept?.salary_nature || "").toUpperCase();
+
+  if (["IT", "PRESTACION_IT", "COMPLEMENTO_IT"].includes(category)) return "IT y prestaciones";
+  if (category === "SEGURIDAD_SOCIAL") return "Cotización trabajador";
+  if (category === "COSTE_EMPRESA") return "Coste empresa";
+  if (["BASE_INFORMATIVA", "INFORMATIVO"].includes(type)) return "Bases e informativos";
+  if (type === "DEDUCCION") return "Deducciones";
+  if (category === "HORAS_EXTRA") return "Horas y jornada";
+  if (category === "PAGA_EXTRA") return "Pagas extraordinarias";
+  if (nature === "EXTRASALARIAL") return "Percepciones no salariales";
+  return "Devengos salariales";
+}
+
+function serializeOverrideDescription(line) {
+  const originalDescription = encodeURIComponent(String(line?.description || ""));
+  return `${OVERRIDE_DESCRIPTION_PREFIX}|q=${line?.quantity ?? 1}|a=${line?.amount ?? 0}|d=${originalDescription}`;
+}
+
+function parseOverrideDescription(line) {
+  const description = String(line?.description || "");
+  if (!description.startsWith(`${OVERRIDE_DESCRIPTION_PREFIX}|`)) return null;
+  const match = description.match(/^\[AULANOMINA_MONTHLY_OVERRIDE\]\|q=([^|]*)\|a=([^|]*)\|d=(.*)$/);
+  if (!match) return null;
+
+  let originalDescription = "";
+  try {
+    originalDescription = decodeURIComponent(match[3] || "");
+  } catch {
+    originalDescription = "";
+  }
+
+  return {
+    quantity: Number(match[1] || 0),
+    amount: Number(match[2] || 0),
+    description: originalDescription || null,
+  };
+}
+
+function isStoredOverride(line) {
+  const description = String(line?.description || "");
+  const source = String(line?.source_type || "").toLowerCase();
+  if (description.startsWith(OVERRIDE_DESCRIPTION_PREFIX)) return true;
+  if (description.toLowerCase().includes("concepto mensual informado en preparación")) return true;
+  if (description.toLowerCase().includes("ajuste mensual")) return true;
+  return !line?.is_automatic && ["manual", "custom"].includes(source);
+}
+
+function PreviewTable({ title, lines }) {
+  return (
+    <section className="payroll-prep__preview-section">
+      <div className="payroll-prep__preview-section-title">
+        <h3>{title}</h3>
+        <span>{lines.length} líneas</span>
+      </div>
+      <div className="payroll-prep__preview-table-wrap">
+        <table className="payroll-prep__preview-table">
+          <thead>
+            <tr>
+              <th>Código</th>
+              <th>Concepto</th>
+              <th>Origen</th>
+              <th className="is-number">Cantidad</th>
+              <th className="is-number">Importe</th>
+            </tr>
+          </thead>
+          <tbody>
+            {lines.map((line) => (
+              <tr key={`${title}-${line.id}-${line.code}`}>
+                <td className="is-code">{line.code}</td>
+                <td>
+                  <strong>{line.name}</strong>
+                  {line.description && !String(line.description).startsWith(OVERRIDE_DESCRIPTION_PREFIX) && (
+                    <small>{line.description}</small>
+                  )}
+                </td>
+                <td>{sourceLabel(line)}</td>
+                <td className="is-number">{formatQuantity(line.quantity)}</td>
+                <td className="is-number"><strong>{formatMoney(line.amount)} €</strong></td>
+              </tr>
+            ))}
+            {lines.length === 0 && (
+              <tr><td colSpan="5" className="payroll-prep__preview-empty">Sin líneas en este bloque.</td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </section>
   );
+}
 
-  const totalSeniority = useMemo(
-    () => (result?.payrolls || []).reduce(
-      (total, item) => total + Number(item.seniority_amount || 0),
-      0
-    ),
-    [result]
+function PreviewModal({ preparation, onClose }) {
+  if (!preparation) return null;
+
+  const preview = preparation.preview || {};
+  const lines = preparation.lines || [];
+  const earnings = lines.filter((line) => String(line.concept_type).toUpperCase() === "DEVENGO");
+  const deductions = lines.filter((line) => String(line.concept_type).toUpperCase() === "DEDUCCION");
+  const bases = lines.filter((line) =>
+    ["BASE_INFORMATIVA", "INFORMATIVO"].includes(String(line.concept_type).toUpperCase())
+    && String(line.category).toUpperCase() !== "COSTE_EMPRESA"
   );
-
-  const handleCompanyToggle = (companyId) => {
-    setForm((prev) => {
-      const alreadySelected = prev.company_ids.includes(companyId);
-      const nextCompanyIds = alreadySelected
-        ? prev.company_ids.filter((id) => id !== companyId)
-        : [...prev.company_ids, companyId];
-      return {
-        ...prev,
-        company_ids: nextCompanyIds,
-        center_id: nextCompanyIds.length === 1 ? prev.center_id : "",
-      };
-    });
-  };
-
-  const handleSelectAllCompanies = () => {
-    setForm((prev) => ({
-      ...prev,
-      company_ids: activeCompanies.map((company) => company.id),
-      center_id: "",
-    }));
-  };
-
-  const handleClearCompanies = () => {
-    setForm((prev) => ({ ...prev, company_ids: [], center_id: "" }));
-  };
-
-  const handleChange = (event) => {
-    const { name, value } = event.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const handleSubmit = async (event) => {
-    event.preventDefault();
-    setError("");
-    setResult(null);
-    try {
-      setSubmitting(true);
-      const data = await prepareMonthlyPayrolls({
-        company_ids: form.company_ids.map(Number),
-        center_id: form.center_id ? Number(form.center_id) : null,
-        period_month: Number(form.period_month),
-        period_year: Number(form.period_year),
-        status: "pending",
-      });
-      setResult(data);
-      if (onPrepared) await onPrepared(data);
-    } catch (err) {
-      setError(err.message || "Error al preparar nóminas");
-    } finally {
-      setSubmitting(false);
-    }
-  };
+  const company = lines.filter((line) => String(line.category).toUpperCase() === "COSTE_EMPRESA");
 
   return (
-    <div style={styles.wrapper}>
-      <form onSubmit={handleSubmit} style={styles.form}>
-        <section style={styles.section}>
-          <div style={styles.sectionHeader}>
-            <div>
-              <h3 style={styles.sectionTitle}>Empresas</h3>
-              <p style={styles.sectionHint}>Puedes seleccionar una o varias empresas y preparar todas sus nóminas de una vez.</p>
-            </div>
-            <div style={styles.quickActions}>
-              <button type="button" onClick={handleSelectAllCompanies} style={styles.secondaryButton}>Todas</button>
-              <button type="button" onClick={handleClearCompanies} style={styles.secondaryButton}>Limpiar</button>
-            </div>
+    <div className="payroll-prep__overlay" role="dialog" aria-modal="true" aria-label="Vista previa de nómina">
+      <section className="payroll-prep__preview-modal payroll-prep__preview-modal--wide">
+        <header>
+          <div>
+            <span>VISTA PREVIA · NO GENERADA</span>
+            <h2>{preparation.employee_name}</h2>
+            <p>
+              {preparation.company_name}
+              {preparation.center_name ? ` · ${preparation.center_name}` : ""}
+              {` · ${String(preparation.period_month).padStart(2, "0")}/${preparation.period_year}`}
+            </p>
+          </div>
+          <button type="button" onClick={onClose} aria-label="Cerrar">×</button>
+        </header>
+
+        <div className="payroll-prep__preview-body">
+          <div className="payroll-prep__preview-banner">
+            Resultado calculado con la configuración por defecto y las modificaciones mensuales guardadas. Esta vista no genera la nómina.
           </div>
 
-          <div style={styles.companyGrid}>
-            {activeCompanies.map((company) => (
-              <label key={company.id} style={styles.companyOption}>
-                <input
-                  type="checkbox"
-                  checked={form.company_ids.includes(company.id)}
-                  onChange={() => handleCompanyToggle(company.id)}
-                />
-                <span>
-                  <strong>{company.name}</strong>
-                  <small>{company.ccc || "Sin CCC"}</small>
-                </span>
-              </label>
-            ))}
-          </div>
-        </section>
-
-        <section style={styles.section}>
-          <h3 style={styles.sectionTitle}>Periodo y centro</h3>
-          <div style={styles.formRow}>
-            <div style={styles.formGroup}>
-              <label>Centro</label>
-              <select
-                name="center_id"
-                value={form.center_id}
-                onChange={handleChange}
-                disabled={form.company_ids.length !== 1}
-                style={styles.input}
-              >
-                <option value="">
-                  {form.company_ids.length === 1 ? "Todos los centros" : "Centro disponible al elegir una sola empresa"}
-                </option>
-                {filteredCenters.map((center) => (
-                  <option key={center.id} value={center.id}>{center.name}</option>
-                ))}
-              </select>
-            </div>
-
-            <div style={styles.formGroupSmall}>
-              <label>Mes</label>
-              <select name="period_month" value={form.period_month} onChange={handleChange} style={styles.input}>
-                {Array.from({ length: 12 }, (_, index) => index + 1).map((month) => (
-                  <option key={month} value={month}>{String(month).padStart(2, "0")}</option>
-                ))}
-              </select>
-            </div>
-
-            <div style={styles.formGroupSmall}>
-              <label>Año</label>
-              <input name="period_year" type="number" value={form.period_year} onChange={handleChange} style={styles.input} />
-            </div>
-          </div>
-        </section>
-
-        {error && <div style={styles.error}>{error}</div>}
-
-        <button type="submit" disabled={submitting || form.company_ids.length === 0} style={styles.primaryButton}>
-          {submitting ? "Preparando..." : "Preparar nóminas"}
-        </button>
-      </form>
-
-      {result && (
-        <section style={styles.resultBox}>
-          <div style={styles.summaryGrid}>
-            <div style={styles.summaryItem}><span>Creadas</span><strong>{result.created_count}</strong></div>
-            <div style={styles.summaryItem}><span>Ya existían</span><strong>{result.existing_count}</strong></div>
-            <div style={styles.summaryItem}><span>Omitidas</span><strong>{result.skipped_count}</strong></div>
-            <div style={styles.summaryItem}><span>Antigüedad total</span><strong>{formatMoney(totalSeniority)} €</strong></div>
-            <div style={styles.summaryItem}><span>Prorrata total</span><strong>{formatMoney(totalProration)} €</strong></div>
+          <div className="payroll-prep__preview-totals">
+            <div><span>Total devengado</span><strong>{formatMoney(preview.gross_salary)} €</strong></div>
+            <div><span>Total deducciones</span><strong>{formatMoney(preview.total_deductions)} €</strong></div>
+            <div className="is-primary"><span>Líquido a percibir</span><strong>{formatMoney(preview.net_salary)} €</strong></div>
+            <div><span>Seguridad Social trabajador</span><strong>{formatMoney(preview.employee_social_security)} €</strong></div>
+            <div><span>IRPF</span><strong>{formatMoney(preview.irpf)} €</strong></div>
+            <div><span>Coste total empresa</span><strong>{formatMoney(preview.company_total_cost)} €</strong></div>
           </div>
 
-          <div style={styles.tableWrapper}>
-            <table style={styles.table}>
-              <thead>
-                <tr>
-                  <th style={styles.th}>Trabajador</th>
-                  <th style={styles.th}>Contrato</th>
-                  <th style={styles.th}>Empresa</th>
-                  <th style={styles.th}>Centro</th>
-                  <th style={styles.th}>Incidencias</th>
-                  <th style={styles.th}>Estado</th>
-                  <th style={styles.thRight}>Antigüedad</th>
-                  <th style={styles.thRight}>Prorrata extra</th>
-                  <th style={styles.thRight}>Bruto</th>
-                </tr>
-              </thead>
-              <tbody>
-                {result.payrolls.map((item) => (
-                  <tr key={`${item.contract_id}-${item.payroll_id || "new"}`}>
-                    <td style={styles.tdStrong}>{item.employee_code ? `${item.employee_code} - ` : ""}{item.employee_name}</td>
-                    <td style={styles.td}>{item.contract_code}</td>
-                    <td style={styles.td}>{item.company_name || "-"}</td>
-                    <td style={styles.td}>{item.center_name || "-"}</td>
-                    <td style={styles.td}>{item.incident_summary?.length ? item.incident_summary.join("; ") : "Sin incidencias"}</td>
-                    <td style={styles.td}>{STATUS_LABELS[item.status] || item.status}</td>
-                    <td style={styles.tdRight}>{formatMoney(item.seniority_amount)} €</td>
-                    <td style={styles.tdRight}>{formatMoney(item.extra_pay_proration)} €</td>
-                    <td style={styles.tdRight}>{formatMoney(item.gross_salary)} €</td>
-                  </tr>
-                ))}
-
-                {result.payrolls.length === 0 && (
-                  <tr><td colSpan="9" style={styles.emptyCell}>No hay contratos activos para el periodo seleccionado.</td></tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          {result.skipped?.length > 0 && (
-            <section style={styles.skippedBox}>
-              <h3 style={styles.sectionTitle}>Omitidas con motivo</h3>
-              <div style={styles.tableWrapper}>
-                <table style={styles.table}>
-                  <thead><tr><th style={styles.th}>Trabajador</th><th style={styles.th}>Contrato</th><th style={styles.th}>Motivo</th></tr></thead>
-                  <tbody>
-                    {result.skipped.map((item, index) => (
-                      <tr key={`${item.contract_id || "sin-contrato"}-${index}`}>
-                        <td style={styles.tdStrong}>{item.employee_code ? `${item.employee_code} - ` : ""}{item.employee_name || "-"}</td>
-                        <td style={styles.td}>{item.contract_code || item.contract_id || "-"}</td>
-                        <td style={styles.td}>{item.reason}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </section>
-          )}
-        </section>
-      )}
+          <PreviewTable title="Devengos" lines={earnings} />
+          <PreviewTable title="Deducciones" lines={deductions} />
+          <PreviewTable title="Bases de cotización e IRPF" lines={bases} />
+          <PreviewTable title="Coste empresarial" lines={company} />
+        </div>
+      </section>
     </div>
   );
 }
 
-const styles = {
-  wrapper: { display: "flex", flexDirection: "column", gap: "18px" },
-  form: { display: "flex", flexDirection: "column", gap: "16px" },
-  section: { border: "1px solid #e5e7eb", borderRadius: "10px", padding: "14px", display: "flex", flexDirection: "column", gap: "12px" },
-  sectionHeader: { display: "flex", justifyContent: "space-between", gap: "12px", alignItems: "start" },
-  sectionTitle: { margin: 0, fontSize: "15px", fontWeight: 900, color: "#111827" },
-  sectionHint: { margin: "4px 0 0", fontSize: "13px", color: "#6b7280", fontWeight: 600 },
-  quickActions: { display: "flex", gap: "8px" },
-  companyGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: "10px" },
-  companyOption: { display: "flex", alignItems: "flex-start", gap: "8px", border: "1px solid #e5e7eb", borderRadius: "8px", padding: "10px", cursor: "pointer" },
-  formRow: { display: "flex", gap: "14px", flexWrap: "wrap" },
-  formGroup: { flex: 1, minWidth: "260px", display: "flex", flexDirection: "column", gap: "6px" },
-  formGroupSmall: { width: "130px", flex: "0 0 130px", display: "flex", flexDirection: "column", gap: "6px" },
-  input: { padding: "10px 12px", border: "1px solid #ccc", borderRadius: "8px", fontSize: "14px" },
-  primaryButton: { backgroundColor: "#111827", color: "#ffffff", border: "none", borderRadius: "8px", padding: "12px 18px", cursor: "pointer", width: "fit-content", fontWeight: 900 },
-  secondaryButton: { backgroundColor: "#f3f4f6", color: "#111827", border: "1px solid #d1d5db", borderRadius: "8px", padding: "8px 10px", cursor: "pointer", fontWeight: 800 },
-  error: { backgroundColor: "#fee2e2", color: "#991b1b", padding: "10px 12px", borderRadius: "8px" },
-  resultBox: { border: "1px solid #e5e7eb", borderRadius: "10px", padding: "14px", display: "flex", flexDirection: "column", gap: "14px" },
-  skippedBox: { border: "1px solid #facc15", borderRadius: "10px", backgroundColor: "#fefce8", padding: "14px", display: "flex", flexDirection: "column", gap: "10px" },
-  summaryGrid: { display: "flex", gap: "12px", flexWrap: "wrap" },
-  summaryItem: { border: "1px solid #e5e7eb", borderRadius: "8px", padding: "10px 14px", minWidth: "120px", display: "flex", flexDirection: "column", gap: "4px" },
-  tableWrapper: { overflowX: "auto" },
-  table: { width: "100%", minWidth: "980px", borderCollapse: "collapse" },
-  th: { textAlign: "left", padding: "11px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb", whiteSpace: "nowrap" },
-  thRight: { textAlign: "right", padding: "11px", borderBottom: "1px solid #ddd", backgroundColor: "#f9fafb", whiteSpace: "nowrap" },
-  td: { padding: "11px", borderBottom: "1px solid #eee", verticalAlign: "top" },
-  tdStrong: { padding: "11px", borderBottom: "1px solid #eee", verticalAlign: "top", fontWeight: 800 },
-  tdRight: { padding: "11px", borderBottom: "1px solid #eee", textAlign: "right", whiteSpace: "nowrap" },
-  emptyCell: { padding: "18px", color: "#6b7280", textAlign: "center" },
-};
+function ReadOnlyBaseTable({ lines }) {
+  return (
+    <div className="payroll-prep__defaults-table-wrap">
+      <table className="payroll-prep__defaults-table">
+        <thead>
+          <tr>
+            <th>Código</th>
+            <th>Concepto</th>
+            <th>Origen</th>
+            <th className="is-number">Cantidad</th>
+            <th className="is-number">Importe</th>
+          </tr>
+        </thead>
+        <tbody>
+          {lines.map((line) => (
+            <tr key={`default-${line.id}-${line.code}`}>
+              <td>{line.code}</td>
+              <td>{line.name}</td>
+              <td>{sourceLabel(line)}</td>
+              <td className="is-number">{formatQuantity(line.quantity)}</td>
+              <td className="is-number">{formatMoney(line.amount)} €</td>
+            </tr>
+          ))}
+          {lines.length === 0 && (
+            <tr>
+              <td colSpan="5" className="payroll-prep__empty-cell">
+                No hay líneas base materializadas para este periodo.
+              </td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+export default function MonthlyPayrollPreparation({ companies = [], workCenters = [], onPrepared }) {
+  const [contracts, setContracts] = useState([]);
+  const [employees, setEmployees] = useState([]);
+  const [concepts, setConcepts] = useState([]);
+  const [scope, setScope] = useState({
+    company_id: "",
+    employee_id: "",
+    contract_id: "",
+    period_month: String(currentMonth),
+    period_year: String(currentYear),
+  });
+
+  const [preparation, setPreparation] = useState(null);
+  const [lineEdits, setLineEdits] = useState({});
+  const [touchedLineIds, setTouchedLineIds] = useState([]);
+  const [removedOverrideIds, setRemovedOverrideIds] = useState([]);
+  const [newLines, setNewLines] = useState([]);
+  const [newConceptId, setNewConceptId] = useState("");
+  const [newQuantity, setNewQuantity] = useState("1");
+  const [newAmount, setNewAmount] = useState("");
+  const [conceptSearch, setConceptSearch] = useState("");
+  const [familyFilter, setFamilyFilter] = useState("all");
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [reopening, setReopening] = useState(false);
+  const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [receiptPayrollId, setReceiptPayrollId] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    Promise.all([fetchContracts(), fetchAllEmployees(), fetchPayrollConcepts()])
+      .then(([contractData, employeeData, conceptData]) => {
+        if (cancelled) return;
+        setContracts(Array.isArray(contractData) ? contractData : []);
+        setEmployees(Array.isArray(employeeData) ? employeeData : []);
+        setConcepts(Array.isArray(conceptData) ? conceptData : []);
+      })
+      .catch((err) => {
+        if (!cancelled) setError(err.message || "No se pudieron cargar los datos de preparación");
+      });
+
+    return () => { cancelled = true; };
+  }, []);
+
+  const activeCompanies = useMemo(
+    () => companies.filter((company) => company.is_active),
+    [companies]
+  );
+
+  const companyContracts = useMemo(() => {
+    if (!scope.company_id) return [];
+    return contracts.filter(
+      (contract) => String(contract.company_id) === String(scope.company_id) && contract.status === "active"
+    );
+  }, [contracts, scope.company_id]);
+
+  const companyEmployeeIds = useMemo(
+    () => new Set(companyContracts.map((contract) => String(contract.employee_id))),
+    [companyContracts]
+  );
+
+  const companyEmployees = useMemo(
+    () => employees
+      .filter((employee) => employee.is_active && companyEmployeeIds.has(String(employee.id)))
+      .sort((a, b) => employeeName(a).localeCompare(employeeName(b), "es")),
+    [employees, companyEmployeeIds]
+  );
+
+  const employeeContracts = useMemo(
+    () => companyContracts.filter((contract) => String(contract.employee_id) === String(scope.employee_id)),
+    [companyContracts, scope.employee_id]
+  );
+
+  const selectedContract = employeeContracts.find(
+    (contract) => String(contract.id) === String(scope.contract_id)
+  );
+  const selectedCenter = workCenters.find(
+    (center) => String(center.id) === String(selectedContract?.center_id)
+  );
+
+  const sortedConcepts = useMemo(
+    () => [...concepts]
+      .filter((concept) => concept.is_active)
+      .sort((a, b) =>
+        (Number(a.display_order || 0) - Number(b.display_order || 0))
+        || String(a.code).localeCompare(String(b.code), "es")
+      ),
+    [concepts]
+  );
+
+  const families = useMemo(
+    () => [...new Set(sortedConcepts.map(conceptFamily))],
+    [sortedConcepts]
+  );
+
+  const catalogConcepts = useMemo(() => {
+    const search = conceptSearch.trim().toLocaleLowerCase("es");
+    return sortedConcepts.filter((concept) => {
+      if (familyFilter !== "all" && conceptFamily(concept) !== familyFilter) return false;
+      if (!search) return true;
+      return [concept.code, concept.name, concept.category, concept.salary_nature]
+        .filter(Boolean)
+        .some((value) => String(value).toLocaleLowerCase("es").includes(search));
+    });
+  }, [sortedConcepts, conceptSearch, familyFilter]);
+
+  const catalogGroups = useMemo(() => {
+    const groups = new Map();
+    catalogConcepts.forEach((concept) => {
+      const family = conceptFamily(concept);
+      if (!groups.has(family)) groups.set(family, []);
+      groups.get(family).push(concept);
+    });
+    return [...groups.entries()];
+  }, [catalogConcepts]);
+
+  const selectedNewConcept = sortedConcepts.find(
+    (concept) => String(concept.id) === String(newConceptId)
+  );
+
+  const resetEditorState = () => {
+    setPreparation(null);
+    setLineEdits({});
+    setTouchedLineIds([]);
+    setRemovedOverrideIds([]);
+    setNewLines([]);
+    setNewConceptId("");
+    setNewQuantity("1");
+    setNewAmount("");
+    setConceptSearch("");
+    setFamilyFilter("all");
+    setMessage("");
+    setPreviewOpen(false);
+    setReceiptPayrollId(null);
+  };
+
+  const handleScopeChange = (event) => {
+    const { name, value } = event.target;
+    setError("");
+    resetEditorState();
+
+    setScope((previous) => {
+      if (name === "company_id") {
+        return { ...previous, company_id: value, employee_id: "", contract_id: "" };
+      }
+
+      if (name === "employee_id") {
+        const candidates = contracts.filter(
+          (contract) => String(contract.company_id) === String(previous.company_id)
+            && String(contract.employee_id) === String(value)
+            && contract.status === "active"
+        );
+        return {
+          ...previous,
+          employee_id: value,
+          contract_id: candidates.length === 1 ? String(candidates[0].id) : "",
+        };
+      }
+
+      return { ...previous, [name]: value };
+    });
+  };
+
+  const hydratePreparation = (data) => {
+    setPreparation(data);
+    setLineEdits(Object.fromEntries((data.lines || []).map((line) => [line.id, {
+      quantity: String(line.quantity ?? 1),
+      amount: String(line.amount ?? 0),
+    }])));
+    setTouchedLineIds([]);
+    setRemovedOverrideIds([]);
+    setNewLines([]);
+  };
+
+  useEffect(() => {
+    if (!scope.employee_id || !scope.contract_id) return undefined;
+
+    let cancelled = false;
+    const load = async () => {
+      setLoading(true);
+      setError("");
+      setMessage("");
+      try {
+        const data = await ensurePayrollPreparation({
+          employee_id: Number(scope.employee_id),
+          contract_id: Number(scope.contract_id),
+          period_month: Number(scope.period_month),
+          period_year: Number(scope.period_year),
+        });
+        if (cancelled) return;
+        hydratePreparation(data);
+
+        const refreshedConcepts = await fetchPayrollConcepts();
+        if (!cancelled) setConcepts(Array.isArray(refreshedConcepts) ? refreshedConcepts : []);
+      } catch (err) {
+        if (!cancelled) setError(err.message || "No se pudo abrir la preparación del periodo");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    load();
+    return () => { cancelled = true; };
+  }, [scope.employee_id, scope.contract_id, scope.period_month, scope.period_year]);
+
+  const baselineLines = useMemo(
+    () => (preparation?.lines || []).filter((line) => !isStoredOverride(line)),
+    [preparation]
+  );
+
+  const savedOverrideLines = useMemo(
+    () => (preparation?.lines || []).filter((line) => isStoredOverride(line)),
+    [preparation]
+  );
+
+  const visibleOverrideLines = useMemo(() => {
+    if (!preparation) return [];
+
+    const saved = savedOverrideLines.filter((line) => !removedOverrideIds.includes(line.id));
+    const pending = baselineLines.filter((line) => touchedLineIds.includes(line.id));
+
+    return [...saved, ...pending].sort(
+      (a, b) =>
+        (Number(a.display_order || 0) - Number(b.display_order || 0))
+        || String(a.code).localeCompare(String(b.code), "es")
+    );
+  }, [preparation, savedOverrideLines, baselineLines, removedOverrideIds, touchedLineIds]);
+
+  const updateLineEdit = (lineId, field, value) => {
+    setLineEdits((previous) => ({
+      ...previous,
+      [lineId]: { ...previous[lineId], [field]: value },
+    }));
+  };
+
+  const handleAddModification = () => {
+    const concept = selectedNewConcept;
+    const amount = Number(newAmount);
+    const quantity = Number(newQuantity);
+
+    if (!concept || Number.isNaN(amount) || Number.isNaN(quantity) || amount < 0 || quantity < 0) return;
+
+    const existingSaved = savedOverrideLines.find(
+      (line) => String(line.concept_id) === String(concept.id) && !removedOverrideIds.includes(line.id)
+    );
+    const existingPending = baselineLines.find(
+      (line) => String(line.concept_id) === String(concept.id) && touchedLineIds.includes(line.id)
+    );
+    const existingNew = newLines.find(
+      (line) => String(line.concept_id) === String(concept.id)
+    );
+
+    if (existingSaved || existingPending || existingNew) {
+      setMessage("Ese concepto ya está en el panel. Modifica directamente su cantidad o importe.");
+      return;
+    }
+
+    const baseline = baselineLines.find(
+      (line) => String(line.concept_id) === String(concept.id)
+    );
+
+    if (baseline) {
+      setTouchedLineIds((previous) => [...previous, baseline.id]);
+      setLineEdits((previous) => ({
+        ...previous,
+        [baseline.id]: { quantity: String(quantity), amount: String(amount) },
+      }));
+    } else {
+      setNewLines((previous) => [
+        ...previous,
+        {
+          tempId: `new-${Date.now()}-${previous.length}`,
+          concept_id: concept.id,
+          name: concept.name,
+          code: concept.code,
+          concept_type: concept.concept_type,
+          category: concept.category,
+          salary_nature: concept.salary_nature,
+          source_type: "manual",
+          quantity: String(quantity),
+          amount: String(amount),
+        },
+      ]);
+    }
+
+    setMessage("");
+    setNewConceptId("");
+    setNewQuantity("1");
+    setNewAmount("");
+  };
+
+  const removeModification = (line) => {
+    if (touchedLineIds.includes(line.id) && !isStoredOverride(line)) {
+      setTouchedLineIds((previous) => previous.filter((id) => id !== line.id));
+      setLineEdits((previous) => ({
+        ...previous,
+        [line.id]: {
+          quantity: String(line.quantity ?? 1),
+          amount: String(line.amount ?? 0),
+        },
+      }));
+      return;
+    }
+
+    setRemovedOverrideIds((previous) =>
+      previous.includes(line.id) ? previous : [...previous, line.id]
+    );
+  };
+
+  const hasPendingChanges = useMemo(() => {
+    if (!preparation || preparation.generated) return false;
+    if (touchedLineIds.length || removedOverrideIds.length || newLines.length) return true;
+
+    return savedOverrideLines.some((line) => {
+      const edit = lineEdits[line.id];
+      if (!edit) return false;
+      return Number(edit.amount) !== Number(line.amount)
+        || Number(edit.quantity) !== Number(line.quantity);
+    });
+  }, [preparation, touchedLineIds, removedOverrideIds, newLines, savedOverrideLines, lineEdits]);
+
+  const persistPreparation = async ({ announce = true } = {}) => {
+    if (!preparation || preparation.generated) return preparation;
+
+    setError("");
+    if (announce) setMessage("");
+
+    try {
+      setSaving(true);
+
+      const updates = visibleOverrideLines
+        .filter((line) => {
+          const edit = lineEdits[line.id];
+          if (!edit) return false;
+          return touchedLineIds.includes(line.id)
+            || Number(edit.amount) !== Number(line.amount)
+            || Number(edit.quantity) !== Number(line.quantity);
+        })
+        .map((line) => {
+          const edit = lineEdits[line.id];
+          const quantity = Number(edit.quantity || 0);
+          const amount = Number(edit.amount || 0);
+          const alreadyMarked = parseOverrideDescription(line);
+
+          return updatePayrollItem(line.id, {
+            quantity,
+            unit_price: quantity > 0 ? amount / quantity : amount,
+            amount,
+            description: alreadyMarked ? line.description : serializeOverrideDescription(line),
+            notes: OVERRIDE_MARKER,
+          });
+        });
+
+      const removals = removedOverrideIds.map((itemId) => {
+        const line = savedOverrideLines.find((candidate) => candidate.id === itemId);
+        if (!line) return Promise.resolve();
+
+        const original = parseOverrideDescription(line);
+        if (!original) return deletePayrollItem(itemId);
+
+        return updatePayrollItem(itemId, {
+          quantity: original.quantity,
+          unit_price: original.quantity > 0 ? original.amount / original.quantity : original.amount,
+          amount: original.amount,
+          description: original.description,
+          notes: null,
+        });
+      });
+
+      const creates = newLines.map((line, index) => {
+        const quantity = Number(line.quantity || 0);
+        const amount = Number(line.amount || 0);
+        return createPayrollItem(preparation.payroll_id, {
+          concept_id: Number(line.concept_id),
+          description: "Concepto mensual informado en preparación",
+          quantity,
+          unit_price: quantity > 0 ? amount / quantity : amount,
+          amount,
+          display_order: 700 + index,
+          notes: OVERRIDE_MARKER,
+        });
+      });
+
+      await Promise.all([...updates, ...removals, ...creates]);
+      const refreshed = await previewPayrollPreparation(preparation.payroll_id);
+      hydratePreparation(refreshed);
+
+      if (announce) {
+        setMessage("Cambios guardados. La nómina sigue en borrador y puede volver a editarse.");
+      }
+      if (onPrepared) await onPrepared(refreshed);
+      return refreshed;
+    } catch (err) {
+      setError(err.message || "No se pudieron guardar los cambios de la nómina");
+      return null;
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handlePreview = async () => {
+    if (!preparation) return;
+
+    if (preparation.generated) {
+      setReceiptPayrollId(preparation.payroll_id);
+      return;
+    }
+
+    let refreshed = preparation;
+    if (hasPendingChanges) {
+      refreshed = await persistPreparation({ announce: false });
+      if (!refreshed) return;
+    } else {
+      try {
+        refreshed = await previewPayrollPreparation(preparation.payroll_id);
+        hydratePreparation(refreshed);
+      } catch (err) {
+        setError(err.message || "No se pudo calcular la vista previa");
+        return;
+      }
+    }
+
+    setPreparation(refreshed);
+    setPreviewOpen(true);
+  };
+
+  const handleReopen = async () => {
+    if (!preparation?.payroll_id) return;
+
+    const accepted = window.confirm(
+      "La nómina volverá a estado borrador para poder editarla. Dejará de considerarse generada hasta que vuelvas a generarla. ¿Continuar?"
+    );
+    if (!accepted) return;
+
+    setReopening(true);
+    setError("");
+    setMessage("");
+
+    try {
+      const reopened = await reopenPayrollPreparation(preparation.payroll_id);
+      hydratePreparation(reopened);
+      setMessage("Nómina reabierta. Ya puedes añadir, modificar o quitar conceptos del periodo.");
+    } catch (err) {
+      setError(err.message || "No se pudo reabrir la nómina para edición");
+    } finally {
+      setReopening(false);
+    }
+  };
+
+  const openHistory = () => {
+    const params = new URLSearchParams();
+    params.set("period", `${scope.period_year}-${String(scope.period_month).padStart(2, "0")}`);
+
+    const selectedCompany = companies.find(
+      (company) => String(company.id) === String(scope.company_id)
+    );
+    if (selectedCompany?.name) params.set("company", selectedCompany.name);
+
+    const selectedEmployee = employees.find(
+      (employee) => String(employee.id) === String(scope.employee_id)
+    );
+    if (selectedEmployee) params.set("employee", employeeName(selectedEmployee));
+
+    window.history.replaceState(null, "", `${window.location.pathname}?${params.toString()}`);
+    window.dispatchEvent(
+      new CustomEvent("aulanomina-open-page", { detail: { page: "payroll-history" } })
+    );
+  };
+
+  const preview = preparation?.preview || {};
+  const adjustmentCount = visibleOverrideLines.length + newLines.length;
+  const readyForEditor = Boolean(scope.employee_id && scope.contract_id);
+
+  return (
+    <div className="payroll-prep payroll-prep--overrides">
+      <section className="payroll-prep__scope">
+        <div className="payroll-prep__scope-heading">
+          <div>
+            <span>PREPARACIÓN DEL PERIODO</span>
+            <h2>Selecciona trabajador y periodo</h2>
+            <p>
+              Al seleccionar contrato y periodo se carga automáticamente la nómina de trabajo. Si no introduces cambios, se utilizará íntegramente su configuración por defecto.
+            </p>
+          </div>
+        </div>
+
+        <div className="payroll-prep__scope-grid">
+          <label>
+            <span>Empresa</span>
+            <select name="company_id" value={scope.company_id} onChange={handleScopeChange}>
+              <option value="">Seleccionar empresa</option>
+              {activeCompanies.map((company) => (
+                <option key={company.id} value={company.id}>{company.name}</option>
+              ))}
+            </select>
+          </label>
+
+          <label>
+            <span>Trabajador</span>
+            <select
+              name="employee_id"
+              value={scope.employee_id}
+              onChange={handleScopeChange}
+              disabled={!scope.company_id}
+            >
+              <option value="">Seleccionar trabajador</option>
+              {companyEmployees.map((employee) => (
+                <option key={employee.id} value={employee.id}>{employeeName(employee)}</option>
+              ))}
+            </select>
+          </label>
+
+          <label>
+            <span>Contrato</span>
+            <select
+              name="contract_id"
+              value={scope.contract_id}
+              onChange={handleScopeChange}
+              disabled={!scope.employee_id}
+            >
+              <option value="">Seleccionar contrato</option>
+              {employeeContracts.map((contract) => (
+                <option key={contract.id} value={contract.id}>
+                  {contract.contract_code || contract.code || `Contrato ${contract.id}`}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="payroll-prep__month">
+            <span>Mes</span>
+            <select name="period_month" value={scope.period_month} onChange={handleScopeChange}>
+              {Array.from({ length: 12 }, (_, index) => index + 1).map((month) => (
+                <option key={month} value={month}>{String(month).padStart(2, "0")}</option>
+              ))}
+            </select>
+          </label>
+
+          <label className="payroll-prep__year">
+            <span>Año</span>
+            <input
+              name="period_year"
+              type="number"
+              value={scope.period_year}
+              onChange={handleScopeChange}
+            />
+          </label>
+        </div>
+
+        {selectedContract && (
+          <div className="payroll-prep__context-line">
+            <span>{selectedCenter?.name || "Sin centro asignado"}</span>
+            <span>{selectedContract.professional_category || selectedContract.job_position || "Categoría sin informar"}</span>
+          </div>
+        )}
+      </section>
+
+      {error && <div className="payroll-prep__error">{error}</div>}
+      {message && <div className="payroll-prep__message">{message}</div>}
+
+      {!readyForEditor && (
+        <section className="payroll-prep__workspace payroll-prep__workspace--placeholder">
+          <header className="payroll-prep__workspace-header">
+            <div>
+              <span>EDITOR DE NÓMINA</span>
+              <h2>Código · concepto · cantidad · importe</h2>
+              <p>Selecciona trabajador y contrato para empezar a modificar la nómina.</p>
+            </div>
+            <div className="payroll-prep__status">Sin periodo</div>
+          </header>
+
+          <div className="payroll-prep__default-rule">
+            <strong>El panel puede quedar vacío.</strong>
+            <span>Si no añades ninguna modificación, el cálculo utilizará salario, convenio, conceptos permanentes, incidencias, cotizaciones e IRPF configurados.</span>
+          </div>
+        </section>
+      )}
+
+      {readyForEditor && loading && !preparation && (
+        <section className="payroll-prep__workspace payroll-prep__workspace--placeholder">
+          <div className="payroll-prep__empty-editor">Cargando nómina de trabajo...</div>
+        </section>
+      )}
+
+      {preparation && preparation.generated && (
+        <section className="payroll-prep__workspace payroll-prep__generated">
+          <header className="payroll-prep__workspace-header">
+            <div>
+              <span>NÓMINA YA GENERADA</span>
+              <h2>{preparation.employee_name}</h2>
+              <p>
+                {preparation.company_name}
+                {preparation.center_name ? ` · ${preparation.center_name}` : ""}
+                {` · ${String(preparation.period_month).padStart(2, "0")}/${preparation.period_year}`}
+              </p>
+            </div>
+            <div className="payroll-prep__status is-generated">Generada</div>
+          </header>
+
+          <div className="payroll-prep__default-rule">
+            <strong>¿Quieres cambiar esta nómina?</strong>
+            <span>Pulsa «Editar nómina». Volverá a borrador, conservará sus datos actuales y aparecerá el panel de conceptos para modificarlos.</span>
+          </div>
+
+          <div className="payroll-prep__summary">
+            <div><span>Bruto / devengos</span><strong>{formatMoney(preview.gross_salary)} €</strong></div>
+            <div><span>Deducciones</span><strong>{formatMoney(preview.total_deductions)} €</strong></div>
+            <div className="is-primary"><span>Líquido a percibir</span><strong>{formatMoney(preview.net_salary)} €</strong></div>
+            <div><span>Base CC</span><strong>{formatMoney(preview.contribution_base)} €</strong></div>
+            <div><span>IRPF</span><strong>{formatMoney(preview.irpf)} €</strong></div>
+            <div><span>Coste empresa</span><strong>{formatMoney(preview.company_total_cost)} €</strong></div>
+          </div>
+
+          <footer className="payroll-prep__actions">
+            <span className="payroll-prep__action-help">
+              Editar devuelve la nómina a borrador. Después podrás guardarla, visualizarla y volver a generarla.
+            </span>
+            <button
+              type="button"
+              className="payroll-s42__secondary"
+              onClick={openHistory}
+            >
+              Abrir histórico
+            </button>
+            <button
+              type="button"
+              className="payroll-s42__secondary"
+              onClick={handlePreview}
+            >
+              Visualizar
+            </button>
+            <button
+              type="button"
+              className="payroll-s42__primary"
+              onClick={handleReopen}
+              disabled={reopening}
+            >
+              {reopening ? "Abriendo edición..." : "Editar nómina"}
+            </button>
+          </footer>
+        </section>
+      )}
+
+      {preparation && !preparation.generated && (
+        <section className="payroll-prep__workspace">
+          <header className="payroll-prep__workspace-header">
+            <div>
+              <span>EDITOR DE NÓMINA · BORRADOR</span>
+              <h2>{preparation.employee_name}</h2>
+              <p>
+                {preparation.company_name}
+                {preparation.center_name ? ` · ${preparation.center_name}` : ""}
+                {` · ${String(preparation.period_month).padStart(2, "0")}/${preparation.period_year}`}
+              </p>
+            </div>
+            <div className="payroll-prep__workspace-meta">
+              {hasPendingChanges && <span className="payroll-prep__pending">Cambios sin guardar</span>}
+              <div className="payroll-prep__status">{adjustmentCount} modificaciones</div>
+            </div>
+          </header>
+
+          <div className="payroll-prep__default-rule">
+            <strong>Si no modificas nada, no tienes que rellenar nada.</strong>
+            <span>La nómina se generará con sus valores por defecto. Utiliza este panel únicamente para cambiar o añadir conceptos del mes.</span>
+          </div>
+
+          <div className="payroll-prep__reference-strip">
+            <div><span>Bruto de referencia</span><strong>{formatMoney(preview.gross_salary)} €</strong></div>
+            <div><span>Deducciones</span><strong>{formatMoney(preview.total_deductions)} €</strong></div>
+            <div className="is-primary"><span>Líquido</span><strong>{formatMoney(preview.net_salary)} €</strong></div>
+            <div><span>Base CC</span><strong>{formatMoney(preview.contribution_base)} €</strong></div>
+            <div><span>IRPF</span><strong>{formatMoney(preview.irpf)} €</strong></div>
+          </div>
+
+          <div className="payroll-prep__matrix-intro payroll-prep__matrix-intro--overrides">
+            <div>
+              <h3>Conceptos modificados en este mes</h3>
+              <p>Selecciona cualquier concepto del catálogo, indica cantidad e importe y añádelo. Si ya existe en la nómina por defecto, este valor lo sustituirá solo para este periodo.</p>
+            </div>
+            <span className="payroll-prep__catalog-count">{sortedConcepts.length} conceptos disponibles</span>
+          </div>
+
+          <div className="payroll-prep__catalog-tools">
+            <label>
+              <span>Buscar concepto</span>
+              <input
+                type="search"
+                value={conceptSearch}
+                onChange={(event) => setConceptSearch(event.target.value)}
+                placeholder="Salario base, nocturnidad, dieta, IT, IRPF, cotización..."
+              />
+            </label>
+            <label>
+              <span>Familia</span>
+              <select value={familyFilter} onChange={(event) => setFamilyFilter(event.target.value)}>
+                <option value="all">Todas las familias</option>
+                {families.map((family) => (
+                  <option key={family} value={family}>{family}</option>
+                ))}
+              </select>
+            </label>
+          </div>
+
+          <div className="payroll-prep__matrix-wrap">
+            <table className="payroll-prep__matrix payroll-prep__matrix--overrides">
+              <thead>
+                <tr>
+                  <th>Código</th>
+                  <th>Concepto / descripción</th>
+                  <th className="is-number">Cantidad</th>
+                  <th className="is-number">Importe</th>
+                  <th aria-label="Acciones"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {visibleOverrideLines.map((line) => {
+                  const edit = lineEdits[line.id] || {
+                    quantity: line.quantity,
+                    amount: line.amount,
+                  };
+
+                  return (
+                    <tr key={`override-${line.id}`}>
+                      <td className="payroll-prep__code">
+                        <strong>{line.code}</strong>
+                        <small>{sourceLabel(line)}</small>
+                      </td>
+                      <td className="payroll-prep__description">
+                        <strong>{line.name}</strong>
+                        <small>{line.category || conceptFamily(line)}</small>
+                      </td>
+                      <td className="is-number">
+                        <input
+                          className="payroll-prep__matrix-input payroll-prep__matrix-input--quantity"
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={edit.quantity}
+                          onChange={(event) => updateLineEdit(line.id, "quantity", event.target.value)}
+                          aria-label={`Cantidad de ${line.name}`}
+                        />
+                      </td>
+                      <td className="is-number">
+                        <label className="payroll-prep__matrix-amount">
+                          <input
+                            className="payroll-prep__matrix-input"
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={edit.amount}
+                            onChange={(event) => updateLineEdit(line.id, "amount", event.target.value)}
+                            aria-label={`Importe de ${line.name}`}
+                          />
+                          <span>€</span>
+                        </label>
+                      </td>
+                      <td className="payroll-prep__row-action">
+                        <button type="button" onClick={() => removeModification(line)}>Quitar</button>
+                      </td>
+                    </tr>
+                  );
+                })}
+
+                {newLines.map((line) => (
+                  <tr key={line.tempId} className="is-new">
+                    <td className="payroll-prep__code">
+                      <strong>{line.code}</strong>
+                      <small>Nuevo</small>
+                    </td>
+                    <td className="payroll-prep__description">
+                      <strong>{line.name}</strong>
+                      <small>{line.category}</small>
+                    </td>
+                    <td className="is-number">
+                      <input
+                        className="payroll-prep__matrix-input payroll-prep__matrix-input--quantity"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={line.quantity}
+                        onChange={(event) => setNewLines((previous) => previous.map((candidate) =>
+                          candidate.tempId === line.tempId
+                            ? { ...candidate, quantity: event.target.value }
+                            : candidate
+                        ))}
+                      />
+                    </td>
+                    <td className="is-number">
+                      <label className="payroll-prep__matrix-amount">
+                        <input
+                          className="payroll-prep__matrix-input"
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={line.amount}
+                          onChange={(event) => setNewLines((previous) => previous.map((candidate) =>
+                            candidate.tempId === line.tempId
+                              ? { ...candidate, amount: event.target.value }
+                              : candidate
+                          ))}
+                        />
+                        <span>€</span>
+                      </label>
+                    </td>
+                    <td className="payroll-prep__row-action">
+                      <button
+                        type="button"
+                        onClick={() => setNewLines((previous) =>
+                          previous.filter((candidate) => candidate.tempId !== line.tempId)
+                        )}
+                      >
+                        Quitar
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+
+                {visibleOverrideLines.length === 0 && newLines.length === 0 && (
+                  <tr className="payroll-prep__matrix-empty-row">
+                    <td colSpan="5">
+                      <strong>No hay modificaciones.</strong>
+                      <span>La nómina se calculará automáticamente con los datos configurados para el trabajador.</span>
+                    </td>
+                  </tr>
+                )}
+
+                <tr className="payroll-prep__new-row payroll-prep__new-row--overrides">
+                  <td>
+                    <select
+                      value={newConceptId}
+                      onChange={(event) => setNewConceptId(event.target.value)}
+                      aria-label="Código del concepto"
+                    >
+                      <option value="">Código...</option>
+                      {catalogGroups.map(([family, groupConcepts]) => (
+                        <optgroup key={family} label={family}>
+                          {groupConcepts.map((concept) => (
+                            <option key={concept.id} value={concept.id}>
+                              {concept.code}
+                            </option>
+                          ))}
+                        </optgroup>
+                      ))}
+                    </select>
+                  </td>
+                  <td className="payroll-prep__description">
+                    <strong>{selectedNewConcept?.name || "Selecciona un concepto"}</strong>
+                    <small>
+                      {selectedNewConcept
+                        ? `${conceptFamily(selectedNewConcept)} · ${selectedNewConcept.category}`
+                        : "El catálogo incluye salarios, pluses, IT, dietas, deducciones, cotizaciones, bases y costes."}
+                    </small>
+                  </td>
+                  <td className="is-number">
+                    <input
+                      className="payroll-prep__matrix-input payroll-prep__matrix-input--quantity"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={newQuantity}
+                      onChange={(event) => setNewQuantity(event.target.value)}
+                      aria-label="Cantidad del concepto"
+                    />
+                  </td>
+                  <td className="is-number">
+                    <label className="payroll-prep__matrix-amount">
+                      <input
+                        className="payroll-prep__matrix-input"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={newAmount}
+                        onChange={(event) => setNewAmount(event.target.value)}
+                        aria-label="Importe del concepto"
+                        placeholder="0,00"
+                      />
+                      <span>€</span>
+                    </label>
+                  </td>
+                  <td className="payroll-prep__row-action">
+                    <button
+                      type="button"
+                      className="is-add"
+                      onClick={handleAddModification}
+                      disabled={!newConceptId || newAmount === ""}
+                    >
+                      Añadir
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <details className="payroll-prep__defaults">
+            <summary>
+              <span>Ver cálculo y conceptos de partida</span>
+              <strong>{baselineLines.length} líneas base</strong>
+            </summary>
+            <p>
+              Estos conceptos se aplicarán aunque el panel superior esté vacío. Para sustituir uno de ellos en este mes, selecciónalo arriba por su código y asigna el nuevo valor.
+            </p>
+            <ReadOnlyBaseTable lines={baselineLines} />
+          </details>
+
+          <footer className="payroll-prep__actions payroll-prep__actions--overrides">
+            <span className="payroll-prep__action-help">
+              Guardar conserva la preparación. Visualizar recalcula la nómina completa sin generarla definitivamente.
+            </span>
+            <button
+              type="button"
+              className="payroll-s42__secondary"
+              onClick={() => persistPreparation()}
+              disabled={saving || !hasPendingChanges}
+            >
+              {saving ? "Guardando..." : "Guardar cambios"}
+            </button>
+            <button
+              type="button"
+              className="payroll-s42__primary"
+              onClick={handlePreview}
+              disabled={saving}
+            >
+              {saving ? "Recalculando..." : "Visualizar nómina"}
+            </button>
+          </footer>
+        </section>
+      )}
+
+      {previewOpen && (
+        <PreviewModal
+          preparation={preparation}
+          onClose={() => setPreviewOpen(false)}
+        />
+      )}
+
+      {receiptPayrollId && (
+        <PayrollReceiptModal
+          payrollId={receiptPayrollId}
+          onClose={() => setReceiptPayrollId(null)}
+        />
+      )}
+    </div>
+  );
+}

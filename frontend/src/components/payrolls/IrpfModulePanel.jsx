@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import EmployeeIrpfPanel from "../employees/EmployeeIrpfPanel";
 import { fetchEmployeeTaxProfile } from "../../services/taxProfileApi";
 import { getEmployeeVisibleCode } from "../../utils/visibleCodes";
+import "./irpfWorkspace.css";
 
 function getEmployeeName(employee) {
   return `${employee?.first_name || ""} ${employee?.last_name || ""}`.trim();
@@ -21,7 +22,7 @@ function getCompanyName(employee, companies) {
 }
 
 function getCenterName(employee, workCenters) {
-  return workCenters.find((center) => Number(center.id) === Number(employee?.center_id))?.name || "-";
+  return workCenters.find((center) => Number(center.id) === Number(employee?.center_id))?.name || "Sin centro";
 }
 
 function getActiveContract(employeeId, contracts) {
@@ -45,10 +46,11 @@ export default function IrpfModulePanel({ employees = [], contracts = [], compan
   const [taxProfile, setTaxProfile] = useState(null);
   const [loadingProfile, setLoadingProfile] = useState(false);
   const [error, setError] = useState("");
+  const [selectorOpen, setSelectorOpen] = useState(true);
   const [filters, setFilters] = useState({ code: "", name: "", dni: "", company: "" });
 
   const selectedEmployee = useMemo(
-    () => employees.find((employee) => String(employee.id) === String(employeeId)),
+    () => employees.find((employee) => String(employee.id) === String(employeeId)) || null,
     [employees, employeeId]
   );
 
@@ -81,10 +83,11 @@ export default function IrpfModulePanel({ employees = [], contracts = [], compan
   }, [employees, contracts, companies, workCenters, filters]);
 
   useEffect(() => {
-    if (!employeeId && filteredEmployees[0]?.id) {
-      setEmployeeId(String(filteredEmployees[0].id));
+    if (!employeeId && employees[0]?.id) {
+      setEmployeeId(String(employees[0].id));
+      setSelectorOpen(false);
     }
-  }, [filteredEmployees, employeeId]);
+  }, [employees, employeeId]);
 
   const loadTaxProfile = async () => {
     if (!employeeId) return;
@@ -123,96 +126,95 @@ export default function IrpfModulePanel({ employees = [], contracts = [], compan
 
   const selectEmployee = (employee) => {
     setEmployeeId(String(employee.id));
+    setSelectorOpen(false);
   };
 
   if (!employees.length) {
-    return <p style={styles.empty}>No hay trabajadores activos para mostrar el módulo IRPF.</p>;
+    return <div className="irpf-empty-state">No hay trabajadores activos para mostrar el módulo IRPF.</div>;
   }
 
   const selectedCompanyName = getCompanyName(selectedEmployee, companies);
   const selectedCenterName = getCenterName(selectedEmployee, workCenters);
 
   return (
-    <div style={styles.wrapper}>
-      <div style={styles.selectorBox}>
-        <div style={styles.selectorHeader}>
-          <div>
-            <p style={styles.eyebrow}>MÓDULO IRPF</p>
-            <h3 style={styles.title}>IRPF del trabajador</h3>
-            <p style={styles.subtitle}>Busca por código, nombre, DNI, empresa o centro. La selección carga su ficha fiscal y su previsión anual.</p>
+    <div className="irpf-workspace">
+      {selectedEmployee && (
+        <section className="irpf-worker-context">
+          <div className="irpf-worker-context__identity">
+            <span className="irpf-eyebrow">Trabajador seleccionado</span>
+            <strong>{getEmployeeVisibleCode(selectedEmployee, employees, contracts)} · {getEmployeeName(selectedEmployee)}</strong>
+            <small>DNI {selectedEmployee.dni || "-"}</small>
+          </div>
+          <div className="irpf-worker-context__meta">
+            <span><b>Empresa</b>{selectedCompanyName}</span>
+            <span><b>Centro</b>{selectedCenterName}</span>
+            <span><b>Contrato</b>{activeContract?.contract_type || "Sin contrato"}</span>
+            <span><b>Bruto anual</b>{formatSalary(activeContract?.salary_base)}</span>
+          </div>
+          <button type="button" className="irpf-btn irpf-btn--secondary" onClick={() => setSelectorOpen((value) => !value)}>
+            {selectorOpen ? "Cerrar selección" : "Cambiar trabajador"}
+          </button>
+        </section>
+      )}
+
+      {selectorOpen && (
+        <section className="irpf-selector-panel">
+          <div className="irpf-section-heading">
+            <div>
+              <span className="irpf-eyebrow">Gestión fiscal del trabajador</span>
+              <h2>Selecciona un trabajador</h2>
+              <p>Busca por código, nombre, DNI, empresa, centro o contrato.</p>
+            </div>
           </div>
 
-          {selectedEmployee && (
-            <div style={styles.selectedCard}>
-              <span>Trabajador seleccionado</span>
-              <strong>{getEmployeeVisibleCode(selectedEmployee, employees, contracts)} · {getEmployeeName(selectedEmployee)}</strong>
-              <small>DNI {selectedEmployee.dni || "-"} · {selectedCompanyName} · {selectedCenterName}</small>
-              <small>{activeContract ? `${activeContract.contract_type || "Contrato"} · ${formatPaySchedule(activeContract.pay_schedule)} · ${formatSalary(activeContract.salary_base)}` : "Sin contrato localizado"}</small>
-            </div>
-          )}
-        </div>
+          <div className="irpf-filter-grid">
+            <label>Código / ID<input name="code" value={filters.code} onChange={handleFilterChange} placeholder="Ej. 1.2" /></label>
+            <label>Nombre y apellidos<input name="name" value={filters.name} onChange={handleFilterChange} placeholder="Nombre o apellidos" /></label>
+            <label>DNI<input name="dni" value={filters.dni} onChange={handleFilterChange} placeholder="DNI" /></label>
+            <label>Empresa / centro<input name="company" value={filters.company} onChange={handleFilterChange} placeholder="Empresa, centro o contrato" /></label>
+            <button type="button" className="irpf-btn irpf-btn--secondary" onClick={clearFilters}>Limpiar</button>
+          </div>
 
-        <div style={styles.filters}>
-          <label style={styles.field}>Código / ID
-            <input name="code" value={filters.code} onChange={handleFilterChange} placeholder="Ej. 1.2" style={styles.input} />
-          </label>
-          <label style={styles.field}>Nombre y apellidos
-            <input name="name" value={filters.name} onChange={handleFilterChange} placeholder="Nombre o apellidos" style={styles.input} />
-          </label>
-          <label style={styles.field}>DNI
-            <input name="dni" value={filters.dni} onChange={handleFilterChange} placeholder="DNI" style={styles.input} />
-          </label>
-          <label style={styles.field}>Empresa / centro
-            <input name="company" value={filters.company} onChange={handleFilterChange} placeholder="Empresa o centro" style={styles.input} />
-          </label>
-          <button type="button" onClick={clearFilters} style={styles.clearButton}>Limpiar filtros</button>
-        </div>
+          <div className="irpf-result-count">{filteredEmployees.length} de {employees.length} trabajadores</div>
 
-        <div style={styles.resultInfo}>Mostrando {filteredEmployees.length} de {employees.length} trabajadores</div>
+          <div className="irpf-table-shell irpf-table-shell--selector">
+            <table className="irpf-table irpf-table--compact">
+              <thead>
+                <tr>
+                  <th>Código</th>
+                  <th>Trabajador</th>
+                  <th>DNI</th>
+                  <th>Empresa / centro</th>
+                  <th>Contrato</th>
+                  <th className="is-number">Bruto anual</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredEmployees.map((employee) => {
+                  const contract = getActiveContract(employee.id, contracts);
+                  const selected = String(employee.id) === String(employeeId);
+                  return (
+                    <tr key={employee.id} className={selected ? "is-selected" : ""}>
+                      <td className="is-code">{getEmployeeVisibleCode(employee, employees, contracts)}</td>
+                      <td><strong>{getEmployeeName(employee)}</strong></td>
+                      <td>{employee.dni || "-"}</td>
+                      <td><strong>{getCompanyName(employee, companies)}</strong><small>{getCenterName(employee, workCenters)}</small></td>
+                      <td><strong>{contract?.contract_type || "-"}</strong><small>{formatPaySchedule(contract?.pay_schedule)}</small></td>
+                      <td className="is-number">{formatSalary(contract?.salary_base)}</td>
+                      <td className="is-action"><button type="button" className="irpf-btn irpf-btn--small" onClick={() => selectEmployee(employee)}>{selected ? "Seleccionado" : "Abrir"}</button></td>
+                    </tr>
+                  );
+                })}
+                {filteredEmployees.length === 0 && <tr><td colSpan="7" className="irpf-table-empty">No hay trabajadores con esos filtros.</td></tr>}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
 
-        <div style={styles.tableWrapper}>
-          <table style={styles.table}>
-            <thead>
-              <tr>
-                <th style={styles.th}>Código</th>
-                <th style={styles.th}>Trabajador</th>
-                <th style={styles.th}>DNI</th>
-                <th style={styles.th}>Empresa</th>
-                <th style={styles.th}>Centro</th>
-                <th style={styles.th}>Contrato</th>
-                <th style={styles.thAmount}>Bruto anual</th>
-                <th style={styles.th}></th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredEmployees.map((employee) => {
-                const contract = getActiveContract(employee.id, contracts);
-                const selected = String(employee.id) === String(employeeId);
-                return (
-                  <tr key={employee.id} style={selected ? styles.selectedRow : undefined}>
-                    <td style={styles.tdStrong}>{getEmployeeVisibleCode(employee, employees, contracts)}</td>
-                    <td style={styles.td}>{getEmployeeName(employee)}</td>
-                    <td style={styles.td}>{employee.dni || "-"}</td>
-                    <td style={styles.td}>{getCompanyName(employee, companies)}</td>
-                    <td style={styles.td}>{getCenterName(employee, workCenters)}</td>
-                    <td style={styles.td}>{contract ? `${contract.contract_type || "-"} · ${formatPaySchedule(contract.pay_schedule)}` : "-"}</td>
-                    <td style={styles.tdAmount}>{formatSalary(contract?.salary_base)}</td>
-                    <td style={styles.tdRight}>
-                      <button type="button" onClick={() => selectEmployee(employee)} style={selected ? styles.selectedButton : styles.smallButton}>
-                        {selected ? "Seleccionado" : "Seleccionar"}
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
-              {filteredEmployees.length === 0 && <tr><td style={styles.td} colSpan="8">No hay trabajadores con esos filtros.</td></tr>}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {error && <div style={styles.error}>{error}</div>}
-      {loadingProfile && <div style={styles.warning}>Cargando ficha fiscal...</div>}
+      {error && <div className="irpf-banner irpf-banner--error">{error}</div>}
+      {loadingProfile && <div className="irpf-banner irpf-banner--info">Cargando ficha fiscal...</div>}
 
       {selectedEmployee && (
         <EmployeeIrpfPanel
@@ -225,32 +227,3 @@ export default function IrpfModulePanel({ employees = [], contracts = [], compan
     </div>
   );
 }
-
-const styles = {
-  wrapper: { display: "flex", flexDirection: "column", gap: "16px" },
-  selectorBox: { border: "2px solid #111", backgroundColor: "#fffdf0", boxShadow: "4px 4px 0 #111", padding: "16px", display: "flex", flexDirection: "column", gap: "16px" },
-  selectorHeader: { display: "grid", gridTemplateColumns: "1fr minmax(340px, 480px)", gap: "18px", alignItems: "start" },
-  eyebrow: { margin: "0 0 6px", fontSize: "11px", fontWeight: 950, letterSpacing: "0.08em", color: "#92400e" },
-  title: { margin: 0, color: "#111", fontSize: "22px", fontWeight: 950 },
-  subtitle: { margin: "6px 0 0", color: "#4b5563", fontSize: "13px", fontWeight: 750 },
-  selectedCard: { border: "1px solid #111", backgroundColor: "#ffffff", padding: "12px", display: "flex", flexDirection: "column", gap: "4px" },
-  filters: { display: "grid", gridTemplateColumns: "130px minmax(220px, 1fr) 160px minmax(220px, 1fr) 130px", gap: "12px", alignItems: "end" },
-  field: { display: "flex", flexDirection: "column", gap: "6px", color: "#374151", fontSize: "13px", fontWeight: 850 },
-  input: { height: "39px", padding: "8px 10px", border: "1px solid #cbd5e1", borderRadius: "7px", fontSize: "13px", boxSizing: "border-box", width: "100%" },
-  clearButton: { height: "39px", backgroundColor: "#f3f4f6", color: "#111827", border: "1px solid #d1d5db", borderRadius: "7px", cursor: "pointer", fontWeight: 900 },
-  resultInfo: { color: "#6b7280", fontSize: "13px", fontWeight: 800 },
-  tableWrapper: { maxHeight: "280px", overflow: "auto", border: "1px solid #e5e7eb", backgroundColor: "#fff" },
-  table: { width: "100%", borderCollapse: "collapse", fontSize: "13px" },
-  th: { textAlign: "left", borderBottom: "2px solid #111", padding: "9px", backgroundColor: "#f8f3b5", fontWeight: 950, position: "sticky", top: 0, zIndex: 1 },
-  thAmount: { textAlign: "right", borderBottom: "2px solid #111", padding: "9px", backgroundColor: "#f8f3b5", fontWeight: 950, position: "sticky", top: 0, zIndex: 1 },
-  td: { borderBottom: "1px solid #e5e7eb", padding: "9px", verticalAlign: "middle" },
-  tdStrong: { borderBottom: "1px solid #e5e7eb", padding: "9px", verticalAlign: "middle", fontWeight: 950 },
-  tdAmount: { borderBottom: "1px solid #e5e7eb", padding: "9px", textAlign: "right", whiteSpace: "nowrap" },
-  tdRight: { borderBottom: "1px solid #e5e7eb", padding: "9px", textAlign: "right" },
-  selectedRow: { backgroundColor: "#fff7cc" },
-  smallButton: { backgroundColor: "#111827", color: "#fff", border: "1px solid #111827", borderRadius: "7px", padding: "7px 10px", cursor: "pointer", fontWeight: 850 },
-  selectedButton: { backgroundColor: "#dcfce7", color: "#166534", border: "1px solid #86efac", borderRadius: "7px", padding: "7px 10px", cursor: "pointer", fontWeight: 900 },
-  empty: { margin: 0, color: "#6b7280", fontWeight: 750 },
-  error: { color: "#991b1b", backgroundColor: "#fee2e2", border: "1px solid #fecaca", padding: "9px", fontWeight: 800 },
-  warning: { color: "#92400e", backgroundColor: "#fef3c7", border: "1px solid #fde68a", padding: "9px", fontWeight: 800 },
-};

@@ -1,0 +1,162 @@
+/* Split 42.1 — Centros de trabajo */
+
+.work-center-create-form {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: var(--an-space-5);
+}
+
+.work-center-create-form__grid {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: var(--an-space-5) var(--an-space-3);
+}
+
+.work-center-create-form__field {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: var(--an-space-2);
+  color: var(--an-color-text-secondary);
+  font-size: var(--an-font-size-xs);
+  font-weight: var(--an-font-weight-semibold);
+}
+
+.work-center-create-form__field--span-2 { grid-column: span 2; }
+.work-center-create-form__field--span-3 { grid-column: span 3; }
+.work-center-create-form__field--span-6 { grid-column: span 6; }
+.work-center-create-form__field--span-12 { grid-column: 1 / -1; }
+
+.work-center-create-form__field input,
+.work-center-create-form__field select {
+  width: 100%;
+  min-height: var(--an-control-height-lg);
+  box-sizing: border-box;
+  border: 1px solid var(--an-color-border-strong);
+  border-radius: var(--an-radius-md);
+  padding: 0 var(--an-space-3);
+  background: var(--an-color-surface);
+  color: var(--an-color-text-primary);
+  font: inherit;
+  font-size: var(--an-font-size-sm);
+}
+
+.work-center-create-form__field input:focus,
+.work-center-create-form__field select:focus {
+  border-color: var(--an-color-focus-ring);
+  outline: none;
+  box-shadow: 0 0 0 3px rgb(59 130 246 / 18%);
+}
+
+.work-center-create-form__field small {
+  color: var(--an-color-text-muted);
+  font-size: var(--an-font-size-xs);
+  font-weight: var(--an-font-weight-medium);
+  line-height: var(--an-line-height-body);
+}
+
+.work-center-create-form__divider {
+  grid-column: 1 / -1;
+  height: 1px;
+  margin-top: var(--an-space-2);
+  background: var(--an-color-border);
+}
+
+.work-center-create-form__section-heading {
+  display: flex;
+  grid-column: 1 / -1;
+  flex-direction: column;
+  gap: var(--an-space-1);
+  margin-bottom: calc(var(--an-space-2) * -1);
+}
+
+.work-center-create-form__section-heading strong {
+  color: var(--an-color-text-primary);
+  font-size: var(--an-font-size-md);
+  font-weight: var(--an-font-weight-bold);
+}
+
+.work-center-create-form__section-heading span {
+  color: var(--an-color-text-muted);
+  font-size: var(--an-font-size-sm);
+}
+
+.work-center-create-form__actions {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: var(--an-space-4);
+  border-top: 1px solid var(--an-color-border);
+}
+
+.work-center-create-form__actions button {
+  min-height: var(--an-control-height-md);
+  border: 1px solid var(--an-color-action-primary);
+  border-radius: var(--an-radius-md);
+  padding: 0 var(--an-space-4);
+  background: var(--an-color-action-primary);
+  color: var(--an-color-text-inverse);
+  font: inherit;
+  font-size: var(--an-font-size-sm);
+  font-weight: var(--an-font-weight-semibold);
+  cursor: pointer;
+}
+
+.work-center-create-form__actions button:hover:not(:disabled) {
+  background: var(--an-color-action-primary-hover);
+}
+
+.work-center-create-form__actions button:disabled {
+  border-color: var(--an-color-border);
+  background: var(--an-color-surface-muted);
+  color: var(--an-color-text-disabled);
+  cursor: not-allowed;
+}
+
+.work-center-create-form__error,
+.work-center-create-form__success {
+  padding: var(--an-space-3) var(--an-space-4);
+  border-radius: var(--an-radius-md);
+  font-size: var(--an-font-size-sm);
+  font-weight: var(--an-font-weight-semibold);
+}
+
+.work-center-create-form__error {
+  background: var(--an-color-danger-50, #fef2f2);
+  color: var(--an-color-danger-700, #b91c1c);
+}
+
+.work-center-create-form__success {
+  background: var(--an-color-success-50, #f0fdf4);
+  color: var(--an-color-success-700, #166534);
+}
+
+@media (max-width: 72rem) {
+  .work-center-create-form__field--span-2,
+  .work-center-create-form__field--span-3 {
+    grid-column: span 4;
+  }
+
+  .work-center-create-form__field--span-6 {
+    grid-column: span 6;
+  }
+}
+
+@media (max-width: 48rem) {
+  .work-center-create-form__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .work-center-create-form__field--span-2,
+  .work-center-create-form__field--span-3,
+  .work-center-create-form__field--span-6,
+  .work-center-create-form__field--span-12,
+  .work-center-create-form__divider,
+  .work-center-create-form__section-heading {
+    grid-column: 1;
+  }
+
+  .work-center-create-form__actions button {
+    width: 100%;
+  }
+}

@@ -1,0 +1,90 @@
+/*
+ * Split 42 — paleta contenida para conceptos salariales.
+ *
+ * La clasificación se expresa con texto, no con un color distinto por origen.
+ * Reservamos el azul para interacción/selección, el verde para una señal mínima
+ * de estado positivo y el rojo para acciones destructivas.
+ */
+
+.salary-concepts .sc-badge--system,
+.salary-concepts .sc-badge--custom,
+.salary-concepts .sc-badge--agreement,
+.permanent-concepts .sc-badge--system,
+.permanent-concepts .sc-badge--custom,
+.permanent-concepts .sc-badge--agreement {
+  border: 1px solid var(--an-color-neutral-200);
+  background: var(--an-color-neutral-100);
+  color: var(--an-color-neutral-700);
+}
+
+.salary-concepts .sc-badge--active,
+.permanent-concepts .sc-badge--active {
+  gap: var(--an-space-2);
+  border: 1px solid var(--an-color-neutral-200);
+  background: var(--an-color-surface);
+  color: var(--an-color-neutral-700);
+}
+
+.salary-concepts .sc-badge--active::before,
+.permanent-concepts .sc-badge--active::before {
+  width: 0.4rem;
+  height: 0.4rem;
+  flex: 0 0 0.4rem;
+  border-radius: var(--an-radius-pill);
+  background: var(--an-color-success-500);
+  content: "";
+}
+
+.salary-concepts .sc-badge--inactive,
+.permanent-concepts .sc-badge--inactive {
+  gap: var(--an-space-2);
+  border: 1px solid var(--an-color-neutral-200);
+  background: var(--an-color-surface);
+  color: var(--an-color-text-muted);
+}
+
+.salary-concepts .sc-badge--inactive::before,
+.permanent-concepts .sc-badge--inactive::before {
+  width: 0.4rem;
+  height: 0.4rem;
+  flex: 0 0 0.4rem;
+  border-radius: var(--an-radius-pill);
+  background: var(--an-color-neutral-400);
+  content: "";
+}
+
+.salary-concepts .sc-button--danger,
+.permanent-concepts .sc-button--danger {
+  border-color: var(--an-color-neutral-300);
+  background: var(--an-color-surface);
+  color: var(--an-color-danger-700);
+}
+
+.salary-concepts .sc-button--danger:hover:not(:disabled),
+.permanent-concepts .sc-button--danger:hover:not(:disabled) {
+  border-color: var(--an-color-danger-300, #fca5a5);
+  background: var(--an-color-danger-50);
+}
+
+.salary-concepts .sc-editor,
+.permanent-concepts .sc-editor {
+  border-left-color: var(--an-color-border);
+  box-shadow: var(--an-shadow-xs);
+}
+
+.salary-concepts .sc-bulk-panel,
+.permanent-concepts .sc-bulk-panel {
+  border-color: var(--an-color-border);
+  background: var(--an-color-surface-subtle);
+}
+
+.salary-concepts .sc-bulk-result,
+.permanent-concepts .sc-bulk-result {
+  border-top-color: var(--an-color-border);
+}
+
+.salary-concepts .sc-table tbody tr.is-active-row,
+.permanent-concepts .sc-table tbody tr.is-active-row {
+  background: var(--an-color-primary-50);
+  box-shadow: inset 3px 0 0 var(--an-color-primary-600);
+}

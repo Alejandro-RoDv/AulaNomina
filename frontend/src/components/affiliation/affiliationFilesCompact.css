@@ -1,0 +1,38 @@
+/* Split 42: compact the AFI file repository without changing the rest of the affiliation workflow. */
+.afi-page .afi-files-table th {
+  padding-block: var(--an-space-2);
+}
+
+.afi-page .afi-files-table td {
+  padding-block: var(--an-space-2);
+}
+
+.afi-page .afi-files-table td small {
+  margin-top: 0.1rem;
+  line-height: 1.25;
+}
+
+.afi-page .afi-files-table .afi-files-actions {
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: var(--an-space-1);
+  white-space: nowrap;
+}
+
+.afi-page .afi-files-table .afi-files-actions button {
+  min-height: 2rem;
+  padding-inline: var(--an-space-3);
+  font-size: var(--an-font-size-xs);
+}
+
+.afi-page .afi-files-table th:last-child,
+.afi-page .afi-files-table td:last-child {
+  width: 1%;
+  white-space: nowrap;
+}
+
+@media (max-width: 72rem) {
+  .afi-page .afi-files-table .afi-files-actions {
+    flex-wrap: wrap;
+  }
+}

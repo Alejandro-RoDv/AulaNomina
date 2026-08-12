@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 
 const AgreementCriteriaPanel = lazy(() => import("./AgreementCriteriaPanel"));
 const AgreementSeniorityPanel = lazy(() => import("./AgreementSeniorityPanel"));
@@ -18,13 +18,35 @@ const SECTIONS = [
   },
 ];
 
+function classifyCriteriaSummaries(root) {
+  root?.querySelectorAll("article > div:last-child > span").forEach((summary) => {
+    const text = String(summary.textContent || "").trim().toLocaleLowerCase("es-ES");
+    const isStatus = text.includes("pendiente")
+      || text === "no aplicable"
+      || text === "aplicable"
+      || text.includes("informado");
+    summary.dataset.summaryKind = isStatus ? "status" : "detail";
+  });
+}
+
 export default function AgreementCriteriaWorkspace({
   agreement,
   onAgreementChanged,
   onOpenManagementTab,
 }) {
   const [activeSection, setActiveSection] = useState("criteria");
+  const contentRef = useRef(null);
   const section = SECTIONS.find((item) => item.id === activeSection) || SECTIONS[0];
+
+  useEffect(() => {
+    if (activeSection !== "criteria" || !contentRef.current) return undefined;
+
+    const root = contentRef.current;
+    classifyCriteriaSummaries(root);
+    const observer = new MutationObserver(() => classifyCriteriaSummaries(root));
+    observer.observe(root, { childList: true, subtree: true, characterData: true });
+    return () => observer.disconnect();
+  }, [activeSection, agreement.id]);
 
   function handleCriteriaNavigation(target) {
     if (target === "seniority") {
@@ -59,14 +81,10 @@ export default function AgreementCriteriaWorkspace({
           <h3 style={styles.title}>{section.title}</h3>
           <p style={styles.description}>{section.description}</p>
         </div>
-        <div style={styles.status}>
-          <span>Carga</span>
-          <strong>Bajo demanda</strong>
-        </div>
       </header>
 
       <Suspense fallback={<div style={styles.loading}>Cargando apartado laboral…</div>}>
-        <div key={`${agreement.id}:${activeSection}`} style={styles.content}>
+        <div ref={contentRef} key={`${agreement.id}:${activeSection}`} style={styles.content}>
           {activeSection === "criteria" && (
             <AgreementCriteriaPanel
               agreement={agreement}
@@ -91,76 +109,66 @@ const styles = {
   wrapper: {
     display: "flex",
     flexDirection: "column",
-    gap: "10px",
+    gap: "20px",
   },
   tabs: {
     display: "flex",
     flexWrap: "wrap",
-    gap: "4px",
-    border: "1px solid #e5e7eb",
-    backgroundColor: "#f9fafb",
-    padding: "6px",
+    gap: "22px",
+    borderBottom: "1px solid #e2e8f0",
+    backgroundColor: "transparent",
   },
   tab: {
-    minHeight: "34px",
-    border: "1px solid transparent",
+    minHeight: "38px",
+    border: 0,
+    borderBottom: "2px solid transparent",
     backgroundColor: "transparent",
-    color: "#4b5563",
-    padding: "0 12px",
+    color: "#64748b",
+    padding: "0 0 10px",
     fontSize: "12px",
-    fontWeight: 750,
+    fontWeight: 700,
     cursor: "pointer",
   },
   tabActive: {
-    minHeight: "34px",
-    border: "1px solid #d1d5db",
-    borderBottomColor: "#eab308",
-    backgroundColor: "#fff",
-    color: "#111827",
-    padding: "0 12px",
+    minHeight: "38px",
+    border: 0,
+    borderBottom: "2px solid #2563eb",
+    backgroundColor: "transparent",
+    color: "#1d4ed8",
+    padding: "0 0 10px",
     fontSize: "12px",
-    fontWeight: 850,
+    fontWeight: 800,
     cursor: "pointer",
   },
   header: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    gap: "16px",
-    border: "1px solid #e5e7eb",
-    borderLeft: "3px solid #facc15",
-    backgroundColor: "#fff",
-    padding: "11px 13px",
+    borderBottom: "1px solid #e2e8f0",
+    padding: "0 0 18px",
   },
   title: {
     margin: 0,
-    color: "#111827",
-    fontSize: "15px",
-    fontWeight: 850,
+    color: "#0f172a",
+    fontSize: "16px",
+    fontWeight: 800,
   },
   description: {
-    margin: "3px 0 0",
-    color: "#6b7280",
+    margin: "5px 0 0",
+    maxWidth: "68ch",
+    color: "#64748b",
     fontSize: "12px",
-  },
-  status: {
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "flex-end",
-    color: "#6b7280",
-    fontSize: "11px",
+    lineHeight: 1.5,
   },
   loading: {
-    border: "1px solid #e5e7eb",
-    backgroundColor: "#f9fafb",
-    color: "#4b5563",
-    padding: "14px",
+    border: "1px solid #e2e8f0",
+    borderRadius: "8px",
+    backgroundColor: "#f8fafc",
+    color: "#475569",
+    padding: "12px 14px",
     fontSize: "12px",
-    fontWeight: 750,
+    fontWeight: 700,
   },
   content: {
     display: "flex",
     flexDirection: "column",
-    gap: "10px",
+    gap: "18px",
   },
 };

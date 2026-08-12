@@ -1,0 +1,48 @@
+/* Ajustes globales del panel de configuración.
+   El modal vive dentro del header, que usa backdrop-filter y crea un containing block
+   para elementos fixed. Cuando ajustes está abierto anulamos ese contexto y elevamos
+   el header para que el backdrop cubra toda la aplicación, incluidos sidebar y rutas
+   superpuestas. */
+
+html:has(.an-header__modal-overlay),
+body:has(.an-header__modal-overlay) {
+  overflow: hidden;
+}
+
+.an-header:has(.an-header__modal-overlay) {
+  z-index: 10000 !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.an-header:has(.an-header__modal-overlay) .an-header__modal-overlay {
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100vw !important;
+  height: 100dvh !important;
+  min-height: 100vh !important;
+  box-sizing: border-box;
+  z-index: 10001 !important;
+  overflow-y: auto;
+  padding: calc(var(--an-topbar-height) + var(--an-space-4)) var(--an-space-6) var(--an-space-6) !important;
+  background: rgb(15 23 42 / 58%) !important;
+}
+
+.an-header:has(.an-header__modal-overlay) .an-header__modal {
+  position: relative;
+  z-index: 1;
+  max-height: calc(100dvh - var(--an-topbar-height) - (var(--an-space-4) * 2));
+  overflow-y: auto;
+}
+
+@media (max-width: 720px) {
+  .an-header:has(.an-header__modal-overlay) .an-header__modal-overlay {
+    align-items: flex-start !important;
+    padding: var(--an-space-4) !important;
+  }
+
+  .an-header:has(.an-header__modal-overlay) .an-header__modal {
+    width: 100% !important;
+    max-height: calc(100dvh - (var(--an-space-4) * 2));
+  }
+}

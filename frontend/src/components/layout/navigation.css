@@ -78,23 +78,23 @@
     color var(--an-duration-fast) var(--an-ease-standard);
 }
 
-.an-sidebar__item-row:hover {
+.an-sidebar__item-row:hover,
+.an-sidebar__item-row.has-active-child:hover {
   background: var(--an-color-surface-muted);
 }
 
-.an-sidebar__item-row.is-active,
-.an-sidebar__item-row.is-active:hover {
-  background: var(--an-color-primary-50);
-}
-
-.an-sidebar__item-row .an-sidebar__item,
-.an-sidebar__item-row .an-sidebar__item:hover,
-.an-sidebar__item-row .an-sidebar__item.is-active {
+.an-sidebar__item-row.has-active-child {
   background: transparent;
 }
 
-.an-sidebar__item-row .an-sidebar__item.is-active {
-  color: var(--an-color-primary-700);
+.an-sidebar__item-row .an-sidebar__item,
+.an-sidebar__item-row .an-sidebar__item:hover {
+  background: transparent;
+}
+
+.an-sidebar__item-row.has-active-child .an-sidebar__item {
+  color: var(--an-color-text-primary);
+  font-weight: var(--an-font-weight-semibold);
 }
 
 .an-sidebar__item--with-toggle {

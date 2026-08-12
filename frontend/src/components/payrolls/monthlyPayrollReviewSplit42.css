@@ -1,0 +1,106 @@
+.payroll-s42__result-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--payroll-line);
+}
+
+.payroll-s42__result-toolbar > div {
+  display: grid;
+  grid-template-columns: auto auto;
+  align-items: baseline;
+  gap: 3px 10px;
+}
+
+.payroll-s42__result-toolbar strong {
+  color: var(--payroll-ink);
+  font-size: 15px;
+}
+
+.payroll-s42__result-toolbar small {
+  grid-column: 1 / -1;
+  color: var(--payroll-muted);
+  font-size: 11px;
+}
+
+.payroll-s42__result-eyebrow {
+  color: var(--payroll-blue-strong);
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: .07em;
+}
+
+.payroll-s42__history-link {
+  flex: 0 0 auto;
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid #b8c1ce;
+  border-radius: 6px;
+  background: #fff;
+  color: #344054;
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.payroll-s42__history-link:hover {
+  border-color: var(--payroll-blue);
+  color: var(--payroll-blue-strong);
+}
+
+.payroll-s42__table-action {
+  min-height: 30px;
+  padding: 0 10px;
+  border: 1px solid #93c5fd;
+  border-radius: 6px;
+  background: var(--payroll-blue-soft);
+  color: var(--payroll-blue-strong);
+  font-size: 10px;
+  font-weight: 850;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.payroll-s42__table-action:hover:not(:disabled) {
+  border-color: var(--payroll-blue);
+  background: #dbeafe;
+}
+
+.payroll-s42__table-action:disabled {
+  border-color: #d7dde7;
+  background: #f2f4f7;
+  color: #98a2b3;
+  cursor: not-allowed;
+}
+
+.payroll-s42__preparation-results {
+  gap: 0 !important;
+}
+
+.payroll-s42__preparation-results > div:nth-child(2) {
+  padding: 14px 0;
+  border-bottom: 1px solid var(--payroll-line);
+}
+
+.payroll-s42__skipped {
+  margin: 14px 0 0;
+  border-color: #eadfb9 !important;
+  background: #fffdf7 !important;
+}
+
+.payroll-s42__skipped h3 {
+  color: #7c5d12 !important;
+}
+
+@media (max-width: 760px) {
+  .payroll-s42__result-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .payroll-s42__history-link {
+    width: 100%;
+  }
+}

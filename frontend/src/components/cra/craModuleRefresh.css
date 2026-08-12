@@ -1,0 +1,990 @@
+/* Split 42 — CRA alineado con el lenguaje visual general de AulaNomina.
+   La hoja base mantiene el layout/funcionalidad; aquí se normalizan color,
+   jerarquía, densidad y estados de las tres pestañas del módulo. */
+
+.cra-workspace {
+  gap: 16px;
+  color: #172033;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Cabecera del módulo                                                        */
+/* -------------------------------------------------------------------------- */
+
+.cra-hero {
+  align-items: center;
+  gap: 24px;
+  border: 1px solid #dbe3ed;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: none;
+  padding: 18px 20px;
+}
+
+.cra-hero h2 {
+  margin: 3px 0 5px;
+  color: #172033;
+  font-size: 20px;
+  line-height: 1.25;
+  font-weight: 800;
+}
+
+.cra-hero p {
+  max-width: 760px;
+  margin: 0;
+  color: #62708a;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.45;
+}
+
+.cra-eyebrow {
+  color: #2563eb;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.075em;
+}
+
+.cra-hero__summary {
+  grid-template-columns: repeat(2, minmax(130px, 1fr));
+  min-width: 300px;
+  border-left: 1px solid #dbe3ed;
+}
+
+.cra-hero__summary > div {
+  gap: 3px;
+  padding: 6px 18px;
+}
+
+.cra-hero__summary span {
+  color: #738199;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.cra-hero__summary strong {
+  color: #172033;
+  font-size: 22px;
+  line-height: 1.15;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Pestañas internas                                                          */
+/* -------------------------------------------------------------------------- */
+
+.cra-tabs {
+  display: flex;
+  align-items: flex-end;
+  gap: 26px;
+  border: 0;
+  border-bottom: 1px solid #dbe3ed;
+  background: transparent;
+}
+
+.cra-tab {
+  display: inline-flex;
+  flex: 0 0 auto;
+  min-height: 46px;
+  gap: 1px;
+  border: 0;
+  border-right: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  padding: 7px 0 9px;
+  color: #6b7890;
+}
+
+.cra-tab:last-child {
+  border-right: 0;
+}
+
+.cra-tab strong {
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.cra-tab small {
+  color: #98a3b3;
+  font-size: 9px;
+  font-weight: 500;
+}
+
+.cra-tab:hover {
+  background: transparent;
+  color: #1d4ed8;
+}
+
+.cra-tab--active {
+  border-bottom-color: #2563eb;
+  background: transparent;
+  color: #1d4ed8;
+  box-shadow: none;
+}
+
+.cra-tab--active small {
+  color: #64748b;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Mensajes                                                                   */
+/* -------------------------------------------------------------------------- */
+
+.cra-alert,
+.cra-validation-banner {
+  border: 1px solid;
+  border-radius: 7px;
+  padding: 10px 12px;
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 1.45;
+}
+
+.cra-alert--success,
+.cra-validation-banner--success {
+  border-color: #b9e6c8;
+  background: #f4fbf6;
+  color: #27613b;
+}
+
+.cra-alert--error,
+.cra-validation-banner--danger {
+  border-color: #f1c5c5;
+  background: #fff7f7;
+  color: #9f2f2f;
+}
+
+.cra-review-box {
+  gap: 4px;
+  margin: 12px 0;
+  border: 1px solid;
+  border-radius: 7px;
+  padding: 10px 12px;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.cra-review-box--warning {
+  border-color: #ead7aa;
+  border-left: 3px solid #c98a21;
+  background: #fffaf1;
+  color: #805719;
+}
+
+.cra-review-box--danger {
+  border-color: #efcaca;
+  border-left: 3px solid #c24141;
+  background: #fff8f8;
+  color: #963636;
+}
+
+.cra-text-warning {
+  color: #a45b08;
+  font-weight: 750;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Asistente Generar CRA                                                      */
+/* -------------------------------------------------------------------------- */
+
+.cra-wizard {
+  border: 1px solid #dbe3ed;
+  border-radius: 8px;
+  background: #ffffff;
+  overflow: hidden;
+}
+
+.cra-wizard-step {
+  min-height: 58px;
+  gap: 9px;
+  border-right: 1px solid #e4e9f0;
+  padding: 9px 13px;
+  background: #ffffff;
+}
+
+.cra-wizard-step__number {
+  width: 26px;
+  height: 26px;
+  flex-basis: 26px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #7a879a;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.cra-wizard-step strong {
+  color: #4b5870;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.cra-wizard-step small {
+  color: #8793a7;
+  font-size: 9px;
+  font-weight: 500;
+}
+
+.cra-wizard-step--active {
+  background: #f5f8fd;
+}
+
+.cra-wizard-step--active .cra-wizard-step__number {
+  border-color: #2563eb;
+  background: #2563eb;
+  color: #ffffff;
+}
+
+.cra-wizard-step--active strong {
+  color: #172033;
+}
+
+.cra-wizard-step--done {
+  background: #ffffff;
+}
+
+.cra-wizard-step--done .cra-wizard-step__number {
+  border-color: #b7cef8;
+  background: #eef4ff;
+  color: #2563eb;
+}
+
+.cra-field > span,
+.cra-checkbox-field > span,
+.cra-validation-toolbar label {
+  color: #46546b;
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: 0.02em;
+}
+
+.cra-field input,
+.cra-field select,
+.cra-table select,
+.cra-table-toolbar input,
+.cra-validation-toolbar select {
+  min-height: 38px;
+  border-color: #cbd6e3;
+  border-radius: 6px;
+  background: #ffffff;
+  padding: 7px 10px;
+  color: #172033;
+  font-size: 12px;
+  font-weight: 550;
+}
+
+.cra-field input:focus,
+.cra-field select:focus,
+.cra-table select:focus,
+.cra-table-toolbar input:focus,
+.cra-validation-toolbar select:focus {
+  border-color: #7ca7f8;
+  outline: 2px solid rgba(37, 99, 235, 0.12);
+}
+
+.cra-field small,
+.cra-validation-toolbar small {
+  color: #7a879a;
+  font-size: 10px;
+  font-weight: 500;
+}
+
+.cra-check-panel {
+  gap: 0;
+  margin-top: 18px;
+  border: 1px solid #dbe3ed;
+  border-radius: 7px;
+  background: #f8fafc;
+  padding: 0;
+  overflow: hidden;
+}
+
+.cra-check-panel__item {
+  min-width: 0;
+  gap: 9px;
+  padding: 11px 13px;
+  border-right: 1px solid #e4e9f0;
+}
+
+.cra-check-panel__item:last-of-type {
+  border-right: 0;
+}
+
+.cra-check-panel__item strong {
+  color: #263349;
+  font-size: 11px;
+}
+
+.cra-check-panel__item small {
+  color: #738199;
+  font-size: 10px;
+  font-weight: 500;
+}
+
+.cra-check-icon {
+  width: 24px;
+  height: 24px;
+  flex-basis: 24px;
+  border-radius: 6px;
+  background: #eef4ff;
+  color: #2563eb;
+  font-size: 10px;
+}
+
+.cra-check-icon--ok {
+  background: #eef8f1;
+  color: #2f7d46;
+}
+
+.cra-check-icon--warning {
+  background: #fff5df;
+  color: #a46712;
+}
+
+.cra-action-bar {
+  margin-top: 18px;
+  border-top-color: #e1e7ef;
+  padding-top: 14px;
+}
+
+.cra-action-bar > span,
+.cra-action-bar__right > span {
+  color: #7a879a;
+  font-size: 10px;
+  font-weight: 500;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Botones                                                                    */
+/* -------------------------------------------------------------------------- */
+
+.cra-button,
+.cra-validation-toolbar > button,
+.cra-validation-toolbar__actions > button,
+.cra-validation-primary,
+.cra-validation-secondary {
+  min-height: 36px;
+  border-radius: 6px;
+  padding: 7px 12px;
+  font-size: 11px;
+  font-weight: 750;
+  box-shadow: none;
+}
+
+.cra-button--primary,
+.cra-validation-primary {
+  border: 1px solid #2563eb;
+  background: #2563eb;
+  color: #ffffff;
+}
+
+.cra-button--primary:hover:not(:disabled),
+.cra-validation-primary:hover:not(:disabled) {
+  border-color: #1d4ed8;
+  background: #1d4ed8;
+}
+
+.cra-button--secondary,
+.cra-validation-toolbar > button,
+.cra-validation-toolbar__actions > button:not(.cra-validation-primary),
+.cra-validation-secondary {
+  border: 1px solid #cbd6e3;
+  background: #ffffff;
+  color: #344258;
+}
+
+.cra-button--secondary:hover:not(:disabled),
+.cra-validation-toolbar > button:hover:not(:disabled),
+.cra-validation-toolbar__actions > button:not(.cra-validation-primary):hover:not(:disabled),
+.cra-validation-secondary:hover:not(:disabled) {
+  border-color: #aebdd0;
+  background: #f8fafc;
+}
+
+.cra-button--send {
+  border-color: #bfdbfe;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.cra-link-button {
+  color: #2563eb;
+  font-size: 10px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.cra-link-button:hover {
+  text-decoration: underline;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Métricas                                                                   */
+/* -------------------------------------------------------------------------- */
+
+.cra-metrics {
+  gap: 0;
+  margin-bottom: 16px;
+  border: 1px solid #dbe3ed;
+  border-radius: 7px;
+  background: #ffffff;
+  overflow: hidden;
+}
+
+.cra-metric {
+  min-height: 66px;
+  gap: 2px;
+  border: 0;
+  border-right: 1px solid #e4e9f0;
+  background: #ffffff;
+  padding: 10px 12px;
+}
+
+.cra-metric:last-child {
+  border-right: 0;
+}
+
+.cra-metric > span {
+  color: #738199;
+  font-size: 9px;
+  font-weight: 750;
+}
+
+.cra-metric > strong {
+  color: #172033;
+  font-size: 19px;
+}
+
+.cra-metric > small {
+  color: #8793a7;
+  font-size: 9px;
+  font-weight: 500;
+}
+
+.cra-metric--highlight,
+.cra-metric--success,
+.cra-metric--warning,
+.cra-metric--danger {
+  border: 0;
+  border-right: 1px solid #e4e9f0;
+  background: #ffffff;
+  box-shadow: none;
+}
+
+.cra-metric--highlight {
+  box-shadow: inset 0 2px 0 #93b4f6;
+}
+
+.cra-metric--highlight > strong {
+  color: #1d4ed8;
+}
+
+.cra-metric--success {
+  box-shadow: inset 0 2px 0 #a8d5b5;
+}
+
+.cra-metric--success > strong {
+  color: #317548;
+}
+
+.cra-metric--warning {
+  box-shadow: inset 0 2px 0 #e7c783;
+}
+
+.cra-metric--warning > strong {
+  color: #93611a;
+}
+
+.cra-metric--danger {
+  box-shadow: inset 0 2px 0 #e3aaaa;
+}
+
+.cra-metric--danger > strong {
+  color: #a03d3d;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Tablas comunes                                                             */
+/* -------------------------------------------------------------------------- */
+
+.cra-table-toolbar {
+  margin-top: 16px;
+  border-color: #dbe3ed;
+  background: #f8fafc;
+  padding: 9px 11px;
+}
+
+.cra-table-toolbar strong {
+  color: #263349;
+  font-size: 11px;
+}
+
+.cra-table-toolbar small {
+  color: #7a879a;
+  font-size: 9px;
+  font-weight: 500;
+}
+
+.cra-table-wrap {
+  border-color: #dbe3ed;
+  border-radius: 0 0 7px 7px;
+}
+
+.cra-table {
+  color: #344258;
+}
+
+.cra-table th {
+  border-bottom: 1px solid #cbd6e3;
+  background: #f2f5f8;
+  padding: 7px 9px;
+  color: #56647b;
+  font-size: 9px;
+  font-weight: 800;
+}
+
+.cra-table td {
+  padding: 7px 9px;
+  vertical-align: middle;
+}
+
+.cra-table tbody tr:hover td {
+  background: #f8fbff;
+}
+
+.cra-table td small {
+  margin-top: 2px;
+  color: #7a879a;
+  font-size: 9px;
+}
+
+.cra-table__selected td {
+  background: #f2f7ff;
+}
+
+.cra-table__attention td {
+  background: #fffafa;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Pestaña Configuración de conceptos                                         */
+/* -------------------------------------------------------------------------- */
+
+.cra-config-intro {
+  border: 1px solid #dbe3ed;
+  border-radius: 7px;
+  background: #f8fafc;
+  padding: 11px 13px;
+}
+
+.cra-config-intro > div {
+  gap: 14px;
+}
+
+.cra-config-intro strong {
+  color: #263349;
+}
+
+.cra-config-intro ol {
+  color: #617089;
+  font-size: 10px;
+  font-weight: 500;
+}
+
+.cra-config-filters {
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.cra-bulk-panel {
+  margin-top: 14px;
+  border: 1px solid #dbe3ed;
+  border-radius: 7px;
+  background: #f8fafc;
+  padding: 12px;
+}
+
+.cra-bulk-panel__title strong {
+  color: #263349;
+}
+
+.cra-bulk-panel__title small {
+  color: #7a879a;
+  font-weight: 500;
+}
+
+.cra-status,
+.cra-config-state {
+  border: 1px solid transparent;
+  padding: 3px 7px;
+  font-size: 9px;
+  font-weight: 750;
+}
+
+.cra-status--success,
+.cra-config-state--mapped {
+  border-color: #cbe8d3;
+  background: #f2faf4;
+  color: #347449;
+}
+
+.cra-status--warning,
+.cra-config-state--inactive {
+  border-color: #ead9b6;
+  background: #fffaf1;
+  color: #916018;
+}
+
+.cra-status--danger,
+.cra-config-state--unmapped {
+  border-color: #eccaca;
+  background: #fff7f7;
+  color: #9d3d3d;
+}
+
+.cra-status--pending {
+  border-color: #d0def8;
+  background: #f3f7ff;
+  color: #3c64aa;
+}
+
+.cra-status--neutral {
+  border-color: #dbe3ed;
+  background: #f6f8fa;
+  color: #5d6a7f;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Pestaña Ficheros, respuestas y rectificaciones                             */
+/* -------------------------------------------------------------------------- */
+
+.cra-validation-flow {
+  margin-bottom: 16px;
+  border: 1px solid #dbe3ed;
+  border-radius: 7px;
+  background: #f8fafc;
+  padding: 9px 12px;
+  color: #617089;
+  font-size: 10px;
+  font-weight: 650;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.cra-validation-flow strong {
+  color: #a0aaba;
+  font-size: 13px;
+}
+
+.cra-validation-toolbar {
+  grid-template-columns: minmax(230px, 1fr) minmax(300px, 1.35fr) minmax(210px, 0.8fr) auto;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.cra-validation-toolbar__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cra-validation-summary-grid {
+  gap: 0;
+  margin-bottom: 16px;
+  border: 1px solid #dbe3ed;
+  border-radius: 7px;
+  background: #ffffff;
+  overflow: hidden;
+}
+
+.cra-validation-summary {
+  min-height: 62px;
+  border: 0;
+  border-right: 1px solid #e4e9f0;
+  background: #ffffff;
+  padding: 9px 11px;
+}
+
+.cra-validation-summary:last-child {
+  border-right: 0;
+}
+
+.cra-validation-summary span {
+  color: #738199;
+  font-size: 9px;
+  font-weight: 750;
+}
+
+.cra-validation-summary strong {
+  color: #172033;
+  font-size: 18px;
+}
+
+.cra-validation-summary--success,
+.cra-validation-summary--warning,
+.cra-validation-summary--danger,
+.cra-validation-summary--info {
+  background: #ffffff;
+}
+
+.cra-validation-summary--success {
+  box-shadow: inset 0 2px 0 #a8d5b5;
+}
+
+.cra-validation-summary--success strong {
+  color: #317548;
+}
+
+.cra-validation-summary--warning {
+  box-shadow: inset 0 2px 0 #e7c783;
+}
+
+.cra-validation-summary--warning strong {
+  color: #93611a;
+}
+
+.cra-validation-summary--danger {
+  box-shadow: inset 0 2px 0 #e3aaaa;
+}
+
+.cra-validation-summary--danger strong {
+  color: #a03d3d;
+}
+
+.cra-validation-summary--info {
+  box-shadow: inset 0 2px 0 #a9c2f2;
+}
+
+.cra-validation-summary--info strong {
+  color: #3c64aa;
+}
+
+.cra-validation-layout {
+  gap: 14px;
+}
+
+.cra-validation-table-wrap {
+  border-color: #dbe3ed;
+  border-radius: 7px;
+  background: #ffffff;
+}
+
+.cra-validation-table {
+  color: #344258;
+  font-size: 11px;
+}
+
+.cra-validation-table th {
+  border-bottom: 1px solid #cbd6e3;
+  background: #f2f5f8;
+  padding: 8px 9px;
+  color: #56647b;
+  font-size: 9px;
+  font-weight: 800;
+}
+
+.cra-validation-table td {
+  border-bottom-color: #e8edf3;
+  padding: 8px 9px;
+}
+
+.cra-validation-table td small {
+  color: #7a879a;
+  font-size: 9px;
+}
+
+.cra-validation-table tbody tr:hover,
+.cra-validation-table tbody tr.is-selected {
+  background: #f3f7fd;
+}
+
+.cra-validation-table tbody tr.is-selected {
+  box-shadow: inset 3px 0 0 #2563eb;
+}
+
+.cra-validation-status {
+  border-width: 1px;
+  padding: 3px 7px;
+  font-size: 9px;
+  font-weight: 750;
+}
+
+.cra-validation-status--success {
+  border-color: #cbe8d3;
+  background: #f2faf4;
+  color: #347449;
+}
+
+.cra-validation-status--warning {
+  border-color: #ead9b6;
+  background: #fffaf1;
+  color: #916018;
+}
+
+.cra-validation-status--danger {
+  border-color: #eccaca;
+  background: #fff7f7;
+  color: #9d3d3d;
+}
+
+.cra-validation-status--neutral {
+  border-color: #d5dde7;
+  background: #f7f9fb;
+  color: #5d6a7f;
+}
+
+.cra-validation-linked {
+  border-color: #d0def8;
+  background: #f3f7ff;
+  color: #3c64aa;
+  padding: 3px 7px;
+  font-size: 9px;
+  font-weight: 750;
+}
+
+.cra-validation-detail {
+  border: 1px solid #dbe3ed;
+  border-radius: 7px;
+  background: #ffffff;
+  padding: 14px;
+  box-shadow: none;
+}
+
+.cra-validation-detail-header {
+  border-bottom-color: #e1e7ef;
+}
+
+.cra-validation-detail-header span:first-child,
+.cra-validation-data dt {
+  color: #738199;
+  font-size: 9px;
+  font-weight: 750;
+}
+
+.cra-validation-detail-header strong,
+.cra-validation-data dd {
+  color: #263349;
+}
+
+.cra-validation-data div {
+  border-color: #e3e8ef;
+  border-radius: 5px;
+  background: #f8fafc;
+}
+
+.cra-validation-response {
+  border-left-width: 3px;
+  border-radius: 0 6px 6px 0;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.cra-validation-response--success {
+  border-color: #79b88d;
+  background: #f4fbf6;
+  color: #316c43;
+}
+
+.cra-validation-response--warning {
+  border-color: #d3a34f;
+  background: #fffaf1;
+  color: #805719;
+}
+
+.cra-validation-response--danger {
+  border-color: #d87878;
+  background: #fff7f7;
+  color: #963636;
+}
+
+.cra-validation-response--neutral {
+  border-color: #9aa6b6;
+  background: #f8fafc;
+  color: #53627a;
+}
+
+.cra-validation-message {
+  border-radius: 6px;
+  font-size: 11px;
+}
+
+.cra-validation-message--danger {
+  border-color: #efcaca;
+  background: #fff8f8;
+  color: #963636;
+}
+
+.cra-validation-message--warning {
+  border-color: #ead7aa;
+  background: #fffaf1;
+  color: #805719;
+}
+
+.cra-validation-message--info {
+  border-color: #cbdaf5;
+  background: #f4f7fd;
+  color: #3f5f95;
+}
+
+.cra-validation-correction-help {
+  border-top: 1px solid #dbe3ed;
+  border-radius: 6px;
+  background: #f8fafc;
+  color: #53627a;
+}
+
+/* -------------------------------------------------------------------------- */
+/* XML / inspector                                                            */
+/* -------------------------------------------------------------------------- */
+
+.cra-file-inspector__summary {
+  border-color: #dbe3ed;
+  background: #f8fafc;
+}
+
+.cra-file-inspector__summary > div {
+  border-right-color: #e3e8ef;
+}
+
+.cra-file-inspector pre,
+.cra-validation-xml {
+  border-color: #273244;
+  border-radius: 6px;
+  background: #172033;
+  color: #d9e2ef;
+  box-shadow: none;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Responsive                                                                 */
+/* -------------------------------------------------------------------------- */
+
+@media (max-width: 900px) {
+  .cra-tabs {
+    gap: 14px;
+    overflow-x: auto;
+  }
+
+  .cra-tab {
+    min-width: max-content;
+    border-bottom: 2px solid transparent;
+  }
+
+  .cra-tab--active {
+    border-bottom-color: #2563eb;
+  }
+
+  .cra-hero__summary {
+    border-top: 1px solid #dbe3ed;
+  }
+
+  .cra-wizard-step {
+    border-bottom: 1px solid #e4e9f0;
+  }
+
+  .cra-metric,
+  .cra-validation-summary {
+    border-right: 0;
+    border-bottom: 1px solid #e4e9f0;
+  }
+}

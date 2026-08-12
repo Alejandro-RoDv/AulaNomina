@@ -1,18 +1,19 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import AgreementCriteriaWorkspace from "../components/agreements/AgreementCriteriaWorkspace";
 import AgreementSalaryWorkspace from "../components/agreements/AgreementSalaryWorkspace";
+import "../components/agreements/agreementSplit42Refinements.css";
 import { useAgreementWorkspace } from "../hooks/useAgreementWorkspace";
 import CollectiveAgreementsManagementPage from "./CollectiveAgreementsManagementPage.jsx";
 
 const VIEW_COPY = {
   criteria: {
     title: "Criterios laborales del convenio",
-    subtitle: "Criterios generales y antigüedad cargados únicamente al abrir cada apartado.",
+    subtitle: "Configura las reglas laborales y condiciones aplicables al convenio.",
   },
   salary: {
     title: "Estructura salarial del convenio",
-    subtitle: "Conceptos, revisiones, activaciones, atrasos y pagas cargados bajo demanda.",
+    subtitle: "Gestiona conceptos, revisiones, activaciones, atrasos y pagas del convenio.",
   },
 };
 
@@ -34,6 +35,16 @@ export default function CollectiveAgreementsWorkspacePage(props) {
     onDataChanged: props.onDataChanged,
   });
 
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent("aulanomina-header-context", {
+      detail: {
+        eyebrow: "Organización",
+        title: "Convenios",
+        subtitle: "Gestión de convenios colectivos, estructura salarial y criterios laborales",
+      },
+    }));
+  }, []);
+
   function openManagementTab(targetTab) {
     setManagementTab(targetTab || "overview");
     setView("management");
@@ -42,8 +53,8 @@ export default function CollectiveAgreementsWorkspacePage(props) {
   const copy = VIEW_COPY[view];
 
   return (
-    <div style={styles.wrapper}>
-      <nav style={styles.tabs}>
+    <div className="agreement-workspace" style={styles.wrapper}>
+      <nav style={styles.tabs} aria-label="Áreas del convenio">
         <button type="button" onClick={() => setView("management")} style={view === "management" ? styles.tabActive : styles.tab}>Gestión del convenio</button>
         <button type="button" onClick={() => setView("salary")} style={view === "salary" ? styles.tabActive : styles.tab}>Estructura salarial</button>
         <button type="button" onClick={() => setView("criteria")} style={view === "criteria" ? styles.tabActive : styles.tab}>Criterios laborales</button>
@@ -123,19 +134,19 @@ function Summary({ label, value }) {
 }
 
 const styles = {
-  wrapper: { display: "flex", flexDirection: "column", gap: "12px" },
-  tabs: { display: "flex", flexWrap: "wrap", gap: "2px", borderBottom: "1px solid #d1d5db", background: "#fff" },
-  tab: { border: 0, borderBottom: "3px solid transparent", background: "transparent", padding: "10px 14px", color: "#4b5563", fontSize: "13px", fontWeight: 750, cursor: "pointer" },
-  tabActive: { border: 0, borderBottom: "3px solid #facc15", background: "#fff", padding: "10px 14px", color: "#111827", fontSize: "13px", fontWeight: 850, cursor: "pointer" },
-  workspaceArea: { display: "flex", flexDirection: "column", gap: "10px" },
-  header: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "18px", alignItems: "end", border: "1px solid #e5e7eb", background: "#fff", padding: "14px" },
-  title: { margin: 0, fontSize: "20px", fontWeight: 850, color: "#111827" },
-  subtitle: { margin: "4px 0 0", color: "#6b7280", fontSize: "12px", fontWeight: 600 },
-  label: { display: "flex", flexDirection: "column", gap: "5px", color: "#374151", fontSize: "12px", fontWeight: 800 },
-  select: { width: "100%", height: "36px", border: "1px solid #d1d5db", background: "#fff", padding: "6px 9px", fontSize: "13px" },
-  summary: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: "12px", border: "1px solid #e5e7eb", borderLeft: "3px solid #facc15", background: "#fff", padding: "10px 12px" },
-  summaryItem: { display: "flex", flexDirection: "column", gap: "2px", color: "#374151", fontSize: "12px" },
-  notice: { border: "1px solid #e5e7eb", background: "#f9fafb", color: "#4b5563", padding: "12px", fontSize: "12px", fontWeight: 750 },
-  errorRow: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", border: "1px solid #fecaca", background: "#fef2f2", color: "#991b1b", padding: "10px", fontSize: "12px", fontWeight: 750 },
-  retryButton: { minHeight: "32px", border: "1px solid #b91c1c", background: "#fff", color: "#991b1b", padding: "5px 10px", fontSize: "12px", fontWeight: 800, cursor: "pointer" },
+  wrapper: { display: "flex", flexDirection: "column", gap: "22px" },
+  tabs: { display: "flex", flexWrap: "wrap", gap: "24px", borderBottom: "1px solid #e2e8f0", background: "transparent" },
+  tab: { border: 0, borderBottom: "2px solid transparent", background: "transparent", padding: "0 0 12px", color: "#64748b", fontSize: "13px", fontWeight: 700, cursor: "pointer" },
+  tabActive: { border: 0, borderBottom: "2px solid #2563eb", background: "transparent", padding: "0 0 12px", color: "#1d4ed8", fontSize: "13px", fontWeight: 800, cursor: "pointer" },
+  workspaceArea: { display: "flex", flexDirection: "column", gap: "22px" },
+  header: { display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(320px, 0.8fr)", gap: "28px", alignItems: "end", borderBottom: "1px solid #e2e8f0", padding: "0 0 20px" },
+  title: { margin: 0, fontSize: "20px", fontWeight: 800, color: "#0f172a" },
+  subtitle: { margin: "6px 0 0", maxWidth: "62ch", color: "#64748b", fontSize: "13px", lineHeight: 1.5 },
+  label: { display: "flex", flexDirection: "column", gap: "6px", color: "#475569", fontSize: "12px", fontWeight: 700 },
+  select: { width: "100%", minHeight: "40px", border: "1px solid #cbd5e1", borderRadius: "7px", background: "#fff", padding: "7px 10px", fontSize: "13px", color: "#0f172a" },
+  summary: { display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: "24px", borderBottom: "1px solid #e2e8f0", padding: "0 0 18px" },
+  summaryItem: { display: "flex", flexDirection: "column", gap: "4px", color: "#64748b", fontSize: "12px" },
+  notice: { border: "1px solid #e2e8f0", borderRadius: "8px", background: "#f8fafc", color: "#475569", padding: "12px 14px", fontSize: "12px", fontWeight: 700 },
+  errorRow: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", border: "1px solid #fecaca", borderRadius: "8px", background: "#fef2f2", color: "#991b1b", padding: "10px 12px", fontSize: "12px", fontWeight: 700 },
+  retryButton: { minHeight: "32px", border: "1px solid #fecaca", borderRadius: "6px", background: "#fff", color: "#991b1b", padding: "5px 10px", fontSize: "12px", fontWeight: 700, cursor: "pointer" },
 };

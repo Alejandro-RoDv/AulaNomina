@@ -80,12 +80,14 @@ export function DataTableSummary({
   className = "",
   ...props
 }) {
+  const resultText = total === null || Number(count) === Number(total)
+    ? `${count} resultados`
+    : `${count} de ${total} resultados`;
+
   return (
     <div className={joinClassNames("an-data-table__summary", className)} {...props}>
-      <strong>{label}</strong>
-      <span>
-        {total === null ? `${count} resultados` : `${count} de ${total} resultados`}
-      </span>
+      {label && <strong>{label}</strong>}
+      <span>{resultText}</span>
     </div>
   );
 }

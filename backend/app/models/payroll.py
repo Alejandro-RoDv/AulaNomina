@@ -7,9 +7,13 @@ from app.db import Base
 
 
 SPECIAL_PERIOD_LABELS = {
-    13: "Paga extra julio",
+    13: "Paga extra verano",
     14: "Paga extra diciembre",
-    15: "Paga extra complementaria",
+    15: "Paga extra 1",
+    16: "Paga extra 2",
+    17: "Paga extra 3",
+    18: "Paga extra 4",
+    19: "Paga extra 5",
 }
 
 
