@@ -112,11 +112,26 @@ def _demo_cases() -> list[CaseStudyCreate]:
             category="contract",
             status="active",
             created_by="Profesor demo",
+            initial_state={
+                "employee": "Fulanito Pérez",
+                "employee_data": {
+                    "first_name": "Fulanito",
+                    "last_name": "Pérez",
+                    "dni": "12345678Z",
+                    "naf": "14/1234567890",
+                    "birth_date": "1995-04-12",
+                    "nationality": "Española",
+                    "email": "fulanito.perez@demo.aulanomina.local",
+                },
+                "company_name": "Fundación AulaNomina",
+                "center_name": "Colegio San Rafael",
+                "start_date": "2026-09-01",
+            },
             completion_message="El expediente inicial del trabajador está completo y listo para revisión docente.",
             tasks=[
-                CaseTaskCreate(title="Crear trabajador", description="Dar de alta a Fulanito Pérez con datos personales completos.", module="employees", expected_result="Trabajador creado y activo", expected_action="create_employee", task_order=1),
+                CaseTaskCreate(title="Crear trabajador", description="Crear el expediente de Fulanito Pérez con los datos personales facilitados en el caso.", module="employees", expected_result="Trabajador creado y activo", expected_action="create_employee", task_order=1),
                 CaseTaskCreate(title="Asignar empresa y centro", description="Vincular el trabajador a Fundación AulaNomina y Colegio San Rafael.", module="employees", expected_result="Empresa y centro visibles en la ficha", expected_action="assign_employee", task_order=2),
-                CaseTaskCreate(title="Crear contrato indefinido", description="Registrar contrato activo con fecha de inicio indicada por el profesor.", module="contracts", expected_result="Contrato indefinido activo", expected_action="create_contract", task_order=3),
+                CaseTaskCreate(title="Crear contrato indefinido", description="Registrar un contrato indefinido activo con fecha de inicio 01/09/2026.", module="contracts", expected_result="Contrato indefinido activo", expected_action="create_contract", task_order=3),
                 CaseTaskCreate(title="Generar checklist documental", description="Preparar DNI/NIE, NAF, contrato firmado y Modelo 145.", module="documents", expected_result="Documentos iniciales creados", expected_action="review_documents", task_order=4),
             ],
         ),
@@ -222,8 +237,14 @@ def seed_demo_case_studies(db: Session):
                 continue
             setattr(existing, field, value)
 
-        if not existing.tasks:
-            for task in definition.tasks:
-                db.add(CaseTask(case_study_id=existing.id, **_task_data(task)))
+        existing_by_order = {task.task_order: task for task in existing.tasks}
+        for task_definition in definition.tasks:
+            task_values = _task_data(task_definition)
+            existing_task = existing_by_order.get(task_definition.task_order)
+            if existing_task is None:
+                db.add(CaseTask(case_study_id=existing.id, **task_values))
+                continue
+            for field, value in task_values.items():
+                setattr(existing_task, field, value)
 
         db.commit()
