@@ -91,6 +91,24 @@ DEFAULT_LEARNING = {
     "hint": "Identifica primero qué área del ERP corresponde al resultado solicitado.",
 }
 
+ACTIVITY_CONTEXT = {
+    "create_employee": "El proceso comienza con la creación del expediente de la persona que va a incorporarse. Este paso debe quedar resuelto antes de continuar con su contratación y documentación.",
+    "assign_employee": "El trabajador debe quedar vinculado a la estructura de la organización. Completa su empresa y centro para que el resto del expediente utilice la adscripción correcta.",
+    "create_contract": "Con los datos personales preparados, el siguiente paso es formalizar la relación laboral mediante el contrato indicado en el caso.",
+    "review_contract": "Hay que comprobar que la información contractual relevante coincide con la situación planteada antes de modificar conceptos o cálculos posteriores.",
+    "prepare_affiliation": "La relación laboral ya está preparada y ahora debes dejar coherente el movimiento de afiliación que se comunicará a la Seguridad Social.",
+    "review_fie": "Se ha recibido información del INSS que afecta al expediente. Antes de continuar, revisa la comunicación y contrástala con la situación del trabajador.",
+    "reconcile_fie": "La comunicación del INSS debe quedar relacionada con la incidencia laboral correspondiente para mantener una única situación coherente en el expediente.",
+    "create_incident": "Existe un hecho laboral que altera la situación ordinaria del trabajador. Regístralo con los datos y fechas indicados antes de revisar sus efectos posteriores.",
+    "recalculate_payroll": "El expediente contiene un cambio con impacto económico. Debes volver a calcular el periodo afectado para que la nómina refleje la situación actual.",
+    "update_payroll_concept": "Se ha detectado una diferencia en la estructura salarial. Revisa el concepto afectado y deja configurado el importe o criterio que corresponda.",
+    "create_regularization": "Existe una diferencia sobre un periodo ya calculado. Genera la regularización necesaria conservando la trazabilidad entre el cálculo anterior y el nuevo resultado.",
+    "filter_documents": "El expediente contiene documentación pendiente de revisión. Identifica primero qué elementos requieren actuación antes de modificar sus estados.",
+    "update_document": "Ya se ha identificado un documento que requiere tratamiento. Actualiza su estado de acuerdo con la evidencia disponible en el expediente.",
+    "review_documents": "El proceso documental debe terminar con un expediente coherente, sin elementos críticos pendientes de tratar.",
+    "reply_mail": "La situación requiere una respuesta profesional por correo. Redacta la comunicación utilizando únicamente la información disponible en el expediente y en el hilo recibido.",
+}
+
 SUPPORTED_AUTOMATIC_ACTIONS = {
     "create_employee",
     "create_contract",
@@ -127,6 +145,24 @@ def _learning_for_task(task: CaseTask, difficulty: str | None) -> dict[str, str]
     elif level in {"intermediate", "medium"}:
         hint = hint.replace("Encontrarás esta operación en ", "Revisa el área ").replace("Encontrarás los movimientos en ", "Revisa ")
     return {**learning, "hint": hint}
+
+
+def _situation_for_task(case_study: CaseStudy, task: CaseTask) -> str:
+    action = (task.expected_action or "").strip()
+    specific = ACTIVITY_CONTEXT.get(action)
+    if specific:
+        return specific
+
+    module = (task.module or "").strip().lower()
+    if module == "documents":
+        return ACTIVITY_CONTEXT["review_documents"]
+    if module == "incidents":
+        return ACTIVITY_CONTEXT["create_incident"]
+
+    return (
+        f"Estás trabajando en el caso «{case_study.title}». "
+        "Resuelve este paso antes de continuar con las siguientes operaciones del expediente."
+    )
 
 
 def _select_assignments(db: Session) -> list[CaseAssignment]:
@@ -226,7 +262,7 @@ def build_activity_course(db: Session) -> dict[str, Any]:
                     "unit": case_study.title,
                     "order": task.task_order,
                     "title": task.title,
-                    "situation": case_study.description or "Analiza la situación planteada y actúa dentro del ERP.",
+                    "situation": _situation_for_task(case_study, task),
                     "objective": task.expected_result or task.title,
                     "instructions": task.description or task.expected_result or task.title,
                     "concepts": {
