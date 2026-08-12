@@ -9,9 +9,10 @@ import { fetchAllEmployees } from "../../services/employeeApi";
 import { fetchIncidents } from "../../services/incidentApi";
 import { fetchPayrolls } from "../../services/payrollApi";
 import { fetchWorkCenters } from "../../services/workCenterApi";
-import { generateAlerts, getAlertStats } from "../../utils/alertRules";
+import { generateAlerts, getAlertStats, groupAlertsForDisplay } from "../../utils/alertRules";
 import "./layout.css";
 import "./panel-header-polish.css";
+import "../alerts/alertsModern.css";
 
 const SEVERITY_LABELS = {
   critical: "Crítica",
@@ -109,7 +110,7 @@ export default function Header({
   const effectiveTitle = pageContext?.title || title;
   const effectiveSubtitle = pageContext?.subtitle ?? subtitle;
   const effectiveEyebrow = pageContext?.eyebrow || "AulaNomina";
-  const alerts = useMemo(() => generateAlerts(alertData), [alertData]);
+  const alerts = useMemo(() => groupAlertsForDisplay(generateAlerts(alertData)), [alertData]);
   const alertStats = useMemo(() => getAlertStats(alerts), [alerts]);
   const previewAlerts = alerts.slice(0, 5);
   const showWorkerTabs = isWorkerTitle(effectiveTitle);
