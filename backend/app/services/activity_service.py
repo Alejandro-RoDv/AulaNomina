@@ -121,10 +121,22 @@ SUPPORTED_AUTOMATIC_ACTIONS = {
     "review_contract",
     "update_payroll_concept",
     "recalculate_payroll",
+    "create_regularization",
     "review_fie",
     "reconcile_fie",
     "reply_mail",
 }
+
+EMPLOYEE_DATA_LABELS = [
+    ("first_name", "Nombre"),
+    ("last_name", "Apellidos"),
+    ("second_last_name", "Segundo apellido"),
+    ("dni", "DNI/NIE"),
+    ("naf", "NAF"),
+    ("birth_date", "Fecha de nacimiento"),
+    ("nationality", "Nacionalidad"),
+    ("email", "Email"),
+]
 
 ASSIGNMENT_STATUS_PRIORITY = {
     "in_progress": 0,
@@ -241,7 +253,13 @@ def _case_data(db: Session, case_study: CaseStudy, task: CaseTask) -> list[dict[
     rows: list[dict[str, str]] = []
 
     employee_name = _case_employee_name(case_study)
-    if employee_name:
+    employee_data = state.get("employee_data") or {}
+    if action == "create_employee" and employee_data:
+        for field, label in EMPLOYEE_DATA_LABELS:
+            value = employee_data.get(field)
+            if value not in {None, ""}:
+                rows.append({"label": label, "value": str(value)})
+    elif employee_name:
         rows.append({"label": "Trabajador", "value": employee_name})
 
     if action == "assign_employee":
@@ -250,7 +268,7 @@ def _case_data(db: Session, case_study: CaseStudy, task: CaseTask) -> list[dict[
             rows.append({"label": "Empresa", "value": str(company_name)})
         if center_name:
             rows.append({"label": "Centro", "value": str(center_name)})
-    else:
+    elif action != "create_employee":
         replaced = state.get("replaced_employee")
         if replaced and _normalize(replaced) != _normalize(employee_name):
             rows.append({"label": "Persona sustituida", "value": str(replaced)})
@@ -263,14 +281,26 @@ def _case_data(db: Session, case_study: CaseStudy, task: CaseTask) -> list[dict[
         if period:
             rows.append({"label": "Periodo", "value": str(period)})
 
-    if case_study.scenario_code and len(rows) < 5:
+    if case_study.scenario_code and len(rows) < 8:
         rows.append({"label": "Referencia", "value": case_study.scenario_code})
 
-    return rows[:5]
+    return rows[:8]
 
 
 def _expected_items(case_study: CaseStudy, task: CaseTask) -> list[str]:
     action = (task.expected_action or "").strip()
+    state = case_study.initial_state or {}
+
+    if action == "create_employee":
+        if state.get("employee_data"):
+            return [
+                "Trabajador localizado en AulaNomina",
+                "Datos identificativos coinciden con el caso",
+                "Expediente activo",
+            ]
+        employee_name = _case_employee_name(case_study)
+        return [f"Trabajador creado y activo: {employee_name}" if employee_name else "Trabajador creado y activo"]
+
     if action == "assign_employee":
         company_name, center_name = _assignment_names(case_study)
         items = []
@@ -278,14 +308,106 @@ def _expected_items(case_study: CaseStudy, task: CaseTask) -> list[str]:
             items.append(f"Empresa: {company_name}")
         if center_name:
             items.append(f"Centro: {center_name}")
-        if items:
-            return items
+        return items or [task.expected_result or task.title]
 
-    employee_name = _case_employee_name(case_study)
-    if action == "create_employee" and employee_name:
-        return [f"Trabajador creado y activo: {employee_name}"]
+    if action == "review_contract":
+        return ["Contrato activo localizado", "Fecha de antigüedad informada en el contrato"]
+
+    if action == "prepare_affiliation":
+        items = ["Movimiento de alta preparado"]
+        if state.get("start_date"):
+            items.append(f"Fecha de alta: {state['start_date']}")
+        return items
+
+    if action == "create_incident":
+        items = ["Incidencia registrada para el trabajador"]
+        if state.get("leave_start"):
+            items.append(f"Fecha de inicio: {state['leave_start']}")
+        return items
+
+    labels = {
+        "create_contract": "Contrato activo registrado",
+        "review_fie": "Comunicación FIE revisada",
+        "reconcile_fie": "Comunicación FIE conciliada con la incidencia",
+        "recalculate_payroll": "Nómina del periodo recalculada",
+        "update_payroll_concept": "Concepto salarial requerido activo",
+        "create_regularization": "Regularización aplicada y trazable",
+        "reply_mail": "Respuesta enviada dentro del hilo profesional",
+    }
+    if action in labels:
+        return [labels[action]]
 
     return [task.expected_result or task.title]
+
+
+def _validation_attempted(validation_result: dict[str, Any]) -> bool:
+    events = validation_result.get("events") or []
+    return any(item.get("operation_status") in {"success", "error"} for item in events)
+
+
+def _check_for(validation_result: dict[str, Any], *rule_types: str) -> dict[str, Any] | None:
+    wanted = set(rule_types)
+    return next(
+        (item for item in (validation_result.get("checks") or []) if item.get("rule_type") in wanted),
+        None,
+    )
+
+
+def _result_criteria(
+    case_study: CaseStudy,
+    task: CaseTask,
+    validation_result: dict[str, Any],
+    is_completed: bool,
+) -> list[dict[str, str]]:
+    labels = _expected_items(case_study, task)
+    if is_completed or validation_result.get("passed") is True:
+        return [{"label": label, "status": "passed"} for label in labels]
+
+    if not _validation_attempted(validation_result):
+        return [{"label": label, "status": "pending"} for label in labels]
+
+    action = (task.expected_action or "").strip()
+    if action == "create_employee" and len(labels) >= 3:
+        check = _check_for(validation_result, "employee_profile_matches", "employee_exists") or {}
+        evidence = check.get("evidence") or {}
+        employee_found = bool(evidence.get("employee_id"))
+        field_matches = evidence.get("field_matches") or {}
+        identity_status = "passed" if field_matches and all(field_matches.values()) else "failed"
+        if not field_matches and employee_found:
+            identity_status = "pending"
+        return [
+            {"label": labels[0], "status": "passed" if employee_found else "failed"},
+            {"label": labels[1], "status": identity_status},
+            {"label": labels[2], "status": "passed" if evidence.get("is_active") else "failed"},
+        ]
+
+    if action == "assign_employee" and len(labels) >= 2:
+        check = _check_for(validation_result, "employee_assignment") or {}
+        evidence = check.get("evidence") or {}
+        return [
+            {"label": labels[0], "status": "passed" if evidence.get("company_matches") else "failed"},
+            {"label": labels[1], "status": "passed" if evidence.get("center_matches") else "failed"},
+        ]
+
+    if action == "review_contract" and len(labels) >= 2:
+        check = _check_for(validation_result, "seniority_date_checked") or {}
+        evidence = check.get("evidence") or {}
+        return [
+            {"label": labels[0], "status": "passed" if evidence.get("contract_id") else "failed"},
+            {"label": labels[1], "status": "passed" if evidence.get("seniority_date") else "failed"},
+        ]
+
+    if action == "prepare_affiliation" and len(labels) >= 2:
+        check = _check_for(validation_result, "affiliation_prepared") or {}
+        evidence = check.get("evidence") or {}
+        return [
+            {"label": labels[0], "status": "passed" if evidence.get("registration_id") else "failed"},
+            {"label": labels[1], "status": "passed" if evidence.get("date_matches") else "failed"},
+        ]
+
+    failed = any(not item.get("passed") for item in (validation_result.get("checks") or []) if item.get("supported", True))
+    status = "failed" if failed else "pending"
+    return [{"label": label, "status": status} for label in labels]
 
 
 def _select_assignments(db: Session) -> list[CaseAssignment]:
@@ -320,6 +442,7 @@ def _condition_for_task(task: CaseTask) -> dict[str, Any]:
         action in SUPPORTED_AUTOMATIC_ACTIONS
         or any((rule.get("type") or "") in {
             "employee_exists",
+            "employee_profile_matches",
             "employee_assignment",
             "active_contract",
             "affiliation_prepared",
@@ -329,6 +452,7 @@ def _condition_for_task(task: CaseTask) -> dict[str, Any]:
             "payroll_recalculated",
             "seniority_date_checked",
             "payroll_concept_exists",
+            "regularization_created",
             "reply_mail",
         } for rule in rules)
     )
@@ -377,9 +501,11 @@ def build_activity_course(db: Session) -> dict[str, Any]:
             topic_order, topic_key, topic_title = _topic_for_task(task)
             progress = progress_by_task.get(task.id)
             status = progress.status if progress else "pending"
+            validation_result = progress.validation_result if progress else {}
             learning = _learning_for_task(task, case_study.difficulty)
             requires_mail = task.trigger_type == "mail_response"
             condition = _condition_for_task(task)
+            is_completed = status == "completed"
             activities.append(
                 {
                     "id": f"{assignment.id}:{task.id}",
@@ -397,6 +523,7 @@ def build_activity_course(db: Session) -> dict[str, Any]:
                     "situation": _situation_for_task(case_study, task),
                     "objective": task.expected_result or task.title,
                     "expected_items": _expected_items(case_study, task),
+                    "result_criteria": _result_criteria(case_study, task, validation_result, is_completed),
                     "case_data": _case_data(db, case_study, task),
                     "instructions": task.description or task.expected_result or task.title,
                     "concepts": {
@@ -408,11 +535,11 @@ def build_activity_course(db: Session) -> dict[str, Any]:
                     "related_mail_thread_ids": mail_thread_ids if requires_mail else [],
                     "completion_condition": condition,
                     "status": status,
-                    "is_completed": status == "completed",
+                    "is_completed": is_completed,
                     "difficulty": case_study.difficulty,
                     "module": task.module,
                     "context": _activity_context(db, assignment, task),
-                    "validation_result": progress.validation_result if progress else {},
+                    "validation_result": validation_result,
                 }
             )
 
