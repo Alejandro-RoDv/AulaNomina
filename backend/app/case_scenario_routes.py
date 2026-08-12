@@ -13,6 +13,7 @@ from app.schemas.teacher_case_dashboard import (
     TeacherCaseDashboardResponse,
     TeacherCaseDetailResponse,
 )
+from app.services.activity_service import build_activity_course
 from app.services.case_scenario_service import (
     CaseScenarioError,
     build_assignment_scenario,
@@ -47,6 +48,12 @@ def _translate_error(error: CaseScenarioError):
         status_code=error.status_code,
         detail={"code": error.code, "message": error.message},
     ) from error
+
+
+@router.get("/course-activities")
+def read_course_activities(db: Session = Depends(get_db)):
+    """Return the data-driven course view built on existing case/task progress."""
+    return build_activity_course(db)
 
 
 @router.get("/teacher-dashboard", response_model=TeacherCaseDashboardResponse)
