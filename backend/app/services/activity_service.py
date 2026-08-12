@@ -1,12 +1,16 @@
 from __future__ import annotations
 
 from collections import defaultdict
+import re
 from typing import Any
+import unicodedata
 
 from sqlalchemy.orm import Session
 
 from app.models.case_assignment import CaseAssignment
 from app.models.case_study import CaseStudy, CaseTask
+from app.models.company import Company
+from app.models.work_center import WorkCenter
 from app.services.case_scenario_service import ensure_assignment_progress
 
 
@@ -92,18 +96,18 @@ DEFAULT_LEARNING = {
 }
 
 ACTIVITY_CONTEXT = {
-    "create_employee": "El proceso comienza con la creación del expediente de la persona que va a incorporarse. Este paso debe quedar resuelto antes de continuar con su contratación y documentación.",
-    "assign_employee": "El trabajador debe quedar vinculado a la estructura de la organización. Completa su empresa y centro para que el resto del expediente utilice la adscripción correcta.",
-    "create_contract": "Con los datos personales preparados, el siguiente paso es formalizar la relación laboral mediante el contrato indicado en el caso.",
-    "review_contract": "Hay que comprobar que la información contractual relevante coincide con la situación planteada antes de modificar conceptos o cálculos posteriores.",
+    "create_employee": "Se incorpora una nueva persona y todavía no existe su expediente laboral en AulaNomina. Crea su ficha con los datos indicados para poder continuar con el resto del proceso.",
+    "assign_employee": "La ficha personal ya está preparada, pero falta completar su adscripción dentro de la organización. Debes dejar asignadas la empresa y el centro de trabajo correctos.",
+    "create_contract": "Los datos personales están preparados y ahora hay que formalizar la relación laboral mediante el contrato indicado en el caso.",
+    "review_contract": "Antes de modificar conceptos o cálculos posteriores, comprueba que la información contractual relevante coincide con la situación planteada.",
     "prepare_affiliation": "La relación laboral ya está preparada y ahora debes dejar coherente el movimiento de afiliación que se comunicará a la Seguridad Social.",
-    "review_fie": "Se ha recibido información del INSS que afecta al expediente. Antes de continuar, revisa la comunicación y contrástala con la situación del trabajador.",
+    "review_fie": "Se ha recibido información del INSS que afecta al expediente. Revisa la comunicación y contrástala con la situación del trabajador antes de continuar.",
     "reconcile_fie": "La comunicación del INSS debe quedar relacionada con la incidencia laboral correspondiente para mantener una única situación coherente en el expediente.",
     "create_incident": "Existe un hecho laboral que altera la situación ordinaria del trabajador. Regístralo con los datos y fechas indicados antes de revisar sus efectos posteriores.",
-    "recalculate_payroll": "El expediente contiene un cambio con impacto económico. Debes volver a calcular el periodo afectado para que la nómina refleje la situación actual.",
+    "recalculate_payroll": "El expediente contiene un cambio con impacto económico. Vuelve a calcular el periodo afectado para que la nómina refleje la situación actual.",
     "update_payroll_concept": "Se ha detectado una diferencia en la estructura salarial. Revisa el concepto afectado y deja configurado el importe o criterio que corresponda.",
     "create_regularization": "Existe una diferencia sobre un periodo ya calculado. Genera la regularización necesaria conservando la trazabilidad entre el cálculo anterior y el nuevo resultado.",
-    "filter_documents": "El expediente contiene documentación pendiente de revisión. Identifica primero qué elementos requieren actuación antes de modificar sus estados.",
+    "filter_documents": "El expediente contiene documentación pendiente de revisión. Identifica qué elementos requieren actuación antes de modificar sus estados.",
     "update_document": "Ya se ha identificado un documento que requiere tratamiento. Actualiza su estado de acuerdo con la evidencia disponible en el expediente.",
     "review_documents": "El proceso documental debe terminar con un expediente coherente, sin elementos críticos pendientes de tratar.",
     "reply_mail": "La situación requiere una respuesta profesional por correo. Redacta la comunicación utilizando únicamente la información disponible en el expediente y en el hilo recibido.",
@@ -111,6 +115,7 @@ ACTIVITY_CONTEXT = {
 
 SUPPORTED_AUTOMATIC_ACTIONS = {
     "create_employee",
+    "assign_employee",
     "create_contract",
     "prepare_affiliation",
     "review_contract",
@@ -129,6 +134,11 @@ ASSIGNMENT_STATUS_PRIORITY = {
     "reviewed": 4,
     "approved": 5,
 }
+
+
+def _normalize(value: Any) -> str:
+    text = unicodedata.normalize("NFKD", str(value or ""))
+    return "".join(character for character in text if not unicodedata.combining(character)).casefold().strip()
 
 
 def _topic_for_task(task: CaseTask) -> tuple[int, str, str]:
@@ -160,9 +170,122 @@ def _situation_for_task(case_study: CaseStudy, task: CaseTask) -> str:
         return ACTIVITY_CONTEXT["create_incident"]
 
     return (
-        f"Estás trabajando en el caso «{case_study.title}». "
-        "Resuelve este paso antes de continuar con las siguientes operaciones del expediente."
+        f"Continúas trabajando en el caso «{case_study.title}». "
+        "Resuelve este paso manteniendo coherencia con los datos disponibles en el expediente."
     )
+
+
+def _case_employee_name(case_study: CaseStudy) -> str | None:
+    state = case_study.initial_state or {}
+    direct = state.get("employee") or state.get("substitute")
+    if direct:
+        return str(direct).strip()
+
+    for task in sorted(case_study.tasks, key=lambda item: (item.task_order, item.id)):
+        description = str(task.description or "").strip()
+        title = str(task.title or "").strip()
+        if task.expected_action == "create_employee":
+            match = re.search(r"Dar de alta a\s+(.+?)\s+con\b", description, flags=re.IGNORECASE)
+            if match:
+                return match.group(1).strip()
+            match = re.search(r"Crear expediente de\s+(.+)$", title, flags=re.IGNORECASE)
+            if match:
+                return match.group(1).strip()
+    return None
+
+
+def _assignment_names(case_study: CaseStudy) -> tuple[str | None, str | None]:
+    state = case_study.initial_state or {}
+    company_name = state.get("company_name") or state.get("company")
+    center_name = state.get("center_name") or state.get("center")
+
+    task = next((item for item in case_study.tasks if item.expected_action == "assign_employee"), None)
+    if task and (not company_name or not center_name):
+        match = re.search(
+            r"Vincular el trabajador a\s+(.+?)\s+y\s+(.+?)(?:\.|$)",
+            str(task.description or ""),
+            flags=re.IGNORECASE,
+        )
+        if match:
+            company_name = company_name or match.group(1).strip()
+            center_name = center_name or match.group(2).strip()
+    return company_name, center_name
+
+
+def _find_company_id(db: Session, name: str | None) -> int | None:
+    if not name:
+        return None
+    expected = _normalize(name)
+    for company in db.query(Company).all():
+        if _normalize(company.name) == expected:
+            return company.id
+    return None
+
+
+def _find_center_id(db: Session, name: str | None, company_id: int | None = None) -> int | None:
+    if not name:
+        return None
+    expected = _normalize(name)
+    query = db.query(WorkCenter)
+    if company_id:
+        query = query.filter(WorkCenter.company_id == company_id)
+    for center in query.all():
+        if _normalize(center.name) == expected:
+            return center.id
+    return None
+
+
+def _case_data(db: Session, case_study: CaseStudy, task: CaseTask) -> list[dict[str, str]]:
+    state = case_study.initial_state or {}
+    action = (task.expected_action or "").strip()
+    rows: list[dict[str, str]] = []
+
+    employee_name = _case_employee_name(case_study)
+    if employee_name:
+        rows.append({"label": "Trabajador", "value": employee_name})
+
+    if action == "assign_employee":
+        company_name, center_name = _assignment_names(case_study)
+        if company_name:
+            rows.append({"label": "Empresa", "value": str(company_name)})
+        if center_name:
+            rows.append({"label": "Centro", "value": str(center_name)})
+    else:
+        replaced = state.get("replaced_employee")
+        if replaced and _normalize(replaced) != _normalize(employee_name):
+            rows.append({"label": "Persona sustituida", "value": str(replaced)})
+
+        date_value = state.get("start_date") or state.get("leave_start") or state.get("effective_date")
+        if date_value:
+            rows.append({"label": "Fecha", "value": str(date_value)})
+
+        period = state.get("payroll_period")
+        if period:
+            rows.append({"label": "Periodo", "value": str(period)})
+
+    if case_study.scenario_code and len(rows) < 5:
+        rows.append({"label": "Referencia", "value": case_study.scenario_code})
+
+    return rows[:5]
+
+
+def _expected_items(case_study: CaseStudy, task: CaseTask) -> list[str]:
+    action = (task.expected_action or "").strip()
+    if action == "assign_employee":
+        company_name, center_name = _assignment_names(case_study)
+        items = []
+        if company_name:
+            items.append(f"Empresa: {company_name}")
+        if center_name:
+            items.append(f"Centro: {center_name}")
+        if items:
+            return items
+
+    employee_name = _case_employee_name(case_study)
+    if action == "create_employee" and employee_name:
+        return [f"Trabajador creado y activo: {employee_name}"]
+
+    return [task.expected_result or task.title]
 
 
 def _select_assignments(db: Session) -> list[CaseAssignment]:
@@ -197,6 +320,7 @@ def _condition_for_task(task: CaseTask) -> dict[str, Any]:
         action in SUPPORTED_AUTOMATIC_ACTIONS
         or any((rule.get("type") or "") in {
             "employee_exists",
+            "employee_assignment",
             "active_contract",
             "affiliation_prepared",
             "incident_exists",
@@ -215,16 +339,20 @@ def _condition_for_task(task: CaseTask) -> dict[str, Any]:
     }
 
 
-def _activity_context(assignment: CaseAssignment, task: CaseTask) -> dict[str, Any]:
+def _activity_context(db: Session, assignment: CaseAssignment, task: CaseTask) -> dict[str, Any]:
     state = assignment.case_study.initial_state or {}
+    company_name, center_name = _assignment_names(assignment.case_study)
+    company_id = assignment.case_study.company_id or _find_company_id(db, company_name)
+    center_id = _find_center_id(db, center_name, company_id)
     return {
         "assignmentId": assignment.id,
         "taskId": task.id,
         "actionCode": task.expected_action,
         "moduleCode": task.module,
         "scenarioCode": assignment.case_study.scenario_code,
-        "employeeName": state.get("employee") or state.get("substitute"),
-        "companyId": assignment.case_study.company_id,
+        "employeeName": _case_employee_name(assignment.case_study),
+        "companyId": company_id,
+        "centerId": center_id,
         "period": state.get("payroll_period"),
         "startDate": state.get("start_date") or state.get("leave_start") or state.get("effective_date"),
     }
@@ -242,8 +370,10 @@ def build_activity_course(db: Session) -> dict[str, Any]:
         progress_by_task = {entry.task_id: entry for entry in assignment.progress_entries}
         mail_thread_ids = [thread.id for thread in assignment.email_threads]
         case_study = assignment.case_study
+        ordered_tasks = sorted(case_study.tasks, key=lambda item: (item.task_order, item.id))
+        total_case_steps = len(ordered_tasks)
 
-        for task in sorted(case_study.tasks, key=lambda item: (item.task_order, item.id)):
+        for case_position, task in enumerate(ordered_tasks, start=1):
             topic_order, topic_key, topic_title = _topic_for_task(task)
             progress = progress_by_task.get(task.id)
             status = progress.status if progress else "pending"
@@ -261,9 +391,13 @@ def build_activity_course(db: Session) -> dict[str, Any]:
                     "topic_title": topic_title,
                     "unit": case_study.title,
                     "order": task.task_order,
+                    "case_step": case_position,
+                    "case_total_steps": total_case_steps,
                     "title": task.title,
                     "situation": _situation_for_task(case_study, task),
                     "objective": task.expected_result or task.title,
+                    "expected_items": _expected_items(case_study, task),
+                    "case_data": _case_data(db, case_study, task),
                     "instructions": task.description or task.expected_result or task.title,
                     "concepts": {
                         "title": learning["title"],
@@ -277,7 +411,7 @@ def build_activity_course(db: Session) -> dict[str, Any]:
                     "is_completed": status == "completed",
                     "difficulty": case_study.difficulty,
                     "module": task.module,
-                    "context": _activity_context(assignment, task),
+                    "context": _activity_context(db, assignment, task),
                     "validation_result": progress.validation_result if progress else {},
                 }
             )
