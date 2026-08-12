@@ -4,6 +4,7 @@ import {
   BookOpen,
   Check,
   CheckCircle2,
+  ChevronDown,
   ChevronRight,
   Circle,
   Mail,
@@ -63,6 +64,7 @@ export default function ActivitiesCenter() {
   const [open, setOpen] = useState(false);
   const [course, setCourse] = useState(null);
   const [selectedId, setSelectedId] = useState(null);
+  const [expandedTopicKey, setExpandedTopicKey] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [checkingId, setCheckingId] = useState(null);
@@ -113,6 +115,11 @@ export default function ActivitiesCenter() {
 
   const selectedActivity = useMemo(() => findActivity(course, selectedId), [course, selectedId]);
   const pending = course?.course?.pending;
+  const topicCount = course?.topics?.length || 0;
+
+  useEffect(() => {
+    if (selectedActivity?.topic_key) setExpandedTopicKey(selectedActivity.topic_key);
+  }, [selectedActivity?.id, selectedActivity?.topic_key]);
 
   const openCenter = async () => {
     setOpen(true);
@@ -121,6 +128,7 @@ export default function ActivitiesCenter() {
 
   const selectActivity = async (activity) => {
     setSelectedId(activity.id);
+    setExpandedTopicKey(activity.topic_key);
     persistActivityContext(activity);
 
     if (activity.is_completed || !activity.completion_condition?.automatic) return;
@@ -185,43 +193,54 @@ export default function ActivitiesCenter() {
         <div className="activity-center__workspace">
           <aside className="activity-center__outline" aria-label="Temario y actividades">
             <div className="activity-center__outline-title">
-              <span>Temario</span>
-              <small>{pending ?? "—"} pendientes</small>
+              <span>Contenido</span>
+              <small>{topicCount} temas · {course?.course?.total || 0} actividades</small>
             </div>
             <div className="activity-center__outline-scroll">
-              {(course?.topics || []).map((topic) => (
-                <section key={topic.key} className="activity-center__topic">
-                  <div className="activity-center__topic-header">
-                    <div>
-                      <strong>{topic.order}. {topic.title}</strong>
-                      <span>{topic.total ? `${topic.completed} de ${topic.total} completadas` : "Sin actividades todavía"}</span>
-                    </div>
-                    {topic.total > 0 && <small>{topic.progress_percentage}%</small>}
-                  </div>
-                  {topic.total > 0 && (
-                    <div className="activity-center__topic-list">
-                      {topic.activities.map((activity) => {
-                        const selected = activity.id === selectedId;
-                        return (
-                          <button
-                            type="button"
-                            key={activity.id}
-                            className={`activity-center__activity${selected ? " is-selected" : ""}${activity.is_completed ? " is-completed" : ""}`}
-                            onClick={() => selectActivity(activity)}
-                          >
-                            <ActivityStateIcon activity={activity} selected={selected} />
-                            <span className="activity-center__activity-copy">
-                              <small>{activity.display_number}</small>
-                              <strong>{activity.title}</strong>
-                            </span>
-                            <ChevronRight size={15} aria-hidden="true" />
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-                </section>
-              ))}
+              {(course?.topics || []).map((topic) => {
+                const isExpanded = expandedTopicKey === topic.key;
+                const isComplete = topic.total > 0 && topic.completed === topic.total;
+                return (
+                  <section key={topic.key} className={`activity-center__topic${isExpanded ? " is-open" : ""}${isComplete ? " is-complete" : ""}`}>
+                    <button
+                      type="button"
+                      className="activity-center__topic-header"
+                      onClick={() => topic.total > 0 && setExpandedTopicKey((current) => current === topic.key ? null : topic.key)}
+                      aria-expanded={isExpanded}
+                      disabled={topic.total === 0}
+                    >
+                      <span className="activity-center__topic-name">{topic.order}. {topic.title}</span>
+                      <span className="activity-center__topic-summary">
+                        {topic.total > 0 ? `${topic.completed}/${topic.total} · ${topic.progress_percentage}%` : "Sin actividades"}
+                      </span>
+                      <ChevronDown className="activity-center__topic-chevron" size={15} aria-hidden="true" />
+                    </button>
+
+                    {isExpanded && topic.total > 0 && (
+                      <div className="activity-center__topic-list">
+                        {topic.activities.map((activity) => {
+                          const selected = activity.id === selectedId;
+                          return (
+                            <button
+                              type="button"
+                              key={activity.id}
+                              className={`activity-center__activity${selected ? " is-selected" : ""}${activity.is_completed ? " is-completed" : ""}`}
+                              onClick={() => selectActivity(activity)}
+                            >
+                              <ActivityStateIcon activity={activity} selected={selected} />
+                              <span className="activity-center__activity-copy">
+                                <small>{activity.display_number}</small>
+                                <strong title={activity.title}>{activity.title}</strong>
+                              </span>
+                              <ChevronRight size={14} aria-hidden="true" />
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </section>
+                );
+              })}
             </div>
           </aside>
 
@@ -240,56 +259,84 @@ export default function ActivitiesCenter() {
                   <div>
                     <span className="activity-center__unit">{selectedActivity.unit}</span>
                     <h3>{selectedActivity.display_number} · {selectedActivity.title}</h3>
+                    <p className="activity-center__detail-meta">Tema {selectedActivity.topic_order} · {selectedActivity.topic_title}</p>
                   </div>
                   <span className={`activity-center__status${selectedActivity.is_completed ? " is-done" : ""}`}>
                     {selectedActivity.is_completed ? <Check size={14} aria-hidden="true" /> : null}
-                    {selectedActivity.is_completed ? "Objetivo completado" : "Pendiente"}
+                    {selectedActivity.is_completed ? "Completada" : "Pendiente"}
                   </span>
                 </div>
+
+                <section className="activity-center__context-card">
+                  <span className="activity-center__section-label">Contexto</span>
+                  <p>{selectedActivity.situation}</p>
+                </section>
 
                 {selectedActivity.requires_mail && (
                   <div className="activity-center__mail-note">
                     <Mail size={17} aria-hidden="true" />
-                    <span>Esta actividad parte de una comunicación recibida. Consulta Correo para interpretar la información necesaria.</span>
+                    <span>La información necesaria parte de una comunicación recibida. Consulta Correo antes de resolver la actividad.</span>
                   </div>
                 )}
 
-                <section className="activity-center__section">
-                  <span className="activity-center__section-label">Situación</span>
-                  <p>{selectedActivity.situation}</p>
+                <section className="activity-center__task-block">
+                  <span className="activity-center__section-label">Tu tarea</span>
+                  <p>{selectedActivity.instructions}</p>
                 </section>
 
-                <section className="activity-center__section activity-center__section--objective">
-                  <span className="activity-center__section-label">Objetivo</span>
+                <section className={`activity-center__completion-card${selectedActivity.is_completed ? " is-completed" : ""}`}>
+                  <div className="activity-center__completion-heading">
+                    <span className="activity-center__section-label">Se completará cuando</span>
+                    <span className={`activity-center__validation-mode${selectedActivity.is_completed ? " is-done" : ""}`}>
+                      {selectedActivity.is_completed
+                        ? "Completado"
+                        : selectedActivity.completion_condition?.automatic
+                          ? "Comprobación automática"
+                          : "Confirmación manual"}
+                    </span>
+                  </div>
                   <p>{selectedActivity.objective}</p>
-                  {selectedActivity.completion_condition?.automatic && (
-                    <small>{checkingId === selectedActivity.id ? "Comprobando el estado actual…" : "AulaNomina comprobará este objetivo automáticamente."}</small>
+
+                  {!selectedActivity.is_completed && selectedActivity.completion_condition?.automatic && (
+                    <small className="activity-center__completion-note">
+                      {checkingId === selectedActivity.id
+                        ? "Comprobando el resultado actual…"
+                        : "AulaNomina comprobará el resultado al realizar la operación correspondiente."}
+                    </small>
                   )}
-                  {!selectedActivity.completion_condition?.automatic && !selectedActivity.is_completed && (
+
+                  {!selectedActivity.is_completed && !selectedActivity.completion_condition?.automatic && (
                     <div className="activity-center__manual-validation">
-                      <small>Esta actividad todavía no dispone de una comprobación automática suficientemente fiable.</small>
+                      <small>Cuando hayas terminado la operación indicada, confirma la actividad para continuar.</small>
                       <button type="button" className="activity-center__quiet-button" onClick={completeSelectedManually} disabled={checkingId === selectedActivity.id}>
                         <Check size={15} aria-hidden="true" />
-                        {checkingId === selectedActivity.id ? "Confirmando…" : "Confirmar objetivo"}
+                        {checkingId === selectedActivity.id ? "Confirmando…" : "Confirmar actividad"}
                       </button>
                     </div>
                   )}
                 </section>
 
-                <section className="activity-center__section">
-                  <span className="activity-center__section-label">Qué debes hacer</span>
-                  <p>{selectedActivity.instructions}</p>
-                </section>
-
-                <section className="activity-center__concepts">
-                  <span className="activity-center__section-label">Conceptos relacionados</span>
-                  <strong>{selectedActivity.concepts?.title}</strong>
-                  <p>{selectedActivity.concepts?.body}</p>
-                </section>
-
-                <section className="activity-center__hint">
-                  <span className="activity-center__section-label">Pista</span>
-                  <p>{selectedActivity.hint}</p>
+                <section className="activity-center__help">
+                  <span className="activity-center__section-label">Ayuda</span>
+                  <details className="activity-center__help-item">
+                    <summary>
+                      <span>Conceptos relacionados</span>
+                      <ChevronDown size={16} aria-hidden="true" />
+                    </summary>
+                    <div className="activity-center__help-content">
+                      <strong>{selectedActivity.concepts?.title}</strong>
+                      <p>{selectedActivity.concepts?.body}</p>
+                    </div>
+                  </details>
+                  <details className="activity-center__help-item">
+                    <summary>
+                      <span>Pista</span>
+                      <ChevronDown size={16} aria-hidden="true" />
+                    </summary>
+                    <div className="activity-center__help-content">
+                      <p>{selectedActivity.hint}</p>
+                    </div>
+                  </details>
                 </section>
               </article>
             )}
