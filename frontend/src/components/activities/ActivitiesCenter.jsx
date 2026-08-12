@@ -11,7 +11,11 @@ import {
   X,
 } from "lucide-react";
 
-import { fetchActivityCourse, validateActivity } from "../../services/activityApi.js";
+import {
+  completeActivityManually,
+  fetchActivityCourse,
+  validateActivity,
+} from "../../services/activityApi.js";
 import "./activities.css";
 
 const ACTIVE_CASE_CONTEXT_KEY = "aulanomina:active-case-context";
@@ -134,6 +138,21 @@ export default function ActivitiesCenter() {
     }
   };
 
+  const completeSelectedManually = async () => {
+    if (!selectedActivity || selectedActivity.is_completed || selectedActivity.completion_condition?.automatic) return;
+    try {
+      setCheckingId(selectedActivity.id);
+      setError("");
+      persistActivityContext(selectedActivity);
+      await completeActivityManually(selectedActivity.assignment_id, selectedActivity.task_id);
+      await loadCourse({ preserveSelection: true });
+    } catch (requestError) {
+      setError(requestError.message || "No se ha podido confirmar la actividad.");
+    } finally {
+      setCheckingId(null);
+    }
+  };
+
   const overlay = open ? createPortal(
     <div className="activity-center__backdrop" role="presentation" onMouseDown={(event) => {
       if (event.target === event.currentTarget) setOpen(false);
@@ -246,6 +265,15 @@ export default function ActivitiesCenter() {
                   <p>{selectedActivity.objective}</p>
                   {selectedActivity.completion_condition?.automatic && (
                     <small>{checkingId === selectedActivity.id ? "Comprobando el estado actual…" : "AulaNomina comprobará este objetivo automáticamente."}</small>
+                  )}
+                  {!selectedActivity.completion_condition?.automatic && !selectedActivity.is_completed && (
+                    <div className="activity-center__manual-validation">
+                      <small>Esta actividad todavía no dispone de una comprobación automática suficientemente fiable.</small>
+                      <button type="button" onClick={completeSelectedManually} disabled={checkingId === selectedActivity.id}>
+                        <Check size={15} aria-hidden="true" />
+                        {checkingId === selectedActivity.id ? "Confirmando…" : "Confirmar objetivo"}
+                      </button>
+                    </div>
                   )}
                 </section>
 
