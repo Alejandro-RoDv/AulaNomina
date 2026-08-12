@@ -60,6 +60,12 @@ function visibleConversation(message) {
   ));
 }
 
+function isProfessionalUnread(message) {
+  if (!message?.unread) return false;
+  const latest = [...(message.messages || [])].reverse()[0];
+  return latest?.sender_address !== "tutor@aulanomina.local" && latest?.message_type !== "automatic";
+}
+
 function professionalPreview(message) {
   const latest = [...visibleConversation(message)].reverse().find((item) => item.body_text);
   return String(latest?.body_text || "").replace(/\s+/g, " ").trim().slice(0, 140);
@@ -119,17 +125,20 @@ export default function SimpleMailWorkspace({ onClose }) {
     try {
       const filters = { folder };
       if (appliedSearch) filters.search = appliedSearch;
-      const [nextThreads, nextStats] = await Promise.all([
+      const [nextThreads, nextStats, inboxThreads] = await Promise.all([
         fetchMailboxThreads(mailbox.id, filters),
         fetchMailboxStats(mailbox.id),
+        fetchMailboxThreads(mailbox.id, { folder: "inbox" }),
       ]);
       if (sequence !== requestSequence.current) return;
-      setThreads(nextThreads || []);
-      setStats(nextStats || EMPTY_STATS);
+      const visibleThreads = (nextThreads || []).map((thread) => ({ ...thread, unread: isProfessionalUnread(thread) }));
+      const professionalUnread = (inboxThreads || []).filter(isProfessionalUnread).length;
+      setThreads(visibleThreads);
+      setStats({ ...(nextStats || EMPTY_STATS), unread: professionalUnread });
       setSelectedId((current) => {
         const wanted = preferredId || current;
-        if (wanted && nextThreads.some((thread) => thread.id === wanted)) return wanted;
-        return nextThreads[0]?.id || null;
+        if (wanted && visibleThreads.some((thread) => thread.id === wanted)) return wanted;
+        return visibleThreads[0]?.id || null;
       });
       publishStats();
     } catch (requestError) {
@@ -163,9 +172,7 @@ export default function SimpleMailWorkspace({ onClose }) {
     setThreads((current) => current.map((item) => item.id === thread.id ? { ...item, unread: false } : item));
     try {
       await updateMailThread(thread.id, { is_read: true });
-      const nextStats = await fetchMailboxStats(mailbox.id);
-      setStats(nextStats || EMPTY_STATS);
-      publishStats();
+      await loadThreads({ quiet: true, preferredId: thread.id });
     } catch (requestError) {
       setError(requestError.message || "No se ha podido marcar el mensaje como leído.");
     }
