@@ -17,7 +17,7 @@ from app.models.fie import FieCommunication
 from app.models.incident import Incident
 from app.models.mail import EmailMessage
 from app.models.payroll import Payroll
-from app.models.payroll_salary_structure import ContractPayrollConcept, PayrollConcept
+from app.models.payroll_salary_structure import ContractPayrollConcept, PayrollConcept, PayrollItem
 from app.models.social_security_registration import SocialSecurityRegistration
 from app.models.work_center import WorkCenter
 from app.schemas.case_scenario import CaseContextEventCreate, CaseTaskProgressUpdate
@@ -72,6 +72,13 @@ def _find_employee(db: Session, name: str | None) -> Employee | None:
         if actual == expected or expected in actual or actual in expected:
             return employee
     return None
+
+
+def _expected_employee_data(assignment: CaseAssignment, rule: dict[str, Any]) -> dict[str, Any]:
+    state = assignment.case_study.initial_state or {}
+    expected = dict(state.get("employee_data") or {})
+    expected.update(rule.get("employee_data") or {})
+    return expected
 
 
 def _parse_period(value: str | None) -> tuple[int, int] | None:
@@ -189,7 +196,67 @@ def _employee_exists(db: Session, assignment: CaseAssignment, rule: dict[str, An
             if employee and employee.is_active
             else "La persona todavía no está creada como trabajadora activa."
         ),
-        evidence={"employee_id": employee.id if employee else None},
+        evidence={"employee_id": employee.id if employee else None, "is_active": bool(employee and employee.is_active)},
+    )
+
+
+def _employee_profile_matches(db: Session, assignment: CaseAssignment, rule: dict[str, Any]) -> dict[str, Any]:
+    employee = _find_employee(db, _target_employee_name(assignment, rule))
+    if not employee:
+        return _check(
+            "employee_profile_matches",
+            passed=False,
+            message="No se ha encontrado al trabajador que debe crearse.",
+            evidence={"employee_id": None, "is_active": False, "field_matches": {}},
+        )
+
+    expected = _expected_employee_data(assignment, rule)
+    supported_fields = {
+        "first_name": employee.first_name,
+        "last_name": employee.last_name,
+        "second_last_name": employee.second_last_name,
+        "dni": employee.dni,
+        "naf": employee.naf,
+        "birth_date": employee.birth_date,
+        "nationality": employee.nationality,
+        "email": employee.email,
+    }
+    field_matches: dict[str, bool] = {}
+    actual: dict[str, Any] = {}
+    for field, expected_value in expected.items():
+        if field not in supported_fields or expected_value in {None, ""}:
+            continue
+        actual_value = supported_fields[field]
+        actual[field] = str(actual_value) if actual_value is not None else None
+        if field == "birth_date":
+            field_matches[field] = str(actual_value or "") == str(expected_value)
+        else:
+            field_matches[field] = _normalize(actual_value) == _normalize(expected_value)
+
+    profile_matches = all(field_matches.values()) if field_matches else True
+    passed = bool(employee.is_active) and profile_matches
+    mismatched = [field for field, matches in field_matches.items() if not matches]
+    if passed:
+        message = "El trabajador está creado, activo y sus datos principales coinciden con el caso."
+    elif not employee.is_active:
+        message = "El trabajador existe, pero su expediente no está activo."
+    elif mismatched:
+        message = "El trabajador existe, pero algunos datos identificativos no coinciden con el caso."
+    else:
+        message = "El trabajador todavía no cumple las condiciones del caso."
+
+    return _check(
+        "employee_profile_matches",
+        passed=passed,
+        message=message,
+        evidence={
+            "employee_id": employee.id,
+            "is_active": bool(employee.is_active),
+            "field_matches": field_matches,
+            "expected": expected,
+            "actual": actual,
+            "mismatched_fields": mismatched,
+        },
     )
 
 
@@ -233,6 +300,8 @@ def _employee_assignment(db: Session, assignment: CaseAssignment, rule: dict[str
             "center_id": employee.center_id,
             "company_name": actual_company_name,
             "center_name": actual_center_name,
+            "company_matches": company_matches,
+            "center_matches": center_matches,
             "expected_company_id": expected["company_id"],
             "expected_center_id": expected["center_id"],
             "expected_company_name": expected["company_name"],
@@ -307,7 +376,12 @@ def _affiliation_prepared(db: Session, assignment: CaseAssignment, rule: dict[st
             if passed
             else "No existe todavía una preparación de alta válida para la persona del caso."
         ),
-        evidence={"registration_id": registration.id if registration else None},
+        evidence={
+            "registration_id": registration.id if registration else None,
+            "registration_date": str(registration.registration_date) if registration and registration.registration_date else None,
+            "expected_date": str(expected_date) if expected_date else None,
+            "date_matches": bool(date_matches),
+        },
     )
 
 
@@ -410,16 +484,23 @@ def _seniority_date_checked(db: Session, assignment: CaseAssignment, rule: dict[
             .order_by(Contract.id.desc())
             .first()
         )
-    passed = bool(contract and (contract.recognized_seniority_date or contract.seniority_date))
+    actual_date = None
+    if contract:
+        actual_date = contract.recognized_seniority_date or contract.seniority_date
+    passed = bool(contract and actual_date)
     return _check(
         "seniority_date_checked",
         passed=passed,
         message=(
-            "El contrato contiene una fecha de antigüedad revisable."
+            "El contrato activo contiene una fecha de antigüedad revisable."
             if passed
             else "No consta una fecha de antigüedad en el contrato activo."
         ),
-        evidence={"contract_id": contract.id if contract else None},
+        evidence={
+            "employee_id": employee.id if employee else None,
+            "contract_id": contract.id if contract else None,
+            "seniority_date": str(actual_date) if actual_date else None,
+        },
     )
 
 
@@ -458,6 +539,45 @@ def _payroll_concept_exists(db: Session, assignment: CaseAssignment, rule: dict[
     )
 
 
+def _regularization_created(db: Session, assignment: CaseAssignment, rule: dict[str, Any]) -> dict[str, Any]:
+    state = assignment.case_study.initial_state or {}
+    employee = _find_employee(db, _target_employee_name(assignment, rule))
+    target_name = _target_employee_name(assignment, rule)
+    if target_name and not employee:
+        return _check(
+            "regularization_created",
+            passed=False,
+            message="No se ha encontrado al trabajador de la regularización.",
+        )
+
+    period = _parse_period(rule.get("period") or state.get("payroll_period"))
+    query = (
+        db.query(PayrollItem)
+        .join(Payroll, PayrollItem.payroll_id == Payroll.id)
+        .filter(PayrollItem.source_type == "REGULARIZATION")
+    )
+    if employee:
+        query = query.filter(Payroll.employee_id == employee.id)
+    if period:
+        year, month = period
+        query = query.filter(Payroll.period_year == year, Payroll.period_month == month)
+
+    match = query.order_by(PayrollItem.id.desc()).first()
+    return _check(
+        "regularization_created",
+        passed=match is not None,
+        message=(
+            "Existe una regularización aplicada para el trabajador y periodo del caso."
+            if match
+            else "Todavía no se ha encontrado una regularización aplicada para el caso."
+        ),
+        evidence={
+            "payroll_item_id": match.id if match else None,
+            "payroll_id": match.payroll_id if match else None,
+        },
+    )
+
+
 def _reply_mail(db: Session, assignment: CaseAssignment, rule: dict[str, Any]) -> dict[str, Any]:
     thread_ids = [thread.id for thread in assignment.email_threads]
     message = None
@@ -487,18 +607,20 @@ def _reply_mail(db: Session, assignment: CaseAssignment, rule: dict[str, Any]) -
 def _evaluate_rule(db: Session, assignment: CaseAssignment, rule: dict[str, Any]) -> dict[str, Any]:
     rule_type = rule.get("type") or rule.get("action") or ""
     aliases = {
-        "create_employee": "employee_exists",
+        "create_employee": "employee_profile_matches",
         "assign_employee": "employee_assignment",
         "create_contract": "active_contract",
         "prepare_affiliation": "affiliation_prepared",
         "review_contract": "seniority_date_checked",
         "update_payroll_concept": "payroll_concept_exists",
         "recalculate_payroll": "payroll_recalculated",
+        "create_regularization": "regularization_created",
     }
     normalized_type = aliases.get(rule_type, rule_type)
     evaluators = {
         "incident_exists": _incident_exists,
         "employee_exists": _employee_exists,
+        "employee_profile_matches": _employee_profile_matches,
         "employee_assignment": _employee_assignment,
         "active_contract": _active_contract,
         "affiliation_prepared": _affiliation_prepared,
@@ -507,6 +629,7 @@ def _evaluate_rule(db: Session, assignment: CaseAssignment, rule: dict[str, Any]
         "payroll_recalculated": _payroll_recalculated,
         "seniority_date_checked": _seniority_date_checked,
         "payroll_concept_exists": _payroll_concept_exists,
+        "regularization_created": _regularization_created,
         "reply_mail": _reply_mail,
     }
     evaluator = evaluators.get(normalized_type)
