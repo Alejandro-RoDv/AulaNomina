@@ -8,6 +8,7 @@ import { fetchAllEmployees } from "../../services/employeeApi";
 import { fetchIncidents } from "../../services/incidentApi";
 import { fetchPayrolls } from "../../services/payrollApi";
 import { fetchWorkCenters } from "../../services/workCenterApi";
+import "./alertsModern.css";
 
 function isAlertsRoute() {
   return window.location.hash === "#alerts";
@@ -77,17 +78,18 @@ export default function AlertsRoute() {
   if (!active) return null;
 
   return (
-    <div style={styles.wrapper}>
-      <header style={styles.header}>
-        <div>
-          <h1 style={styles.title}>Alertas laborales</h1>
-          <p style={styles.subtitle}>Vencimientos, pendientes y revisiones laborales generadas desde el ERP educativo.</p>
-        </div>
+    <div className="alerts-route">
+      <header className="alerts-route__header">
+        <span className="alerts-route__eyebrow">Centro de avisos</span>
+        <h1 className="alerts-route__title">Alertas laborales</h1>
+        <p className="alerts-route__subtitle">
+          Vencimientos, pendientes y revisiones generadas automáticamente desde los módulos de AulaNomina.
+        </p>
       </header>
 
-      <main style={styles.main}>
-        {error && <div style={styles.error}>{error}</div>}
-        {loading && <div style={styles.loading}>Cargando alertas...</div>}
+      <main className="alerts-route__main">
+        {error && <div className="alerts-route__message alerts-route__message--error">{error}</div>}
+        {loading && <div className="alerts-route__message">Cargando alertas…</div>}
         {!loading && (
           <AlertsPage
             documents={data.documents}
@@ -104,55 +106,3 @@ export default function AlertsRoute() {
     </div>
   );
 }
-
-const styles = {
-  wrapper: {
-    position: "fixed",
-    top: "56px",
-    left: "272px",
-    right: 0,
-    bottom: 0,
-    zIndex: 20,
-    backgroundColor: "#ffffff",
-    overflowY: "auto",
-  },
-  header: {
-    borderBottom: "3px solid #111111",
-    backgroundColor: "#ffffff",
-    padding: "24px 42px 18px 32px",
-    boxSizing: "border-box",
-  },
-  title: {
-    margin: 0,
-    color: "#111111",
-    fontSize: "32px",
-    fontWeight: 950,
-  },
-  subtitle: {
-    margin: "6px 0 0",
-    color: "#4b5563",
-    fontSize: "15px",
-    fontWeight: 700,
-  },
-  main: {
-    padding: "26px 42px 48px 32px",
-    boxSizing: "border-box",
-    maxWidth: "1320px",
-    width: "100%",
-  },
-  loading: {
-    border: "1px solid #d1d5db",
-    backgroundColor: "#f9fafb",
-    padding: "14px",
-    color: "#374151",
-    fontWeight: 800,
-  },
-  error: {
-    border: "1px solid #fecaca",
-    backgroundColor: "#fee2e2",
-    padding: "14px",
-    color: "#991b1b",
-    fontWeight: 800,
-    marginBottom: "16px",
-  },
-};
