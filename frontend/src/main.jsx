@@ -32,7 +32,6 @@ import "./components/layout/settingsOverlayFix.css";
 import AccessibilityBridge from "./components/accessibility/AccessibilityBridge.jsx";
 import ActivitiesLauncherBridge from "./components/activities/ActivitiesLauncherBridge.jsx";
 import FooterBridge from "./components/layout/FooterBridge.jsx";
-import LegacyLearningNavigationBridge from "./components/layout/LegacyLearningNavigationBridge.jsx";
 import MotionBridge from "./components/motion/MotionBridge.jsx";
 import DesignSystemPreview from "./design-system/DesignSystemPreview.jsx";
 import CaseNavigationBridge from "./components/case-studies/CaseNavigationBridge.jsx";
@@ -54,7 +53,6 @@ createRoot(document.getElementById("root")).render(
         <AccessibilityBridge />
         <MotionBridge />
         <App />
-        <LegacyLearningNavigationBridge />
         <FooterBridge />
         <CaseNavigationBridge />
         <AffiliationSiltraBridge />
