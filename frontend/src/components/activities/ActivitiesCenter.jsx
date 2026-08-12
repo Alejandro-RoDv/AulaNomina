@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import {
+  ArrowLeft,
+  ArrowRight,
   BookOpen,
   Check,
   CheckCircle2,
@@ -10,6 +12,7 @@ import {
   Mail,
   RefreshCw,
   X,
+  XCircle,
 } from "lucide-react";
 
 import {
@@ -58,6 +61,26 @@ function ActivityStateIcon({ activity, selected }) {
   if (activity.is_completed) return <CheckCircle2 className="activity-center__state activity-center__state--done" aria-hidden="true" />;
   if (selected || activity.is_current) return <span className="activity-center__current-dot" aria-hidden="true" />;
   return <Circle className="activity-center__state activity-center__state--pending" aria-hidden="true" />;
+}
+
+function ResultCriterionIcon({ status }) {
+  if (status === "passed") return <CheckCircle2 aria-hidden="true" />;
+  if (status === "failed") return <XCircle aria-hidden="true" />;
+  return <Circle aria-hidden="true" />;
+}
+
+function hasOperationAttempt(activity) {
+  return (activity?.validation_result?.events || []).some((event) => (
+    event?.operation_status === "success" || event?.operation_status === "error"
+  ));
+}
+
+function failedValidationMessages(activity) {
+  if (!hasOperationAttempt(activity) || activity?.is_completed) return [];
+  return (activity?.validation_result?.checks || [])
+    .filter((check) => check?.supported !== false && !check?.passed && check?.message)
+    .map((check) => check.message)
+    .slice(0, 3);
 }
 
 export default function ActivitiesCenter() {
@@ -113,9 +136,17 @@ export default function ActivitiesCenter() {
     };
   }, [open]);
 
+  const activities = useMemo(() => flattenActivities(course), [course]);
   const selectedActivity = useMemo(() => findActivity(course, selectedId), [course, selectedId]);
+  const selectedIndex = useMemo(
+    () => activities.findIndex((activity) => activity.id === selectedId),
+    [activities, selectedId]
+  );
+  const previousActivity = selectedIndex > 0 ? activities[selectedIndex - 1] : null;
+  const nextActivity = selectedIndex >= 0 && selectedIndex < activities.length - 1 ? activities[selectedIndex + 1] : null;
   const pending = course?.course?.pending;
   const topicCount = course?.topics?.length || 0;
+  const failedMessages = failedValidationMessages(selectedActivity);
 
   useEffect(() => {
     if (selectedActivity?.topic_key) setExpandedTopicKey(selectedActivity.topic_key);
@@ -127,6 +158,7 @@ export default function ActivitiesCenter() {
   };
 
   const selectActivity = async (activity) => {
+    if (!activity) return;
     setSelectedId(activity.id);
     setExpandedTopicKey(activity.topic_key);
     persistActivityContext(activity);
@@ -281,7 +313,7 @@ export default function ActivitiesCenter() {
                         {selectedActivity.case_data.map((item) => (
                           <div key={`${item.label}-${item.value}`}>
                             <dt>{item.label}</dt>
-                            <dd>{item.value}</dd>
+                            <dd title={item.value}>{item.value}</dd>
                           </div>
                         ))}
                       </dl>
@@ -301,7 +333,7 @@ export default function ActivitiesCenter() {
                   <p>{selectedActivity.instructions}</p>
                 </section>
 
-                <section className={`activity-center__result-card${selectedActivity.is_completed ? " is-completed" : ""}`}>
+                <section className={`activity-center__result-card${selectedActivity.is_completed ? " is-completed" : ""}${failedMessages.length ? " has-errors" : ""}`}>
                   <div className="activity-center__result-heading">
                     <span className="activity-center__section-label">Resultado esperado</span>
                     <span className={`activity-center__validation-mode${selectedActivity.is_completed ? " is-done" : ""}`}>
@@ -314,12 +346,35 @@ export default function ActivitiesCenter() {
                   </div>
 
                   <ul className="activity-center__expected-list">
-                    {(selectedActivity.expected_items?.length ? selectedActivity.expected_items : [selectedActivity.objective]).map((item) => (
-                      <li key={item}><Check size={16} aria-hidden="true" /><span>{item}</span></li>
+                    {(selectedActivity.result_criteria?.length
+                      ? selectedActivity.result_criteria
+                      : (selectedActivity.expected_items?.length ? selectedActivity.expected_items : [selectedActivity.objective]).map((label) => ({ label, status: selectedActivity.is_completed ? "passed" : "pending" }))
+                    ).map((criterion) => (
+                      <li key={criterion.label} className={`is-${criterion.status || "pending"}`}>
+                        <ResultCriterionIcon status={criterion.status} />
+                        <span>{criterion.label}</span>
+                      </li>
                     ))}
                   </ul>
 
-                  {!selectedActivity.is_completed && selectedActivity.completion_condition?.automatic && (
+                  {selectedActivity.is_completed && (
+                    <div className="activity-center__validation-feedback is-success">
+                      <CheckCircle2 size={16} aria-hidden="true" />
+                      <div><strong>Actividad verificada</strong><span>Todos los criterios de este paso se han cumplido.</span></div>
+                    </div>
+                  )}
+
+                  {!selectedActivity.is_completed && failedMessages.length > 0 && (
+                    <div className="activity-center__validation-feedback is-error">
+                      <XCircle size={16} aria-hidden="true" />
+                      <div>
+                        <strong>Hay criterios pendientes</strong>
+                        {failedMessages.map((message) => <span key={message}>{message}</span>)}
+                      </div>
+                    </div>
+                  )}
+
+                  {!selectedActivity.is_completed && selectedActivity.completion_condition?.automatic && failedMessages.length === 0 && (
                     <small className="activity-center__result-note">
                       {checkingId === selectedActivity.id
                         ? "Comprobando el resultado actual…"
@@ -363,6 +418,25 @@ export default function ActivitiesCenter() {
                     </button>
                   </section>
                 )}
+
+                <nav className="activity-center__navigation" aria-label="Navegación entre actividades">
+                  <button type="button" onClick={() => selectActivity(previousActivity)} disabled={!previousActivity}>
+                    <ArrowLeft size={15} aria-hidden="true" />
+                    <span>Anterior</span>
+                  </button>
+                  <span className="activity-center__navigation-position">
+                    Actividad {selectedActivity.course_order || selectedIndex + 1} de {activities.length}
+                  </span>
+                  <button
+                    type="button"
+                    className={selectedActivity.is_completed ? "is-primary" : ""}
+                    onClick={() => selectActivity(nextActivity)}
+                    disabled={!nextActivity}
+                  >
+                    <span>{selectedActivity.is_completed ? "Siguiente actividad" : "Siguiente"}</span>
+                    <ArrowRight size={15} aria-hidden="true" />
+                  </button>
+                </nav>
               </article>
             )}
           </main>
