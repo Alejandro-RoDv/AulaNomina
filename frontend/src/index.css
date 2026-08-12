@@ -257,3 +257,234 @@ main div[style*="grid-template-columns: 1fr 1fr"] > section:nth-child(2) > div:n
     color: #6b7280 !important;
   }
 }
+
+/* Histórico de nóminas: compatibilidad visual con el frontend actual.
+   Estos overrides retiran el lenguaje gráfico antiguo de detalle,
+   regularización y desglose sin alterar su lógica funcional. */
+
+/* Conceptos / desglose */
+section.no-print {
+  padding: 0 !important;
+  border: 1px solid var(--an-color-neutral-200) !important;
+  border-radius: var(--an-radius-lg) !important;
+  background: var(--an-color-surface) !important;
+  box-shadow: none !important;
+}
+
+section.no-print > div:first-child {
+  padding: var(--an-space-4) var(--an-space-5) !important;
+  margin: 0 !important;
+  border-bottom: 1px solid var(--an-color-neutral-200) !important;
+  align-items: center !important;
+}
+
+section.no-print > div:first-child h4 {
+  font-size: 18px !important;
+  font-weight: var(--an-font-weight-bold) !important;
+}
+
+section.no-print > div:first-child p {
+  margin-top: 4px !important;
+  color: var(--an-color-text-secondary) !important;
+  font-size: 13px !important;
+  font-weight: var(--an-font-weight-regular) !important;
+}
+
+section.no-print > div[style*="grid-template-columns"] {
+  margin: var(--an-space-4) var(--an-space-5) !important;
+  gap: var(--an-space-3) !important;
+}
+
+section.no-print > div[style*="grid-template-columns"] > div {
+  min-height: 72px !important;
+  padding: var(--an-space-3) var(--an-space-4) !important;
+  border: 1px solid var(--an-color-neutral-200) !important;
+  border-radius: var(--an-radius-md) !important;
+  background: var(--an-color-surface) !important;
+  box-shadow: none !important;
+}
+
+section.no-print > div[style*="grid-template-columns"] > div:last-child {
+  border-color: var(--an-color-primary-200) !important;
+  background: var(--an-color-primary-50) !important;
+}
+
+section.no-print > div[style*="grid-template-columns"] > div span {
+  color: var(--an-color-text-secondary) !important;
+  font-size: 12px !important;
+}
+
+section.no-print > div[style*="grid-template-columns"] > div strong {
+  color: var(--an-color-text-primary) !important;
+  font-size: 16px !important;
+}
+
+section.no-print > div[style*="display: grid"]:not([style*="grid-template-columns: repeat(auto-fit"]),
+section.no-print > div[style*="display: grid"] > div {
+  box-shadow: none !important;
+}
+
+section.no-print div[style*="border: 1px solid rgb(209, 213, 219)"] {
+  border-color: var(--an-color-neutral-200) !important;
+  border-radius: var(--an-radius-md) !important;
+}
+
+section.no-print h5[style*="background-color"] {
+  padding: 10px var(--an-space-4) !important;
+  background: var(--an-color-surface-muted) !important;
+  border-bottom: 1px solid var(--an-color-neutral-200) !important;
+  font-size: 13px !important;
+}
+
+section.no-print table th {
+  background: var(--an-color-surface-muted) !important;
+  color: var(--an-color-text-secondary) !important;
+  font-size: 11px !important;
+  font-weight: var(--an-font-weight-semibold) !important;
+  text-transform: uppercase;
+  letter-spacing: .03em;
+}
+
+section.no-print table td {
+  border-color: var(--an-color-neutral-100) !important;
+}
+
+section.no-print form {
+  margin: var(--an-space-4) var(--an-space-5) 0 !important;
+  padding: var(--an-space-4) 0 var(--an-space-5) !important;
+}
+
+section.no-print button[style*="background-color: rgb(17, 24, 39)"] {
+  background: var(--an-color-primary-600) !important;
+  border-color: var(--an-color-primary-600) !important;
+}
+
+section.no-print button[style*="background-color: rgb(230, 216, 92)"] {
+  background: var(--an-color-surface) !important;
+  border: 1px solid var(--an-color-neutral-300) !important;
+  color: var(--an-color-text-primary) !important;
+}
+
+/* Detalle de nómina */
+[role="dialog"][aria-modal="true"]:has(button[aria-label="Cerrar detalle de nómina"]) {
+  width: min(1120px, calc(100vw - 64px)) !important;
+  max-height: calc(100vh - 64px) !important;
+  border: 1px solid var(--an-color-neutral-200) !important;
+  border-radius: var(--an-radius-xl) !important;
+  background: var(--an-color-surface) !important;
+  box-shadow: var(--an-shadow-xl) !important;
+}
+
+[role="dialog"][aria-modal="true"]:has(button[aria-label="Cerrar detalle de nómina"]) > div:first-of-type {
+  padding: var(--an-space-4) var(--an-space-5) !important;
+  border-bottom: 1px solid var(--an-color-neutral-200) !important;
+  background: var(--an-color-surface) !important;
+}
+
+[role="dialog"][aria-modal="true"]:has(button[aria-label="Cerrar detalle de nómina"]) section[style*="border"] {
+  border: 1px solid var(--an-color-neutral-200) !important;
+  border-radius: var(--an-radius-lg) !important;
+  box-shadow: none !important;
+}
+
+[role="dialog"][aria-modal="true"]:has(button[aria-label="Cerrar detalle de nómina"]) section[style*="background-color: rgb(255, 253, 240)"],
+[role="dialog"][aria-modal="true"]:has(button[aria-label="Cerrar detalle de nómina"]) div[style*="background-color: rgb(255, 247, 204)"] {
+  background: var(--an-color-surface-muted) !important;
+}
+
+[role="dialog"][aria-modal="true"]:has(button[aria-label="Cerrar detalle de nómina"]) div[style*="border: 1px solid rgb(17, 24, 39)"] {
+  border-color: var(--an-color-neutral-200) !important;
+  box-shadow: none !important;
+}
+
+[role="dialog"][aria-modal="true"]:has(button[aria-label="Cerrar detalle de nómina"]) div[style*="background-color: rgb(243, 244, 246)"] {
+  background: var(--an-color-surface-muted) !important;
+}
+
+[role="dialog"][aria-modal="true"]:has(button[aria-label="Cerrar detalle de nómina"]) button[style*="background-color: rgb(230, 216, 92)"] {
+  background: var(--an-color-primary-600) !important;
+  border-color: var(--an-color-primary-600) !important;
+  color: #fff !important;
+}
+
+[role="dialog"][aria-modal="true"]:has(button[aria-label="Cerrar detalle de nómina"]) button {
+  box-shadow: none !important;
+}
+
+/* Regularización */
+div[role="dialog"][aria-modal="true"] > div[style*="1120px"] {
+  border: 1px solid var(--an-color-neutral-200) !important;
+  border-radius: var(--an-radius-xl) !important;
+  background: var(--an-color-canvas) !important;
+  box-shadow: var(--an-shadow-xl) !important;
+}
+
+div[role="dialog"][aria-modal="true"] > div[style*="1120px"] > header {
+  padding: var(--an-space-4) var(--an-space-5) !important;
+  border-bottom: 1px solid var(--an-color-neutral-200) !important;
+  background: var(--an-color-surface) !important;
+  color: var(--an-color-text-primary) !important;
+}
+
+div[role="dialog"][aria-modal="true"] > div[style*="1120px"] > header p:first-child {
+  color: var(--an-color-primary-600) !important;
+}
+
+div[role="dialog"][aria-modal="true"] > div[style*="1120px"] > header p:last-child {
+  color: var(--an-color-text-secondary) !important;
+  font-weight: var(--an-font-weight-regular) !important;
+}
+
+div[role="dialog"][aria-modal="true"] > div[style*="1120px"] > header button {
+  border: 1px solid var(--an-color-neutral-300) !important;
+  background: var(--an-color-surface) !important;
+  color: var(--an-color-text-primary) !important;
+}
+
+div[role="dialog"][aria-modal="true"] > div[style*="1120px"] section {
+  border: 1px solid var(--an-color-neutral-200) !important;
+  border-radius: var(--an-radius-lg) !important;
+  background: var(--an-color-surface) !important;
+  box-shadow: none !important;
+}
+
+div[role="dialog"][aria-modal="true"] > div[style*="1120px"] input,
+div[role="dialog"][aria-modal="true"] > div[style*="1120px"] select,
+div[role="dialog"][aria-modal="true"] > div[style*="1120px"] textarea {
+  border: 1px solid var(--an-color-neutral-300) !important;
+  border-radius: var(--an-radius-md) !important;
+  background: var(--an-color-surface) !important;
+  font-weight: var(--an-font-weight-regular) !important;
+}
+
+div[role="dialog"][aria-modal="true"] > div[style*="1120px"] div[style*="background-color: rgb(245, 243, 255)"],
+div[role="dialog"][aria-modal="true"] > div[style*="1120px"] div[style*="background-color: rgb(255, 241, 242)"] {
+  background: var(--an-color-surface) !important;
+}
+
+div[role="dialog"][aria-modal="true"] > div[style*="1120px"] div[style*="background-color: rgb(230, 216, 92)"] {
+  background: var(--an-color-primary-50) !important;
+  border-color: var(--an-color-primary-200) !important;
+}
+
+div[role="dialog"][aria-modal="true"] > div[style*="1120px"] div[style*="border: 2px solid rgb(17, 24, 39)"] {
+  border: 1px solid var(--an-color-neutral-200) !important;
+  box-shadow: none !important;
+}
+
+div[role="dialog"][aria-modal="true"] > div[style*="1120px"] button[style*="background-color: rgb(17, 24, 39)"] {
+  background: var(--an-color-primary-600) !important;
+  border-color: var(--an-color-primary-600) !important;
+}
+
+div[role="dialog"][aria-modal="true"] > div[style*="1120px"] table th {
+  background: var(--an-color-surface-muted) !important;
+  color: var(--an-color-text-secondary) !important;
+  font-size: 11px !important;
+  text-transform: uppercase;
+  letter-spacing: .03em;
+}
+
+div[role="dialog"][aria-modal="true"] > div[style*="1120px"] table td {
+  border-color: var(--an-color-neutral-100) !important;
+}
