@@ -2,10 +2,17 @@
 
 from __future__ import annotations
 
+from datetime import date
+from decimal import Decimal
+
 from sqlalchemy.orm import Session
 
 from app.models.case_study import CaseStudy
 from app.models.company import Company
+from app.models.contract import Contract
+from app.models.employee import Employee
+from app.models.payroll import Payroll
+from app.models.work_center import WorkCenter
 from app.services.integrated_demo_case_service import _ensure_assignment, _ensure_case_study
 from app.services.integrated_demo_process_seed import ensure_integrated_fie_communication
 from app.training.integrated_runtime_cases_2026 import (
@@ -17,6 +24,8 @@ from app.training.integrated_runtime_cases_2026 import (
 
 SUPERSEDED_SCENARIOS = {"IT-2026-008", "NOM-2026-014"}
 DEMO_COMPANY_CIF = "G14999999"
+C03_DNI = "31000003D"
+C03_NAF = "143100000003"
 
 
 def _archive_superseded_integral_cases(db: Session) -> None:
@@ -38,11 +47,117 @@ def _ensure_c02(db: Session) -> None:
     db.commit()
 
 
+def _prepare_c03_baseline(db: Session) -> None:
+    """Crea el expediente reclamado, pero no la corrección ni el retroactivo."""
+    company = db.query(Company).filter(Company.cif == DEMO_COMPANY_CIF).first()
+    if company is None:
+        return
+    center = (
+        db.query(WorkCenter)
+        .filter(WorkCenter.company_id == company.id, WorkCenter.center_code == "1.1")
+        .first()
+    )
+    employee = db.query(Employee).filter(Employee.dni == C03_DNI).first()
+    employee_values = {
+        "employee_code": "C03.1",
+        "company_id": company.id,
+        "center_id": center.id if center else None,
+        "dni": C03_DNI,
+        "naf": C03_NAF,
+        "first_name": "Ana",
+        "last_name": "Martín García",
+        "birth_date": date(1991, 7, 12),
+        "nationality": "Española",
+        "email": "ana.martin@aulanomina.demo",
+        "is_active": True,
+        "status": "active",
+    }
+    if employee is None:
+        employee = Employee(**employee_values)
+        db.add(employee)
+        db.flush()
+    else:
+        for field, value in employee_values.items():
+            setattr(employee, field, value)
+
+    contract = (
+        db.query(Contract)
+        .filter(Contract.employee_id == employee.id, Contract.start_date == date(2026, 1, 1))
+        .first()
+    )
+    contract_values = {
+        "employee_id": employee.id,
+        "company_id": company.id,
+        "center_id": center.id if center else None,
+        "contract_type": "Indefinido",
+        "contract_family": "indefinite",
+        "contract_code": "100",
+        "start_date": date(2026, 1, 1),
+        "seniority_date": date(2026, 7, 1),
+        "recognized_seniority_date": date(2026, 7, 1),
+        "status": "active",
+        "working_day_type": "full_time",
+        "weekly_hours": 40,
+        "full_time_weekly_hours": 40,
+        "partiality_coefficient": 100,
+        "salary_base": Decimal("1700.00"),
+        "gross_annual_salary": Decimal("23800.00"),
+        "pay_schedule": "not_prorated_14",
+    }
+    if contract is None:
+        contract = Contract(**contract_values)
+        db.add(contract)
+        db.flush()
+    else:
+        for field, value in contract_values.items():
+            setattr(contract, field, value)
+
+    payroll = (
+        db.query(Payroll)
+        .filter(
+            Payroll.employee_id == employee.id,
+            Payroll.contract_id == contract.id,
+            Payroll.period_year == 2026,
+            Payroll.period_month == 7,
+        )
+        .first()
+    )
+    payroll_values = {
+        "employee_id": employee.id,
+        "contract_id": contract.id,
+        "company_id": company.id,
+        "center_id": center.id if center else None,
+        "period_year": 2026,
+        "period_month": 7,
+        "base_salary": Decimal("1700.00"),
+        "worked_base_salary": Decimal("1700.00"),
+        "salary_supplements": Decimal("0.00"),
+        "seniority_amount": Decimal("0.00"),
+        "gross_salary": Decimal("1700.00"),
+        "common_contingencies_base": Decimal("1700.00"),
+        "professional_contingencies_base": Decimal("1700.00"),
+        "unemployment_training_fogasa_base": Decimal("1700.00"),
+        "irpf_base": Decimal("1700.00"),
+        "calculation_version": 0,
+        "calculation_engine_version": None,
+        "calculation_fingerprint": None,
+        "last_calculated_at": None,
+        "status": "draft",
+    }
+    if payroll is None:
+        db.add(Payroll(**payroll_values))
+    else:
+        for field, value in payroll_values.items():
+            setattr(payroll, field, value)
+    db.commit()
+
+
 def bootstrap_integrated_training_2026(db: Session) -> None:
     """Activa C01-C06 y retira los dos itinerarios cortos sustituidos por B10."""
     _archive_superseded_integral_cases(db)
     seed_integrated_runtime_cases_2026(db)
     seed_integrated_runtime_assignments_2026(db)
+    _prepare_c03_baseline(db)
     _ensure_c02(db)
 
 
