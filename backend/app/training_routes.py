@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException, Query
 
 import app.crud.case_assignment as case_assignment_crud
+import app.services.training_activity_runtime_service as training_activity_runtime_service
 from app.employment_termination_routes import router as employment_termination_router
 from app.payroll_salary_structure_routes import router as application_aggregate_router
 from app.training import (
@@ -18,6 +19,17 @@ from app.training.termination_runtime_bootstrap_2026 import bootstrap_terminatio
 # agregador aquí para mantener /employment-terminations como ruta de primer nivel
 # sin ampliar el monolito principal durante Split 43.
 application_aggregate_router.include_router(employment_termination_router)
+
+# Los casos A46/A47/A48/A50 representan prácticas maestras con varios pasos.
+# Registrarlos en el adaptador permite mostrarlos como A46.1, A46.2, etc.
+training_activity_runtime_service.GUIDED_MULTISTEP_SCENARIOS.update(
+    {
+        "TRAIN-2026-TERM-A46": "A46",
+        "TRAIN-2026-TERM-A47": "A47",
+        "TRAIN-2026-TERM-A48": "A48",
+        "TRAIN-2026-TERM-A50": "A50",
+    }
+)
 
 # El endpoint /seed-demo importa seed_demo_case_assignments después de este módulo.
 # Envolvemos una sola vez el seeder existente para mantener A46-A50 aislado y
