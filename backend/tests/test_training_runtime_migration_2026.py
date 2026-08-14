@@ -1,5 +1,6 @@
 from types import SimpleNamespace
 
+from app.crud.case_study import _demo_cases
 from app.services.training_activity_runtime_service import _enrich_activity
 from app.training.runtime_bindings_2026 import (
     PILOT_ACTIVITY_CODES_2026,
@@ -30,6 +31,20 @@ def test_pilot_task_definitions_keep_training_code_inside_trigger_condition():
     assert [item["trigger_condition"]["training_code"] for item in definitions] == ["A04", "A07", "A29"]
     assert all(item["trigger_type"] == "module_event" for item in definitions)
     assert all(item["blocking"] is True for item in definitions)
+
+
+def test_demo_onboarding_case_is_backed_by_master_training_codes():
+    case = next(item for item in _demo_cases() if item.scenario_code == "TRAIN-2026-001")
+
+    assert case.title == "Alta completa de trabajador"
+    assert case.initial_state["training_sequence"] == ["A04", "A07", "A29"]
+    assert len(case.tasks) == 3
+    assert [task.trigger_condition["training_code"] for task in case.tasks] == ["A04", "A07", "A29"]
+    assert [task.expected_action for task in case.tasks] == [
+        "create_employee",
+        "create_contract",
+        "prepare_affiliation",
+    ]
 
 
 def test_runtime_enrichment_uses_master_catalog_content_without_losing_execution_state():
