@@ -13,6 +13,8 @@ from app.training import (
     training_dependency_graph_2026,
 )
 from app.training.document_runtime_bootstrap_2026 import bootstrap_document_training_2026
+from app.training.integrated_runtime_bootstrap_2026 import bootstrap_integrated_training_2026
+from app.training.integrated_runtime_cases_2026 import INTEGRATED_SCENARIO_CODES
 from app.training.termination_runtime_bootstrap_2026 import bootstrap_termination_training_2026
 
 
@@ -30,6 +32,13 @@ training_activity_runtime_service.GUIDED_MULTISTEP_SCENARIOS.update(
         "TRAIN-2026-TERM-A48": "A48",
         "TRAIN-2026-TERM-A50": "A50",
     }
+)
+
+# B10 sustituye los mapeos provisionales IT-2026-008/NOM-2026-014 por seis
+# expedientes capstone explícitos. C02 reutiliza LAB-2026-001.
+training_activity_runtime_service.INTEGRAL_CASE_CODES.clear()
+training_activity_runtime_service.INTEGRAL_CASE_CODES.update(
+    {scenario: code for code, scenario in INTEGRATED_SCENARIO_CODES.items()}
 )
 
 # El antiguo caso demo documental ya no representa A52: B09 dispone ahora de
@@ -115,6 +124,50 @@ if not getattr(training_activity_runtime_service._training_case_data, "_document
     _training_case_data_with_documents._document_data_wrapped = True
     training_activity_runtime_service._training_case_data = _training_case_data_with_documents
 
+# Los capstones muestran contexto suficiente para decidir, pero no replican las
+# instrucciones detalladas de las actividades guiadas previas.
+if not getattr(training_activity_runtime_service._training_case_data, "_integrated_data_wrapped", False):
+    _base_training_case_data_b10 = training_activity_runtime_service._training_case_data
+
+    def _training_case_data_with_integrated(task, code, current_rows):
+        rows = list(_base_training_case_data_b10(task, code, current_rows) or [])
+        if code not in {"C01", "C02", "C03", "C04", "C05", "C06"}:
+            return rows
+        state = task.case_study.initial_state or {}
+        model111 = state.get("model111_data") or {}
+        cra = state.get("cra_data") or {}
+        termination = state.get("termination_data") or {}
+        settlement = state.get("settlement_data") or {}
+
+        def add(label, value):
+            if value in {None, ""} or any(item.get("label") == label for item in rows):
+                return
+            rows.append({"label": label, "value": str(value)})
+
+        add("Trabajador", state.get("employee"))
+        add("Persona sustituta", state.get("substitute"))
+        add("Empresa", state.get("company_name"))
+        add("Fecha de inicio", state.get("start_date"))
+        add("Fecha de efectos", state.get("effective_date"))
+        add("Periodo nómina", state.get("payroll_period"))
+        if code == "C04":
+            add("Ejercicio", model111.get("year"))
+            add("Periodo", model111.get("period"))
+            add("Profesional", model111.get("professional_nif"))
+        elif code == "C05":
+            add("Periodo", cra.get("period"))
+            add("CCC", cra.get("ccc"))
+            add("Primer escenario", (state.get("siltra_data") or {}).get("first_scenario"))
+        elif code == "C06":
+            add("Causa", termination.get("reason_code"))
+            add("Código RED", termination.get("ss_situation_code"))
+            add("Documento", termination.get("document_reference"))
+            add("Total finiquito", settlement.get("expected_total"))
+        return rows[:8]
+
+    _training_case_data_with_integrated._integrated_data_wrapped = True
+    training_activity_runtime_service._training_case_data = _training_case_data_with_integrated
+
 # El endpoint /seed-demo importa seed_demo_case_assignments después de este módulo.
 # Envolvemos una sola vez el seeder existente para restaurar los datasets
 # formativos aislados cada vez que se reinicia la demo.
@@ -139,6 +192,17 @@ if not getattr(case_assignment_crud.seed_demo_case_assignments, "_document_train
 
     _seed_demo_case_assignments_with_documents._document_training_wrapped = True
     case_assignment_crud.seed_demo_case_assignments = _seed_demo_case_assignments_with_documents
+
+if not getattr(case_assignment_crud.seed_demo_case_assignments, "_integrated_training_wrapped", False):
+    _base_seed_demo_case_assignments_b10 = case_assignment_crud.seed_demo_case_assignments
+
+    def _seed_demo_case_assignments_with_integrated(db):
+        result = _base_seed_demo_case_assignments_b10(db)
+        bootstrap_integrated_training_2026(db)
+        return result
+
+    _seed_demo_case_assignments_with_integrated._integrated_training_wrapped = True
+    case_assignment_crud.seed_demo_case_assignments = _seed_demo_case_assignments_with_integrated
 
 
 router = APIRouter(prefix="/training", tags=["training"])
