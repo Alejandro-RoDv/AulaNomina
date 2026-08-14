@@ -12,6 +12,7 @@ from app.models.company import Company
 from app.models.contract import Contract
 from app.models.employee import Employee
 from app.models.payroll import Payroll
+from app.models.payroll_salary_structure import ContractPayrollConcept, PayrollConcept, PayrollItem
 from app.models.work_center import WorkCenter
 from app.services.integrated_demo_case_service import _ensure_assignment, _ensure_case_study
 from app.services.integrated_demo_process_seed import ensure_integrated_fie_communication
@@ -45,6 +46,30 @@ def _ensure_c02(db: Session) -> None:
     _ensure_assignment(db, case_study)
     ensure_integrated_fie_communication(db, reset=False)
     db.commit()
+
+
+def _clear_c03_student_work(db: Session, contract: Contract, payroll: Payroll | None) -> None:
+    """El reset de demo debe devolver C03 al estado previo a la reclamación."""
+    antiguedad_rows = (
+        db.query(ContractPayrollConcept)
+        .join(PayrollConcept, ContractPayrollConcept.concept_id == PayrollConcept.id)
+        .filter(
+            ContractPayrollConcept.contract_id == contract.id,
+            (
+                PayrollConcept.name.ilike("%antig%")
+                | PayrollConcept.code.ilike("%antig%")
+                | ContractPayrollConcept.description.ilike("%antig%")
+            ),
+        )
+        .all()
+    )
+    for row in antiguedad_rows:
+        db.delete(row)
+
+    # La nómina semilla de C03 nace sin líneas: cualquier PayrollItem posterior
+    # procede de cálculos/correcciones realizados durante el ejercicio.
+    if payroll is not None:
+        db.query(PayrollItem).filter(PayrollItem.payroll_id == payroll.id).delete(synchronize_session=False)
 
 
 def _prepare_c03_baseline(db: Session) -> None:
@@ -122,6 +147,9 @@ def _prepare_c03_baseline(db: Session) -> None:
         )
         .first()
     )
+    if payroll is not None:
+        _clear_c03_student_work(db, contract, payroll)
+
     payroll_values = {
         "employee_id": employee.id,
         "contract_id": contract.id,
@@ -145,7 +173,8 @@ def _prepare_c03_baseline(db: Session) -> None:
         "status": "draft",
     }
     if payroll is None:
-        db.add(Payroll(**payroll_values))
+        payroll = Payroll(**payroll_values)
+        db.add(payroll)
     else:
         for field, value in payroll_values.items():
             setattr(payroll, field, value)
