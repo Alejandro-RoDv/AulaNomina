@@ -276,7 +276,7 @@ export default function EmploymentTerminationRoute() {
           <div>
             <span className="termination-route__eyebrow">Gestión laboral · Extinciones</span>
             <h2 id="termination-route-title">Extinción y liquidación final</h2>
-            <p>Registra la causa, calcula sus efectos económicos y coordina la baja de afiliación.</p>
+            <p>Registra la causa, calcula sus efectos económicos y coordina la baja de afiliación · {terminations.length} expedientes.</p>
           </div>
           <button type="button" className="termination-route__close" onClick={() => setOpen(false)} aria-label="Cerrar">×</button>
         </header>
