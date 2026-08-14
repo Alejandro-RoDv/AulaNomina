@@ -1,21 +1,23 @@
 """Bindings entre el Temario Maestro 2026 y el motor de casos ejecutables.
 
-La Fase B comienza con una secuencia piloto deliberadamente pequeña:
-A04 -> A07 -> A29. El objetivo es demostrar que el catálogo formativo puede
-alimentar el motor de progreso/validación actual sin duplicar el contenido
-pedagógico dentro de los casos demo.
+La Fase B migra el catálogo por secuencias controladas. Los bindings describen
+qué operación ERP y qué regla de validación hacen ejecutable una práctica sin
+duplicar su contenido pedagógico.
 """
 
 from __future__ import annotations
 
 from copy import deepcopy
-from typing import Any
+from typing import Any, Iterable
 
 from .catalog_2026 import get_training_activity_2026
 
 
 PILOT_SEQUENCE_CODE = "onboarding-core-2026"
 PILOT_ACTIVITY_CODES_2026 = ("A04", "A07", "A29")
+
+PAYROLL_CORE_SEQUENCE_CODE = "payroll-core-2026"
+PAYROLL_CORE_ACTIVITY_CODES_2026 = ("A14", "A16", "A18", "A20", "A21")
 
 
 RUNTIME_BINDINGS_2026: dict[str, dict[str, Any]] = {
@@ -53,6 +55,59 @@ RUNTIME_BINDINGS_2026: dict[str, dict[str, Any]] = {
         "runtime_prerequisites": ["A07"],
         "migration_note": "La revisión previa A28 se integra en los datos y criterios del ejercicio piloto.",
     },
+    "A14": {
+        "module": "payrolls",
+        "expected_action": "update_payroll_concept",
+        "trigger_type": "module_event",
+        "validation_rules": [
+            {"type": "active_contract"},
+            {"type": "payroll_concept_exists", "concept": "COMPLEMENTO_CONVENIO"},
+        ],
+        "runtime_prerequisites": [],
+        "validation_interaction": "operation",
+        "use_catalog_result_criteria": True,
+        "migration_note": "El salario base está precargado; el alumno completa y revisa la estructura salarial aplicable.",
+    },
+    "A16": {
+        "module": "payrolls",
+        "expected_action": "recalculate_payroll",
+        "trigger_type": "module_event",
+        "validation_rules": [{"type": "payroll_recalculated", "period": "2026-06"}],
+        "runtime_prerequisites": ["A14"],
+        "validation_interaction": "operation",
+        "use_catalog_result_criteria": True,
+        "migration_note": "A15 se considera resuelta por los datos del caso: pagas extraordinarias no prorrateadas.",
+    },
+    "A18": {
+        "module": "payrolls",
+        "expected_action": "review_payroll",
+        "trigger_type": "system",
+        "validation_rules": [{"type": "payroll_recalculated", "period": "2026-06"}],
+        "runtime_prerequisites": ["A16"],
+        "validation_interaction": "explicit_review",
+        "use_catalog_result_criteria": True,
+        "migration_note": "La base se calcula en el motor; el alumno debe revisarla y solicitar la comprobación explícita.",
+    },
+    "A20": {
+        "module": "payrolls",
+        "expected_action": "review_payroll",
+        "trigger_type": "system",
+        "validation_rules": [{"type": "payroll_recalculated", "period": "2026-06"}],
+        "runtime_prerequisites": ["A18"],
+        "validation_interaction": "explicit_review",
+        "use_catalog_result_criteria": True,
+        "migration_note": "A19 se trabajará después como comparación específica de bases; esta secuencia se centra en la aportación del trabajador.",
+    },
+    "A21": {
+        "module": "payrolls",
+        "expected_action": "review_payroll",
+        "trigger_type": "system",
+        "validation_rules": [{"type": "payroll_recalculated", "period": "2026-06"}],
+        "runtime_prerequisites": ["A20"],
+        "validation_interaction": "explicit_review",
+        "use_catalog_result_criteria": True,
+        "migration_note": "La retención aplicada procede del perfil fiscal y del algoritmo IRPF 2026 ya integrado en nómina.",
+    },
 }
 
 
@@ -62,7 +117,12 @@ def get_runtime_binding_2026(activity_code: str) -> dict[str, Any] | None:
     return deepcopy(binding) if binding else None
 
 
-def build_runtime_task_definition_2026(activity_code: str, task_order: int) -> dict[str, Any]:
+def build_runtime_task_definition_2026(
+    activity_code: str,
+    task_order: int,
+    *,
+    runtime_sequence: str = PILOT_SEQUENCE_CODE,
+) -> dict[str, Any]:
     """Convierte una actividad del catálogo en una definición compatible con CaseTaskCreate."""
     code = str(activity_code or "").strip().upper()
     activity = get_training_activity_2026(code, include_source_metadata=False)
@@ -75,6 +135,18 @@ def build_runtime_task_definition_2026(activity_code: str, task_order: int) -> d
     if description and not description.endswith("."):
         description += "."
 
+    trigger_condition = {
+        "training_code": code,
+        "course_code": "AN-GL-2026",
+        "course_version": "2026.1-phase-a",
+        "runtime_sequence": runtime_sequence,
+        "runtime_prerequisites": list(binding["runtime_prerequisites"]),
+    }
+    if binding.get("validation_interaction"):
+        trigger_condition["validation_interaction"] = binding["validation_interaction"]
+    if binding.get("use_catalog_result_criteria"):
+        trigger_condition["use_catalog_result_criteria"] = True
+
     return {
         "title": activity["title"],
         "description": description or activity["learning_objective"],
@@ -82,13 +154,7 @@ def build_runtime_task_definition_2026(activity_code: str, task_order: int) -> d
         "expected_result": activity["learning_objective"],
         "expected_action": binding["expected_action"],
         "trigger_type": binding["trigger_type"],
-        "trigger_condition": {
-            "training_code": code,
-            "course_code": "AN-GL-2026",
-            "course_version": "2026.1-phase-a",
-            "runtime_sequence": PILOT_SEQUENCE_CODE,
-            "runtime_prerequisites": list(binding["runtime_prerequisites"]),
-        },
+        "trigger_condition": trigger_condition,
         "validation_rules": deepcopy(binding["validation_rules"]),
         "feedback_config": {},
         "task_order": task_order,
@@ -98,8 +164,30 @@ def build_runtime_task_definition_2026(activity_code: str, task_order: int) -> d
     }
 
 
-def build_pilot_task_definitions_2026() -> list[dict[str, Any]]:
+def build_runtime_sequence_task_definitions_2026(
+    activity_codes: Iterable[str],
+    *,
+    runtime_sequence: str,
+) -> list[dict[str, Any]]:
     return [
-        build_runtime_task_definition_2026(code, position)
-        for position, code in enumerate(PILOT_ACTIVITY_CODES_2026, start=1)
+        build_runtime_task_definition_2026(
+            code,
+            position,
+            runtime_sequence=runtime_sequence,
+        )
+        for position, code in enumerate(activity_codes, start=1)
     ]
+
+
+def build_pilot_task_definitions_2026() -> list[dict[str, Any]]:
+    return build_runtime_sequence_task_definitions_2026(
+        PILOT_ACTIVITY_CODES_2026,
+        runtime_sequence=PILOT_SEQUENCE_CODE,
+    )
+
+
+def build_payroll_core_task_definitions_2026() -> list[dict[str, Any]]:
+    return build_runtime_sequence_task_definitions_2026(
+        PAYROLL_CORE_ACTIVITY_CODES_2026,
+        runtime_sequence=PAYROLL_CORE_SEQUENCE_CODE,
+    )
