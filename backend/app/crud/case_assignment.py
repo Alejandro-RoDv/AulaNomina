@@ -190,6 +190,14 @@ def seed_demo_case_assignments(db: Session):
                 status="in_progress",
                 notes="Caso guiado de IT, FIE y nómina iniciado desde el correo simulado.",
             )
+        elif case_study.scenario_code == "TRAIN-2026-PAYROLL-001" and first_student:
+            _ensure_demo_assignment(
+                db,
+                case_study,
+                student=first_student,
+                status="assigned",
+                notes="Itinerario formativo de estructura salarial, cálculo de nómina, cotización e IRPF.",
+            )
         elif case_study.scenario_code in {"ALT-2026-021", "NOM-2026-014"} and first_student:
             _ensure_demo_assignment(
                 db,
