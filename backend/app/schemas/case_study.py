@@ -29,6 +29,12 @@ TASK_MODULES = {
     "model111",
     "model190",
     "regularizations",
+    "tax",
+    "irpf",
+    "cra",
+    "social-security",
+    "terminations",
+    "mail",
     "general",
 }
 TASK_STATUSES = {"pending", "in_progress", "completed"}
