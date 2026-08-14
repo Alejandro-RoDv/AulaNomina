@@ -1,8 +1,8 @@
 """Validación pedagógica de las revisiones de nómina del Temario Maestro 2026.
 
-A18, A20 y A21 son actividades de análisis: no necesitan mutar el ERP, pero sí
-comprobar que el alumno está revisando un cálculo real y coherente. El resto de
-pasos sigue delegándose en el validador general de casos.
+Las actividades de análisis no necesitan mutar el ERP, pero sí comprobar que el
+alumno está revisando un cálculo real y coherente. El resto de pasos sigue
+delegándose en el validador general de casos.
 """
 
 from __future__ import annotations
@@ -25,7 +25,7 @@ from app.services.case_scenario_service import (
 from app.services.case_validation_service import validate_assignment_step as validate_legacy_assignment_step
 
 
-PAYROLL_REVIEW_CODES = {"A18", "A20", "A21"}
+PAYROLL_REVIEW_CODES = {"A18", "A20", "A21", "A22"}
 TOLERANCE = Decimal("0.05")
 
 
@@ -206,6 +206,46 @@ def _review_irpf(payroll: Payroll | None) -> dict[str, Any]:
     }
 
 
+def _review_net_and_company_cost(payroll: Payroll | None) -> dict[str, Any]:
+    if not _is_calculated(payroll):
+        return {
+            "passed": False,
+            "message": "No existe todavía una nómina calculada para revisar líquido y coste empresa.",
+            "evidence": {"payroll_id": payroll.id if payroll else None},
+        }
+
+    gross = _money(payroll.gross_salary)
+    deductions = _money(payroll.total_deductions)
+    net = _money(payroll.net_salary)
+    company_social_security = _money(payroll.company_total_social_security)
+    company_cost = _money(payroll.company_total_cost)
+    expected_net = _money(gross - deductions)
+    expected_company_cost = _money(gross + company_social_security)
+    net_coherent = gross >= 0 and deductions >= 0 and _close(net, expected_net)
+    company_cost_coherent = company_social_security >= 0 and _close(company_cost, expected_company_cost)
+    coherent = net_coherent and company_cost_coherent
+    return {
+        "passed": coherent,
+        "message": (
+            "El líquido cuadra con bruto menos deducciones y el coste empresa incorpora las cuotas empresariales."
+            if coherent
+            else "El líquido o el coste total de empresa no cuadran con los componentes de la nómina."
+        ),
+        "evidence": {
+            "payroll_id": payroll.id,
+            "gross_salary": str(gross),
+            "total_deductions": str(deductions),
+            "expected_net_salary": str(expected_net),
+            "net_salary": str(net),
+            "company_total_social_security": str(company_social_security),
+            "expected_company_total_cost": str(expected_company_cost),
+            "company_total_cost": str(company_cost),
+            "net_coherent": net_coherent,
+            "company_cost_coherent": company_cost_coherent,
+        },
+    }
+
+
 def _review_for_code(code: str, payroll: Payroll | None) -> dict[str, Any]:
     if code == "A18":
         return _review_common_base(payroll)
@@ -213,6 +253,8 @@ def _review_for_code(code: str, payroll: Payroll | None) -> dict[str, Any]:
         return _review_employee_social_security(payroll)
     if code == "A21":
         return _review_irpf(payroll)
+    if code == "A22":
+        return _review_net_and_company_cost(payroll)
     raise ValueError(f"No existe revisión de nómina para {code}")
 
 
