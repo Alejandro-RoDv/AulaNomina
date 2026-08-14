@@ -4,6 +4,8 @@ from sqlalchemy.orm import Session, joinedload
 from app.models.case_assignment import CaseAssignment
 from app.models.case_progress import CaseTaskProgress
 from app.models.case_study import CaseStudy
+from app.models.contract import Contract
+from app.models.employee import Employee
 from app.models.student import Student
 from app.models.student_group import StudentGroup
 from app.schemas.case_assignment import CaseAssignmentCreate, CaseAssignmentUpdate
@@ -186,8 +188,29 @@ def _ensure_demo_assignees(db: Session) -> None:
         seed_demo_students(db)
 
 
+def _reset_training_workday_baseline(db: Session) -> None:
+    """A27 parte siempre de una jornada completa visible en el contrato demo."""
+    employee = db.query(Employee).filter(Employee.dni == "10000001A").first()
+    if employee is None:
+        return
+    contract = (
+        db.query(Contract)
+        .filter(Contract.employee_id == employee.id, Contract.status == "active")
+        .order_by(Contract.id.desc())
+        .first()
+    )
+    if contract is None:
+        return
+    contract.working_day_type = "full_time"
+    contract.weekly_hours = 40
+    contract.full_time_weekly_hours = 40
+    contract.partiality_coefficient = 100
+    db.commit()
+
+
 def seed_demo_case_assignments(db: Session):
     _ensure_demo_assignees(db)
+    _reset_training_workday_baseline(db)
     seed_incident_runtime_cases_2026(db)
     ensure_training_incident_fie_2026(db, reset=True)
 
