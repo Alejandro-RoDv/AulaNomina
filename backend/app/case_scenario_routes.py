@@ -17,11 +17,16 @@ from app.services.training_activity_runtime_service import build_activity_course
 from app.services.case_scenario_service import (
     CaseScenarioError,
     build_assignment_scenario,
+    ensure_assignment_progress,
     reset_assignment_progress,
     start_assignment,
     update_assignment_step,
 )
 from app.services.case_validation_service import record_assignment_event
+from app.services.training_incident_review_service import (
+    handles_training_incident_review,
+    validate_training_incident_review,
+)
 from app.services.training_payroll_review_service import validate_training_aware_assignment_step
 from app.services.professional_response_service import create_professional_response
 from app.services.teacher_case_dashboard_service import (
@@ -116,6 +121,10 @@ def validate_assignment_step_endpoint(
     db: Session = Depends(get_db),
 ):
     try:
+        assignment = ensure_assignment_progress(db, assignment_id)
+        task = next((item for item in assignment.case_study.tasks if item.id == task_id), None)
+        if task and handles_training_incident_review(assignment, task):
+            return validate_training_incident_review(db, assignment_id, task_id)
         return validate_training_aware_assignment_step(db, assignment_id, task_id)
     except CaseScenarioError as error:
         _translate_error(error)
