@@ -13,7 +13,7 @@ from app.schemas.teacher_case_dashboard import (
     TeacherCaseDashboardResponse,
     TeacherCaseDetailResponse,
 )
-from app.services.activity_service import build_activity_course
+from app.services.training_activity_runtime_service import build_activity_course
 from app.services.case_scenario_service import (
     CaseScenarioError,
     build_assignment_scenario,
