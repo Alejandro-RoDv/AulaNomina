@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException, Query
 
+import app.crud.case_assignment as case_assignment_crud
 from app.employment_termination_routes import router as employment_termination_router
 from app.payroll_salary_structure_routes import router as application_aggregate_router
 from app.training import (
@@ -10,12 +11,28 @@ from app.training import (
     list_training_activities_2026,
     training_dependency_graph_2026,
 )
+from app.training.termination_runtime_bootstrap_2026 import bootstrap_termination_training_2026
 
 
 # `main.py` ya incluye application_aggregate_router sin prefijo. Extendemos ese
 # agregador aquí para mantener /employment-terminations como ruta de primer nivel
 # sin ampliar el monolito principal durante Split 43.
 application_aggregate_router.include_router(employment_termination_router)
+
+# El endpoint /seed-demo importa seed_demo_case_assignments después de este módulo.
+# Envolvemos una sola vez el seeder existente para mantener A46-A50 aislado y
+# restaurar su dataset cada vez que se reinicia la demo.
+if not getattr(case_assignment_crud.seed_demo_case_assignments, "_termination_training_wrapped", False):
+    _base_seed_demo_case_assignments = case_assignment_crud.seed_demo_case_assignments
+
+    def _seed_demo_case_assignments_with_terminations(db):
+        result = _base_seed_demo_case_assignments(db)
+        bootstrap_termination_training_2026(db)
+        return result
+
+    _seed_demo_case_assignments_with_terminations._termination_training_wrapped = True
+    case_assignment_crud.seed_demo_case_assignments = _seed_demo_case_assignments_with_terminations
+
 
 router = APIRouter(prefix="/training", tags=["training"])
 
