@@ -58,6 +58,7 @@ GUIDED_MULTISTEP_SCENARIOS = {
     "TRAIN-2026-INCIDENT-A25": "A25",
     "TRAIN-2026-INCIDENT-A26": "A26",
     "TRAIN-2026-INCIDENT-A27": "A27",
+    "TRAIN-2026-SS-A35": "A35",
 }
 
 MULTISTEP_CASE_TITLES = {
@@ -149,6 +150,11 @@ def _training_case_data(task: CaseTask, code: str, current_rows: list[dict[str, 
     salary_structure = state.get("salary_structure") or {}
     incident_data = state.get("incident_data") or {}
     workday_change = state.get("workday_change") or {}
+    affiliation_data = state.get("affiliation_data") or {}
+    fie_data = state.get("fie_data") or {}
+    cra_data = state.get("cra_data") or {}
+    settlement_data = state.get("settlement_data") or {}
+    siltra_data = state.get("siltra_data") or {}
 
     if code == "A07":
         _append_case_row(rows, "Fecha de inicio", state.get("start_date"))
@@ -236,6 +242,47 @@ def _training_case_data(task: CaseTask, code: str, current_rows: list[dict[str, 
         _append_case_row(rows, "Nueva jornada", f"{workday_change.get('target_weekly_hours')} h/semana" if workday_change.get("target_weekly_hours") else None)
         _append_case_row(rows, "Parcialidad objetivo", f"{workday_change.get('target_partiality_coefficient')} %" if workday_change.get("target_partiality_coefficient") else None)
         _append_case_row(rows, "Periodo nómina", state.get("payroll_period"))
+
+    if code == "A28":
+        _append_case_row(rows, "Trabajador", state.get("employee"))
+        _append_case_row(rows, "Empresa", state.get("company_name"))
+        _append_case_row(rows, "Centro", state.get("center_name"))
+        _append_case_row(rows, "CCC esperado", affiliation_data.get("expected_ccc"))
+        _append_case_row(rows, "Fecha de referencia", affiliation_data.get("reference_date"))
+
+    if code == "A30":
+        _append_case_row(rows, "Trabajador", state.get("employee"))
+        _append_case_row(rows, "Movimiento", affiliation_data.get("movement_type"))
+        _append_case_row(rows, "Fecha de efectos", affiliation_data.get("effective_date"))
+        _append_case_row(rows, "CCC", affiliation_data.get("expected_ccc"))
+
+    if code in {"A31", "A32"}:
+        _append_case_row(rows, "Trabajador", state.get("employee"))
+        _append_case_row(rows, "Referencia FIE", fie_data.get("process_reference"))
+        _append_case_row(rows, "Tipo", fie_data.get("communication_type"))
+        _append_case_row(rows, "Contingencia", fie_data.get("contingency_type"))
+        _append_case_row(rows, "Fecha", fie_data.get("event_date") or fie_data.get("expected_incident_start"))
+        if code == "A32":
+            _append_case_row(rows, "Resultado esperado", fie_data.get("expected_status"))
+
+    if code == "A33":
+        _append_case_row(rows, "Empresa", state.get("company_name"))
+        _append_case_row(rows, "Periodo", cra_data.get("period"))
+        _append_case_row(rows, "CCC", cra_data.get("ccc"))
+        _append_case_row(rows, "Contenido", "Trabajadores TRB y conceptos CRE")
+
+    if code == "A34":
+        _append_case_row(rows, "Empresa", state.get("company_name"))
+        _append_case_row(rows, "Periodo", settlement_data.get("period"))
+        _append_case_row(rows, "CCC", settlement_data.get("ccc"))
+        _append_case_row(rows, "Revisión", "RNT nominal + RLC total")
+
+    if code == "A35":
+        _append_case_row(rows, "Empresa", state.get("company_name"))
+        _append_case_row(rows, "Periodo", siltra_data.get("period"))
+        _append_case_row(rows, "CCC", siltra_data.get("ccc"))
+        _append_case_row(rows, "Fichero", siltra_data.get("source_file_type"))
+        _append_case_row(rows, "Primer escenario", siltra_data.get("first_scenario"))
 
     return rows[:8]
 
