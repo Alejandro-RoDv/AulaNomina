@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.db import SessionLocal
 from app.models.document import Document
+from app.schemas.document import DocumentResponse
 from app.schemas.mail import (
     EmailAttachmentPreviewResponse,
     EmailMessageCreate,
@@ -126,6 +127,22 @@ def read_attachment_preview(attachment_id: int, db: Session = Depends(get_db)):
     if not attachment:
         raise HTTPException(status_code=404, detail="Adjunto no encontrado")
     return attachment_preview(attachment)
+
+
+@router.get("/attachments/{attachment_id}/candidate-documents", response_model=list[DocumentResponse])
+def read_attachment_candidate_documents(attachment_id: int, db: Session = Depends(get_db)):
+    attachment = get_attachment(db, attachment_id)
+    if not attachment:
+        raise HTTPException(status_code=404, detail="Adjunto no encontrado")
+    thread = attachment.message.thread if attachment.message else None
+    if not thread or not thread.employee_id:
+        return []
+    return (
+        db.query(Document)
+        .filter(Document.employee_id == thread.employee_id)
+        .order_by(Document.document_type.asc(), Document.id.asc())
+        .all()
+    )
 
 
 @router.post("/attachments/{attachment_id}/link-document/{document_id}", response_model=EmailAttachmentPreviewResponse)
