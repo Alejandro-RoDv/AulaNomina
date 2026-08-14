@@ -48,6 +48,20 @@ test("clasifica únicamente operaciones mutables relevantes", () => {
     method: "PATCH",
     path: "/incidents/42",
   });
+  assert.deepEqual(classifyCaseOperation("/payroll-generation", "POST"), {
+    moduleCode: "payrolls",
+    actionCode: "recalculate_payroll",
+    label: "Nómina generada",
+    method: "POST",
+    path: "/payroll-generation",
+  });
+  assert.deepEqual(classifyCaseOperation("/payrolls/prepare-monthly", "POST"), {
+    moduleCode: "payrolls",
+    actionCode: "recalculate_payroll",
+    label: "Nóminas del periodo preparadas",
+    method: "POST",
+    path: "/payrolls/prepare-monthly",
+  });
   assert.equal(classifyCaseOperation("/employees", "GET"), null);
   assert.equal(classifyCaseOperation("/case-assignments/4/events", "POST"), null);
 });
