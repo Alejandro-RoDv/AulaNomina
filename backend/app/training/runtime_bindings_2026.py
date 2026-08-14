@@ -31,6 +31,8 @@ PAYROLL_CORE_ACTIVITY_CODES_2026 = (
 PAYROLL_PARTIAL_SEQUENCE_CODE = "payroll-partial-period-2026"
 PAYROLL_PARTIAL_ACTIVITY_CODES_2026 = ("A17",)
 
+INCIDENT_ACTIVITY_CODES_2026 = ("A23", "A24", "A25", "A26", "A27")
+
 
 RUNTIME_BINDINGS_2026: dict[str, dict[str, Any]] = {
     "A04": {
@@ -159,6 +161,46 @@ RUNTIME_BINDINGS_2026: dict[str, dict[str, Any]] = {
         "validation_interaction": "explicit_review",
         "use_catalog_result_criteria": True,
         "migration_note": "Cierra el itinerario distinguiendo bruto, líquido y coste total de empresa sobre la misma nómina calculada.",
+    },
+    "A23": {
+        "module": "incidents",
+        "expected_action": "create_incident",
+        "trigger_type": "module_event",
+        "validation_rules": [{"type": "incident_exists", "incident_type": "IT"}],
+        "runtime_prerequisites": ["A16"],
+        "migration_note": "Se ejecuta en tres subpasos: alta de IT común, conciliación FIE y revisión del efecto en nómina.",
+    },
+    "A24": {
+        "module": "incidents",
+        "expected_action": "create_incident",
+        "trigger_type": "module_event",
+        "validation_rules": [{"type": "incident_exists", "incident_type": "IT"}],
+        "runtime_prerequisites": ["A23"],
+        "migration_note": "La contingencia profesional se guarda en details.process_type y se revisa después contra el cálculo de nómina.",
+    },
+    "A25": {
+        "module": "incidents",
+        "expected_action": "create_incident",
+        "trigger_type": "module_event",
+        "validation_rules": [{"type": "incident_exists", "incident_type": "VACACIONES"}],
+        "runtime_prerequisites": ["A04"],
+        "migration_note": "El motor de incidencias ya impide solapamientos incompatibles; un segundo subpaso comprueba el intervalo completo.",
+    },
+    "A26": {
+        "module": "incidents",
+        "expected_action": "create_incident",
+        "trigger_type": "module_event",
+        "validation_rules": [{"type": "incident_exists", "incident_type": "PERMISO_NO_RETRIBUIDO"}],
+        "runtime_prerequisites": ["A16"],
+        "migration_note": "La ausencia se registra como no retribuida y la revisión comprueba días no cotizados e impacto económico.",
+    },
+    "A27": {
+        "module": "contracts",
+        "expected_action": "review_workday_change",
+        "trigger_type": "system",
+        "validation_rules": [{"type": "active_contract"}],
+        "runtime_prerequisites": ["A12", "A16"],
+        "migration_note": "Se valida bajo demanda tras modificar la jornada y de nuevo tras recalcular el periodo afectado.",
     },
 }
 
