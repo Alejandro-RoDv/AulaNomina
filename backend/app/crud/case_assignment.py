@@ -19,6 +19,11 @@ from app.training.incident_runtime_cases_2026 import (
     seed_incident_runtime_assignments_2026,
     seed_incident_runtime_cases_2026,
 )
+from app.training.regularization_runtime_cases_2026 import (
+    prepare_regularization_training_data_2026,
+    seed_regularization_runtime_assignments_2026,
+    seed_regularization_runtime_cases_2026,
+)
 from app.training.social_security_runtime_cases_2026 import (
     prepare_social_security_training_data_2026,
     seed_social_security_runtime_assignments_2026,
@@ -223,8 +228,10 @@ def seed_demo_case_assignments(db: Session):
     seed_incident_runtime_cases_2026(db)
     seed_social_security_runtime_cases_2026(db)
     seed_fiscal_runtime_cases_2026(db)
+    seed_regularization_runtime_cases_2026(db)
     ensure_training_incident_fie_2026(db, reset=True)
     prepare_social_security_training_data_2026(db)
+    prepare_regularization_training_data_2026(db)
 
     case_studies = db.query(CaseStudy).order_by(CaseStudy.id.asc()).all()
     students = db.query(Student).order_by(Student.id.asc()).all()
@@ -290,3 +297,4 @@ def seed_demo_case_assignments(db: Session):
     seed_incident_runtime_assignments_2026(db)
     seed_social_security_runtime_assignments_2026(db)
     seed_fiscal_runtime_assignments_2026(db)
+    seed_regularization_runtime_assignments_2026(db)
