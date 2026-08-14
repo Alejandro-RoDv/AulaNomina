@@ -31,6 +31,42 @@ training_activity_runtime_service.GUIDED_MULTISTEP_SCENARIOS.update(
     }
 )
 
+# Añadimos los datos operativos de B08 sin duplicar el adaptador maestro.
+if not getattr(training_activity_runtime_service._training_case_data, "_termination_data_wrapped", False):
+    _base_training_case_data = training_activity_runtime_service._training_case_data
+
+    def _training_case_data_with_terminations(task, code, current_rows):
+        rows = list(_base_training_case_data(task, code, current_rows) or [])
+        if code not in {"A46", "A47", "A48", "A49", "A50"}:
+            return rows
+        state = task.case_study.initial_state or {}
+        termination = state.get("termination_data") or {}
+        settlement = state.get("settlement_data") or {}
+
+        def add(label, value):
+            if value in {None, ""} or any(item.get("label") == label for item in rows):
+                return
+            rows.append({"label": label, "value": str(value)})
+
+        add("Causa", termination.get("reason_code"))
+        add("Código RED", termination.get("ss_situation_code"))
+        add("Fecha de efectos", state.get("effective_date"))
+        add("Fecha comunicación", termination.get("communication_date"))
+        add("Documento", termination.get("document_reference"))
+        add("Días/año", termination.get("days_per_year"))
+        add("Salario anual", termination.get("annual_salary_reference"))
+        add("Indemnización esperada", termination.get("expected_indemnity"))
+        if code == "A50":
+            add("Salario pendiente", settlement.get("pending_salary_amount"))
+            add("Vacaciones", settlement.get("vacation_amount"))
+            add("Pagas", settlement.get("extra_pay_amount"))
+            add("Indemnización", settlement.get("indemnity_amount"))
+            add("Total finiquito", settlement.get("expected_total"))
+        return rows[:8]
+
+    _training_case_data_with_terminations._termination_data_wrapped = True
+    training_activity_runtime_service._training_case_data = _training_case_data_with_terminations
+
 # El endpoint /seed-demo importa seed_demo_case_assignments después de este módulo.
 # Envolvemos una sola vez el seeder existente para mantener A46-A50 aislado y
 # restaurar su dataset cada vez que se reinicia la demo.
