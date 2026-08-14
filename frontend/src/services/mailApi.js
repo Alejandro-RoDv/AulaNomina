@@ -166,6 +166,23 @@ export async function fetchMailAttachmentPreview(attachmentId) {
   );
 }
 
+export async function fetchEmployeeDocumentsForMail(employeeId) {
+  if (!employeeId) return [];
+  return apiRequest(
+    `/documents/employee/${employeeId}`,
+    {},
+    "No se han podido cargar los documentos del trabajador"
+  );
+}
+
+export async function linkMailAttachmentToDocument(attachmentId, documentId) {
+  return apiRequest(
+    `/mail/attachments/${attachmentId}/link-document/${documentId}`,
+    { method: "POST" },
+    "No se ha podido vincular el adjunto al documento ERP"
+  );
+}
+
 export function getMailAttachmentDownloadUrl(attachmentId) {
   return `${API_BASE_URL}/mail/attachments/${attachmentId}/download`;
 }
