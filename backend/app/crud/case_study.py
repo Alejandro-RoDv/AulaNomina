@@ -5,6 +5,7 @@ from app.models.case_study import CaseStudy, CaseTask
 from app.schemas.case_study import CaseStudyCreate, CaseStudyUpdate, CaseTaskCreate, CaseTaskUpdate
 from app.services.case_feedback_service import normalized_feedback_config
 from app.training.runtime_bindings_2026 import (
+    PAYROLL_CORE_ACTIVITY_CODES_2026,
     build_payroll_core_task_definitions_2026,
     build_pilot_task_definitions_2026,
 )
@@ -152,13 +153,13 @@ def _demo_cases() -> list[CaseStudyCreate]:
         CaseStudyCreate(
             scenario_code="TRAIN-2026-PAYROLL-001",
             title="Nómina ordinaria y comprobaciones básicas",
-            description="Itinerario guiado del bloque de nómina: estructura salarial, cálculo mensual, base de contingencias comunes, deducciones de Seguridad Social e IRPF.",
+            description="Itinerario guiado del bloque de nómina: estructura salarial, cálculo mensual, base de contingencias comunes, deducciones de Seguridad Social, IRPF, líquido y coste empresa.",
             difficulty="intermediate",
             category="payroll",
             status="active",
             created_by="Profesor demo",
             initial_state={
-                "training_sequence": ["A14", "A16", "A18", "A20", "A21"],
+                "training_sequence": list(PAYROLL_CORE_ACTIVITY_CODES_2026),
                 "employee": "Laura Martín Ruiz",
                 "company_name": "Fundación AulaNomina",
                 "center_name": "Colegio San Rafael",
@@ -172,7 +173,7 @@ def _demo_cases() -> list[CaseStudyCreate]:
                     "pay_schedule_label": "14 pagas · no prorrateadas",
                 },
             },
-            completion_message="La nómina ordinaria ha sido calculada y revisada en sus bases, aportaciones del trabajador y retención de IRPF.",
+            completion_message="La nómina ordinaria ha sido calculada y revisada desde su estructura salarial hasta el líquido y el coste total de empresa.",
             tasks=payroll_core_tasks,
         ),
         CaseStudyCreate(
