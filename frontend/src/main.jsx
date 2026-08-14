@@ -42,6 +42,7 @@ import CraRoute from "./components/cra/CraRoute.jsx";
 import FieRoute from "./components/fie/FieRoute.jsx";
 import MailLauncherBridge from "./components/mail/MailLauncherBridge.jsx";
 import MailRoute from "./components/mail/MailRoute.jsx";
+import EmploymentTerminationRoute from "./components/terminations/EmploymentTerminationRoute.jsx";
 
 const showDesignSystem = new URLSearchParams(window.location.search).has("design-system");
 
@@ -63,6 +64,7 @@ createRoot(document.getElementById("root")).render(
         <ActivitiesLauncherBridge />
         <MailLauncherBridge />
         <MailRoute />
+        <EmploymentTerminationRoute />
       </>
     )}
   </StrictMode>
