@@ -6,7 +6,9 @@ from app.schemas.case_study import CaseStudyCreate, CaseStudyUpdate, CaseTaskCre
 from app.services.case_feedback_service import normalized_feedback_config
 from app.training.runtime_bindings_2026 import (
     PAYROLL_CORE_ACTIVITY_CODES_2026,
+    PAYROLL_PARTIAL_ACTIVITY_CODES_2026,
     build_payroll_core_task_definitions_2026,
+    build_payroll_partial_task_definitions_2026,
     build_pilot_task_definitions_2026,
 )
 
@@ -114,6 +116,10 @@ def _demo_cases() -> list[CaseStudyCreate]:
         CaseTaskCreate(**definition)
         for definition in build_payroll_core_task_definitions_2026()
     ]
+    payroll_partial_tasks = [
+        CaseTaskCreate(**definition)
+        for definition in build_payroll_partial_task_definitions_2026()
+    ]
 
     return [
         CaseStudyCreate(
@@ -153,7 +159,7 @@ def _demo_cases() -> list[CaseStudyCreate]:
         CaseStudyCreate(
             scenario_code="TRAIN-2026-PAYROLL-001",
             title="Nómina ordinaria y comprobaciones básicas",
-            description="Itinerario guiado del bloque de nómina: estructura salarial, cálculo mensual, base de contingencias comunes, deducciones de Seguridad Social, IRPF, líquido y coste empresa.",
+            description="Itinerario guiado del bloque de nómina: estructura salarial, pagas extraordinarias, cálculo mensual, bases de cotización, deducciones de Seguridad Social, IRPF, líquido y coste empresa.",
             difficulty="intermediate",
             category="payroll",
             status="active",
@@ -169,12 +175,39 @@ def _demo_cases() -> list[CaseStudyCreate]:
                     "complement_code": "COMPLEMENTO_CONVENIO",
                     "complement_name": "Complemento convenio",
                     "complement_amount": "85,00 €",
-                    "pay_schedule": "not_prorated_14",
+                    "current_pay_schedule": "not_prorated_14",
+                    "current_pay_schedule_label": "14 pagas · no prorrateadas",
+                    "target_pay_schedule": "prorated_12",
+                    "target_pay_schedule_label": "12 mensualidades · pagas extraordinarias prorrateadas",
+                    "overtime_amount": "0,00 €",
+                },
+            },
+            completion_message="La nómina ordinaria ha sido configurada y revisada desde la estructura salarial y la prorrata hasta las bases, deducciones, líquido y coste total de empresa.",
+            tasks=payroll_core_tasks,
+        ),
+        CaseStudyCreate(
+            scenario_code="TRAIN-2026-PAYROLL-PARTIAL-001",
+            title="Nómina con alta dentro del mes",
+            description="Caso específico para calcular una nómina cuando el contrato comienza una vez iniciado el periodo mensual y comprobar días e importes proporcionales.",
+            difficulty="intermediate",
+            category="payroll",
+            status="active",
+            created_by="Profesor demo",
+            initial_state={
+                "training_sequence": list(PAYROLL_PARTIAL_ACTIVITY_CODES_2026),
+                "employee": "Javier Romero Sánchez",
+                "company_name": "Fundación AulaNomina",
+                "center_name": "Colegio San Rafael",
+                "payroll_period": "2026-01",
+                "start_date": "2026-01-08",
+                "expected_payroll_days": 23,
+                "salary_structure": {
+                    "base_salary": "1.450,00 €",
                     "pay_schedule_label": "14 pagas · no prorrateadas",
                 },
             },
-            completion_message="La nómina ordinaria ha sido calculada y revisada desde su estructura salarial hasta el líquido y el coste total de empresa.",
-            tasks=payroll_core_tasks,
+            completion_message="La nómina parcial refleja únicamente los días comprendidos desde el alta hasta el final del periodo.",
+            tasks=payroll_partial_tasks,
         ),
         CaseStudyCreate(
             scenario_code="IT-2026-008",
