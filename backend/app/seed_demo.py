@@ -4,6 +4,7 @@ from decimal import Decimal
 
 from app.db import Base, SessionLocal, engine
 from app.models import Company, Contract, Employee, Incident, Payroll, WorkCenter
+from app.models.fie import FieCommunication, FieProcessingEvent
 from app.seed_demo_payroll_incident_cases import seed_demo_payroll_incident_cases
 from app.seed_demo_payroll_salary_structure import seed_demo_payroll_items
 
@@ -185,6 +186,25 @@ def get_or_create_payroll(db, employee, contract, company, center, supplement=De
     return payroll
 
 
+def _delete_demo_fie(db, *, company_id: int | None, employee_ids: list[int]) -> None:
+    query = db.query(FieCommunication.id)
+    if company_id is not None:
+        query = query.filter(FieCommunication.company_id == company_id)
+    elif employee_ids:
+        query = query.filter(FieCommunication.employee_id.in_(employee_ids))
+    else:
+        return
+    communication_ids = [row[0] for row in query.all()]
+    if not communication_ids:
+        return
+    db.query(FieProcessingEvent).filter(
+        FieProcessingEvent.communication_id.in_(communication_ids)
+    ).delete(synchronize_session=False)
+    db.query(FieCommunication).filter(
+        FieCommunication.id.in_(communication_ids)
+    ).delete(synchronize_session=False)
+
+
 def reset_only_demo_data(db):
     """Delete only the controlled demo dataset, never the full business tables."""
 
@@ -195,6 +215,12 @@ def reset_only_demo_data(db):
         .filter(Employee.dni.in_(["10000001A", "10000002B", "10000003C", "10000004D", "10000005E"]))
         .all()
     ]
+
+    _delete_demo_fie(
+        db,
+        company_id=company.id if company else None,
+        employee_ids=demo_employee_ids,
+    )
 
     if company:
         db.query(Payroll).filter(Payroll.company_id == company.id).delete(synchronize_session=False)
@@ -372,6 +398,10 @@ def seed_demo_data(reset=False):
                 status="active",
                 salary_base=Decimal("1680.00"),
                 pay_schedule="not_prorated_14",
+                working_day_type="full_time",
+                weekly_hours=40,
+                full_time_weekly_hours=40,
+                partiality_coefficient=100,
             ),
             "javier": get_or_create_contract(
                 db,
