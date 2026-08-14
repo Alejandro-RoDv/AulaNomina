@@ -59,6 +59,11 @@ GUIDED_MULTISTEP_SCENARIOS = {
     "TRAIN-2026-INCIDENT-A26": "A26",
     "TRAIN-2026-INCIDENT-A27": "A27",
     "TRAIN-2026-SS-A35": "A35",
+    "TRAIN-2026-TAX-A36": "A36",
+    "TRAIN-2026-TAX-A38": "A38",
+    "TRAIN-2026-TAX-A39": "A39",
+    "TRAIN-2026-TAX-A40": "A40",
+    "TRAIN-2026-TAX-A41": "A41",
 }
 
 MULTISTEP_CASE_TITLES = {
@@ -155,6 +160,13 @@ def _training_case_data(task: CaseTask, code: str, current_rows: list[dict[str, 
     cra_data = state.get("cra_data") or {}
     settlement_data = state.get("settlement_data") or {}
     siltra_data = state.get("siltra_data") or {}
+    tax_profile_data = state.get("tax_profile_data") or {}
+    model145_data = state.get("model145_data") or {}
+    irpf_data = state.get("irpf_data") or {}
+    irpf_regularization_data = state.get("irpf_regularization_data") or {}
+    professional_data = state.get("professional_data") or {}
+    model111_data = state.get("model111_data") or {}
+    model190_data = state.get("model190_data") or {}
 
     if code == "A07":
         _append_case_row(rows, "Fecha de inicio", state.get("start_date"))
@@ -283,6 +295,51 @@ def _training_case_data(task: CaseTask, code: str, current_rows: list[dict[str, 
         _append_case_row(rows, "CCC", siltra_data.get("ccc"))
         _append_case_row(rows, "Fichero", siltra_data.get("source_file_type"))
         _append_case_row(rows, "Primer escenario", siltra_data.get("first_scenario"))
+
+    if code == "A36":
+        _append_case_row(rows, "Trabajador", state.get("employee"))
+        _append_case_row(rows, "Situación familiar", tax_profile_data.get("family_situation"))
+        _append_case_row(rows, "Descendientes", tax_profile_data.get("children_count"))
+        _append_case_row(rows, "Ascendientes", tax_profile_data.get("ascendants_in_care"))
+        _append_case_row(rows, "Retribución anual prevista", tax_profile_data.get("expected_annual_salary"))
+        _append_case_row(rows, "Modelo 145", model145_data.get("required_status"))
+        _append_case_row(rows, "Fecha Modelo 145", model145_data.get("issue_date"))
+
+    if code == "A37":
+        _append_case_row(rows, "Trabajador", state.get("employee"))
+        _append_case_row(rows, "Ejercicio", irpf_data.get("calculation_year"))
+        _append_case_row(rows, "Origen", irpf_data.get("source"))
+        _append_case_row(rows, "Tolerancia", f"{irpf_data.get('rate_tolerance')} p.p." if irpf_data.get("rate_tolerance") is not None else None)
+
+    if code == "A38":
+        _append_case_row(rows, "Trabajador", state.get("employee"))
+        _append_case_row(rows, "Motivo", irpf_regularization_data.get("reason"))
+        _append_case_row(rows, "Fecha de efectos", irpf_regularization_data.get("effective_date"))
+        _append_case_row(rows, "Descendientes", irpf_regularization_data.get("children_count"))
+        _append_case_row(rows, "Regularización", "Activar" if irpf_regularization_data.get("manual_regularization") else None)
+
+    if code == "A39":
+        _append_case_row(rows, "Profesional", " ".join(part for part in [professional_data.get("name"), professional_data.get("surname")] if part))
+        _append_case_row(rows, "NIF", professional_data.get("nif"))
+        _append_case_row(rows, "Retención", f"{professional_data.get('withholding_rate')} %" if professional_data.get("withholding_rate") is not None else None)
+        _append_case_row(rows, "Factura", professional_data.get("invoice_number"))
+        _append_case_row(rows, "Base", professional_data.get("tax_base"))
+        _append_case_row(rows, "Retención factura", professional_data.get("withholding_amount"))
+        _append_case_row(rows, "Pago", professional_data.get("payment_date"))
+
+    if code == "A40":
+        _append_case_row(rows, "Empresa", state.get("company_name"))
+        _append_case_row(rows, "Ejercicio", model111_data.get("year"))
+        _append_case_row(rows, "Periodo", model111_data.get("period"))
+        _append_case_row(rows, "Declaración", model111_data.get("declaration_type"))
+        _append_case_row(rows, "Profesional incluido", model111_data.get("professional_nif"))
+
+    if code == "A41":
+        _append_case_row(rows, "Empresa", state.get("company_name"))
+        _append_case_row(rows, "Ejercicio", model190_data.get("year"))
+        _append_case_row(rows, "Declaración", model190_data.get("declaration_type"))
+        _append_case_row(rows, "Referencia 111", model190_data.get("reference_model111_period"))
+        _append_case_row(rows, "Profesional incluido", model190_data.get("professional_nif"))
 
     return rows[:8]
 
