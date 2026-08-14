@@ -29,6 +29,33 @@ const ACTION_TARGETS = {
   present_model_190: { label: "Presentar Modelo 190", hash: "#model-190" },
   siltra: { label: "Abrir SILTRA", page: "social-security-files" },
   submit_siltra: { label: "Enviar a SILTRA", page: "social-security-files" },
+  mail: { label: "Abrir correo", hash: "#mail" },
+  reply_mail: { label: "Responder comunicación", hash: "#mail" },
+
+  review_integrated_c01_employee: { label: "Abrir trabajadores", page: "employees-list" },
+  review_integrated_c01_contract: { label: "Abrir contratos", page: "contracts" },
+  review_integrated_c01_affiliation: { label: "Abrir afiliación", page: "affiliations" },
+  review_integrated_c01_documents: { label: "Abrir documentos", hash: "#documents" },
+  review_integrated_c01_payroll: { label: "Abrir nóminas", page: "payroll-history" },
+
+  review_integrated_c03_cause: { label: "Revisar contrato", page: "contracts" },
+  review_integrated_c03_concept: { label: "Revisar conceptos salariales", page: "permanent-payroll-concepts" },
+  review_integrated_c03_regularization: { label: "Abrir nómina y regularización", page: "payroll-history" },
+  review_integrated_c03_reply: { label: "Responder reclamación", hash: "#mail" },
+
+  review_integrated_c04_sources: { label: "Revisar Modelo 111", hash: "#model-111" },
+  review_integrated_c04_declaration: { label: "Cerrar Modelo 111", hash: "#model-111" },
+  review_integrated_c04_presentation: { label: "Presentar Modelo 111", hash: "#model-111" },
+
+  review_integrated_c05_origin: { label: "Abrir Seguros Sociales", page: "social-security-dashboard" },
+  review_integrated_c05_correction: { label: "Abrir ficheros de Seguridad Social", page: "social-security-files" },
+  review_integrated_c05_acceptance: { label: "Revisar respuesta SILTRA", page: "social-security-files" },
+
+  review_integrated_c06_termination: { label: "Abrir relación contractual", page: "contracts" },
+  review_integrated_c06_settlement: { label: "Abrir relación contractual", page: "contracts" },
+  review_integrated_c06_affiliation: { label: "Preparar baja", page: "affiliations" },
+  review_integrated_c06_close: { label: "Comunicar cierre", hash: "#mail" },
+
   general: { label: "Abrir AulaNomina", page: "dashboard" },
 };
 
@@ -42,6 +69,12 @@ const MODULE_TARGETS = {
   fie: ACTION_TARGETS.fie,
   documents: ACTION_TARGETS.documents,
   tax: ACTION_TARGETS.model111,
+  irpf: { label: "Abrir IRPF", page: "irpf" },
+  cra: { label: "Abrir Seguros Sociales", page: "social-security-dashboard" },
+  "social-security": { label: "Abrir Seguros Sociales", page: "social-security-dashboard" },
+  social_security: { label: "Abrir Seguros Sociales", page: "social-security-dashboard" },
+  terminations: ACTION_TARGETS.contracts,
+  mail: ACTION_TARGETS.mail,
   general: ACTION_TARGETS.general,
 };
 
