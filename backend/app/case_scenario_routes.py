@@ -21,10 +21,8 @@ from app.services.case_scenario_service import (
     start_assignment,
     update_assignment_step,
 )
-from app.services.case_validation_service import (
-    record_assignment_event,
-    validate_assignment_step,
-)
+from app.services.case_validation_service import record_assignment_event
+from app.services.training_payroll_review_service import validate_training_aware_assignment_step
 from app.services.professional_response_service import create_professional_response
 from app.services.teacher_case_dashboard_service import (
     get_teacher_case_dashboard,
@@ -118,7 +116,7 @@ def validate_assignment_step_endpoint(
     db: Session = Depends(get_db),
 ):
     try:
-        return validate_assignment_step(db, assignment_id, task_id)
+        return validate_training_aware_assignment_step(db, assignment_id, task_id)
     except CaseScenarioError as error:
         _translate_error(error)
 
