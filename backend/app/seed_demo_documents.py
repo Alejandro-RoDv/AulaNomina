@@ -40,8 +40,10 @@ def get_or_create_document(db, employee, document_type, **fields):
     return document
 
 
-def seed_demo_documents():
-    db = SessionLocal()
+def seed_demo_documents(db=None):
+    owns_session = db is None
+    if owns_session:
+        db = SessionLocal()
     try:
         company = db.query(Company).filter(Company.cif == DEMO_COMPANY_CIF).first()
         if not company:
@@ -97,7 +99,8 @@ def seed_demo_documents():
         db.rollback()
         raise
     finally:
-        db.close()
+        if owns_session:
+            db.close()
 
 
 if __name__ == "__main__":
