@@ -105,7 +105,7 @@ MAIL_CASES = {
 
 def _employee_for_case(db: Session, code: str) -> Employee | None:
     if code == "C03":
-        return db.query(Employee).filter(Employee.dni == "10000001A").first()
+        return db.query(Employee).filter(Employee.dni == "31000003D").first()
     if code == "C06":
         return db.query(Employee).filter(Employee.dni == "30000004T").first()
     return None
