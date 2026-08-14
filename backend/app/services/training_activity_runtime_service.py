@@ -52,6 +52,14 @@ INTEGRAL_CASE_CODES = {
     "NOM-2026-014": "C03",
 }
 
+GUIDED_MULTISTEP_SCENARIOS = {
+    "TRAIN-2026-INCIDENT-A23": "A23",
+    "TRAIN-2026-INCIDENT-A24": "A24",
+    "TRAIN-2026-INCIDENT-A25": "A25",
+    "TRAIN-2026-INCIDENT-A26": "A26",
+    "TRAIN-2026-INCIDENT-A27": "A27",
+}
+
 MULTISTEP_CASE_TITLES = {
     "Expediente documental incompleto": "A52",
 }
@@ -86,6 +94,17 @@ def _runtime_descriptor(task: CaseTask | None) -> dict[str, Any] | None:
         return {
             "code": integral_code,
             "kind": "integral_case",
+            "substep": int(task.task_order or 1),
+            "substep_total": total,
+            "inferred": True,
+        }
+
+    guided_code = GUIDED_MULTISTEP_SCENARIOS.get(scenario_code)
+    if guided_code:
+        total = len(task.case_study.tasks or [])
+        return {
+            "code": guided_code,
+            "kind": "guided_multistep",
             "substep": int(task.task_order or 1),
             "substep_total": total,
             "inferred": True,
@@ -128,6 +147,8 @@ def _training_case_data(task: CaseTask, code: str, current_rows: list[dict[str, 
     employee_data = state.get("employee_data") or {}
     contract_data = state.get("contract_data") or {}
     salary_structure = state.get("salary_structure") or {}
+    incident_data = state.get("incident_data") or {}
+    workday_change = state.get("workday_change") or {}
 
     if code == "A07":
         _append_case_row(rows, "Fecha de inicio", state.get("start_date"))
@@ -194,6 +215,28 @@ def _training_case_data(task: CaseTask, code: str, current_rows: list[dict[str, 
         _append_case_row(rows, "Revisión", "Bruto · deducciones · líquido · coste empresa")
         _append_case_row(rows, "Criterio", "Líquido = bruto - deducciones")
 
+    if code in {"A23", "A24", "A25", "A26"}:
+        _append_case_row(rows, "Trabajador", state.get("employee"))
+        _append_case_row(rows, "Fecha inicial", incident_data.get("start_date"))
+        _append_case_row(rows, "Fecha final", incident_data.get("end_date"))
+        _append_case_row(rows, "Tipo", incident_data.get("incident_type"))
+        if incident_data.get("process_type"):
+            _append_case_row(rows, "Contingencia", incident_data.get("process_type"))
+        if incident_data.get("expected_days"):
+            _append_case_row(rows, "Días", incident_data.get("expected_days"))
+        if state.get("payroll_period"):
+            _append_case_row(rows, "Periodo nómina", state.get("payroll_period"))
+        if incident_data.get("fie_process_reference"):
+            _append_case_row(rows, "Referencia FIE", incident_data.get("fie_process_reference"))
+
+    if code == "A27":
+        _append_case_row(rows, "Trabajador", state.get("employee"))
+        _append_case_row(rows, "Fecha de efectos", workday_change.get("effective_date"))
+        _append_case_row(rows, "Jornada anterior", f"{workday_change.get('previous_weekly_hours')} h/semana" if workday_change.get("previous_weekly_hours") else None)
+        _append_case_row(rows, "Nueva jornada", f"{workday_change.get('target_weekly_hours')} h/semana" if workday_change.get("target_weekly_hours") else None)
+        _append_case_row(rows, "Parcialidad objetivo", f"{workday_change.get('target_partiality_coefficient')} %" if workday_change.get("target_partiality_coefficient") else None)
+        _append_case_row(rows, "Periodo nómina", state.get("payroll_period"))
+
     return rows[:8]
 
 
@@ -247,8 +290,8 @@ def _enrich_activity(activity: dict[str, Any], task: CaseTask) -> dict[str, Any]
 
     trigger_condition = task.trigger_condition or {}
     validation_interaction = (
-        (binding or {}).get("validation_interaction")
-        or trigger_condition.get("validation_interaction")
+        trigger_condition.get("validation_interaction")
+        or (binding or {}).get("validation_interaction")
         or "operation"
     )
 
