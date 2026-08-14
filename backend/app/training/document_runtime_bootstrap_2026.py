@@ -3,6 +3,7 @@
 from sqlalchemy.orm import Session
 
 from app.models.case_study import CaseStudy
+from app.models.mail import EmailAttachment, EmailMessage, EmailThread
 from app.training.document_runtime_cases_2026 import (
     DOCUMENT_SCENARIO_CODES,
     prepare_document_training_data_2026,
@@ -27,9 +28,28 @@ def _archive_superseded_document_case(db: Session) -> None:
         db.commit()
 
 
+def _clear_document_training_evidence_links(db: Session) -> None:
+    attachments = (
+        db.query(EmailAttachment)
+        .join(EmailMessage, EmailAttachment.message_id == EmailMessage.id)
+        .join(EmailThread, EmailMessage.thread_id == EmailThread.id)
+        .filter(
+            EmailThread.case_reference.in_(sorted(DOCUMENT_SCENARIO_CODES)),
+            EmailAttachment.linked_document_id.isnot(None),
+        )
+        .all()
+    )
+    if not attachments:
+        return
+    for attachment in attachments:
+        attachment.linked_document_id = None
+    db.commit()
+
+
 def bootstrap_document_training_2026(db: Session) -> None:
     """Restaura casos, asignaciones y evidencias del bloque documental."""
     _archive_superseded_document_case(db)
+    _clear_document_training_evidence_links(db)
     seed_document_runtime_cases_2026(db)
     seed_document_runtime_assignments_2026(db)
     prepare_document_training_data_2026(db)
