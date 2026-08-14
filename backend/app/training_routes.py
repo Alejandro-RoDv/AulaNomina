@@ -1,5 +1,7 @@
 from fastapi import APIRouter, HTTPException, Query
 
+from app.employment_termination_routes import router as employment_termination_router
+from app.payroll_salary_structure_routes import router as application_aggregate_router
 from app.training import (
     OFFICIAL_SOURCES_2026,
     blueprint_summary,
@@ -9,6 +11,11 @@ from app.training import (
     training_dependency_graph_2026,
 )
 
+
+# `main.py` ya incluye application_aggregate_router sin prefijo. Extendemos ese
+# agregador aquí para mantener /employment-terminations como ruta de primer nivel
+# sin ampliar el monolito principal durante Split 43.
+application_aggregate_router.include_router(employment_termination_router)
 
 router = APIRouter(prefix="/training", tags=["training"])
 
