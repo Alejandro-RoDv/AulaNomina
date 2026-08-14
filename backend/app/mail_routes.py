@@ -34,6 +34,7 @@ from app.services.mail_service import (
     update_thread,
 )
 from app.training.document_runtime_bootstrap_2026 import bootstrap_document_training_2026
+from app.training.integrated_runtime_mail_2026 import ensure_integrated_training_mail_2026
 
 
 router = APIRouter(prefix="/mail", tags=["mail"])
@@ -56,6 +57,7 @@ def _prepare_demo_mailbox(db: Session, *, reset: bool = False):
     integrated_thread = ensure_integrated_demo_case(db, mailbox)
     if reset and integrated_thread.case_assignment_id:
         reset_assignment_progress(db, integrated_thread.case_assignment_id)
+    ensure_integrated_training_mail_2026(db, mailbox)
     return mailbox
 
 
