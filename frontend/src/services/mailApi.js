@@ -166,12 +166,11 @@ export async function fetchMailAttachmentPreview(attachmentId) {
   );
 }
 
-export async function fetchEmployeeDocumentsForMail(employeeId) {
-  if (!employeeId) return [];
+export async function fetchMailAttachmentCandidateDocuments(attachmentId) {
   return apiRequest(
-    `/documents/employee/${employeeId}`,
+    `/mail/attachments/${attachmentId}/candidate-documents`,
     {},
-    "No se han podido cargar los documentos del trabajador"
+    "No se han podido cargar los documentos candidatos"
   );
 }
 
