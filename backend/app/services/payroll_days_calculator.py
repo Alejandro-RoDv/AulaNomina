@@ -132,6 +132,7 @@ def calculate_payroll_days(
                 continue
 
             rule = resolve_incident_rule(incident.incident_type)
+            details = getattr(incident, "details", None) or {}
 
             total_incident_days += days
             if rule.reduces_worked_days:
@@ -145,6 +146,8 @@ def calculate_payroll_days(
                 {
                     "incident_id": getattr(incident, "id", None),
                     "incident_type": incident.incident_type,
+                    "process_type": details.get("process_type"),
+                    "benefit_type": details.get("benefit_type"),
                     "label": rule.display_label,
                     "days": days,
                     "affects_payroll": rule.affects_payroll,
