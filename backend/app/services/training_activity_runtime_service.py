@@ -150,17 +150,34 @@ def _training_case_data(task: CaseTask, code: str, current_rows: list[dict[str, 
         _append_case_row(rows, "Salario base", salary_structure.get("base_salary"))
         _append_case_row(rows, "Complemento", salary_structure.get("complement_name"))
         _append_case_row(rows, "Importe complemento", salary_structure.get("complement_amount"))
-        _append_case_row(rows, "Pagas", salary_structure.get("pay_schedule_label"))
+        _append_case_row(rows, "Pagas actuales", salary_structure.get("current_pay_schedule_label") or salary_structure.get("pay_schedule_label"))
+
+    if code == "A15":
+        _append_case_row(rows, "Modalidad actual", salary_structure.get("current_pay_schedule_label"))
+        _append_case_row(rows, "Objetivo", salary_structure.get("target_pay_schedule_label"))
+        _append_case_row(rows, "Contrato", "Modificar la modalidad de abono de pagas")
 
     if code == "A16":
         _append_case_row(rows, "Periodo", state.get("payroll_period"))
         _append_case_row(rows, "Tipo de cálculo", "Nómina mensual ordinaria")
+        _append_case_row(rows, "Pagas", salary_structure.get("target_pay_schedule_label") or salary_structure.get("pay_schedule_label"))
         _append_case_row(rows, "Incidencias", "Sin incidencias en el periodo")
+
+    if code == "A17":
+        _append_case_row(rows, "Periodo", state.get("payroll_period"))
+        _append_case_row(rows, "Fecha de alta", state.get("start_date"))
+        _append_case_row(rows, "Días esperados", state.get("expected_payroll_days"))
+        _append_case_row(rows, "Salario mensual", salary_structure.get("base_salary"))
 
     if code == "A18":
         _append_case_row(rows, "Periodo", state.get("payroll_period"))
         _append_case_row(rows, "Revisión", "Base de contingencias comunes")
         _append_case_row(rows, "Referencia", "Bases y tipos 2026")
+
+    if code == "A19":
+        _append_case_row(rows, "Periodo", state.get("payroll_period"))
+        _append_case_row(rows, "Revisión", "Base común frente a base profesional")
+        _append_case_row(rows, "Horas extraordinarias", salary_structure.get("overtime_amount") or "0,00 €")
 
     if code == "A20":
         _append_case_row(rows, "Periodo", state.get("payroll_period"))
@@ -171,6 +188,11 @@ def _training_case_data(task: CaseTask, code: str, current_rows: list[dict[str, 
         _append_case_row(rows, "Periodo", state.get("payroll_period"))
         _append_case_row(rows, "Revisión", "Retención IRPF aplicada")
         _append_case_row(rows, "Criterio", "Perfil fiscal + cálculo IRPF 2026")
+
+    if code == "A22":
+        _append_case_row(rows, "Periodo", state.get("payroll_period"))
+        _append_case_row(rows, "Revisión", "Bruto · deducciones · líquido · coste empresa")
+        _append_case_row(rows, "Criterio", "Líquido = bruto - deducciones")
 
     return rows[:8]
 
