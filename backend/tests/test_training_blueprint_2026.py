@@ -1,5 +1,18 @@
+from app.training.activity_specs_2026 import ACTIVITY_SPECS_2026
 from app.training.course_blueprint_2026 import COURSE_BLUEPRINT_2026, blueprint_summary, iter_activities
 from app.training.official_sources_2026 import OFFICIAL_SOURCES_2026
+
+
+REQUIRED_SPEC_FIELDS = {
+    "learning_objective",
+    "prerequisites",
+    "professional_situation",
+    "student_inputs",
+    "expected_actions",
+    "evaluation_criteria",
+    "theory_topics",
+    "feedback_if_failed",
+}
 
 
 def test_blueprint_has_expected_commercial_scope():
@@ -39,6 +52,32 @@ def test_activity_codes_are_unique_and_sources_are_registered():
     assert unknown_sources == set()
 
 
+def test_every_activity_has_a_complete_pedagogical_specification():
+    activity_codes = {activity["code"] for activity in iter_activities()}
+
+    assert set(ACTIVITY_SPECS_2026) == activity_codes
+
+    for code, spec in ACTIVITY_SPECS_2026.items():
+        assert set(spec) == REQUIRED_SPEC_FIELDS, code
+        assert spec["learning_objective"].strip(), code
+        assert spec["professional_situation"].strip(), code
+        assert spec["student_inputs"], code
+        assert spec["expected_actions"], code
+        assert spec["evaluation_criteria"], code
+        assert spec["theory_topics"], code
+        assert spec["feedback_if_failed"], code
+
+
+def test_prerequisites_reference_known_activities_and_do_not_point_forward():
+    activities = iter_activities()
+    order = {activity["code"]: position for position, activity in enumerate(activities)}
+
+    for code, spec in ACTIVITY_SPECS_2026.items():
+        for prerequisite in spec["prerequisites"]:
+            assert prerequisite in order, (code, prerequisite)
+            assert order[prerequisite] < order[code], (code, prerequisite)
+
+
 def test_functional_gaps_are_explicit_for_new_flows():
     new_flows = [activity for activity in iter_activities() if activity["product_fit"] == "new_flow"]
 
@@ -52,3 +91,14 @@ def test_fp_reference_is_traceable_to_registered_source():
     assert fp_reference["module"] == "0652 Gestión de recursos humanos"
     assert fp_reference["source"] in OFFICIAL_SOURCES_2026
     assert set(fp_reference["learning_results"]) == {"RA1", "RA2", "RA3", "RA4"}
+
+
+def test_annual_and_frequent_sources_have_current_review_date():
+    volatile = {
+        code: source
+        for code, source in OFFICIAL_SOURCES_2026.items()
+        if source["update_policy"] in {"annual", "frequent"}
+    }
+
+    assert volatile
+    assert all(source["checked_on"] == "2026-08-14" for source in volatile.values())
