@@ -16,7 +16,7 @@
     "test:seguridad-social": "node --test src/tests/socialSecuritySettlement.test.js",
     "test:siltra": "node --test src/tests/siltraSimulation.test.js",
     "test:model190": "node --test src/tests/model190View.test.js src/tests/model190Presentation.test.js src/tests/model190Documents.test.js src/tests/model190Demo.test.js",
-    "test:mail": "node --test src/tests/mailApi.test.js src/tests/caseNavigation.test.js src/tests/caseOperationBridge.test.js",
+    "test:mail": "node --test src/tests/mailApi.test.js src/tests/caseNavigation.test.js src/tests/caseOperationBridge.test.js src/tests/caseOperationBridgeTermination.test.js",
     "preview": "vite preview"
   },
   "dependencies": {
