@@ -7,13 +7,33 @@ unidad de ejecución y progreso.
 
 from __future__ import annotations
 
+from datetime import date, datetime
 from typing import Any
+import unicodedata
 
+from sqlalchemy.orm import Session
+
+from app.models.case_assignment import CaseAssignment
+from app.models.case_study import CaseStudy, CaseTask
+from app.models.contract import Contract
+from app.models.employee import Employee
+from app.models.fie import FieCommunication, FieProcessingEvent
+from app.models.student import Student
 from app.schemas.case_study import CaseStudyCreate, CaseTaskCreate
+from app.services.case_scenario_service import ensure_assignment_progress
 
 
 COURSE_CODE = "AN-GL-2026"
 COURSE_VERSION = "2026.1-phase-a"
+TRAINING_FIE_MESSAGE_ID = "FIE-TRAIN-2026-A23"
+TRAINING_FIE_PROCESS_REFERENCE = "IT-TRAIN-A23-2026"
+INCIDENT_SCENARIO_CODES = {
+    "TRAIN-2026-INCIDENT-A23",
+    "TRAIN-2026-INCIDENT-A24",
+    "TRAIN-2026-INCIDENT-A25",
+    "TRAIN-2026-INCIDENT-A26",
+    "TRAIN-2026-INCIDENT-A27",
+}
 
 
 def _task(
@@ -71,7 +91,7 @@ def build_incident_runtime_cases_2026() -> list[CaseStudyCreate]:
                     "benefit_type": "temporary_disability",
                     "process_type": "common_disease",
                     "expected_days": 6,
-                    "fie_process_reference": "IT-TRAIN-A23-2026",
+                    "fie_process_reference": TRAINING_FIE_PROCESS_REFERENCE,
                 },
             },
             completion_message="La IT común está registrada, conciliada con FIE y reflejada en la nómina de septiembre.",
@@ -87,7 +107,7 @@ def build_incident_runtime_cases_2026() -> list[CaseStudyCreate]:
                 ),
                 _task(
                     title="Conciliar la comunicación FIE",
-                    description="Abre la comunicación FIE del proceso IT-TRAIN-A23-2026 y relaciónala con la incidencia registrada.",
+                    description=f"Abre la comunicación FIE del proceso {TRAINING_FIE_PROCESS_REFERENCE} y relaciónala con la incidencia registrada.",
                     module="fie",
                     expected_result="FIE conciliado con la IT de Laura",
                     expected_action="reconcile_fie",
@@ -224,7 +244,7 @@ def build_incident_runtime_cases_2026() -> list[CaseStudyCreate]:
             tasks=[
                 _task(
                     title="Registrar la ausencia no retribuida",
-                    description="Registra un permiso no retribuido de Laura los días 10 y 11 de agosto de 2026.",
+                    description="Registra un permiso no retribuido de Laura los días 10 y 11 de agosto de 2026 y marca la incidencia como no retribuida.",
                     module="incidents",
                     expected_result="Ausencia no retribuida registrada para dos días",
                     expected_action="create_incident",
@@ -246,7 +266,7 @@ def build_incident_runtime_cases_2026() -> list[CaseStudyCreate]:
         CaseStudyCreate(
             scenario_code="TRAIN-2026-INCIDENT-A27",
             title="Cambio de jornada con efecto en nómina",
-            description="Práctica guiada A27: reducir la jornada contractual, conservar el dato de efectos y comprobar la proporcionalidad en la nómina posterior.",
+            description="Práctica guiada A27: reducir la jornada contractual y comprobar la proporcionalidad en la nómina posterior.",
             difficulty="intermediate",
             category="absence",
             status="active",
@@ -291,3 +311,211 @@ def build_incident_runtime_cases_2026() -> list[CaseStudyCreate]:
             ],
         ),
     ]
+
+
+def _task_values(task: CaseTaskCreate) -> dict[str, Any]:
+    return task.model_dump()
+
+
+def _reset_case_progress(case_study: CaseStudy) -> None:
+    for assignment in case_study.assignments:
+        assignment.progress_entries.clear()
+        assignment.current_task_order = 1
+        assignment.completion_percentage = 0
+        assignment.started_at = None
+        assignment.completed_at = None
+        assignment.status = "assigned"
+
+
+def seed_incident_runtime_cases_2026(db: Session) -> None:
+    """Crea o sincroniza A23-A27 sin mezclar estos casos con incidencias ya resueltas."""
+    for definition in build_incident_runtime_cases_2026():
+        case_study = (
+            db.query(CaseStudy)
+            .filter(CaseStudy.scenario_code == definition.scenario_code)
+            .first()
+        )
+        if case_study is None:
+            case_data = definition.model_dump(exclude={"tasks"})
+            case_study = CaseStudy(**case_data)
+            db.add(case_study)
+            db.flush()
+            for task in definition.tasks:
+                db.add(CaseTask(case_study_id=case_study.id, **_task_values(task)))
+            db.commit()
+            continue
+
+        metadata = definition.model_dump(exclude={"tasks"})
+        changed = False
+        for field, value in metadata.items():
+            if getattr(case_study, field) != value:
+                setattr(case_study, field, value)
+                changed = True
+
+        existing_by_order = {task.task_order: task for task in case_study.tasks}
+        defined_orders = {task.task_order for task in definition.tasks}
+        for task_definition in definition.tasks:
+            values = _task_values(task_definition)
+            existing = existing_by_order.get(task_definition.task_order)
+            if existing is None:
+                db.add(CaseTask(case_study_id=case_study.id, **values))
+                changed = True
+                continue
+            for field, value in values.items():
+                if getattr(existing, field) != value:
+                    setattr(existing, field, value)
+                    changed = True
+
+        for stale in list(case_study.tasks):
+            if stale.task_order not in defined_orders:
+                db.delete(stale)
+                changed = True
+
+        if changed:
+            _reset_case_progress(case_study)
+        db.commit()
+
+
+def seed_incident_runtime_assignments_2026(db: Session) -> None:
+    """Asigna las prácticas A23-A27 al primer alumno demo si aún no tienen destinatario."""
+    student = db.query(Student).order_by(Student.id.asc()).first()
+    if student is None:
+        return
+    cases = (
+        db.query(CaseStudy)
+        .filter(CaseStudy.scenario_code.in_(sorted(INCIDENT_SCENARIO_CODES)))
+        .order_by(CaseStudy.id.asc())
+        .all()
+    )
+    for case_study in cases:
+        assignment = (
+            db.query(CaseAssignment)
+            .filter(CaseAssignment.case_study_id == case_study.id)
+            .order_by(CaseAssignment.id.asc())
+            .first()
+        )
+        if assignment is None:
+            assignment = CaseAssignment(
+                case_study_id=case_study.id,
+                student_id=student.id,
+                assigned_by="Profesor demo",
+                status="assigned",
+                notes="Práctica guiada del bloque de incidencias laborales del Temario Maestro 2026.",
+            )
+            db.add(assignment)
+            db.commit()
+        ensure_assignment_progress(db, assignment.id)
+
+
+def _normalize(value: str | None) -> str:
+    text = unicodedata.normalize("NFKD", str(value or ""))
+    return "".join(character for character in text if not unicodedata.combining(character)).casefold().strip()
+
+
+def _find_employee(db: Session, name: str) -> Employee | None:
+    expected = _normalize(name)
+    for employee in db.query(Employee).all():
+        full_name = " ".join(
+            part for part in [employee.first_name, employee.last_name, employee.second_last_name] if part
+        )
+        if _normalize(full_name) == expected:
+            return employee
+    return None
+
+
+def ensure_training_incident_fie_2026(db: Session, *, reset: bool = False) -> FieCommunication | None:
+    """Prepara una comunicación FIE exclusiva de A23, sin incidencia vinculada de partida."""
+    employee = _find_employee(db, "Laura Martín Ruiz")
+    if employee is None or employee.company_id is None:
+        return None
+    contract = (
+        db.query(Contract)
+        .filter(
+            Contract.employee_id == employee.id,
+            Contract.start_date <= date(2026, 9, 7),
+        )
+        .order_by(Contract.start_date.desc(), Contract.id.desc())
+        .first()
+    )
+    communication = (
+        db.query(FieCommunication)
+        .filter(FieCommunication.external_message_id == TRAINING_FIE_MESSAGE_ID)
+        .first()
+    )
+    values = {
+        "company_id": employee.company_id,
+        "employee_id": employee.id,
+        "contract_id": contract.id if contract else None,
+        "incident_id": None,
+        "ccc_id": contract.company.ccc if contract and contract.company else None,
+        "naf": employee.naf,
+        "external_worker_name": "Laura Martín Ruiz",
+        "external_nif": employee.dni,
+        "process_reference": TRAINING_FIE_PROCESS_REFERENCE,
+        "previous_process_reference": None,
+        "communication_type": "SICK_LEAVE",
+        "contingency_type": "COMMON_DISEASE",
+        "event_date": date(2026, 9, 7),
+        "sick_leave_date": date(2026, 9, 7),
+        "confirmation_date": None,
+        "medical_discharge_date": None,
+        "relapse_date": None,
+        "estimated_duration": 6,
+        "source": "SIMULATION",
+        "priority": "NORMAL",
+        "received_at": datetime(2026, 9, 7, 8, 30),
+        "read_at": None,
+        "status": "RECEIVED",
+        "reconciliation_result": {},
+        "payroll_impact": "PENDING_RECALCULATION",
+        "raw_content": {
+            "format": "AULANOMINA_FIE_V1",
+            "simulation": True,
+            "scenario_code": "TRAIN-2026-INCIDENT-A23",
+            "process": {
+                "reference": TRAINING_FIE_PROCESS_REFERENCE,
+                "communication_type": "SICK_LEAVE",
+                "contingency": "COMMON_DISEASE",
+                "event_date": "2026-09-07",
+                "sick_leave_date": "2026-09-07",
+                "estimated_duration": 6,
+            },
+        },
+        "notes": "Comunicación FIE formativa vinculada a A23.",
+        "created_by": "Demo formación AulaNomina",
+    }
+
+    if communication is None:
+        communication = FieCommunication(external_message_id=TRAINING_FIE_MESSAGE_ID, **values)
+        db.add(communication)
+        db.flush()
+        db.add(
+            FieProcessingEvent(
+                communication_id=communication.id,
+                event_type="RECEIVED",
+                actor="INSS simulado",
+                detail="Comunicación FIE recibida para la práctica A23.",
+                payload={"scenario_code": "TRAIN-2026-INCIDENT-A23"},
+                created_at=datetime(2026, 9, 7, 8, 30),
+            )
+        )
+    elif reset:
+        db.query(FieProcessingEvent).filter(
+            FieProcessingEvent.communication_id == communication.id
+        ).delete(synchronize_session=False)
+        for field, value in values.items():
+            setattr(communication, field, value)
+        db.add(
+            FieProcessingEvent(
+                communication_id=communication.id,
+                event_type="RECEIVED",
+                actor="INSS simulado",
+                detail="Comunicación FIE recibida para la práctica A23.",
+                payload={"scenario_code": "TRAIN-2026-INCIDENT-A23"},
+                created_at=datetime(2026, 9, 7, 8, 30),
+            )
+        )
+
+    db.commit()
+    db.refresh(communication)
+    return communication
