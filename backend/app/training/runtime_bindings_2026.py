@@ -17,7 +17,7 @@ PILOT_SEQUENCE_CODE = "onboarding-core-2026"
 PILOT_ACTIVITY_CODES_2026 = ("A04", "A07", "A29")
 
 PAYROLL_CORE_SEQUENCE_CODE = "payroll-core-2026"
-PAYROLL_CORE_ACTIVITY_CODES_2026 = ("A14", "A16", "A18", "A20", "A21")
+PAYROLL_CORE_ACTIVITY_CODES_2026 = ("A14", "A16", "A18", "A20", "A21", "A22")
 
 
 RUNTIME_BINDINGS_2026: dict[str, dict[str, Any]] = {
@@ -107,6 +107,16 @@ RUNTIME_BINDINGS_2026: dict[str, dict[str, Any]] = {
         "validation_interaction": "explicit_review",
         "use_catalog_result_criteria": True,
         "migration_note": "La retención aplicada procede del perfil fiscal y del algoritmo IRPF 2026 ya integrado en nómina.",
+    },
+    "A22": {
+        "module": "payrolls",
+        "expected_action": "review_payroll",
+        "trigger_type": "system",
+        "validation_rules": [{"type": "payroll_recalculated", "period": "2026-06"}],
+        "runtime_prerequisites": ["A21"],
+        "validation_interaction": "explicit_review",
+        "use_catalog_result_criteria": True,
+        "migration_note": "Cierra el itinerario distinguiendo bruto, líquido y coste total de empresa sobre la misma nómina calculada.",
     },
 }
 
