@@ -8,6 +8,11 @@ from app.models.student import Student
 from app.models.student_group import StudentGroup
 from app.schemas.case_assignment import CaseAssignmentCreate, CaseAssignmentUpdate
 from app.services.case_scenario_service import ensure_assignment_progress, start_assignment
+from app.training.incident_runtime_cases_2026 import (
+    ensure_training_incident_fie_2026,
+    seed_incident_runtime_assignments_2026,
+    seed_incident_runtime_cases_2026,
+)
 
 
 def _validate_case_study(db: Session, case_study_id: int):
@@ -183,6 +188,8 @@ def _ensure_demo_assignees(db: Session) -> None:
 
 def seed_demo_case_assignments(db: Session):
     _ensure_demo_assignees(db)
+    seed_incident_runtime_cases_2026(db)
+    ensure_training_incident_fie_2026(db, reset=True)
 
     case_studies = db.query(CaseStudy).order_by(CaseStudy.id.asc()).all()
     students = db.query(Student).order_by(Student.id.asc()).all()
@@ -244,3 +251,5 @@ def seed_demo_case_assignments(db: Session):
                 status="submitted",
                 notes="Asignacion individual demo con entrega pendiente de revisar.",
             )
+
+    seed_incident_runtime_assignments_2026(db)
