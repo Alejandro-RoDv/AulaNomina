@@ -1,7 +1,7 @@
 """Validación pedagógica de las revisiones de nómina del Temario Maestro 2026.
 
 Las actividades de análisis no necesitan mutar el ERP, pero sí comprobar que el
-alumno está revisando un cálculo real y coherente. El resto de pasos sigue
+alumno está revisando un estado real y coherente. El resto de pasos sigue
 delegándose en el validador general de casos.
 """
 
@@ -14,6 +14,7 @@ import unicodedata
 
 from sqlalchemy.orm import Session
 
+from app.models.contract import Contract
 from app.models.employee import Employee
 from app.models.payroll import Payroll
 from app.schemas.case_scenario import CaseTaskProgressUpdate
@@ -23,10 +24,13 @@ from app.services.case_scenario_service import (
     update_assignment_step,
 )
 from app.services.case_validation_service import validate_assignment_step as validate_legacy_assignment_step
+from app.services.payroll_days_calculator import calculate_contract_active_days
+from app.services.payroll_engine import get_period_dates
 
 
-PAYROLL_REVIEW_CODES = {"A18", "A20", "A21", "A22"}
+PAYROLL_REVIEW_CODES = {"A15", "A17", "A18", "A19", "A20", "A21", "A22"}
 TOLERANCE = Decimal("0.05")
+STANDARD_MONTH_DAYS = Decimal("30")
 
 
 def _normalize(value: Any) -> str:
@@ -92,6 +96,19 @@ def _payroll_for_assignment(db: Session, assignment) -> Payroll | None:
     )
 
 
+def _active_contract_for_assignment(db: Session, assignment) -> Contract | None:
+    state = assignment.case_study.initial_state or {}
+    employee = _find_employee(db, state.get("employee") or state.get("substitute"))
+    if not employee:
+        return None
+    return (
+        db.query(Contract)
+        .filter(Contract.employee_id == employee.id, Contract.status == "active")
+        .order_by(Contract.id.desc())
+        .first()
+    )
+
+
 def _is_calculated(payroll: Payroll | None) -> bool:
     return bool(
         payroll
@@ -101,6 +118,90 @@ def _is_calculated(payroll: Payroll | None) -> bool:
             or _normalize(payroll.status) in {"calculated", "generated", "confirmed", "reviewed", "closed"}
         )
     )
+
+
+def _review_extra_pay_configuration(db: Session, assignment) -> dict[str, Any]:
+    state = assignment.case_study.initial_state or {}
+    salary_structure = state.get("salary_structure") or {}
+    expected_schedule = str(salary_structure.get("target_pay_schedule") or "prorated_12")
+    contract = _active_contract_for_assignment(db, assignment)
+    actual_schedule = str(contract.pay_schedule or "") if contract else ""
+    coherent = bool(contract and actual_schedule == expected_schedule)
+    return {
+        "passed": coherent,
+        "message": (
+            "El contrato está configurado con las pagas extraordinarias prorrateadas en 12 mensualidades."
+            if coherent
+            else "La modalidad de pagas del contrato todavía no coincide con la indicada en el ejercicio."
+        ),
+        "evidence": {
+            "contract_id": contract.id if contract else None,
+            "expected_pay_schedule": expected_schedule,
+            "actual_pay_schedule": actual_schedule or None,
+            "pay_schedule_matches": coherent,
+        },
+    }
+
+
+def _review_partial_period(payroll: Payroll | None) -> dict[str, Any]:
+    if not _is_calculated(payroll):
+        return {
+            "passed": False,
+            "message": "No existe todavía una nómina calculada para revisar el alta o baja dentro del mes.",
+            "evidence": {"payroll_id": payroll.id if payroll else None},
+        }
+
+    contract = payroll.contract
+    period_start, period_end = get_period_dates(payroll.period_month, payroll.period_year)
+    if not contract or not period_start or not period_end:
+        return {
+            "passed": False,
+            "message": "No se puede determinar el tramo activo del contrato para este periodo.",
+            "evidence": {"payroll_id": payroll.id},
+        }
+
+    expected_days = calculate_contract_active_days(
+        period_start,
+        period_end,
+        contract_start_date=contract.start_date,
+        contract_end_date=contract.end_date,
+    )
+    worked_days = int(payroll.worked_days or 0)
+    contribution_days = int(payroll.contribution_days or 0)
+    incident_days = int(payroll.incident_days or 0)
+    expected_worked_base = _money(
+        _money(payroll.base_salary) * Decimal(expected_days) / STANDARD_MONTH_DAYS
+    )
+    actual_worked_base = _money(payroll.worked_base_salary)
+
+    partial_period = 0 < expected_days < 30
+    days_coherent = worked_days == expected_days and contribution_days == expected_days
+    salary_coherent = _close(actual_worked_base, expected_worked_base)
+    coherent = partial_period and incident_days == 0 and days_coherent and salary_coherent
+    return {
+        "passed": coherent,
+        "message": (
+            "La nómina limita correctamente días y salario al tramo en que el contrato estuvo activo durante el mes."
+            if coherent
+            else "Los días o el salario base devengado no coinciden con el tramo activo del contrato dentro del periodo."
+        ),
+        "evidence": {
+            "payroll_id": payroll.id,
+            "contract_id": contract.id,
+            "contract_start_date": str(contract.start_date),
+            "contract_end_date": str(contract.end_date) if contract.end_date else None,
+            "expected_active_days": expected_days,
+            "worked_days": worked_days,
+            "contribution_days": contribution_days,
+            "incident_days": incident_days,
+            "base_salary": str(_money(payroll.base_salary)),
+            "expected_worked_base_salary": str(expected_worked_base),
+            "worked_base_salary": str(actual_worked_base),
+            "partial_period": partial_period,
+            "days_coherent": days_coherent,
+            "salary_coherent": salary_coherent,
+        },
+    }
 
 
 def _review_common_base(payroll: Payroll | None) -> dict[str, Any]:
@@ -130,6 +231,59 @@ def _review_common_base(payroll: Payroll | None) -> dict[str, Any]:
             "daily_common_base": str(daily),
             "contribution_days": days,
             "reconstructed_base": str(reconstructed),
+        },
+    }
+
+
+def _review_professional_base(payroll: Payroll | None) -> dict[str, Any]:
+    if not _is_calculated(payroll):
+        return {
+            "passed": False,
+            "message": "No existe todavía una nómina calculada para comparar las bases común y profesional.",
+            "evidence": {"payroll_id": payroll.id if payroll else None},
+        }
+
+    common_base = _money(payroll.common_contingencies_base)
+    professional_base = _money(payroll.professional_contingencies_base)
+    contribution_days = int(payroll.contribution_days or 0)
+    overtime_total = Decimal("0.00")
+    for item in payroll.items or []:
+        concept = item.concept
+        if not concept or _normalize(concept.concept_type) != "devengo":
+            continue
+        category = _normalize(concept.category)
+        code = _normalize(concept.code)
+        if category == "horas_extra" or code == "horas_extra":
+            overtime_total += _money(item.amount)
+    overtime_total = _money(overtime_total)
+
+    day_ratio = Decimal(contribution_days) / STANDARD_MONTH_DAYS if contribution_days > 0 else Decimal("0")
+    expected_delta = _money(overtime_total * day_ratio)
+    actual_delta = _money(professional_base - common_base)
+    ordering_coherent = professional_base >= common_base
+    difference_coherent = _close(actual_delta, expected_delta)
+    coherent = common_base >= 0 and ordering_coherent and difference_coherent
+
+    if coherent and overtime_total > 0:
+        message = "La base profesional supera a la común por el importe computable de horas extraordinarias del periodo."
+    elif coherent:
+        message = "Las bases común y profesional coinciden porque no existen conceptos exclusivos de la base profesional en este periodo."
+    else:
+        message = "La diferencia entre base común y profesional no se explica con los conceptos del periodo."
+
+    return {
+        "passed": coherent,
+        "message": message,
+        "evidence": {
+            "payroll_id": payroll.id,
+            "common_contingencies_base": str(common_base),
+            "professional_contingencies_base": str(professional_base),
+            "actual_difference": str(actual_delta),
+            "overtime_amount": str(overtime_total),
+            "expected_difference": str(expected_delta),
+            "contribution_days": contribution_days,
+            "ordering_coherent": ordering_coherent,
+            "difference_coherent": difference_coherent,
         },
     }
 
@@ -246,9 +400,15 @@ def _review_net_and_company_cost(payroll: Payroll | None) -> dict[str, Any]:
     }
 
 
-def _review_for_code(code: str, payroll: Payroll | None) -> dict[str, Any]:
+def _review_for_code(db: Session, assignment, code: str, payroll: Payroll | None) -> dict[str, Any]:
+    if code == "A15":
+        return _review_extra_pay_configuration(db, assignment)
+    if code == "A17":
+        return _review_partial_period(payroll)
     if code == "A18":
         return _review_common_base(payroll)
+    if code == "A19":
+        return _review_professional_base(payroll)
     if code == "A20":
         return _review_employee_social_security(payroll)
     if code == "A21":
@@ -276,7 +436,8 @@ def validate_training_aware_assignment_step(
     if not progress:
         raise CaseScenarioError("Progreso de paso no encontrado", code="PROGRESS_NOT_FOUND", status_code=404)
 
-    review = _review_for_code(code, _payroll_for_assignment(db, assignment))
+    payroll = _payroll_for_assignment(db, assignment)
+    review = _review_for_code(db, assignment, code, payroll)
     check = {
         "rule_type": f"training_{code.lower()}_review",
         "supported": True,
@@ -310,7 +471,7 @@ def validate_training_aware_assignment_step(
         "message": (
             "Comprobación superada. La revisión de nómina queda completada."
             if check["passed"]
-            else "La comprobación no se ha superado. Revisa los importes mostrados en la nómina."
+            else "La comprobación no se ha superado. Revisa los datos mostrados en el módulo relacionado."
         ),
         "checks": [check],
         "scenario": scenario,
