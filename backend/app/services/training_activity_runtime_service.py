@@ -64,6 +64,9 @@ GUIDED_MULTISTEP_SCENARIOS = {
     "TRAIN-2026-TAX-A39": "A39",
     "TRAIN-2026-TAX-A40": "A40",
     "TRAIN-2026-TAX-A41": "A41",
+    "TRAIN-2026-REG-A42": "A42",
+    "TRAIN-2026-REG-A43": "A43",
+    "TRAIN-2026-REG-A44": "A44",
 }
 
 MULTISTEP_CASE_TITLES = {
@@ -167,6 +170,10 @@ def _training_case_data(task: CaseTask, code: str, current_rows: list[dict[str, 
     professional_data = state.get("professional_data") or {}
     model111_data = state.get("model111_data") or {}
     model190_data = state.get("model190_data") or {}
+    regularization_data = state.get("regularization_data") or {}
+    seniority_regularization_data = state.get("seniority_regularization_data") or {}
+    salary_revision_data = state.get("salary_revision_data") or {}
+    traceability_data = state.get("traceability_data") or {}
 
     if code == "A07":
         _append_case_row(rows, "Fecha de inicio", state.get("start_date"))
@@ -340,6 +347,41 @@ def _training_case_data(task: CaseTask, code: str, current_rows: list[dict[str, 
         _append_case_row(rows, "Declaración", model190_data.get("declaration_type"))
         _append_case_row(rows, "Referencia 111", model190_data.get("reference_model111_period"))
         _append_case_row(rows, "Profesional incluido", model190_data.get("professional_nif"))
+
+    if code == "A42":
+        _append_case_row(rows, "Trabajador", state.get("employee"))
+        _append_case_row(rows, "Concepto", regularization_data.get("concept"))
+        _append_case_row(rows, "Importe aplicado", regularization_data.get("original_amount"))
+        _append_case_row(rows, "Importe correcto", regularization_data.get("correct_amount"))
+        _append_case_row(rows, "Nómina origen", regularization_data.get("origin_period"))
+        _append_case_row(rows, "Nómina destino", regularization_data.get("target_period"))
+        _append_case_row(rows, "Diferencia", regularization_data.get("expected_gross_delta"))
+
+    if code == "A43":
+        _append_case_row(rows, "Trabajador", state.get("employee"))
+        _append_case_row(rows, "Antigüedad reconocida", seniority_regularization_data.get("recognized_seniority_date"))
+        _append_case_row(rows, "Complemento mensual", seniority_regularization_data.get("monthly_amount"))
+        _append_case_row(rows, "Desde", seniority_regularization_data.get("affected_period_from"))
+        _append_case_row(rows, "Hasta", seniority_regularization_data.get("affected_period_to"))
+        _append_case_row(rows, "Meses", seniority_regularization_data.get("affected_months"))
+        _append_case_row(rows, "Retroactivo", seniority_regularization_data.get("expected_gross_delta"))
+
+    if code == "A44":
+        _append_case_row(rows, "Trabajador", state.get("employee"))
+        _append_case_row(rows, "Tabla pagada", salary_revision_data.get("source_table"))
+        _append_case_row(rows, "Tabla revisada", salary_revision_data.get("target_table"))
+        _append_case_row(rows, "Efectos", salary_revision_data.get("effective_from"))
+        _append_case_row(rows, "Periodo", f"{salary_revision_data.get('period_from')} → {salary_revision_data.get('period_to')}" if salary_revision_data.get("period_from") else None)
+        _append_case_row(rows, "Salario base", f"{salary_revision_data.get('source_base_salary')} → {salary_revision_data.get('target_base_salary')}" if salary_revision_data.get("source_base_salary") is not None else None)
+        _append_case_row(rows, "Atrasos esperados", salary_revision_data.get("expected_total"))
+
+    if code == "A45":
+        _append_case_row(rows, "Trabajador", state.get("employee"))
+        _append_case_row(rows, "Originales", f"{traceability_data.get('original_period_from')} → {traceability_data.get('original_period_to')}" if traceability_data.get("original_period_from") else None)
+        _append_case_row(rows, "Base original", traceability_data.get("original_monthly_base"))
+        _append_case_row(rows, "Base revisada", traceability_data.get("regularized_monthly_base"))
+        _append_case_row(rows, "Complementaria", f"Periodo {traceability_data.get('complementary_period')}" if traceability_data.get("complementary_period") else None)
+        _append_case_row(rows, "Diferencia esperada", traceability_data.get("expected_difference"))
 
     return rows[:8]
 
