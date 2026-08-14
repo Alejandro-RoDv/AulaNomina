@@ -31,7 +31,7 @@ from app.services.training_incident_review_service import (
     handles_training_incident_review,
     validate_training_incident_review,
 )
-from app.services.training_regularization_review_service import (
+from app.services.training_regularization_chain_review_service import (
     handles_training_regularization_review,
     validate_training_regularization_review,
 )
