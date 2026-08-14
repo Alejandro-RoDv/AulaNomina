@@ -4,7 +4,10 @@ from sqlalchemy.orm import Session, joinedload
 from app.models.case_study import CaseStudy, CaseTask
 from app.schemas.case_study import CaseStudyCreate, CaseStudyUpdate, CaseTaskCreate, CaseTaskUpdate
 from app.services.case_feedback_service import normalized_feedback_config
-from app.training.runtime_bindings_2026 import build_pilot_task_definitions_2026
+from app.training.runtime_bindings_2026 import (
+    build_payroll_core_task_definitions_2026,
+    build_pilot_task_definitions_2026,
+)
 
 
 def _task_data(task: CaseTaskCreate) -> dict:
@@ -106,6 +109,10 @@ def delete_case_task(db: Session, task_id: int):
 
 def _demo_cases() -> list[CaseStudyCreate]:
     pilot_tasks = [CaseTaskCreate(**definition) for definition in build_pilot_task_definitions_2026()]
+    payroll_core_tasks = [
+        CaseTaskCreate(**definition)
+        for definition in build_payroll_core_task_definitions_2026()
+    ]
 
     return [
         CaseStudyCreate(
@@ -141,6 +148,32 @@ def _demo_cases() -> list[CaseStudyCreate]:
             },
             completion_message="La incorporación está preparada: expediente creado, contrato indefinido activo y alta de Seguridad Social preparada.",
             tasks=pilot_tasks,
+        ),
+        CaseStudyCreate(
+            scenario_code="TRAIN-2026-PAYROLL-001",
+            title="Nómina ordinaria y comprobaciones básicas",
+            description="Itinerario guiado del bloque de nómina: estructura salarial, cálculo mensual, base de contingencias comunes, deducciones de Seguridad Social e IRPF.",
+            difficulty="intermediate",
+            category="payroll",
+            status="active",
+            created_by="Profesor demo",
+            initial_state={
+                "training_sequence": ["A14", "A16", "A18", "A20", "A21"],
+                "employee": "Laura Martín Ruiz",
+                "company_name": "Fundación AulaNomina",
+                "center_name": "Colegio San Rafael",
+                "payroll_period": "2026-06",
+                "salary_structure": {
+                    "base_salary": "1.680,00 €",
+                    "complement_code": "COMPLEMENTO_CONVENIO",
+                    "complement_name": "Complemento convenio",
+                    "complement_amount": "85,00 €",
+                    "pay_schedule": "not_prorated_14",
+                    "pay_schedule_label": "14 pagas · no prorrateadas",
+                },
+            },
+            completion_message="La nómina ordinaria ha sido calculada y revisada en sus bases, aportaciones del trabajador y retención de IRPF.",
+            tasks=payroll_core_tasks,
         ),
         CaseStudyCreate(
             scenario_code="IT-2026-008",
@@ -235,6 +268,10 @@ def _reset_assignment_after_training_migration(case_study: CaseStudy) -> None:
         assignment.status = "assigned"
 
 
+def _is_training_runtime_definition(definition: CaseStudyCreate) -> bool:
+    return str(definition.scenario_code or "").upper().startswith("TRAIN-2026-")
+
+
 def seed_demo_case_studies(db: Session):
     for definition in _demo_cases():
         query = db.query(CaseStudy)
@@ -256,6 +293,7 @@ def seed_demo_case_studies(db: Session):
 
         existing_by_order = {task.task_order: task for task in existing.tasks}
         defined_orders = {task.task_order for task in definition.tasks}
+        training_definition = _is_training_runtime_definition(definition)
         training_migration_changed = False
 
         for task_definition in definition.tasks:
@@ -263,13 +301,13 @@ def seed_demo_case_studies(db: Session):
             existing_task = existing_by_order.get(task_definition.task_order)
             if existing_task is None:
                 db.add(CaseTask(case_study_id=existing.id, **task_values))
-                if definition.scenario_code == "TRAIN-2026-001":
+                if training_definition:
                     training_migration_changed = True
                 continue
 
             previous_training_code = (existing_task.trigger_condition or {}).get("training_code")
             next_training_code = (task_values.get("trigger_condition") or {}).get("training_code")
-            if definition.scenario_code == "TRAIN-2026-001" and previous_training_code != next_training_code:
+            if training_definition and previous_training_code != next_training_code:
                 training_migration_changed = True
 
             for field, value in task_values.items():
@@ -278,7 +316,7 @@ def seed_demo_case_studies(db: Session):
         stale_tasks = [task for task in list(existing.tasks) if task.task_order not in defined_orders]
         for stale_task in stale_tasks:
             db.delete(stale_task)
-            if definition.scenario_code == "TRAIN-2026-001":
+            if training_definition:
                 training_migration_changed = True
 
         if training_migration_changed:
