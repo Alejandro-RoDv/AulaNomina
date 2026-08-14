@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Download, FileText, Link2, LoaderCircle, X } from "lucide-react";
 
 import {
-  fetchEmployeeDocumentsForMail,
+  fetchMailAttachmentCandidateDocuments,
   fetchMailAttachmentPreview,
   getMailAttachmentDownloadUrl,
   linkMailAttachmentToDocument,
@@ -10,7 +10,7 @@ import {
 import "./mailFunctional.css";
 
 
-export default function MailAttachmentViewer({ attachment, employeeId = null, onClose }) {
+export default function MailAttachmentViewer({ attachment, onClose }) {
   const [preview, setPreview] = useState(null);
   const [documents, setDocuments] = useState([]);
   const [selectedDocumentId, setSelectedDocumentId] = useState("");
@@ -26,12 +26,12 @@ export default function MailAttachmentViewer({ attachment, employeeId = null, on
     setNotice("");
     Promise.all([
       fetchMailAttachmentPreview(attachment.id),
-      fetchEmployeeDocumentsForMail(employeeId),
+      fetchMailAttachmentCandidateDocuments(attachment.id),
     ])
-      .then(([data, employeeDocuments]) => {
+      .then(([data, candidateDocuments]) => {
         if (!active) return;
         setPreview(data);
-        setDocuments(employeeDocuments || []);
+        setDocuments(candidateDocuments || []);
         setSelectedDocumentId(data?.linked_document_id ? String(data.linked_document_id) : "");
       })
       .catch((requestError) => {
@@ -43,7 +43,7 @@ export default function MailAttachmentViewer({ attachment, employeeId = null, on
     return () => {
       active = false;
     };
-  }, [attachment.id, employeeId]);
+  }, [attachment.id]);
 
   const linkDocument = async () => {
     if (!selectedDocumentId) return;
@@ -84,7 +84,7 @@ export default function MailAttachmentViewer({ attachment, employeeId = null, on
           <a className="mail-functional-primary" href={getMailAttachmentDownloadUrl(attachment.id)}>
             <Download size={16} /> Descargar archivo
           </a>
-          {employeeId && documents.length > 0 && (
+          {documents.length > 0 && (
             <>
               <select
                 aria-label="Documento ERP relacionado"
