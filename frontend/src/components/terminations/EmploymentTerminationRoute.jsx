@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 
 import {
@@ -176,14 +176,6 @@ export default function EmploymentTerminationRoute() {
     };
   }, [open]);
 
-  const selectedContract = useMemo(
-    () => contracts.find((item) => String(item.id) === String(form.contract_id)),
-    [contracts, form.contract_id]
-  );
-  const selectedEmployee = useMemo(
-    () => employees.find((item) => String(item.id) === String(selectedContract?.employee_id)),
-    [employees, selectedContract]
-  );
   const trainingCode = contextTrainingCode(context);
 
   const payload = useCallback(() => ({
