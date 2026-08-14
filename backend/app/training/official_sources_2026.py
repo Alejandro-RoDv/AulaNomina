@@ -3,7 +3,7 @@
 Este registro no sustituye la verificación jurídica previa a publicar contenido.
 Cada fuente indica la fecha de revisión usada para diseñar el curso. Los módulos
 que dependan de parámetros anuales deben volver a contrastarse al cambiar de
- ejercicio.
+ejercicio.
 """
 
 OFFICIAL_SOURCES_2026 = {
@@ -40,7 +40,7 @@ OFFICIAL_SOURCES_2026 = {
         "reference": "Orden PJC/297/2026, de 30 de marzo",
         "url": "https://www.boe.es/eli/es/o/2026/03/30/pjc297",
         "checked_on": "2026-08-14",
-        "scope": "Bases, tipos y reglas de cotización del ejercicio 2026.",
+        "scope": "Bases, topes, tipos y reglas de cotización del ejercicio 2026 para el Régimen General.",
         "update_policy": "annual",
     },
     "CONTRATOS_FORMATIVOS_RD_1065_2025": {
@@ -56,9 +56,9 @@ OFFICIAL_SOURCES_2026 = {
         "title": "Modalidades y modelos oficiales de contratos",
         "issuer": "SEPE",
         "reference": "Modalidades de contratos de trabajo",
-        "url": "https://www.sepe.es/HomeSepe/empresas/Contratos-de-trabajo/modelos-contrato.htm",
+        "url": "https://www.sepe.es/HomeSepe/empresas/Contratos-de-trabajo/modelos-contrato.html",
         "checked_on": "2026-08-14",
-        "scope": "Modelos vigentes: indefinido, temporal, formación en alternancia y práctica profesional.",
+        "scope": "Modelos vigentes: indefinido, temporal, formación en alternancia y práctica profesional. La duración determinada se articula por circunstancias de la producción o sustitución.",
         "update_policy": "verify_before_release",
     },
     "TGSS_RED": {
@@ -68,6 +68,24 @@ OFFICIAL_SOURCES_2026 = {
         "url": "https://www.seg-social.es/wps/portal/wss/internet/InformacionUtil/5300/",
         "checked_on": "2026-08-14",
         "scope": "Afiliación, Sistema de Liquidación Directa, SILTRA, Noticias RED y comunicaciones profesionales.",
+        "update_policy": "frequent",
+    },
+    "TGSS_SLD": {
+        "title": "Sistema de Liquidación Directa",
+        "issuer": "Tesorería General de la Seguridad Social",
+        "reference": "Portal del Sistema de Liquidación Directa",
+        "url": "https://www.seg-social.es/wps/portal/wss/internet/InformacionUtil/5300/2837/",
+        "checked_on": "2026-08-14",
+        "scope": "Proceso telemático de liquidación de cuotas, contraste previo de datos y documentación asociada a la liquidación.",
+        "update_policy": "frequent",
+    },
+    "TGSS_SILTRA_4_2026": {
+        "title": "SILTRA 4.0.0",
+        "issuer": "Tesorería General de la Seguridad Social",
+        "reference": "Publicación nueva versión SILTRA 4.0.0, 01/06/2026",
+        "url": "https://www.seg-social.es/wps/portal/wss/internet/InformacionUtil/5300/3827/e8dafb74-f2f2-43fe-a8e1-9be3c10c6486/nueva%2Bversion%2Bsiltra%2B4.0.0.",
+        "checked_on": "2026-08-14",
+        "scope": "Referencia de versión del cliente SILTRA vigente para los escenarios simulados de envío y respuesta en 2026.",
         "update_policy": "frequent",
     },
     "TGSS_FIE_5_2026": {
@@ -94,7 +112,7 @@ OFFICIAL_SOURCES_2026 = {
         "reference": "Servicio y algoritmo de cálculo de retenciones 2026",
         "url": "https://sede.agenciatributaria.gob.es/Sede/Retenciones.shtml",
         "checked_on": "2026-08-14",
-        "scope": "Cálculo del tipo de retención sobre rendimientos del trabajo en 2026.",
+        "scope": "Cálculo del tipo de retención sobre rendimientos del trabajo en 2026 y especificaciones técnicas oficiales.",
         "update_policy": "annual",
     },
     "AEAT_MODELO_145": {
@@ -112,7 +130,7 @@ OFFICIAL_SOURCES_2026 = {
         "reference": "Retenciones e ingresos a cuenta. Autoliquidación",
         "url": "https://sede.agenciatributaria.gob.es/Sede/irpf/retenciones-ingresos-cuenta-pagos-fraccionados/retenciones-ingresos-cuenta/obligaciones-retenedor/modelo-111.html",
         "checked_on": "2026-08-14",
-        "scope": "Autoliquidación periódica de retenciones e ingresos a cuenta.",
+        "scope": "Autoliquidación periódica de retenciones e ingresos a cuenta sobre rendimientos del trabajo y determinadas actividades económicas, entre otras rentas.",
         "update_policy": "verify_before_release",
     },
     "AEAT_MODELO_190": {
@@ -121,7 +139,7 @@ OFFICIAL_SOURCES_2026 = {
         "reference": "Resumen anual de retenciones e ingresos a cuenta",
         "url": "https://sede.agenciatributaria.gob.es/Sede/irpf/retenciones-ingresos-cuenta-pagos-fraccionados/retenciones-ingresos-cuenta/obligaciones-retenedor/modelo-190.html",
         "checked_on": "2026-08-14",
-        "scope": "Resumen anual de rendimientos del trabajo y determinadas actividades económicas, entre otras rentas.",
+        "scope": "Resumen anual de rendimientos del trabajo y determinadas actividades económicas, premios y otras rentas incluidas en el modelo.",
         "update_policy": "annual",
     },
 }
