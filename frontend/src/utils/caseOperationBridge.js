@@ -2,11 +2,31 @@ const ACTIVE_CASE_CONTEXT_KEY = "aulanomina:active-case-context";
 const LAST_CASE_FEEDBACK_KEY = "aulanomina:last-case-operation-feedback";
 const MUTATING_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
+const OPERATION_ACTION_ALIASES = {
+  manage_termination: new Set([
+    "review_voluntary_termination",
+    "review_temporary_expiry",
+    "review_disciplinary_dismissal",
+    "review_objective_indemnity",
+    "review_final_settlement_breakdown",
+    "review_final_settlement_closed",
+    "review_integrated_c06_termination",
+    "review_integrated_c06_settlement",
+  ]),
+  prepare_affiliation: new Set([
+    "review_termination_afi_baja",
+    "review_integrated_c06_affiliation",
+  ]),
+};
+
 const OPERATION_RULES = [
   { pattern: /^\/communication-submissions\/\d+\/(?:send|process)(?:\?|$)/, moduleCode: "siltra", actionCode: "submit_siltra", label: "Envío procesado en SILTRA" },
   { pattern: /^\/communications\/\d+\/submit(?:\?|$)/, moduleCode: "siltra", actionCode: "submit_siltra", label: "Fichero enviado a SILTRA" },
   { pattern: /^\/model-111\/declarations\/\d+\/present(?:\?|$)/, moduleCode: "tax", actionCode: "present_model_111", label: "Modelo 111 presentado" },
   { pattern: /^\/model-190\/declarations\/\d+\/present(?:\?|$)/, moduleCode: "tax", actionCode: "present_model_190", label: "Modelo 190 presentado" },
+  { pattern: /^\/employment-terminations\/\d+\/finalize(?:\?|$)/, moduleCode: "terminations", actionCode: "manage_termination", label: "Finiquito cerrado", methods: new Set(["POST"]) },
+  { pattern: /^\/employment-terminations\/\d+(?:\?|$)/, moduleCode: "terminations", actionCode: "manage_termination", label: "Expediente de extinción actualizado", methods: new Set(["PUT", "PATCH"]) },
+  { pattern: /^\/employment-terminations(?:\?|$)/, moduleCode: "terminations", actionCode: "manage_termination", label: "Extinción registrada", methods: new Set(["POST"]) },
   { pattern: /^\/payrolls\/\d+\/regularizations\/apply(?:\?|$)/, moduleCode: "regularizations", actionCode: "create_regularization", label: "Regularización aplicada" },
   { pattern: /^\/contracts\/\d+\/payroll-concepts(?:\?|$)/, moduleCode: "payrolls", actionCode: "update_payroll_concept", label: "Concepto salarial asociado" },
   { pattern: /^\/contract-payroll-concepts\/\d+(?:\/deactivate)?(?:\?|$)/, moduleCode: "payrolls", actionCode: "update_payroll_concept", label: "Concepto salarial actualizado" },
@@ -84,7 +104,8 @@ export function readActiveCaseContext(storage = null) {
 
 function isCompatibleOperation(context, operation) {
   if (!context?.actionCode) return true;
-  return context.actionCode === operation.actionCode;
+  if (context.actionCode === operation.actionCode) return true;
+  return OPERATION_ACTION_ALIASES[operation.actionCode]?.has(context.actionCode) || false;
 }
 
 function createEventId() {
