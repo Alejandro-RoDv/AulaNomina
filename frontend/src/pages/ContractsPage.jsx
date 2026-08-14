@@ -64,6 +64,11 @@ function readInitialCaseContext() {
   }
 }
 
+function isTerminationAction(actionCode) {
+  return String(actionCode || "").includes("termination")
+    || String(actionCode || "").includes("settlement");
+}
+
 export default function ContractsPage({
   mode = null,
   loading,
@@ -103,7 +108,16 @@ export default function ContractsPage({
 
   useEffect(() => {
     const applyContext = (context) => {
-      if (!context || context.page !== "contracts" || context.actionCode !== "create_contract") return;
+      if (!context || context.page !== "contracts") return;
+
+      if (isTerminationAction(context.actionCode)) {
+        window.sessionStorage.setItem("aulanomina:contractsMode", "history");
+        setContractMode("history");
+        window.dispatchEvent(new Event("aulanomina-contract-mode"));
+        return;
+      }
+
+      if (context.actionCode !== "create_contract") return;
       const contextKey = [
         context.assignmentId || "",
         context.taskId || "",
