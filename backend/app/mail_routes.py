@@ -5,6 +5,7 @@ from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
 from app.db import SessionLocal
+from app.models.document import Document
 from app.schemas.mail import (
     EmailAttachmentPreviewResponse,
     EmailMessageCreate,
@@ -124,6 +125,31 @@ def read_attachment_preview(attachment_id: int, db: Session = Depends(get_db)):
     attachment = get_attachment(db, attachment_id)
     if not attachment:
         raise HTTPException(status_code=404, detail="Adjunto no encontrado")
+    return attachment_preview(attachment)
+
+
+@router.post("/attachments/{attachment_id}/link-document/{document_id}", response_model=EmailAttachmentPreviewResponse)
+def link_attachment_to_document(
+    attachment_id: int,
+    document_id: int,
+    db: Session = Depends(get_db),
+):
+    attachment = get_attachment(db, attachment_id)
+    if not attachment:
+        raise HTTPException(status_code=404, detail="Adjunto no encontrado")
+    document = db.query(Document).filter(Document.id == document_id).first()
+    if not document:
+        raise HTTPException(status_code=404, detail="Documento ERP no encontrado")
+
+    thread = attachment.message.thread if attachment.message else None
+    if thread and thread.employee_id and document.employee_id != thread.employee_id:
+        raise HTTPException(
+            status_code=400,
+            detail="El documento seleccionado no pertenece al trabajador relacionado con este correo",
+        )
+    attachment.linked_document_id = document.id
+    db.commit()
+    db.refresh(attachment)
     return attachment_preview(attachment)
 
 
