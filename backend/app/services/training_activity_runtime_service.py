@@ -56,15 +56,6 @@ MULTISTEP_CASE_TITLES = {
     "Expediente documental incompleto": "A52",
 }
 
-TRAINING_CASE_DATA_LABELS = {
-    "working_day": "Jornada",
-    "weekly_hours": "Horas semanales",
-    "job_position": "Puesto",
-    "company_name": "Empresa",
-    "center_name": "Centro",
-    "start_date": "Fecha de inicio",
-}
-
 
 def _explicit_training_code(task: CaseTask | None) -> str | None:
     if task is None:
@@ -111,7 +102,6 @@ def _runtime_descriptor(task: CaseTask | None) -> dict[str, Any] | None:
             "inferred": True,
         }
 
-    # El caso de sustitución existente tiene correspondencia directa con A09.
     if scenario_code == "ALT-2026-021" and task.expected_action == "create_contract":
         return {
             "code": "A09",
@@ -137,6 +127,7 @@ def _training_case_data(task: CaseTask, code: str, current_rows: list[dict[str, 
     state = task.case_study.initial_state or {}
     employee_data = state.get("employee_data") or {}
     contract_data = state.get("contract_data") or {}
+    salary_structure = state.get("salary_structure") or {}
 
     if code == "A07":
         _append_case_row(rows, "Fecha de inicio", state.get("start_date"))
@@ -155,7 +146,55 @@ def _training_case_data(task: CaseTask, code: str, current_rows: list[dict[str, 
         _append_case_row(rows, "Empresa", state.get("company_name"))
         _append_case_row(rows, "Centro", state.get("center_name"))
 
+    if code == "A14":
+        _append_case_row(rows, "Salario base", salary_structure.get("base_salary"))
+        _append_case_row(rows, "Complemento", salary_structure.get("complement_name"))
+        _append_case_row(rows, "Importe complemento", salary_structure.get("complement_amount"))
+        _append_case_row(rows, "Pagas", salary_structure.get("pay_schedule_label"))
+
+    if code == "A16":
+        _append_case_row(rows, "Periodo", state.get("payroll_period"))
+        _append_case_row(rows, "Tipo de cálculo", "Nómina mensual ordinaria")
+        _append_case_row(rows, "Incidencias", "Sin incidencias en el periodo")
+
+    if code == "A18":
+        _append_case_row(rows, "Periodo", state.get("payroll_period"))
+        _append_case_row(rows, "Revisión", "Base de contingencias comunes")
+        _append_case_row(rows, "Referencia", "Bases y tipos 2026")
+
+    if code == "A20":
+        _append_case_row(rows, "Periodo", state.get("payroll_period"))
+        _append_case_row(rows, "Revisión", "Aportaciones de la persona trabajadora")
+        _append_case_row(rows, "Cuotas", "CC · desempleo · formación · MEI")
+
+    if code == "A21":
+        _append_case_row(rows, "Periodo", state.get("payroll_period"))
+        _append_case_row(rows, "Revisión", "Retención IRPF aplicada")
+        _append_case_row(rows, "Criterio", "Perfil fiscal + cálculo IRPF 2026")
+
     return rows[:8]
+
+
+def _catalog_result_criteria(
+    activity: dict[str, Any],
+    training: dict[str, Any],
+    binding: dict[str, Any] | None,
+) -> list[dict[str, str]]:
+    if not (binding or {}).get("use_catalog_result_criteria"):
+        return list(activity.get("result_criteria") or [])
+
+    labels = list(training.get("evaluation_criteria") or [])
+    if not labels:
+        return list(activity.get("result_criteria") or [])
+
+    validation = activity.get("validation_result") or {}
+    if activity.get("is_completed") or validation.get("passed") is True:
+        status = "passed"
+    elif validation.get("validated_at"):
+        status = "failed"
+    else:
+        status = "pending"
+    return [{"label": label, "status": status} for label in labels]
 
 
 def _enrich_activity(activity: dict[str, Any], task: CaseTask) -> dict[str, Any]:
@@ -183,6 +222,13 @@ def _enrich_activity(activity: dict[str, Any], task: CaseTask) -> dict[str, Any]
         instructions = ". ".join(actions)
         if instructions and not instructions.endswith("."):
             instructions += "."
+
+    trigger_condition = task.trigger_condition or {}
+    validation_interaction = (
+        (binding or {}).get("validation_interaction")
+        or trigger_condition.get("validation_interaction")
+        or "operation"
+    )
 
     enriched.update(
         {
@@ -215,6 +261,7 @@ def _enrich_activity(activity: dict[str, Any], task: CaseTask) -> dict[str, Any]
             "theory_topics": list(training.get("theory_topics") or []),
             "feedback_if_failed": list(training.get("feedback_if_failed") or []),
             "official_source_codes": list(training.get("sources") or []),
+            "validation_interaction": validation_interaction,
             "runtime_migrated": True,
             "runtime_migration_kind": descriptor["kind"],
             "runtime_binding_inferred": descriptor["inferred"],
@@ -222,6 +269,7 @@ def _enrich_activity(activity: dict[str, Any], task: CaseTask) -> dict[str, Any]
             "training_substep_total": descriptor["substep_total"],
         }
     )
+    enriched["result_criteria"] = _catalog_result_criteria(enriched, training, binding)
     enriched["context"] = {
         **(enriched.get("context") or {}),
         "trainingCode": code,
