@@ -17,7 +17,19 @@ PILOT_SEQUENCE_CODE = "onboarding-core-2026"
 PILOT_ACTIVITY_CODES_2026 = ("A04", "A07", "A29")
 
 PAYROLL_CORE_SEQUENCE_CODE = "payroll-core-2026"
-PAYROLL_CORE_ACTIVITY_CODES_2026 = ("A14", "A16", "A18", "A20", "A21", "A22")
+PAYROLL_CORE_ACTIVITY_CODES_2026 = (
+    "A14",
+    "A15",
+    "A16",
+    "A18",
+    "A19",
+    "A20",
+    "A21",
+    "A22",
+)
+
+PAYROLL_PARTIAL_SEQUENCE_CODE = "payroll-partial-period-2026"
+PAYROLL_PARTIAL_ACTIVITY_CODES_2026 = ("A17",)
 
 
 RUNTIME_BINDINGS_2026: dict[str, dict[str, Any]] = {
@@ -68,15 +80,35 @@ RUNTIME_BINDINGS_2026: dict[str, dict[str, Any]] = {
         "use_catalog_result_criteria": True,
         "migration_note": "El salario base está precargado; el alumno completa y revisa la estructura salarial aplicable.",
     },
+    "A15": {
+        "module": "contracts",
+        "expected_action": "review_extra_pay",
+        "trigger_type": "system",
+        "validation_rules": [{"type": "active_contract"}],
+        "runtime_prerequisites": ["A14"],
+        "validation_interaction": "explicit_review",
+        "use_catalog_result_criteria": True,
+        "migration_note": "El alumno cambia el contrato a 12 pagas prorrateadas y después solicita una comprobación del estado resultante.",
+    },
     "A16": {
         "module": "payrolls",
         "expected_action": "recalculate_payroll",
         "trigger_type": "module_event",
         "validation_rules": [{"type": "payroll_recalculated", "period": "2026-06"}],
-        "runtime_prerequisites": ["A14"],
+        "runtime_prerequisites": ["A15"],
         "validation_interaction": "operation",
         "use_catalog_result_criteria": True,
-        "migration_note": "A15 se considera resuelta por los datos del caso: pagas extraordinarias no prorrateadas.",
+        "migration_note": "La nómina ordinaria se calcula ya con la modalidad de pagas configurada en A15.",
+    },
+    "A17": {
+        "module": "payrolls",
+        "expected_action": "review_partial_payroll",
+        "trigger_type": "system",
+        "validation_rules": [{"type": "payroll_recalculated", "period": "2026-01"}],
+        "runtime_prerequisites": ["A16"],
+        "validation_interaction": "explicit_review",
+        "use_catalog_result_criteria": True,
+        "migration_note": "Se ejecuta como caso independiente sobre un alta dentro del mes para no alterar la nómina ordinaria del itinerario principal.",
     },
     "A18": {
         "module": "payrolls",
@@ -88,7 +120,7 @@ RUNTIME_BINDINGS_2026: dict[str, dict[str, Any]] = {
         "use_catalog_result_criteria": True,
         "migration_note": "La base se calcula en el motor; el alumno debe revisarla y solicitar la comprobación explícita.",
     },
-    "A20": {
+    "A19": {
         "module": "payrolls",
         "expected_action": "review_payroll",
         "trigger_type": "system",
@@ -96,7 +128,17 @@ RUNTIME_BINDINGS_2026: dict[str, dict[str, Any]] = {
         "runtime_prerequisites": ["A18"],
         "validation_interaction": "explicit_review",
         "use_catalog_result_criteria": True,
-        "migration_note": "A19 se trabajará después como comparación específica de bases; esta secuencia se centra en la aportación del trabajador.",
+        "migration_note": "La actividad compara base común y profesional y explica la diferencia mediante conceptos exclusivos de contingencias profesionales, especialmente horas extraordinarias.",
+    },
+    "A20": {
+        "module": "payrolls",
+        "expected_action": "review_payroll",
+        "trigger_type": "system",
+        "validation_rules": [{"type": "payroll_recalculated", "period": "2026-06"}],
+        "runtime_prerequisites": ["A19"],
+        "validation_interaction": "explicit_review",
+        "use_catalog_result_criteria": True,
+        "migration_note": "La revisión de cuotas parte de las bases ya comprobadas en A18 y A19.",
     },
     "A21": {
         "module": "payrolls",
@@ -200,4 +242,11 @@ def build_payroll_core_task_definitions_2026() -> list[dict[str, Any]]:
     return build_runtime_sequence_task_definitions_2026(
         PAYROLL_CORE_ACTIVITY_CODES_2026,
         runtime_sequence=PAYROLL_CORE_SEQUENCE_CODE,
+    )
+
+
+def build_payroll_partial_task_definitions_2026() -> list[dict[str, Any]]:
+    return build_runtime_sequence_task_definitions_2026(
+        PAYROLL_PARTIAL_ACTIVITY_CODES_2026,
+        runtime_sequence=PAYROLL_PARTIAL_SEQUENCE_CODE,
     )
