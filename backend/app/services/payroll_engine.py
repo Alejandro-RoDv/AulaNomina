@@ -26,6 +26,7 @@ STANDARD_MONTH_DAYS = Decimal("30")
 
 IT_INCIDENT_TYPES = {"IT", "RECAIDA", "COMMON_SICK_LEAVE", "WORK_ACCIDENT"}
 WORK_ACCIDENT_TYPES = {"WORK_ACCIDENT"}
+WORK_ACCIDENT_PROCESS_TYPES = {"work_accident", "occupational_disease"}
 
 
 class UnsupportedPayrollPeriodError(ValueError):
@@ -98,10 +99,11 @@ def calculate_it_days(day_result: dict) -> tuple[int, int]:
     work_accident_days = 0
     for item in day_result.get("incident_breakdown", []):
         incident_type = item.get("incident_type")
+        process_type = str(item.get("process_type") or "").strip().lower()
         days = int(item.get("days") or 0)
         if incident_type in IT_INCIDENT_TYPES:
             it_days += days
-        if incident_type in WORK_ACCIDENT_TYPES:
+        if incident_type in WORK_ACCIDENT_TYPES or process_type in WORK_ACCIDENT_PROCESS_TYPES:
             work_accident_days += days
     return min(30, it_days), min(30, work_accident_days)
 
@@ -147,6 +149,7 @@ def calculate_simulated_earning_lines(
         "temporary_disability_benefit": temporary_disability_benefit,
         "company_disability_complement": company_disability_complement,
         "it_days": it_days,
+        "work_accident_days": work_accident_days,
         "gross_salary": gross_salary,
     }
 
@@ -157,6 +160,7 @@ def build_empty_earning_lines(gross_salary: Decimal) -> dict:
         "temporary_disability_benefit": Decimal("0.00"),
         "company_disability_complement": Decimal("0.00"),
         "it_days": 0,
+        "work_accident_days": 0,
     }
 
 
