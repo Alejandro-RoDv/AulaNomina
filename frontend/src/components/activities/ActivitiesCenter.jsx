@@ -69,14 +69,21 @@ function ResultCriterionIcon({ status }) {
   return <Circle aria-hidden="true" />;
 }
 
-function hasOperationAttempt(activity) {
-  return (activity?.validation_result?.events || []).some((event) => (
+function requiresExplicitReview(activity) {
+  return activity?.validation_interaction === "explicit_review";
+}
+
+function hasValidationAttempt(activity) {
+  const operationAttempt = (activity?.validation_result?.events || []).some((event) => (
     event?.operation_status === "success" || event?.operation_status === "error"
   ));
+  return operationAttempt || Boolean(
+    requiresExplicitReview(activity) && activity?.validation_result?.validated_at
+  );
 }
 
 function failedValidationMessages(activity) {
-  if (!hasOperationAttempt(activity) || activity?.is_completed) return [];
+  if (!hasValidationAttempt(activity) || activity?.is_completed) return [];
   return (activity?.validation_result?.checks || [])
     .filter((check) => check?.supported !== false && !check?.passed && check?.message)
     .map((check) => check.message)
@@ -163,7 +170,12 @@ export default function ActivitiesCenter() {
     setExpandedTopicKey(activity.topic_key);
     persistActivityContext(activity);
 
-    if (activity.is_completed || !activity.completion_condition?.automatic) return;
+    if (
+      activity.is_completed
+      || !activity.completion_condition?.automatic
+      || requiresExplicitReview(activity)
+    ) return;
+
     try {
       setCheckingId(activity.id);
       await validateActivity(activity.assignment_id, activity.task_id);
@@ -171,6 +183,29 @@ export default function ActivitiesCenter() {
     } catch (requestError) {
       if (requestError?.code !== "BLOCKING_STEP_PENDING" && requestError?.status !== 409) {
         setError(requestError.message || "No se ha podido comprobar la actividad.");
+      }
+    } finally {
+      setCheckingId(null);
+    }
+  };
+
+  const validateSelectedExplicitly = async () => {
+    if (
+      !selectedActivity
+      || selectedActivity.is_completed
+      || !selectedActivity.completion_condition?.automatic
+      || !requiresExplicitReview(selectedActivity)
+    ) return;
+
+    try {
+      setCheckingId(selectedActivity.id);
+      setError("");
+      persistActivityContext(selectedActivity);
+      await validateActivity(selectedActivity.assignment_id, selectedActivity.task_id);
+      await loadCourse({ preserveSelection: true });
+    } catch (requestError) {
+      if (requestError?.code !== "BLOCKING_STEP_PENDING" && requestError?.status !== 409) {
+        setError(requestError.message || "No se ha podido comprobar el resultado revisado.");
       }
     } finally {
       setCheckingId(null);
@@ -340,7 +375,7 @@ export default function ActivitiesCenter() {
                       {selectedActivity.is_completed
                         ? "Completado"
                         : selectedActivity.completion_condition?.automatic
-                          ? "Comprobación automática"
+                          ? requiresExplicitReview(selectedActivity) ? "Comprobación bajo demanda" : "Comprobación automática"
                           : "Verificación manual"}
                     </span>
                   </div>
@@ -378,7 +413,9 @@ export default function ActivitiesCenter() {
                     <small className="activity-center__result-note">
                       {checkingId === selectedActivity.id
                         ? "Comprobando el resultado actual…"
-                        : "AulaNomina comprobará el resultado automáticamente al realizar la operación correspondiente."}
+                        : requiresExplicitReview(selectedActivity)
+                          ? "Revisa los datos del módulo relacionado y pulsa «Comprobar resultado» cuando hayas terminado el análisis."
+                          : "AulaNomina comprobará el resultado automáticamente al realizar la operación correspondiente."}
                     </small>
                   )}
                 </section>
@@ -405,6 +442,19 @@ export default function ActivitiesCenter() {
                     </div>
                   </details>
                 </section>
+
+                {!selectedActivity.is_completed && selectedActivity.completion_condition?.automatic && requiresExplicitReview(selectedActivity) && (
+                  <section className="activity-center__manual-action">
+                    <div>
+                      <strong>¿Has revisado el resultado?</strong>
+                      <span>La comprobación se ejecutará ahora sobre los datos reales guardados en AulaNomina.</span>
+                    </div>
+                    <button type="button" className="activity-center__quiet-button" onClick={validateSelectedExplicitly} disabled={checkingId === selectedActivity.id}>
+                      <Check size={15} aria-hidden="true" />
+                      {checkingId === selectedActivity.id ? "Comprobando…" : "Comprobar resultado"}
+                    </button>
+                  </section>
+                )}
 
                 {!selectedActivity.is_completed && !selectedActivity.completion_condition?.automatic && (
                   <section className="activity-center__manual-action">
