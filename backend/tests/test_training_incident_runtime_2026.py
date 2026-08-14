@@ -1,6 +1,7 @@
+from decimal import Decimal
 from types import SimpleNamespace
 
-from app.services.payroll_engine import calculate_it_days
+from app.services.payroll_engine import calculate_it_days, calculate_simulated_earning_lines
 from app.services.training_activity_runtime_service import _runtime_descriptor
 from app.services.training_incident_review_service import handles_training_incident_review
 from app.training.incident_runtime_cases_2026 import (
@@ -123,3 +124,37 @@ def test_payroll_engine_distinguishes_common_it_from_work_accident_by_process_ty
 
     assert calculate_it_days(common) == (6, 0)
     assert calculate_it_days(professional) == (5, 5)
+
+
+def test_simulated_it_amounts_use_different_rates_for_common_and_professional_processes():
+    common = calculate_simulated_earning_lines(
+        base_salary=Decimal("1680.00"),
+        salary_supplements=Decimal("0.00"),
+        variable_incentives=Decimal("0.00"),
+        extra_pay_proration=Decimal("0.00"),
+        day_result={
+            "incident_breakdown": [
+                {"incident_type": "IT", "process_type": "common_disease", "days": 5}
+            ],
+            "non_contribution_days": 0,
+            "inactive_contract_days": 0,
+        },
+    )
+    professional = calculate_simulated_earning_lines(
+        base_salary=Decimal("1680.00"),
+        salary_supplements=Decimal("0.00"),
+        variable_incentives=Decimal("0.00"),
+        extra_pay_proration=Decimal("0.00"),
+        day_result={
+            "incident_breakdown": [
+                {"incident_type": "IT", "process_type": "work_accident", "days": 5}
+            ],
+            "non_contribution_days": 0,
+            "inactive_contract_days": 0,
+        },
+    )
+
+    assert common["temporary_disability_benefit"] == Decimal("168.00")
+    assert common["company_disability_complement"] == Decimal("112.00")
+    assert professional["temporary_disability_benefit"] == Decimal("210.00")
+    assert professional["company_disability_complement"] == Decimal("70.00")
