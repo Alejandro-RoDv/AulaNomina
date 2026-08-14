@@ -25,7 +25,7 @@ from app.services.case_scenario_service import (
 )
 from app.services.case_validation_service import validate_assignment_step as validate_legacy_assignment_step
 from app.services.payroll_days_calculator import calculate_contract_active_days
-from app.services.payroll_engine import get_period_dates
+from app.services.payroll_engine import calculate_contract_base_salary, get_period_dates
 
 
 PAYROLL_REVIEW_CODES = {"A15", "A17", "A18", "A19", "A20", "A21", "A22"}
@@ -169,8 +169,9 @@ def _review_partial_period(payroll: Payroll | None) -> dict[str, Any]:
     worked_days = int(payroll.worked_days or 0)
     contribution_days = int(payroll.contribution_days or 0)
     incident_days = int(payroll.incident_days or 0)
+    full_month_base = calculate_contract_base_salary(contract, payroll.period_month)
     expected_worked_base = _money(
-        _money(payroll.base_salary) * Decimal(expected_days) / STANDARD_MONTH_DAYS
+        _money(full_month_base) * Decimal(expected_days) / STANDARD_MONTH_DAYS
     )
     actual_worked_base = _money(payroll.worked_base_salary)
 
@@ -194,7 +195,7 @@ def _review_partial_period(payroll: Payroll | None) -> dict[str, Any]:
             "worked_days": worked_days,
             "contribution_days": contribution_days,
             "incident_days": incident_days,
-            "base_salary": str(_money(payroll.base_salary)),
+            "full_month_base_salary": str(_money(full_month_base)),
             "expected_worked_base_salary": str(expected_worked_base),
             "worked_base_salary": str(actual_worked_base),
             "partial_period": partial_period,
