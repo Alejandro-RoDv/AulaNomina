@@ -12,6 +12,7 @@ from app.models.social_security_settlement import (
 )
 from app.models.employee import Employee
 from app.models.contract import Contract
+from app.models.employment_termination import EmploymentTermination
 from app.models.social_security_registration import SocialSecurityRegistration
 from app.models.company import Company
 from app.models.work_center import WorkCenter
