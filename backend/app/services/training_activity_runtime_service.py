@@ -52,6 +52,10 @@ INTEGRAL_CASE_CODES = {
     "NOM-2026-014": "C03",
 }
 
+MULTISTEP_CASE_TITLES = {
+    "Expediente documental incompleto": "A52",
+}
+
 TRAINING_CASE_DATA_LABELS = {
     "working_day": "Jornada",
     "weekly_hours": "Horas semanales",
@@ -91,6 +95,17 @@ def _runtime_descriptor(task: CaseTask | None) -> dict[str, Any] | None:
         return {
             "code": integral_code,
             "kind": "integral_case",
+            "substep": int(task.task_order or 1),
+            "substep_total": total,
+            "inferred": True,
+        }
+
+    multistep_code = MULTISTEP_CASE_TITLES.get(str(task.case_study.title or "").strip())
+    if multistep_code:
+        total = len(task.case_study.tasks or [])
+        return {
+            "code": multistep_code,
+            "kind": "guided_multistep",
             "substep": int(task.task_order or 1),
             "substep_total": total,
             "inferred": True,
