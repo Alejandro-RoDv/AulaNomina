@@ -1,6 +1,34 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import ContractTable from "../ContractTable";
+import EmploymentTerminationWorkspace from "./EmploymentTerminationWorkspace";
+
+const ACTIVE_CASE_CONTEXT_KEY = "aulanomina:active-case-context";
+
+function normalize(value) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function employeeName(employee) {
+  return [employee?.first_name, employee?.last_name, employee?.second_last_name]
+    .filter(Boolean)
+    .join(" ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function readCaseContext() {
+  try {
+    return JSON.parse(window.localStorage.getItem(ACTIVE_CASE_CONTEXT_KEY) || "null");
+  } catch {
+    return null;
+  }
+}
 
 export default function ContractHistoryScope({
   loading,
@@ -13,6 +41,32 @@ export default function ContractHistoryScope({
   submitting,
 }) {
   const [companyId, setCompanyId] = useState("");
+  const [caseContext, setCaseContext] = useState(() => readCaseContext());
+
+  useEffect(() => {
+    const syncContext = (event) => setCaseContext(event?.detail || readCaseContext());
+    window.addEventListener("aulanomina-case-context", syncContext);
+    return () => window.removeEventListener("aulanomina-case-context", syncContext);
+  }, []);
+
+  useEffect(() => {
+    if (!caseContext || !companies.length) return;
+
+    const directCompany = caseContext.companyId
+      ? companies.find((company) => String(company.id) === String(caseContext.companyId))
+      : null;
+    if (directCompany) {
+      setCompanyId(String(directCompany.id));
+      return;
+    }
+
+    const expectedEmployee = normalize(caseContext.employeeName);
+    if (!expectedEmployee) return;
+    const employee = employees.find((item) => normalize(employeeName(item)) === expectedEmployee);
+    if (employee?.company_id && companies.some((company) => String(company.id) === String(employee.company_id))) {
+      setCompanyId(String(employee.company_id));
+    }
+  }, [caseContext, companies, employees]);
 
   const selectedCompany = useMemo(
     () => companies.find((company) => String(company.id) === String(companyId)) || null,
@@ -72,6 +126,12 @@ export default function ContractHistoryScope({
             <strong>{selectedCompany?.name || "Empresa seleccionada"}</strong>
             <span>{scopedContracts.length} contratos encontrados</span>
           </div>
+
+          <EmploymentTerminationWorkspace
+            contracts={scopedContracts}
+            employees={scopedEmployees}
+          />
+
           <section className="contract-history-workspace" aria-label={`Historial de contratos de ${selectedCompany?.name || "la empresa"}`}>
             <ContractTable
               loading={loading}
