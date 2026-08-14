@@ -54,6 +54,7 @@ def test_demo_onboarding_case_is_backed_by_master_training_codes():
 def test_runtime_enrichment_uses_master_catalog_content_without_losing_execution_state():
     case_study = SimpleNamespace(
         scenario_code="TRAIN-2026-001",
+        title="Alta completa de trabajador",
         tasks=[],
         initial_state={
             "start_date": "2026-09-01",
@@ -96,14 +97,22 @@ def test_runtime_enrichment_uses_master_catalog_content_without_losing_execution
 
 
 def test_existing_it_and_regularization_cases_are_integral_master_practices():
-    it_case = SimpleNamespace(scenario_code="IT-2026-008", tasks=[1, 2, 3, 4])
+    it_case = SimpleNamespace(
+        scenario_code="IT-2026-008",
+        title="Incidencia IT y nomina",
+        tasks=[1, 2, 3, 4],
+    )
     it_task = SimpleNamespace(
         trigger_condition={},
         expected_action="review_fie",
         task_order=1,
         case_study=it_case,
     )
-    regularization_case = SimpleNamespace(scenario_code="NOM-2026-014", tasks=[1, 2, 3, 4])
+    regularization_case = SimpleNamespace(
+        scenario_code="NOM-2026-014",
+        title="Regularización de antigüedad en nómina",
+        tasks=[1, 2, 3, 4],
+    )
     regularization_task = SimpleNamespace(
         trigger_condition={},
         expected_action="review_contract",
@@ -121,8 +130,35 @@ def test_existing_it_and_regularization_cases_are_integral_master_practices():
     assert _runtime_descriptor(regularization_task)["code"] == "C03"
 
 
+def test_existing_document_case_maps_to_a52_as_multistep_practice():
+    case_study = SimpleNamespace(
+        scenario_code=None,
+        title="Expediente documental incompleto",
+        tasks=[1, 2, 3, 4],
+    )
+    task = SimpleNamespace(
+        trigger_condition={},
+        expected_action="update_document",
+        task_order=2,
+        case_study=case_study,
+    )
+
+    descriptor = _runtime_descriptor(task)
+    assert descriptor == {
+        "code": "A52",
+        "kind": "guided_multistep",
+        "substep": 2,
+        "substep_total": 4,
+        "inferred": True,
+    }
+
+
 def test_existing_substitution_contract_maps_to_a09():
-    case_study = SimpleNamespace(scenario_code="ALT-2026-021", tasks=[1, 2, 3])
+    case_study = SimpleNamespace(
+        scenario_code="ALT-2026-021",
+        title="Alta de sustitución por incapacidad temporal",
+        tasks=[1, 2, 3],
+    )
     task = SimpleNamespace(
         trigger_condition={},
         expected_action="create_contract",
