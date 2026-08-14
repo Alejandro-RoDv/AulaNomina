@@ -58,6 +58,46 @@ def _generic(db: Session, assignment, rule: dict[str, Any]) -> dict[str, Any]:
     return _evaluate_rule(db, assignment, rule)
 
 
+def _task_operation_check(assignment, order: int, action_code: str) -> dict[str, Any]:
+    """Require evidence produced while the learner is on this capstone step.
+
+    C06 deliberately reuses the same legal scenario as A49/A50. Domain state alone
+    would therefore allow a previously completed guided exercise to satisfy the
+    capstone. Operation events live inside each assignment/task progress entry, so
+    requiring one here proves that the learner has actually executed the operation
+    from C06 itself.
+    """
+    task = next(
+        (item for item in assignment.case_study.tasks if int(item.task_order or 0) == int(order)),
+        None,
+    )
+    progress = next(
+        (entry for entry in assignment.progress_entries if task and entry.task_id == task.id),
+        None,
+    )
+    events = list((progress.validation_result or {}).get("events") or []) if progress else []
+    matching = [
+        event
+        for event in events
+        if event.get("operation_status") == "success" and event.get("action_code") == action_code
+    ]
+    latest = matching[-1] if matching else None
+    return _check(
+        f"integrated_task_operation_{action_code}",
+        bool(latest),
+        (
+            "La operación consta ejecutada dentro de este hito del caso integral."
+            if latest
+            else "Ejecuta la operación desde este hito antes de comprobar el resultado; no se reutiliza el progreso de una práctica guiada anterior."
+        ),
+        {
+            "task_order": order,
+            "required_action_code": action_code,
+            "event": latest,
+        },
+    )
+
+
 def _review_c01(db: Session, assignment, order: int) -> dict[str, Any]:
     state = assignment.case_study.initial_state or {}
     employee_name = state.get("employee")
@@ -199,20 +239,33 @@ def _review_c05(db: Session, assignment, order: int) -> dict[str, Any]:
 
 def _review_c06(db: Session, assignment, order: int) -> dict[str, Any]:
     if order == 1:
-        check = _review_a49(db)
-        return {**check, "rule_type": "integrated_c06_termination"}
+        domain = {**_review_a49(db), "rule_type": "integrated_c06_termination_domain"}
+        operation = _task_operation_check(assignment, order, "manage_termination")
+        return _combine(
+            "integrated_c06_termination",
+            [domain, operation],
+            "La extinción objetiva está correctamente calculada y se ha ejecutado dentro del caso integral.",
+            "Registra o actualiza la extinción desde este hito y comprueba que causa, fecha e indemnización sean correctas.",
+        )
     if order == 2:
         breakdown = _review_a50(db, 1)
         closed = _review_a50(db, 2)
+        operation = _task_operation_check(assignment, order, "manage_termination")
         return _combine(
             "integrated_c06_settlement",
-            [breakdown, closed],
-            "La liquidación final está desglosada y cerrada por el total del supuesto.",
-            "El finiquito todavía no cuadra o no está cerrado con su traza final.",
+            [breakdown, closed, operation],
+            "La liquidación final está desglosada, cerrada y la operación se ha ejecutado dentro del caso integral.",
+            "Completa y cierra el finiquito desde este hito; no basta con un resultado dejado por la práctica guiada anterior.",
         )
     if order == 3:
-        check = _review_afi(db, "A49")
-        return {**check, "rule_type": "integrated_c06_affiliation"}
+        domain = {**_review_afi(db, "A49"), "rule_type": "integrated_c06_affiliation_domain"}
+        operation = _task_operation_check(assignment, order, "prepare_affiliation")
+        return _combine(
+            "integrated_c06_affiliation",
+            [domain, operation],
+            "La baja AFI corresponde al cese y ha sido preparada desde el propio caso integral.",
+            "Prepara desde este hito la baja AFI del contrato extinguido y comprueba su fecha de efectos.",
+        )
     termination = _review_a49(db)
     reply = _generic(db, assignment, {"type": "reply_mail"})
     return _combine(
