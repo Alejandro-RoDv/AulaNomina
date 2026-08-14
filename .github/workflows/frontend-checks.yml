@@ -65,6 +65,7 @@ jobs:
           src/tests/model190View.test.js src/tests/model190Presentation.test.js
           src/tests/model190Documents.test.js src/tests/model190Demo.test.js
           src/affiliation-siltra-bridge.js src/main.jsx
+          src/components/terminations/EmploymentTerminationRoute.jsx src/services/employmentTerminationApi.js
           src/services/socialSecurityApi.js src/services/affiliationApi.js src/services/craApi.js src/services/fieApi.js
           src/utils/siltraSimulation.js src/tests/siltraSimulation.test.js
           --rule 'react-hooks/set-state-in-effect: off'
