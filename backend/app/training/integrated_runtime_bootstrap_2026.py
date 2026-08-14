@@ -147,8 +147,7 @@ def _prepare_c03_baseline(db: Session) -> None:
         )
         .first()
     )
-    if payroll is not None:
-        _clear_c03_student_work(db, contract, payroll)
+    _clear_c03_student_work(db, contract, payroll)
 
     payroll_values = {
         "employee_id": employee.id,
