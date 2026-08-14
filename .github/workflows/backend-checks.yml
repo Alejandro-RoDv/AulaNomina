@@ -65,6 +65,10 @@ jobs:
         id: environment_reset
         continue-on-error: true
         run: python -m pytest -q --tb=short tests/test_environment_reset_service.py >> backend-test-output.txt 2>&1
+      - name: Training runtime tests
+        id: training_runtime
+        continue-on-error: true
+        run: python -m pytest -q --tb=short tests/test_activity_explicit_review_condition.py tests/test_training_incident_runtime_2026.py tests/test_training_social_security_runtime_2026.py tests/test_training_fiscal_runtime_2026.py >> backend-test-output.txt 2>&1
       - name: Simulated mail and guided case tests
         id: mail_tests
         continue-on-error: true
@@ -84,7 +88,7 @@ jobs:
           name: backend-test-output
           path: backend/backend-test-output.txt
       - name: Fail when checks fail
-        if: steps.schema.outcome == 'failure' || steps.tests.outcome == 'failure' || steps.siltra_tests.outcome == 'failure' || steps.cra_tests.outcome == 'failure' || steps.model111_tests.outcome == 'failure' || steps.model190_tests.outcome == 'failure' || steps.fie_tests.outcome == 'failure' || steps.affiliation_tests.outcome == 'failure' || steps.environment_reset.outcome == 'failure' || steps.mail_tests.outcome == 'failure' || steps.incident_engine.outcome == 'failure' || steps.import_app.outcome == 'failure'
+        if: steps.schema.outcome == 'failure' || steps.tests.outcome == 'failure' || steps.siltra_tests.outcome == 'failure' || steps.cra_tests.outcome == 'failure' || steps.model111_tests.outcome == 'failure' || steps.model190_tests.outcome == 'failure' || steps.fie_tests.outcome == 'failure' || steps.affiliation_tests.outcome == 'failure' || steps.environment_reset.outcome == 'failure' || steps.training_runtime.outcome == 'failure' || steps.mail_tests.outcome == 'failure' || steps.incident_engine.outcome == 'failure' || steps.import_app.outcome == 'failure'
         run: exit 1
 
   postgres-integration:
