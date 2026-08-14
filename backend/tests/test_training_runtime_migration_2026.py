@@ -40,7 +40,7 @@ def test_pilot_task_definitions_keep_training_code_inside_trigger_condition():
 
 
 def test_payroll_sequence_has_operation_and_explicit_review_steps():
-    assert PAYROLL_CORE_ACTIVITY_CODES_2026 == ("A14", "A16", "A18", "A20", "A21")
+    assert PAYROLL_CORE_ACTIVITY_CODES_2026 == ("A14", "A16", "A18", "A20", "A21", "A22")
     definitions = build_payroll_core_task_definitions_2026()
 
     assert [item["trigger_condition"]["training_code"] for item in definitions] == [
@@ -49,13 +49,14 @@ def test_payroll_sequence_has_operation_and_explicit_review_steps():
         "A18",
         "A20",
         "A21",
+        "A22",
     ]
     assert definitions[0]["expected_action"] == "update_payroll_concept"
     assert definitions[1]["expected_action"] == "recalculate_payroll"
     assert [
         item["trigger_condition"].get("validation_interaction")
         for item in definitions[2:]
-    ] == ["explicit_review", "explicit_review", "explicit_review"]
+    ] == ["explicit_review", "explicit_review", "explicit_review", "explicit_review"]
     assert all(item["trigger_condition"].get("use_catalog_result_criteria") for item in definitions)
 
 
@@ -79,14 +80,8 @@ def test_demo_payroll_case_is_backed_by_master_training_codes():
     assert case.title == "Nómina ordinaria y comprobaciones básicas"
     assert case.initial_state["employee"] == "Laura Martín Ruiz"
     assert case.initial_state["payroll_period"] == "2026-06"
-    assert case.initial_state["training_sequence"] == ["A14", "A16", "A18", "A20", "A21"]
-    assert [task.trigger_condition["training_code"] for task in case.tasks] == [
-        "A14",
-        "A16",
-        "A18",
-        "A20",
-        "A21",
-    ]
+    assert case.initial_state["training_sequence"] == list(PAYROLL_CORE_ACTIVITY_CODES_2026)
+    assert [task.trigger_condition["training_code"] for task in case.tasks] == list(PAYROLL_CORE_ACTIVITY_CODES_2026)
 
 
 def test_runtime_enrichment_uses_master_catalog_content_without_losing_execution_state():
