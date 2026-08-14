@@ -169,7 +169,21 @@ def _ensure_demo_assignment(
     return created
 
 
+def _ensure_demo_assignees(db: Session) -> None:
+    """Hace el seeder de asignaciones determinista incluso en una base vacía."""
+    if db.query(StudentGroup).count() == 0:
+        from app.crud.student_group import seed_demo_student_groups
+
+        seed_demo_student_groups(db)
+    if db.query(Student).count() == 0:
+        from app.crud.student import seed_demo_students
+
+        seed_demo_students(db)
+
+
 def seed_demo_case_assignments(db: Session):
+    _ensure_demo_assignees(db)
+
     case_studies = db.query(CaseStudy).order_by(CaseStudy.id.asc()).all()
     students = db.query(Student).order_by(Student.id.asc()).all()
     groups = db.query(StudentGroup).order_by(StudentGroup.id.asc()).all()
