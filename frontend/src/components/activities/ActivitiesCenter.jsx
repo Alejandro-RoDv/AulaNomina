@@ -20,6 +20,7 @@ import {
   fetchActivityCourse,
   validateActivity,
 } from "../../services/activityApi.js";
+import { getCaseActionLabel, openCaseModule } from "../../utils/caseNavigation.js";
 import "./activities.css";
 
 const ACTIVE_CASE_CONTEXT_KEY = "aulanomina:active-case-context";
@@ -154,6 +155,9 @@ export default function ActivitiesCenter() {
   const pending = course?.course?.pending;
   const topicCount = course?.topics?.length || 0;
   const failedMessages = failedValidationMessages(selectedActivity);
+  const moduleActionLabel = selectedActivity?.context
+    ? getCaseActionLabel(selectedActivity.context.actionCode, selectedActivity.context.moduleCode)
+    : null;
 
   useEffect(() => {
     if (selectedActivity?.topic_key) setExpandedTopicKey(selectedActivity.topic_key);
@@ -187,6 +191,12 @@ export default function ActivitiesCenter() {
     } finally {
       setCheckingId(null);
     }
+  };
+
+  const openSelectedModule = () => {
+    if (!selectedActivity?.context) return;
+    persistActivityContext(selectedActivity);
+    openCaseModule(selectedActivity.context);
   };
 
   const validateSelectedExplicitly = async () => {
@@ -366,6 +376,12 @@ export default function ActivitiesCenter() {
                 <section className="activity-center__task-block">
                   <span className="activity-center__section-label">Tu tarea</span>
                   <p>{selectedActivity.instructions}</p>
+                  {moduleActionLabel && (
+                    <button type="button" className="activity-center__quiet-button" onClick={openSelectedModule}>
+                      {moduleActionLabel}
+                      <ArrowRight size={15} aria-hidden="true" />
+                    </button>
+                  )}
                 </section>
 
                 <section className={`activity-center__result-card${selectedActivity.is_completed ? " is-completed" : ""}${failedMessages.length ? " has-errors" : ""}`}>
