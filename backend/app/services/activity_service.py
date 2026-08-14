@@ -438,7 +438,8 @@ def _condition_for_task(task: CaseTask) -> dict[str, Any]:
     if not rules and task.expected_action:
         rules = [{"type": task.expected_action}]
     action = task.expected_action or (rules[0].get("type") if rules else None)
-    automatic = bool(rules) and (
+    explicit_review = (task.trigger_condition or {}).get("validation_interaction") == "explicit_review"
+    automatic = explicit_review or (bool(rules) and (
         action in SUPPORTED_AUTOMATIC_ACTIONS
         or any((rule.get("type") or "") in {
             "employee_exists",
@@ -455,7 +456,7 @@ def _condition_for_task(task: CaseTask) -> dict[str, Any]:
             "regularization_created",
             "reply_mail",
         } for rule in rules)
-    )
+    ))
     return {
         "action": action,
         "rules": rules,
