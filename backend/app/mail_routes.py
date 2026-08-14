@@ -33,6 +33,7 @@ from app.services.mail_service import (
     reset_demo_mailbox,
     update_thread,
 )
+from app.training.document_runtime_bootstrap_2026 import bootstrap_document_training_2026
 
 
 router = APIRouter(prefix="/mail", tags=["mail"])
@@ -48,6 +49,9 @@ def get_db():
 
 def _prepare_demo_mailbox(db: Session, *, reset: bool = False):
     mailbox = reset_demo_mailbox(db) if reset else get_demo_mailbox(db)
+    if reset:
+        bootstrap_document_training_2026(db)
+        mailbox = get_demo_mailbox(db, seed_if_empty=False)
     ensure_integrated_fie_communication(db, reset=reset)
     integrated_thread = ensure_integrated_demo_case(db, mailbox)
     if reset and integrated_thread.case_assignment_id:
