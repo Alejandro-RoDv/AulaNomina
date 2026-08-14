@@ -32,6 +32,7 @@ PAYROLL_PARTIAL_SEQUENCE_CODE = "payroll-partial-period-2026"
 PAYROLL_PARTIAL_ACTIVITY_CODES_2026 = ("A17",)
 
 INCIDENT_ACTIVITY_CODES_2026 = ("A23", "A24", "A25", "A26", "A27")
+SOCIAL_SECURITY_ACTIVITY_CODES_2026 = ("A28", "A29", "A30", "A31", "A32", "A33", "A34", "A35")
 
 
 RUNTIME_BINDINGS_2026: dict[str, dict[str, Any]] = {
@@ -67,7 +68,7 @@ RUNTIME_BINDINGS_2026: dict[str, dict[str, Any]] = {
             }
         ],
         "runtime_prerequisites": ["A07"],
-        "migration_note": "La revisión previa A28 se integra en los datos y criterios del ejercicio piloto.",
+        "migration_note": "La revisión A28 existe como práctica independiente; el piloto de incorporación mantiene A29 encadenada directamente tras el contrato.",
     },
     "A14": {
         "module": "payrolls",
@@ -201,6 +202,75 @@ RUNTIME_BINDINGS_2026: dict[str, dict[str, Any]] = {
         "validation_rules": [{"type": "active_contract"}],
         "runtime_prerequisites": ["A12", "A16"],
         "migration_note": "Se valida bajo demanda tras modificar la jornada y de nuevo tras recalcular el periodo afectado.",
+    },
+    "A28": {
+        "module": "affiliations",
+        "expected_action": "review_affiliation_data",
+        "trigger_type": "system",
+        "validation_rules": [{"type": "employee_profile_matches"}, {"type": "active_contract"}],
+        "runtime_prerequisites": ["A04"],
+        "validation_interaction": "explicit_review",
+        "use_catalog_result_criteria": True,
+        "migration_note": "Comprueba expediente, NAF, empresa/CCC, contrato y fecha antes de generar cualquier movimiento RED.",
+    },
+    "A30": {
+        "module": "affiliations",
+        "expected_action": "review_affiliation_movement",
+        "trigger_type": "system",
+        "validation_rules": [{"type": "active_contract"}],
+        "runtime_prerequisites": ["A29"],
+        "validation_interaction": "explicit_review",
+        "use_catalog_result_criteria": True,
+        "migration_note": "Se practica una baja real del motor de remesas de afiliación para distinguirla de un alta o una modificación.",
+    },
+    "A31": {
+        "module": "fie",
+        "expected_action": "review_fie_content",
+        "trigger_type": "system",
+        "validation_rules": [{"type": "review_fie"}],
+        "runtime_prerequisites": ["A28"],
+        "validation_interaction": "explicit_review",
+        "use_catalog_result_criteria": True,
+        "migration_note": "La comunicación FIE formativa se prepara en estado recibido para que el alumno interprete trabajador, proceso y fechas.",
+    },
+    "A32": {
+        "module": "fie",
+        "expected_action": "review_fie_reconciliation",
+        "trigger_type": "system",
+        "validation_rules": [{"type": "reconcile_fie"}],
+        "runtime_prerequisites": ["A31", "A23"],
+        "validation_interaction": "explicit_review",
+        "use_catalog_result_criteria": True,
+        "migration_note": "Valida que la comparación FIE haya enlazado la comunicación con la incidencia exacta y sus fechas.",
+    },
+    "A33": {
+        "module": "cra",
+        "expected_action": "review_cra_file",
+        "trigger_type": "system",
+        "validation_rules": [],
+        "runtime_prerequisites": ["A16"],
+        "validation_interaction": "explicit_review",
+        "use_catalog_result_criteria": True,
+        "migration_note": "El alumno genera el CRA desde nóminas reales del periodo y comprueba que contiene trabajadores y conceptos comunicables.",
+    },
+    "A34": {
+        "module": "social-security",
+        "expected_action": "review_social_security_settlement",
+        "trigger_type": "system",
+        "validation_rules": [],
+        "runtime_prerequisites": ["A18", "A20"],
+        "validation_interaction": "explicit_review",
+        "use_catalog_result_criteria": True,
+        "migration_note": "La liquidación se revisa contra sus líneas nominales: trabajadores, bases, cuotas y total debido.",
+    },
+    "A35": {
+        "module": "siltra",
+        "expected_action": "review_siltra_cycle",
+        "trigger_type": "system",
+        "validation_rules": [],
+        "runtime_prerequisites": ["A34", "A33"],
+        "validation_interaction": "explicit_review",
+        "migration_note": "Usa el flujo CRA/SILTRA ya existente: rechazo didáctico, fichero corrector y segundo envío aceptado.",
     },
 }
 
