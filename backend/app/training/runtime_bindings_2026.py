@@ -33,6 +33,7 @@ PAYROLL_PARTIAL_ACTIVITY_CODES_2026 = ("A17",)
 
 INCIDENT_ACTIVITY_CODES_2026 = ("A23", "A24", "A25", "A26", "A27")
 SOCIAL_SECURITY_ACTIVITY_CODES_2026 = ("A28", "A29", "A30", "A31", "A32", "A33", "A34", "A35")
+FISCAL_ACTIVITY_CODES_2026 = ("A36", "A37", "A38", "A39", "A40", "A41")
 
 
 RUNTIME_BINDINGS_2026: dict[str, dict[str, Any]] = {
@@ -271,6 +272,66 @@ RUNTIME_BINDINGS_2026: dict[str, dict[str, Any]] = {
         "runtime_prerequisites": ["A34", "A33"],
         "validation_interaction": "explicit_review",
         "migration_note": "Usa el flujo CRA/SILTRA ya existente: rechazo didáctico, fichero corrector y segundo envío aceptado.",
+    },
+    "A36": {
+        "module": "irpf",
+        "expected_action": "review_model145_profile",
+        "trigger_type": "system",
+        "validation_rules": [],
+        "runtime_prerequisites": ["A04"],
+        "validation_interaction": "explicit_review",
+        "use_catalog_result_criteria": True,
+        "migration_note": "Se contrasta el Modelo 145 documental con el perfil fiscal persistido del trabajador; no se infieren datos no comunicados.",
+    },
+    "A37": {
+        "module": "irpf",
+        "expected_action": "review_irpf_calculation",
+        "trigger_type": "system",
+        "validation_rules": [],
+        "runtime_prerequisites": ["A36"],
+        "validation_interaction": "explicit_review",
+        "use_catalog_result_criteria": True,
+        "migration_note": "El validador vuelve a ejecutar el motor IRPF 2026 con el perfil guardado y contrasta el porcentaje aplicado.",
+    },
+    "A38": {
+        "module": "irpf",
+        "expected_action": "review_irpf_regularization",
+        "trigger_type": "system",
+        "validation_rules": [],
+        "runtime_prerequisites": ["A37"],
+        "validation_interaction": "explicit_review",
+        "use_catalog_result_criteria": True,
+        "migration_note": "La práctica introduce un descendiente comunicado durante el ejercicio, recalcula el tipo y exige dejar trazabilidad de regularización.",
+    },
+    "A39": {
+        "module": "tax",
+        "expected_action": "review_professional_withholding",
+        "trigger_type": "system",
+        "validation_rules": [],
+        "runtime_prerequisites": ["A37"],
+        "validation_interaction": "explicit_review",
+        "use_catalog_result_criteria": True,
+        "migration_note": "Usa Professional y ProfessionalInvoice del dominio del Modelo 111 para evitar mezclar perceptores profesionales con trabajadores en nómina.",
+    },
+    "A40": {
+        "module": "model111",
+        "expected_action": "review_model_111",
+        "trigger_type": "system",
+        "validation_rules": [],
+        "runtime_prerequisites": ["A21", "A39"],
+        "validation_interaction": "explicit_review",
+        "use_catalog_result_criteria": True,
+        "migration_note": "La declaración se genera desde fuentes reales, se revisan cajas y líneas y se valida la presentación simulada bloqueada.",
+    },
+    "A41": {
+        "module": "model190",
+        "expected_action": "review_model_190",
+        "trigger_type": "system",
+        "validation_rules": [],
+        "runtime_prerequisites": ["A40"],
+        "validation_interaction": "explicit_review",
+        "use_catalog_result_criteria": True,
+        "migration_note": "El resumen anual se genera con perceptores reales y se contrasta con la conciliación 111/190 del ejercicio.",
     },
 }
 
