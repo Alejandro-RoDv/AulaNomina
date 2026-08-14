@@ -7,7 +7,9 @@ from app.services.training_activity_runtime_service import (
     _runtime_descriptor,
 )
 from app.training.runtime_bindings_2026 import (
+    PAYROLL_CORE_ACTIVITY_CODES_2026,
     PILOT_ACTIVITY_CODES_2026,
+    build_payroll_core_task_definitions_2026,
     build_pilot_task_definitions_2026,
     get_runtime_binding_2026,
 )
@@ -37,6 +39,26 @@ def test_pilot_task_definitions_keep_training_code_inside_trigger_condition():
     assert all(item["blocking"] is True for item in definitions)
 
 
+def test_payroll_sequence_has_operation_and_explicit_review_steps():
+    assert PAYROLL_CORE_ACTIVITY_CODES_2026 == ("A14", "A16", "A18", "A20", "A21")
+    definitions = build_payroll_core_task_definitions_2026()
+
+    assert [item["trigger_condition"]["training_code"] for item in definitions] == [
+        "A14",
+        "A16",
+        "A18",
+        "A20",
+        "A21",
+    ]
+    assert definitions[0]["expected_action"] == "update_payroll_concept"
+    assert definitions[1]["expected_action"] == "recalculate_payroll"
+    assert [
+        item["trigger_condition"].get("validation_interaction")
+        for item in definitions[2:]
+    ] == ["explicit_review", "explicit_review", "explicit_review"]
+    assert all(item["trigger_condition"].get("use_catalog_result_criteria") for item in definitions)
+
+
 def test_demo_onboarding_case_is_backed_by_master_training_codes():
     case = next(item for item in _demo_cases() if item.scenario_code == "TRAIN-2026-001")
 
@@ -48,6 +70,22 @@ def test_demo_onboarding_case_is_backed_by_master_training_codes():
         "create_employee",
         "create_contract",
         "prepare_affiliation",
+    ]
+
+
+def test_demo_payroll_case_is_backed_by_master_training_codes():
+    case = next(item for item in _demo_cases() if item.scenario_code == "TRAIN-2026-PAYROLL-001")
+
+    assert case.title == "Nómina ordinaria y comprobaciones básicas"
+    assert case.initial_state["employee"] == "Laura Martín Ruiz"
+    assert case.initial_state["payroll_period"] == "2026-06"
+    assert case.initial_state["training_sequence"] == ["A14", "A16", "A18", "A20", "A21"]
+    assert [task.trigger_condition["training_code"] for task in case.tasks] == [
+        "A14",
+        "A16",
+        "A18",
+        "A20",
+        "A21",
     ]
 
 
@@ -94,6 +132,48 @@ def test_runtime_enrichment_uses_master_catalog_content_without_losing_execution
     assert enriched["result_criteria"] == legacy["result_criteria"]
     assert any(row["label"] == "Jornada" for row in enriched["case_data"])
     assert any(row["label"] == "Puesto" for row in enriched["case_data"])
+
+
+def test_payroll_review_enrichment_uses_catalog_criteria_and_explicit_validation():
+    case_study = SimpleNamespace(
+        scenario_code="TRAIN-2026-PAYROLL-001",
+        title="Nómina ordinaria y comprobaciones básicas",
+        tasks=[],
+        initial_state={
+            "employee": "Laura Martín Ruiz",
+            "payroll_period": "2026-06",
+            "salary_structure": {},
+        },
+    )
+    task = SimpleNamespace(
+        trigger_condition={
+            "training_code": "A18",
+            "validation_interaction": "explicit_review",
+            "use_catalog_result_criteria": True,
+        },
+        expected_action="review_payroll",
+        task_order=3,
+        case_study=case_study,
+    )
+    legacy = {
+        "id": "20:30",
+        "task_id": 30,
+        "title": "Base antigua",
+        "case_data": [{"label": "Trabajador", "value": "Laura Martín Ruiz"}],
+        "context": {"assignmentId": 20, "taskId": 30},
+        "status": "pending",
+        "is_completed": False,
+        "result_criteria": [{"label": "Nómina recalculada", "status": "pending"}],
+        "validation_result": {},
+    }
+
+    enriched = _enrich_activity(legacy, task)
+
+    assert enriched["training_code"] == "A18"
+    assert enriched["validation_interaction"] == "explicit_review"
+    assert len(enriched["result_criteria"]) == 3
+    assert all(item["status"] == "pending" for item in enriched["result_criteria"])
+    assert any(row["label"] == "Revisión" for row in enriched["case_data"])
 
 
 def test_existing_it_and_regularization_cases_are_integral_master_practices():
