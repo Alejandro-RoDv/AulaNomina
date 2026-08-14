@@ -18,6 +18,8 @@ const OPERATION_RULES = [
   { pattern: /^\/incidents\/payrolls\/\d+\/process(?:\?|$)/, moduleCode: "payrolls", actionCode: "recalculate_payroll", label: "Incidencias aplicadas a nómina" },
   { pattern: /^\/incidents(?:\?|$)/, moduleCode: "incidents", actionCode: "create_incident", label: "Incidencia registrada", methods: new Set(["POST"]) },
   { pattern: /^\/incidents\/\d+(?:\?|$)/, moduleCode: "incidents", actionCode: "create_incident", label: "Incidencia revisada", methods: new Set(["PUT", "PATCH"]) },
+  { pattern: /^\/payroll-generation(?:\?|$)/, moduleCode: "payrolls", actionCode: "recalculate_payroll", label: "Nómina generada", methods: new Set(["POST"]) },
+  { pattern: /^\/payrolls\/prepare-monthly(?:\?|$)/, moduleCode: "payrolls", actionCode: "recalculate_payroll", label: "Nóminas del periodo preparadas", methods: new Set(["POST"]) },
   { pattern: /^\/payrolls(?:\/\d+)?(?:\?|$)/, moduleCode: "payrolls", actionCode: "recalculate_payroll", label: "Nómina recalculada", methods: new Set(["POST", "PUT"]) },
   { pattern: /^\/employees(?:\?|$)/, moduleCode: "employees", actionCode: "create_employee", label: "Trabajador creado", methods: new Set(["POST"]) },
   { pattern: /^\/employees\/\d+(?:\?|$)/, moduleCode: "employees", actionCode: "assign_employee", label: "Adscripción de trabajador actualizada", methods: new Set(["PUT", "PATCH"]) },
