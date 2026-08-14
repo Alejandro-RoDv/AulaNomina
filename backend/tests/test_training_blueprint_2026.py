@@ -1,4 +1,10 @@
 from app.training.activity_specs_2026 import ACTIVITY_SPECS_2026
+from app.training.catalog_2026 import (
+    build_training_catalog_2026,
+    get_training_activity_2026,
+    list_training_activities_2026,
+    training_dependency_graph_2026,
+)
 from app.training.course_blueprint_2026 import COURSE_BLUEPRINT_2026, blueprint_summary, iter_activities
 from app.training.official_sources_2026 import OFFICIAL_SOURCES_2026
 
@@ -102,3 +108,26 @@ def test_annual_and_frequent_sources_have_current_review_date():
 
     assert volatile
     assert all(source["checked_on"] == "2026-08-14" for source in volatile.values())
+
+
+def test_enriched_catalog_is_serializable_shape_and_does_not_mutate_blueprint():
+    catalog = build_training_catalog_2026()
+    activities = list_training_activities_2026(include_source_metadata=True)
+
+    assert catalog is not COURSE_BLUEPRINT_2026
+    assert len(activities) == 60
+    assert all(activity["block_code"] for activity in activities)
+    assert all(activity["unit_code"] for activity in activities)
+    assert all(activity["official_sources"] for activity in activities)
+    assert "learning_objective" not in iter_activities()[0]
+
+
+def test_activity_lookup_and_dependency_graph_are_ready_for_phase_b():
+    activity = get_training_activity_2026("a35")
+    graph = training_dependency_graph_2026()
+
+    assert activity is not None
+    assert activity["code"] == "A35"
+    assert activity["professional_situation"]
+    assert graph["A35"] == ["A34", "A33"]
+    assert set(graph) == {activity["code"] for activity in iter_activities()}
