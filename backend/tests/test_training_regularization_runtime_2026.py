@@ -1,10 +1,12 @@
 from types import SimpleNamespace
 
 from app.services.training_activity_runtime_service import _runtime_descriptor
-from app.services.training_regularization_review_service import (
-    _arrears_trace,
+from app.services.training_regularization_chain_review_service import (
+    EXPECTED_AUGUST_GROSS_AFTER_RETROACTIVE,
+    EXPECTED_AUGUST_GROSS_BEFORE_RETROACTIVE,
     handles_training_regularization_review,
 )
+from app.services.training_regularization_review_service import _arrears_trace
 from app.training.regularization_runtime_cases_2026 import (
     BASELINE_SALARY,
     CORRECTED_SALARY,
@@ -63,6 +65,15 @@ def test_a43_uses_one_triennium_and_six_retroactive_months():
     assert data["monthly_amount"] == float(SENIORITY_MONTHLY_AMOUNT)
     assert data["affected_months"] == 6
     assert data["expected_gross_delta"] == float(SENIORITY_RETROACTIVE_TOTAL)
+
+
+def test_a43_builds_on_a42_salary_correction_before_retroactive():
+    assert EXPECTED_AUGUST_GROSS_BEFORE_RETROACTIVE == CORRECTED_SALARY + SENIORITY_MONTHLY_AMOUNT
+    assert EXPECTED_AUGUST_GROSS_AFTER_RETROACTIVE == (
+        CORRECTED_SALARY + SENIORITY_MONTHLY_AMOUNT + SENIORITY_RETROACTIVE_TOTAL
+    )
+    assert EXPECTED_AUGUST_GROSS_BEFORE_RETROACTIVE == 1462
+    assert EXPECTED_AUGUST_GROSS_AFTER_RETROACTIVE == 1654
 
 
 def test_a44_uses_isolated_agreement_and_expected_arrears():
