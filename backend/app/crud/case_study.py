@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session, joinedload
 from app.models.case_study import CaseStudy, CaseTask
 from app.schemas.case_study import CaseStudyCreate, CaseStudyUpdate, CaseTaskCreate, CaseTaskUpdate
 from app.services.case_feedback_service import normalized_feedback_config
+from app.training.runtime_bindings_2026 import build_pilot_task_definitions_2026
 
 
 def _task_data(task: CaseTaskCreate) -> dict:
@@ -104,15 +105,19 @@ def delete_case_task(db: Session, task_id: int):
 
 
 def _demo_cases() -> list[CaseStudyCreate]:
+    pilot_tasks = [CaseTaskCreate(**definition) for definition in build_pilot_task_definitions_2026()]
+
     return [
         CaseStudyCreate(
+            scenario_code="TRAIN-2026-001",
             title="Alta completa de trabajador",
-            description="El alumno debe crear un trabajador nuevo, asignarlo a empresa y centro, crear contrato indefinido y dejar preparada la documentación inicial.",
+            description="Primer itinerario ejecutable del Temario Maestro 2026: expediente, contrato indefinido y alta de Seguridad Social.",
             difficulty="basic",
             category="contract",
             status="active",
             created_by="Profesor demo",
             initial_state={
+                "training_sequence": ["A04", "A07", "A29"],
                 "employee": "Fulanito Pérez",
                 "employee_data": {
                     "first_name": "Fulanito",
@@ -126,14 +131,16 @@ def _demo_cases() -> list[CaseStudyCreate]:
                 "company_name": "Fundación AulaNomina",
                 "center_name": "Colegio San Rafael",
                 "start_date": "2026-09-01",
+                "contract_data": {
+                    "contract_family": "indefinite",
+                    "working_day": "Jornada completa",
+                    "working_day_type": "full_time",
+                    "weekly_hours": 40,
+                    "job_position": "Administrativo/a de RRHH",
+                },
             },
-            completion_message="El expediente inicial del trabajador está completo y listo para revisión docente.",
-            tasks=[
-                CaseTaskCreate(title="Crear trabajador", description="Crear el expediente de Fulanito Pérez con los datos personales facilitados en el caso.", module="employees", expected_result="Trabajador creado y activo", expected_action="create_employee", task_order=1),
-                CaseTaskCreate(title="Asignar empresa y centro", description="Vincular el trabajador a Fundación AulaNomina y Colegio San Rafael.", module="employees", expected_result="Empresa y centro visibles en la ficha", expected_action="assign_employee", task_order=2),
-                CaseTaskCreate(title="Crear contrato indefinido", description="Registrar un contrato indefinido activo con fecha de inicio 01/09/2026.", module="contracts", expected_result="Contrato indefinido activo", expected_action="create_contract", task_order=3),
-                CaseTaskCreate(title="Generar checklist documental", description="Preparar DNI/NIE, NAF, contrato firmado y Modelo 145.", module="documents", expected_result="Documentos iniciales creados", expected_action="review_documents", task_order=4),
-            ],
+            completion_message="La incorporación está preparada: expediente creado, contrato indefinido activo y alta de Seguridad Social preparada.",
+            tasks=pilot_tasks,
         ),
         CaseStudyCreate(
             scenario_code="IT-2026-008",
@@ -218,6 +225,16 @@ def _demo_cases() -> list[CaseStudyCreate]:
     ]
 
 
+def _reset_assignment_after_training_migration(case_study: CaseStudy) -> None:
+    for assignment in case_study.assignments:
+        assignment.progress_entries.clear()
+        assignment.current_task_order = 1
+        assignment.completion_percentage = 0
+        assignment.started_at = None
+        assignment.completed_at = None
+        assignment.status = "assigned"
+
+
 def seed_demo_case_studies(db: Session):
     for definition in _demo_cases():
         query = db.query(CaseStudy)
@@ -238,13 +255,33 @@ def seed_demo_case_studies(db: Session):
             setattr(existing, field, value)
 
         existing_by_order = {task.task_order: task for task in existing.tasks}
+        defined_orders = {task.task_order for task in definition.tasks}
+        training_migration_changed = False
+
         for task_definition in definition.tasks:
             task_values = _task_data(task_definition)
             existing_task = existing_by_order.get(task_definition.task_order)
             if existing_task is None:
                 db.add(CaseTask(case_study_id=existing.id, **task_values))
+                if definition.scenario_code == "TRAIN-2026-001":
+                    training_migration_changed = True
                 continue
+
+            previous_training_code = (existing_task.trigger_condition or {}).get("training_code")
+            next_training_code = (task_values.get("trigger_condition") or {}).get("training_code")
+            if definition.scenario_code == "TRAIN-2026-001" and previous_training_code != next_training_code:
+                training_migration_changed = True
+
             for field, value in task_values.items():
                 setattr(existing_task, field, value)
+
+        stale_tasks = [task for task in list(existing.tasks) if task.task_order not in defined_orders]
+        for stale_task in stale_tasks:
+            db.delete(stale_task)
+            if definition.scenario_code == "TRAIN-2026-001":
+                training_migration_changed = True
+
+        if training_migration_changed:
+            _reset_assignment_after_training_migration(existing)
 
         db.commit()
