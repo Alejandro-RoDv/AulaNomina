@@ -1,4 +1,7 @@
+from types import SimpleNamespace
+
 from app.schemas.case_study import CaseTaskCreate
+from app.services.training_integrated_review_service import _task_operation_check
 from app.training.integrated_runtime_bootstrap_2026 import SUPERSEDED_SCENARIOS
 from app.training.integrated_runtime_cases_2026 import (
     INTEGRATED_SCENARIO_CODES,
@@ -65,3 +68,39 @@ def test_case_task_schema_accepts_modules_used_by_training_runtime():
 
 def test_b10_supersedes_short_integral_demo_cases():
     assert SUPERSEDED_SCENARIOS == {"IT-2026-008", "NOM-2026-014"}
+
+
+def _assignment_with_event(event=None):
+    task = SimpleNamespace(id=301, task_order=1)
+    progress = SimpleNamespace(
+        task_id=301,
+        validation_result={"events": [event]} if event else {},
+    )
+    return SimpleNamespace(
+        case_study=SimpleNamespace(tasks=[task]),
+        progress_entries=[progress],
+    )
+
+
+def test_c06_requires_operation_executed_in_the_current_capstone_task():
+    assignment = _assignment_with_event()
+    result = _task_operation_check(assignment, 1, "manage_termination")
+
+    assert result["passed"] is False
+    assert result["evidence"]["task_order"] == 1
+    assert "no se reutiliza" in result["message"].lower()
+
+
+def test_c06_accepts_successful_operation_event_from_its_own_task():
+    assignment = _assignment_with_event(
+        {
+            "action_code": "manage_termination",
+            "operation_status": "success",
+            "target": "/employment-terminations/44",
+            "recorded_at": "2026-08-15T01:00:00",
+        }
+    )
+    result = _task_operation_check(assignment, 1, "manage_termination")
+
+    assert result["passed"] is True
+    assert result["evidence"]["event"]["target"] == "/employment-terminations/44"
