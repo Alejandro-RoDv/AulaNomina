@@ -4,7 +4,14 @@ from decimal import Decimal
 
 from app.db import Base, SessionLocal, engine
 from app.models import Company, Contract, Employee, Incident, Payroll, WorkCenter
+from app.models.affiliation_worker_state import AffiliationWorkerState
+from app.models.communication_file import CommunicationFile, CommunicationFileEvent
+from app.models.communication_submission import CommunicationSubmission
 from app.models.fie import FieCommunication, FieProcessingEvent
+from app.models.social_security_settlement import (
+    SocialSecuritySettlement,
+    SocialSecuritySettlementLine,
+)
 from app.seed_demo_payroll_incident_cases import seed_demo_payroll_incident_cases
 from app.seed_demo_payroll_salary_structure import seed_demo_payroll_items
 
@@ -205,6 +212,56 @@ def _delete_demo_fie(db, *, company_id: int | None, employee_ids: list[int]) -> 
     ).delete(synchronize_session=False)
 
 
+def _delete_demo_social_security_artifacts(db, company_id: int | None) -> None:
+    """Remove RED/SILTRA artefacts before deleting their company/payroll parents."""
+    if company_id is None:
+        return
+
+    settlement_ids = [
+        row[0]
+        for row in db.query(SocialSecuritySettlement.id)
+        .filter(SocialSecuritySettlement.company_id == company_id)
+        .all()
+    ]
+    if settlement_ids:
+        db.query(SocialSecuritySettlementLine).filter(
+            SocialSecuritySettlementLine.settlement_id.in_(settlement_ids)
+        ).delete(synchronize_session=False)
+        db.query(SocialSecuritySettlement).filter(
+            SocialSecuritySettlement.id.in_(settlement_ids)
+        ).delete(synchronize_session=False)
+
+    # El estado TGSS simulado referencia tanto contratos como envíos, por lo que
+    # debe desaparecer antes de borrar cualquiera de esos padres.
+    db.query(AffiliationWorkerState).filter(
+        AffiliationWorkerState.company_id == company_id
+    ).delete(synchronize_session=False)
+
+    file_ids = [
+        row[0]
+        for row in db.query(CommunicationFile.id)
+        .filter(CommunicationFile.company_id == company_id)
+        .all()
+    ]
+
+    # Los envíos enlazan fichero origen y respuesta SILTRA. Se eliminan antes de
+    # los propios ficheros para que el reset funcione también con ciclos A35 completos.
+    db.query(CommunicationSubmission).filter(
+        CommunicationSubmission.company_id == company_id
+    ).delete(synchronize_session=False)
+
+    if file_ids:
+        db.query(CommunicationFileEvent).filter(
+            CommunicationFileEvent.communication_file_id.in_(file_ids)
+        ).delete(synchronize_session=False)
+        db.query(CommunicationFile).filter(
+            CommunicationFile.id.in_(file_ids)
+        ).update({CommunicationFile.response_file_id: None}, synchronize_session=False)
+        db.query(CommunicationFile).filter(
+            CommunicationFile.id.in_(file_ids)
+        ).delete(synchronize_session=False)
+
+
 def reset_only_demo_data(db):
     """Delete only the controlled demo dataset, never the full business tables."""
 
@@ -221,6 +278,7 @@ def reset_only_demo_data(db):
         company_id=company.id if company else None,
         employee_ids=demo_employee_ids,
     )
+    _delete_demo_social_security_artifacts(db, company.id if company else None)
 
     if company:
         db.query(Payroll).filter(Payroll.company_id == company.id).delete(synchronize_session=False)
