@@ -317,8 +317,6 @@ def _delete_demo_social_security_artifacts(db, company_id: int | None) -> None:
             SocialSecuritySettlement.id.in_(settlement_ids)
         ).delete(synchronize_session=False)
 
-    # El estado TGSS simulado referencia tanto contratos como envíos, por lo que
-    # debe desaparecer antes de borrar cualquiera de esos padres.
     db.query(AffiliationWorkerState).filter(
         AffiliationWorkerState.company_id == company_id
     ).delete(synchronize_session=False)
@@ -330,8 +328,6 @@ def _delete_demo_social_security_artifacts(db, company_id: int | None) -> None:
         .all()
     ]
 
-    # Los envíos enlazan fichero origen y respuesta SILTRA. Se eliminan antes de
-    # los propios ficheros para que el reset funcione también con ciclos A35 completos.
     db.query(CommunicationSubmission).filter(
         CommunicationSubmission.company_id == company_id
     ).delete(synchronize_session=False)
@@ -346,6 +342,45 @@ def _delete_demo_social_security_artifacts(db, company_id: int | None) -> None:
         db.query(CommunicationFile).filter(
             CommunicationFile.id.in_(file_ids)
         ).delete(synchronize_session=False)
+
+
+def _delete_demo_payroll_artifacts(
+    db,
+    *,
+    company_id: int | None,
+    employee_ids: list[int],
+) -> None:
+    """Limpia dependencias sin ON DELETE CASCADE antes del borrado masivo de nóminas."""
+    query = db.query(Payroll.id)
+    if company_id is not None:
+        query = query.filter(Payroll.company_id == company_id)
+    elif employee_ids:
+        query = query.filter(Payroll.employee_id.in_(employee_ids))
+    else:
+        return
+    payroll_ids = [row[0] for row in query.all()]
+    if not payroll_ids:
+        return
+
+    payroll_items = Base.metadata.tables.get("payroll_items")
+    if payroll_items is not None:
+        db.execute(payroll_items.delete().where(payroll_items.c.payroll_id.in_(payroll_ids)))
+
+    incident_details = Base.metadata.tables.get("incident_details")
+    if incident_details is not None:
+        db.execute(
+            incident_details.update()
+            .where(incident_details.c.processed_payroll_id.in_(payroll_ids))
+            .values(processed_payroll_id=None)
+        )
+
+    garnishment_movements = Base.metadata.tables.get("wage_garnishment_movements")
+    if garnishment_movements is not None:
+        db.execute(
+            garnishment_movements.update()
+            .where(garnishment_movements.c.payroll_id.in_(payroll_ids))
+            .values(payroll_id=None)
+        )
 
 
 def reset_only_demo_data(db):
@@ -370,6 +405,11 @@ def reset_only_demo_data(db):
         employee_ids=demo_employee_ids,
     )
     _delete_demo_social_security_artifacts(db, company.id if company else None)
+    _delete_demo_payroll_artifacts(
+        db,
+        company_id=company.id if company else None,
+        employee_ids=demo_employee_ids,
+    )
 
     if company:
         db.query(Payroll).filter(Payroll.company_id == company.id).delete(synchronize_session=False)
