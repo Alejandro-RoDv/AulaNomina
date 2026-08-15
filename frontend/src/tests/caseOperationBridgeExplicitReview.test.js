@@ -24,13 +24,18 @@ class MemoryStorage {
 
 async function emittedPayload({ trainingCode, actionCode, moduleCode, path, method = "POST" }) {
   const storage = new MemoryStorage();
+  const scenarioCode = trainingCode === "A09"
+    ? "ALT-2026-021"
+    : trainingCode === "C02"
+      ? "LAB-2026-001"
+      : `TRAIN-2026-${trainingCode}`;
   storage.setItem(ACTIVE_CASE_CONTEXT_KEY, JSON.stringify({
     assignmentId: 71,
     taskId: 81,
     trainingCode,
     actionCode,
     moduleCode,
-    scenarioCode: trainingCode === "A09" ? "ALT-2026-021" : `TRAIN-2026-${trainingCode}`,
+    scenarioCode,
   }));
 
   let payload = null;
@@ -89,6 +94,21 @@ test("A29 registra el borrador de afiliación pero espera la comprobación de la
 
   assert.equal(payload.action_code, "prepare_affiliation");
   assert.equal(payload.auto_validate, false);
+});
+
+
+test("C02 registra las operaciones del capstone sin reutilizar el validador legacy", async () => {
+  const payload = await emittedPayload({
+    trainingCode: "C02",
+    actionCode: "create_incident",
+    moduleCode: "incidents",
+    path: "/incidents/42",
+    method: "PATCH",
+  });
+
+  assert.equal(payload.action_code, "create_incident");
+  assert.equal(payload.auto_validate, false);
+  assert.equal(payload.metadata.scenario_code, "LAB-2026-001");
 });
 
 
