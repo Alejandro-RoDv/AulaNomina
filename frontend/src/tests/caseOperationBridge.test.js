@@ -131,6 +131,47 @@ test("emite el evento, solicita validación y publica el feedback", async () => 
 });
 
 
+test("A14 registra el concepto pero difiere la validación económica al botón de comprobación", async () => {
+  const storage = new MemoryStorage();
+  storage.setItem(ACTIVE_CASE_CONTEXT_KEY, JSON.stringify({
+    assignmentId: 30,
+    taskId: 114,
+    actionCode: "update_payroll_concept",
+    moduleCode: "payrolls",
+    scenarioCode: "TRAIN-2026-PAYROLL-001",
+    trainingCode: "A14",
+    employeeName: "Laura Martín Ruiz",
+  }));
+
+  let requestPayload = null;
+  const result = await emitCaseOperationEvent({
+    apiBaseUrl: "http://127.0.0.1:8000",
+    path: "/contracts/9/payroll-concepts",
+    method: "POST",
+    operationStatus: "success",
+    responseData: { id: 301 },
+    storage,
+    fetchImpl: async (_url, options) => {
+      requestPayload = JSON.parse(options.body);
+      return {
+        ok: true,
+        json: async () => ({
+          feedback_message_id: null,
+          professional_message_id: null,
+          validation: null,
+          scenario: { assignment_id: 30 },
+        }),
+      };
+    },
+  });
+
+  assert.equal(requestPayload.action_code, "update_payroll_concept");
+  assert.equal(requestPayload.auto_validate, false);
+  assert.equal(requestPayload.metadata.resource_id, 301);
+  assert.equal(result.validation, null);
+});
+
+
 test("conserva el resultado de dominio de una respuesta SILTRA", async () => {
   const storage = new MemoryStorage();
   storage.setItem(ACTIVE_CASE_CONTEXT_KEY, JSON.stringify({
