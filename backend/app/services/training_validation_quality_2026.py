@@ -44,15 +44,14 @@ RUNTIME_CASE_BUILDERS: tuple[CaseBuilder, ...] = (
 )
 
 # Estas prácticas pasan por servicios pedagógicos específicos que inspeccionan
-# el estado real del ERP. Las restantes se apoyan en las reglas automáticas del
-# validador general de CaseTask.
+# el estado real del ERP. Solo A04, A16 y C02 permanecen sobre reglas genéricas.
 SPECIALIZED_REVIEW_CODES_2026 = frozenset(
     {
         "A01", "A02", "A03", "A05",
-        "A06", "A08", "A10", "A11", "A12", "A13",
+        "A06", "A07", "A08", "A09", "A10", "A11", "A12", "A13",
         "A14", "A15", "A17", "A18", "A19", "A20", "A21", "A22",
         "A23", "A24", "A25", "A26", "A27",
-        "A28", "A30", "A31", "A32", "A33", "A34", "A35",
+        "A28", "A29", "A30", "A31", "A32", "A33", "A34", "A35",
         "A36", "A37", "A38", "A39", "A40", "A41",
         "A42", "A43", "A44", "A45",
         "A46", "A47", "A48", "A49", "A50",
@@ -61,7 +60,7 @@ SPECIALIZED_REVIEW_CODES_2026 = frozenset(
     }
 )
 
-GENERIC_RULE_CODES_2026 = frozenset({"A04", "A07", "A09", "A16", "A29", "C02"})
+GENERIC_RULE_CODES_2026 = frozenset({"A04", "A16", "C02"})
 
 LEGACY_SCENARIO_CODES = {
     "ALT-2026-021": "A09",
@@ -201,9 +200,6 @@ def build_training_validation_quality_audit_2026() -> dict[str, Any]:
             }
         )
 
-    # A18 comprueba coherencia interna del cálculo, no topes normativos por grupo.
-    # Se documenta como alcance aceptado del simulador para no confundirlo con un
-    # fallo de automatización.
     scope_notes = [
         {
             "code": "A18",
