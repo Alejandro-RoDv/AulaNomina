@@ -142,6 +142,18 @@ def test_multistep_practice_counts_as_one_completed_master_activity():
     assert projected["course"]["total"] == 60
 
 
+def test_a14_is_forced_to_explicit_review_after_master_projection():
+    a14 = _activity("9:14", "A14", inferred=False, scenario="TRAIN-2026-PAYROLL-001")
+    a14["validation_interaction"] = "operation"
+
+    projected = project_master_activity_course_2026(_course(a14))
+    visible = projected["topics"][0]["activities"]
+
+    assert len(visible) == 1
+    assert visible[0]["display_number"] == "A14"
+    assert visible[0]["validation_interaction"] == "explicit_review"
+
+
 def test_runtime_audit_reports_complete_when_all_60_master_codes_are_present():
     activities = [
         _activity(
