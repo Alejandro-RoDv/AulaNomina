@@ -10,6 +10,7 @@ from app.models.student import Student
 from app.models.student_group import StudentGroup
 from app.schemas.case_assignment import CaseAssignmentCreate, CaseAssignmentUpdate
 from app.services.case_scenario_service import ensure_assignment_progress, start_assignment
+from app.training.document_runtime_bootstrap_2026 import bootstrap_document_training_2026
 from app.training.fiscal_runtime_cases_2026 import (
     seed_fiscal_runtime_assignments_2026,
     seed_fiscal_runtime_cases_2026,
@@ -29,6 +30,7 @@ from app.training.incident_runtime_cases_2026 import (
     seed_incident_runtime_assignments_2026,
     seed_incident_runtime_cases_2026,
 )
+from app.training.integrated_runtime_bootstrap_2026 import bootstrap_integrated_training_2026
 from app.training.regularization_reset_2026 import normalize_regularization_training_tables_2026
 from app.training.regularization_runtime_cases_2026 import (
     prepare_regularization_training_data_2026,
@@ -40,6 +42,7 @@ from app.training.social_security_runtime_cases_2026 import (
     seed_social_security_runtime_assignments_2026,
     seed_social_security_runtime_cases_2026,
 )
+from app.training.termination_runtime_bootstrap_2026 import bootstrap_termination_training_2026
 
 
 def _validate_case_study(db: Session, case_study_id: int):
@@ -234,12 +237,11 @@ def _reset_training_workday_baseline(db: Session) -> None:
 
 
 def seed_demo_case_assignments(db: Session, *, reset_training_data: bool = True):
-    """Asegura casos/asignaciones y, opcionalmente, restaura los datos base de prácticas.
+    """Asegura el runtime formativo y, cuando procede, restaura su estado base.
 
-    Las vistas auxiliares como Correo usan ``reset_training_data=False`` para
-    enlazar los casos sin deshacer operaciones que el alumno ya haya realizado.
-    Los endpoints explícitos de seed/reset conservan el comportamiento de
-    restauración completa mediante el valor por defecto.
+    Esta función es el único orquestador de los diez bloques del Temario Maestro.
+    Las vistas auxiliares pueden usar ``reset_training_data=False`` sin disparar
+    los bootstraps destructivos de B08-B10 ni perder el trabajo del alumno.
     """
     _ensure_demo_assignees(db)
     seed_foundation_runtime_cases_2026(db)
@@ -272,18 +274,9 @@ def seed_demo_case_assignments(db: Session, *, reset_training_data: bool = True)
 
     first_student = students[0] if students else None
     first_group = groups[0] if groups else None
-    second_group = groups[1] if len(groups) > 1 else first_group
 
     for case_study in case_studies:
-        if case_study.scenario_code == "IT-2026-008" and second_group:
-            _ensure_demo_assignment(
-                db,
-                case_study,
-                group=second_group,
-                status="in_progress",
-                notes="Caso guiado de IT, FIE y nómina iniciado desde el correo simulado.",
-            )
-        elif case_study.scenario_code == "TRAIN-2026-PAYROLL-001" and first_student:
+        if case_study.scenario_code == "TRAIN-2026-PAYROLL-001" and first_student:
             _ensure_demo_assignment(
                 db,
                 case_study,
@@ -299,13 +292,13 @@ def seed_demo_case_assignments(db: Session, *, reset_training_data: bool = True)
                 status="assigned",
                 notes="Caso individual para practicar el cálculo proporcional de una alta dentro del mes.",
             )
-        elif case_study.scenario_code in {"ALT-2026-021", "NOM-2026-014"} and first_student:
+        elif case_study.scenario_code == "ALT-2026-021" and first_student:
             _ensure_demo_assignment(
                 db,
                 case_study,
                 student=first_student,
                 status="assigned",
-                notes="Caso individual vinculado al buzón simulado.",
+                notes="Caso individual de sustitución reutilizado por la práctica A09.",
             )
         elif case_study.title == "Alta completa de trabajador" and first_group:
             _ensure_demo_assignment(
@@ -315,14 +308,6 @@ def seed_demo_case_assignments(db: Session, *, reset_training_data: bool = True)
                 status="assigned",
                 notes="Asignacion demo para trabajar el alta completa de trabajador.",
             )
-        elif case_study.title == "Expediente documental incompleto" and first_student:
-            _ensure_demo_assignment(
-                db,
-                case_study,
-                student=first_student,
-                status="submitted",
-                notes="Asignacion individual demo con entrega pendiente de revisar.",
-            )
 
     seed_foundation_runtime_assignments_2026(db)
     seed_hiring_runtime_assignments_2026(db)
@@ -330,3 +315,15 @@ def seed_demo_case_assignments(db: Session, *, reset_training_data: bool = True)
     seed_social_security_runtime_assignments_2026(db)
     seed_fiscal_runtime_assignments_2026(db)
     seed_regularization_runtime_assignments_2026(db)
+
+    if reset_training_data:
+        bootstrap_termination_training_2026(db)
+        bootstrap_document_training_2026(db)
+        bootstrap_integrated_training_2026(db)
+
+
+# Compatibilidad con training_routes.py: estos marcadores hacen que los antiguos
+# wrappers de bootstrap no vuelvan a envolver el seeder canónico.
+seed_demo_case_assignments._termination_training_wrapped = True
+seed_demo_case_assignments._document_training_wrapped = True
+seed_demo_case_assignments._integrated_training_wrapped = True
