@@ -22,11 +22,12 @@ def test_validation_architecture_partitions_all_60_master_practices():
 
     assert specialized.isdisjoint(generic)
     assert specialized | generic == all_codes
-    assert len(specialized) == 54
-    assert len(generic) == 6
+    assert len(specialized) == 57
+    assert len(generic) == 3
+    assert generic == {"A04", "A16", "C02"}
 
 
-def test_validation_audit_is_ready_after_payroll_structure_hardening():
+def test_validation_audit_is_ready_after_payroll_and_core_flow_hardening():
     audit = build_training_validation_quality_audit_2026()
 
     assert audit["hardening_findings"] == []
