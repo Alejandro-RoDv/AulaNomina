@@ -63,6 +63,40 @@ test("buildCaseModuleUrl filtra el histórico de nómina por trabajador y period
 });
 
 
+test("B01 abre las superficies ERP de empresa, convenio y expediente", () => {
+  const companyUrl = new URL(buildCaseModuleUrl({
+    actionCode: "review_company_structure",
+    moduleCode: "companies",
+    assignmentId: 101,
+    taskId: 401,
+    companyId: 7,
+  }, "http://localhost:5173/"));
+  assert.equal(companyUrl.searchParams.get("page"), "companies");
+  assert.equal(companyUrl.searchParams.get("companyId"), "7");
+  assert.equal(getCaseActionLabel("review_company_structure", "companies"), "Revisar empresa y centro");
+
+  const agreementUrl = new URL(buildCaseModuleUrl({
+    actionCode: "review_collective_agreement_assignment",
+    moduleCode: "contracts",
+    employeeName: "Elena Ruiz Mora",
+    companyId: 7,
+  }, "http://localhost:5173/"));
+  assert.equal(agreementUrl.searchParams.get("page"), "contracts");
+  assert.equal(agreementUrl.searchParams.get("employee"), "Elena Ruiz Mora");
+  assert.equal(getCaseActionLabel("review_collective_agreement_assignment", "contracts"), "Revisar contrato y convenio");
+
+  const employeeUrl = new URL(buildCaseModuleUrl({
+    actionCode: "review_employee_data_correction",
+    moduleCode: "employees",
+    employeeName: "Nuria Gómez Alba",
+    companyId: 7,
+  }, "http://localhost:5173/"));
+  assert.equal(employeeUrl.searchParams.get("page"), "employees-list");
+  assert.equal(employeeUrl.searchParams.get("employee"), "Nuria Gómez Alba");
+  assert.equal(employeeUrl.searchParams.get("companyId"), "7");
+});
+
+
 test("C06 abre Contratos conservando el contexto del expediente integral", () => {
   const url = new URL(buildCaseModuleUrl({
     actionCode: "review_integrated_c06_termination",
