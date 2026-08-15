@@ -228,19 +228,30 @@ def _reset_training_workday_baseline(db: Session) -> None:
     db.commit()
 
 
-def seed_demo_case_assignments(db: Session):
+def seed_demo_case_assignments(db: Session, *, reset_training_data: bool = True):
+    """Asegura casos/asignaciones y, opcionalmente, restaura los datos base de prácticas.
+
+    Las vistas auxiliares como Correo usan ``reset_training_data=False`` para
+    enlazar los casos sin deshacer operaciones que el alumno ya haya realizado.
+    Los endpoints explícitos de seed/reset conservan el comportamiento de
+    restauración completa mediante el valor por defecto.
+    """
     _ensure_demo_assignees(db)
-    _reset_training_workday_baseline(db)
     seed_foundation_runtime_cases_2026(db)
     seed_incident_runtime_cases_2026(db)
     seed_social_security_runtime_cases_2026(db)
     seed_fiscal_runtime_cases_2026(db)
     seed_regularization_runtime_cases_2026(db)
-    prepare_foundation_training_data_2026(db)
-    ensure_training_incident_fie_2026(db, reset=True)
-    prepare_social_security_training_data_2026(db)
-    normalize_regularization_training_tables_2026(db)
-    prepare_regularization_training_data_2026(db)
+
+    if reset_training_data:
+        _reset_training_workday_baseline(db)
+        prepare_foundation_training_data_2026(db)
+        ensure_training_incident_fie_2026(db, reset=True)
+        prepare_social_security_training_data_2026(db)
+        normalize_regularization_training_tables_2026(db)
+        prepare_regularization_training_data_2026(db)
+    else:
+        ensure_training_incident_fie_2026(db, reset=False)
 
     case_studies = db.query(CaseStudy).order_by(CaseStudy.id.asc()).all()
     students = db.query(Student).order_by(Student.id.asc()).all()
