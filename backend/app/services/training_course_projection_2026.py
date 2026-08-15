@@ -37,6 +37,10 @@ MASTER_ACTIVITY_CODES_BY_BLOCK_2026: dict[str, tuple[str, ...]] = {
     for block_code in {activity["block_code"] for activity in MASTER_ACTIVITY_CATALOG_2026}
 }
 
+# A14 registra primero la operación ERP y después ejecuta una comprobación
+# económica reforzada de salario base + importe del complemento.
+FORCE_EXPLICIT_REVIEW_CODES_2026 = frozenset({"A14"})
+
 # A09 reutiliza el caso profesional de sustitución previo y C02 promueve el
 # caso integral LAB-2026-001. Son las únicas fuentes no TRAIN-2026 canónicas.
 ALLOWED_LEGACY_RUNTIME_SOURCES_2026 = {
@@ -112,6 +116,8 @@ def _normalise_activity_number(activity: dict[str, Any]) -> None:
     code = str(activity.get("training_code") or "").strip().upper()
     substep = activity.get("training_substep")
     activity["display_number"] = f"{code}.{substep}" if substep else code
+    if code in FORCE_EXPLICIT_REVIEW_CODES_2026:
+        activity["validation_interaction"] = "explicit_review"
 
 
 def _completed_master_codes(activities: list[dict[str, Any]]) -> set[str]:
