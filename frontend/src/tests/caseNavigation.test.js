@@ -98,6 +98,40 @@ test("B01 abre las superficies ERP de empresa, convenio y expediente", () => {
 });
 
 
+test("B02 dirige altas temporales, formativas y variaciones al módulo de contratos", () => {
+  const temporaryUrl = new URL(buildCaseModuleUrl({
+    actionCode: "review_temporary_contract",
+    moduleCode: "contracts",
+    assignmentId: 202,
+    taskId: 502,
+    scenarioCode: "TRAIN-2026-HIRE-A08",
+    employeeName: "Marta Soler Vidal",
+    companyId: 7,
+  }, "http://localhost:5173/"));
+  assert.equal(temporaryUrl.searchParams.get("page"), "contracts");
+  assert.equal(temporaryUrl.searchParams.get("caseAction"), "review_temporary_contract");
+  assert.equal(temporaryUrl.searchParams.get("scenario"), "TRAIN-2026-HIRE-A08");
+  assert.equal(temporaryUrl.searchParams.get("employee"), "Marta Soler Vidal");
+  assert.equal(getCaseActionLabel("review_temporary_contract", "contracts"), "Formalizar contrato temporal");
+
+  const alternance = resolveCaseTarget("review_alternance_contract", "contracts");
+  assert.equal(alternance.page, "contracts");
+  assert.equal(alternance.label, "Formalizar formación en alternancia");
+
+  const practice = resolveCaseTarget("review_professional_practice_contract", "contracts");
+  assert.equal(practice.page, "contracts");
+  assert.equal(practice.label, "Formalizar práctica profesional");
+
+  const workday = resolveCaseTarget("review_workday_variation", "contracts");
+  assert.equal(workday.page, "contracts");
+  assert.equal(workday.label, "Registrar variación de jornada");
+
+  const extension = resolveCaseTarget("review_contract_extension_decision", "contracts");
+  assert.equal(extension.page, "contracts");
+  assert.equal(extension.label, "Revisar y prorrogar contrato");
+});
+
+
 test("C06 abre Contratos conservando el contexto del expediente integral", () => {
   const url = new URL(buildCaseModuleUrl({
     actionCode: "review_integrated_c06_termination",
