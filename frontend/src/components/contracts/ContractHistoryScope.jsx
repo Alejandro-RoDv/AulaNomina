@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 import ContractTable from "../ContractTable";
+import ContractLifecycleWorkspace from "./ContractLifecycleWorkspace";
 import EmploymentTerminationWorkspace from "./EmploymentTerminationWorkspace";
 
 const ACTIVE_CASE_CONTEXT_KEY = "aulanomina:active-case-context";
@@ -126,6 +127,13 @@ export default function ContractHistoryScope({
             <strong>{selectedCompany?.name || "Empresa seleccionada"}</strong>
             <span>{scopedContracts.length} contratos encontrados</span>
           </div>
+
+          <ContractLifecycleWorkspace
+            contracts={scopedContracts}
+            employees={scopedEmployees}
+            onUpdateContract={onUpdateContract}
+            submitting={submitting}
+          />
 
           <EmploymentTerminationWorkspace
             contracts={scopedContracts}
