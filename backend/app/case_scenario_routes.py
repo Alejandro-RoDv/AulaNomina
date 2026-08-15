@@ -47,6 +47,10 @@ from app.services.training_integrated_review_service import (
     handles_training_integrated_review,
     validate_training_integrated_review,
 )
+from app.services.training_payroll_structure_review_service import (
+    handles_training_payroll_structure_review,
+    validate_training_payroll_structure_review,
+)
 from app.services.training_regularization_chain_review_service import (
     handles_training_regularization_review,
     validate_training_regularization_review,
@@ -161,6 +165,8 @@ def validate_assignment_step_endpoint(
             return validate_training_foundation_review(db, assignment_id, task_id)
         if task and handles_training_hiring_review(assignment, task):
             return validate_training_hiring_review(db, assignment_id, task_id)
+        if task and handles_training_payroll_structure_review(assignment, task):
+            return validate_training_payroll_structure_review(db, assignment_id, task_id)
         if task and handles_training_document_review(assignment, task):
             return validate_training_document_review(db, assignment_id, task_id)
         if task and handles_training_termination_review(assignment, task):
