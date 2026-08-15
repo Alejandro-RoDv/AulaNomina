@@ -31,6 +31,10 @@ def _normalize(value: Any) -> str:
     return "".join(character for character in text if not unicodedata.combining(character)).casefold().strip()
 
 
+def _digits(value: Any) -> str:
+    return "".join(character for character in str(value or "") if character.isdigit())
+
+
 def _training_code(task) -> str | None:
     code = (task.trigger_condition or {}).get("training_code")
     return str(code).strip().upper() if code else None
@@ -135,12 +139,13 @@ def _review_a29(db: Session, assignment) -> dict[str, Any]:
             break
 
     ccc_ok = bool(target and normalize_ccc(target.get("ccc")) == expected_ccc)
+    naf_ok = bool(target and employee and _digits(target.get("naf")) == _digits(employee.naf))
     identity_ok = bool(
         target
         and employee
         and _normalize(target.get("employee_name")) == _normalize(_employee_name(employee))
         and _normalize(target.get("dni")) == _normalize(employee.dni)
-        and normalize_ccc(target.get("naf")) == normalize_ccc(employee.naf)
+        and naf_ok
     )
     prepared = bool(source and target)
     passed = prepared and ccc_ok and identity_ok
@@ -161,6 +166,7 @@ def _review_a29(db: Session, assignment) -> dict[str, Any]:
             "expected_effective_date": expected_date or None,
             "expected_ccc": expected_ccc,
             "ccc_ok": ccc_ok,
+            "naf_ok": naf_ok,
             "identity_ok": identity_ok,
             "prepared": prepared,
         },
