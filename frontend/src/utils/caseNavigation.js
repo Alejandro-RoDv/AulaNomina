@@ -113,7 +113,12 @@ export function buildCaseModuleUrl(context, currentUrl = "http://127.0.0.1:5173/
   if (context.relatedEntityType) url.searchParams.set("entityType", context.relatedEntityType);
   if (context.relatedEntityId) url.searchParams.set("entityId", String(context.relatedEntityId));
   if (target.incidentCategory) url.searchParams.set("incidentCategory", target.incidentCategory);
-  if (target.hash) url.hash = target.hash;
+
+  if (context.actionCode === "review_company_structure" && context.companyId) {
+    url.hash = `#company-detail/${context.companyId}/centers`;
+  } else if (target.hash) {
+    url.hash = target.hash;
+  }
 
   return url.toString();
 }
@@ -124,7 +129,7 @@ export function openCaseModule(context) {
   const storedContext = {
     ...context,
     page: target.page || null,
-    hash: target.hash || null,
+    hash: new URL(url).hash || target.hash || null,
     incidentCategory: target.incidentCategory || null,
     openedAt: new Date().toISOString(),
   };
