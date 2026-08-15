@@ -202,6 +202,10 @@ export async function emitCaseOperationEvent({
   const request = fetchImpl || (typeof fetch !== "undefined" ? fetch.bind(globalThis) : null);
   if (!request) return null;
 
+  // A14 necesita comprobar el importe real del concepto después de guardar. El
+  // puente registra la operación, pero deja la validación para «Comprobar resultado».
+  const explicitEconomicReview = String(context.trainingCode || "").toUpperCase() === "A14";
+
   const payload = {
     task_id: Number(context.taskId),
     event_type: "module_operation",
@@ -209,7 +213,7 @@ export async function emitCaseOperationEvent({
     target: operation.path,
     operation_status: operationStatus,
     response_summary: responseSummary || operation.label,
-    auto_validate: operationStatus === "success",
+    auto_validate: operationStatus === "success" && !explicitEconomicReview,
     metadata: {
       event_id: createEventId(),
       source: "erp_api",
