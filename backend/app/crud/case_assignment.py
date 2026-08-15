@@ -19,6 +19,11 @@ from app.training.foundation_runtime_cases_2026 import (
     seed_foundation_runtime_assignments_2026,
     seed_foundation_runtime_cases_2026,
 )
+from app.training.hiring_runtime_cases_2026 import (
+    prepare_hiring_training_data_2026,
+    seed_hiring_runtime_assignments_2026,
+    seed_hiring_runtime_cases_2026,
+)
 from app.training.incident_runtime_cases_2026 import (
     ensure_training_incident_fie_2026,
     seed_incident_runtime_assignments_2026,
@@ -238,6 +243,7 @@ def seed_demo_case_assignments(db: Session, *, reset_training_data: bool = True)
     """
     _ensure_demo_assignees(db)
     seed_foundation_runtime_cases_2026(db)
+    seed_hiring_runtime_cases_2026(db)
     seed_incident_runtime_cases_2026(db)
     seed_social_security_runtime_cases_2026(db)
     seed_fiscal_runtime_cases_2026(db)
@@ -249,6 +255,7 @@ def seed_demo_case_assignments(db: Session, *, reset_training_data: bool = True)
         seed_demo_collective_agreements(db)
         _reset_training_workday_baseline(db)
         prepare_foundation_training_data_2026(db)
+        prepare_hiring_training_data_2026(db)
         ensure_training_incident_fie_2026(db, reset=True)
         prepare_social_security_training_data_2026(db)
         normalize_regularization_training_tables_2026(db)
@@ -318,6 +325,7 @@ def seed_demo_case_assignments(db: Session, *, reset_training_data: bool = True)
             )
 
     seed_foundation_runtime_assignments_2026(db)
+    seed_hiring_runtime_assignments_2026(db)
     seed_incident_runtime_assignments_2026(db)
     seed_social_security_runtime_assignments_2026(db)
     seed_fiscal_runtime_assignments_2026(db)
