@@ -15,7 +15,6 @@ from sqlalchemy.orm import Session
 
 from app.models.case_assignment import CaseAssignment
 from app.models.case_study import CaseStudy, CaseTask
-from app.models.collective_agreement import CollectiveAgreement
 from app.models.company import Company
 from app.models.contract import Contract
 from app.models.employee import Employee
@@ -121,7 +120,7 @@ def build_foundation_runtime_cases_2026() -> list[CaseStudyCreate]:
             title="Clasificación de relaciones de trabajo",
             description="Práctica A01: distinguir tres prestaciones de servicios atendiendo a voluntariedad, retribución, dependencia y ajenidad.",
             difficulty="basic",
-            category="environment",
+            category="general",
             status="active",
             created_by="Profesor demo",
             initial_state={"training_sequence": ["A01"]},
@@ -197,7 +196,7 @@ def build_foundation_runtime_cases_2026() -> list[CaseStudyCreate]:
             title="Empresa y centro listos para operar",
             description="Práctica A02: revisar la estructura administrativa de una empresa y corregir el CCC principal erróneo de su centro de trabajo.",
             difficulty="basic",
-            category="environment",
+            category="general",
             status="active",
             created_by="Profesor demo",
             initial_state={
@@ -241,7 +240,7 @@ def build_foundation_runtime_cases_2026() -> list[CaseStudyCreate]:
             title="Convenio aplicable y variables afectadas",
             description="Práctica A03: asignar el convenio simulado correcto a un contrato y reconocer qué variables laborales condiciona.",
             difficulty="basic",
-            category="environment",
+            category="general",
             status="active",
             created_by="Profesor demo",
             initial_state={
@@ -301,7 +300,7 @@ def build_foundation_runtime_cases_2026() -> list[CaseStudyCreate]:
             title="Corrección de datos del expediente",
             description="Práctica A05: comparar la ficha de una trabajadora con la información recibida y corregir solo los campos inconsistentes.",
             difficulty="basic",
-            category="environment",
+            category="general",
             status="active",
             created_by="Profesor demo",
             initial_state={
