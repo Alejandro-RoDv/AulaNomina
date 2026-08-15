@@ -51,6 +51,10 @@ from app.services.training_incident_review_service import (
     handles_training_incident_review,
     validate_training_incident_review,
 )
+from app.services.training_integrated_c02_review_service import (
+    handles_training_integrated_c02_review,
+    validate_training_integrated_c02_review,
+)
 from app.services.training_integrated_review_service import (
     handles_training_integrated_review,
     validate_training_integrated_review,
@@ -167,6 +171,8 @@ def validate_assignment_step_endpoint(
     try:
         assignment = ensure_assignment_progress(db, assignment_id)
         task = next((item for item in assignment.case_study.tasks if item.id == task_id), None)
+        if task and handles_training_integrated_c02_review(assignment, task):
+            return validate_training_integrated_c02_review(db, assignment_id, task_id)
         if task and handles_training_integrated_review(assignment, task):
             return validate_training_integrated_review(db, assignment_id, task_id)
         if task and handles_training_foundation_review(assignment, task):
