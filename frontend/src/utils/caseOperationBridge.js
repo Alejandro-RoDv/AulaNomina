@@ -1,7 +1,7 @@
 const ACTIVE_CASE_CONTEXT_KEY = "aulanomina:active-case-context";
 const LAST_CASE_FEEDBACK_KEY = "aulanomina:last-case-operation-feedback";
 const MUTATING_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
-const EXPLICIT_REVIEW_TRAINING_CODES = new Set(["A07", "A09", "A14", "A29"]);
+const EXPLICIT_REVIEW_TRAINING_CODES = new Set(["A07", "A09", "A14", "A29", "C02"]);
 
 const OPERATION_ACTION_ALIASES = {
   manage_termination: new Set([
