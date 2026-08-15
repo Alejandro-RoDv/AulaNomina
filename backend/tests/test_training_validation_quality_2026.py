@@ -22,20 +22,15 @@ def test_validation_architecture_partitions_all_60_master_practices():
 
     assert specialized.isdisjoint(generic)
     assert specialized | generic == all_codes
-    assert len(specialized) == 53
-    assert len(generic) == 7
+    assert len(specialized) == 54
+    assert len(generic) == 6
 
 
-def test_validation_audit_surfaces_semantic_hardening_instead_of_hiding_it():
+def test_validation_audit_is_ready_after_payroll_structure_hardening():
     audit = build_training_validation_quality_audit_2026()
-    findings = {item["code"]: item for item in audit["hardening_findings"]}
 
-    # Estos hallazgos son deliberadamente visibles hasta que sus validadores
-    # comprueben el valor económico, no solo que exista la configuración.
-    assert set(findings) == {"A14", "A15"}
-    assert findings["A14"]["severity"] == "high"
-    assert findings["A15"]["severity"] == "high"
-    assert audit["status"] == "hardening_required"
+    assert audit["hardening_findings"] == []
+    assert audit["status"] == "ready"
 
 
 def test_a18_scope_is_explicit_and_not_misreported_as_full_legal_certification():
