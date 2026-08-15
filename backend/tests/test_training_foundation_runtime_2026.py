@@ -57,10 +57,17 @@ def test_a01_and_a03_are_mapped_as_master_syllabus_multistep_practices():
 
 def test_public_response_schema_does_not_expose_answer_key_or_validator_keywords():
     task = _definitions()["TRAIN-2026-FOUND-A01"].tasks[0]
+    stored = task.trigger_condition["response_schema"]
     public = _public_response_schema(task)
+
+    assert stored["validation_key"] == "A01-1"
+    assert "expected_decision" not in stored
+    assert "evidence_keywords" not in stored
+    assert "minimum_keyword_matches" not in stored
 
     assert public["type"] == "decision"
     assert len(public["options"]) == 3
+    assert "validation_key" not in public
     assert "expected_decision" not in public
     assert "evidence_keywords" not in public
     assert "minimum_keyword_matches" not in public
@@ -81,6 +88,7 @@ def test_foundation_decision_requires_correct_choice_and_material_justification(
         ),
     )
     assert correct["passed"] is True
+    assert correct["evidence"]["validation_rule_available"] is True
     assert len(correct["evidence"]["matched_evidence"]) >= 2
 
     unsupported = _review_decision(
