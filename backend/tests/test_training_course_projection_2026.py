@@ -29,15 +29,15 @@ def _activity(
     }
 
 
-def _course(*activities):
+def _course(*activities, block_code="B03", block_order=3, block_title="Nómina y retribución"):
     return {
         "course": {"title": "Curso práctico"},
         "topics": [
             {
-                "key": "b03",
-                "code": "B03",
-                "order": 3,
-                "title": "Nómina y retribución",
+                "key": block_code.lower(),
+                "code": block_code,
+                "order": block_order,
+                "title": block_title,
                 "activities": list(activities),
             }
         ],
@@ -77,8 +77,8 @@ def test_projection_hides_unmigrated_and_provisional_legacy_steps():
     assert "C03" in projected["course"]["migrated_training_codes"]
 
 
-def test_projection_keeps_intentional_a09_legacy_runtime_source():
-    projected = project_master_activity_course_2026(
+def test_projection_keeps_intentional_legacy_runtime_sources():
+    projected_a09 = project_master_activity_course_2026(
         _course(
             _activity(
                 "5:5",
@@ -88,23 +88,58 @@ def test_projection_keeps_intentional_a09_legacy_runtime_source():
             )
         )
     )
+    projected_c02 = project_master_activity_course_2026(
+        _course(
+            _activity(
+                "6:6",
+                "C02",
+                inferred=True,
+                scenario="LAB-2026-001",
+            ),
+            block_code="B10",
+            block_order=10,
+            block_title="Casos profesionales integrados",
+        )
+    )
 
-    visible = projected["topics"][0]["activities"]
-    assert len(visible) == 1
-    assert visible[0]["display_number"] == "A09"
+    assert projected_a09["topics"][0]["activities"][0]["display_number"] == "A09"
+    assert projected_c02["topics"][0]["activities"][0]["display_number"] == "C02"
 
 
 def test_projection_uses_master_code_plus_substep_for_multistep_practices():
     projected = project_master_activity_course_2026(
         _course(
-            _activity("6:6", "A23", substep=1),
-            _activity("6:7", "A23", substep=2),
+            _activity("7:7", "A23", substep=1),
+            _activity("7:8", "A23", substep=2),
+            block_code="B04",
+            block_order=4,
+            block_title="Incidencias laborales",
         )
     )
 
     assert [
         item["display_number"] for item in projected["topics"][0]["activities"]
     ] == ["A23.1", "A23.2"]
+    assert projected["topics"][0]["total"] == 5
+    assert projected["course"]["total"] == 60
+    assert projected["course"]["visible_runtime_steps"] == 2
+
+
+def test_multistep_practice_counts_as_one_completed_master_activity():
+    projected = project_master_activity_course_2026(
+        _course(
+            _activity("8:8", "A23", substep=1, completed=True),
+            _activity("8:9", "A23", substep=2, completed=True),
+            block_code="B04",
+            block_order=4,
+            block_title="Incidencias laborales",
+        )
+    )
+
+    assert projected["topics"][0]["completed"] == 1
+    assert projected["topics"][0]["total"] == 5
+    assert projected["course"]["completed"] == 1
+    assert projected["course"]["total"] == 60
 
 
 def test_runtime_audit_reports_complete_when_all_60_master_codes_are_present():
