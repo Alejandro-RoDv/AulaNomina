@@ -73,6 +73,7 @@ test("B01 abre las superficies ERP de empresa, convenio y expediente", () => {
   }, "http://localhost:5173/"));
   assert.equal(companyUrl.searchParams.get("page"), "companies");
   assert.equal(companyUrl.searchParams.get("companyId"), "7");
+  assert.equal(companyUrl.hash, "#company-detail/7/centers");
   assert.equal(getCaseActionLabel("review_company_structure", "companies"), "Revisar empresa y centro");
 
   const agreementUrl = new URL(buildCaseModuleUrl({
