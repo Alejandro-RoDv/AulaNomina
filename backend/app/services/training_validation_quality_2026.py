@@ -17,7 +17,7 @@ from typing import Any, Callable, Iterable
 
 from app.crud.case_study import _demo_cases
 from app.services.training_course_projection_2026 import MASTER_ACTIVITY_CODES_2026
-from app.services.training_payroll_review_service import _review_extra_pay_configuration
+from app.services.training_payroll_structure_review_service import _review_a14, _review_a15
 from app.training.document_runtime_cases_2026 import build_document_runtime_cases_2026
 from app.training.fiscal_runtime_cases_2026 import build_fiscal_runtime_cases_2026
 from app.training.foundation_runtime_cases_2026 import build_foundation_runtime_cases_2026
@@ -50,7 +50,7 @@ SPECIALIZED_REVIEW_CODES_2026 = frozenset(
     {
         "A01", "A02", "A03", "A05",
         "A06", "A08", "A10", "A11", "A12", "A13",
-        "A15", "A17", "A18", "A19", "A20", "A21", "A22",
+        "A14", "A15", "A17", "A18", "A19", "A20", "A21", "A22",
         "A23", "A24", "A25", "A26", "A27",
         "A28", "A30", "A31", "A32", "A33", "A34", "A35",
         "A36", "A37", "A38", "A39", "A40", "A41",
@@ -61,7 +61,7 @@ SPECIALIZED_REVIEW_CODES_2026 = frozenset(
     }
 )
 
-GENERIC_RULE_CODES_2026 = frozenset({"A04", "A07", "A09", "A14", "A16", "A29", "C02"})
+GENERIC_RULE_CODES_2026 = frozenset({"A04", "A07", "A09", "A16", "A29", "C02"})
 
 LEGACY_SCENARIO_CODES = {
     "ALT-2026-021": "A09",
@@ -126,19 +126,22 @@ def _validation_path(code: str, task: Any) -> str:
     return "manual_or_unsupported"
 
 
-def _a14_amount_is_enforced(tasks: list[Any]) -> bool:
-    for task in tasks:
-        for rule in task.validation_rules or []:
-            if str(rule.get("type") or "") != "payroll_concept_exists":
-                continue
-            if rule.get("expected_amount") is not None or rule.get("amount") is not None:
-                return True
-    return False
+def _a14_amount_is_enforced() -> bool:
+    source = inspect.getsource(_review_a14)
+    return (
+        "expected_concept_amount" in source
+        and "actual_concept_amount" in source
+        and "concept_amount_matches" in source
+    )
 
 
 def _a15_proration_is_enforced() -> bool:
-    source = inspect.getsource(_review_extra_pay_configuration)
-    return "resolve_monthly_extra_pay_proration" in source and "total_amount" in source
+    source = inspect.getsource(_review_a15)
+    return (
+        "resolve_monthly_extra_pay_proration" in source
+        and "proration_total_amount" in source
+        and "positive_proration_lines" in source
+    )
 
 
 def build_training_validation_quality_audit_2026() -> dict[str, Any]:
@@ -181,7 +184,7 @@ def build_training_validation_quality_audit_2026() -> dict[str, Any]:
         )
 
     hardening_findings: list[dict[str, str]] = []
-    if not _a14_amount_is_enforced(tasks_by_code.get("A14", [])):
+    if not _a14_amount_is_enforced():
         hardening_findings.append(
             {
                 "code": "A14",
