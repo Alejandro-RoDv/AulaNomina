@@ -22,16 +22,24 @@ def test_validation_architecture_partitions_all_60_master_practices():
 
     assert specialized.isdisjoint(generic)
     assert specialized | generic == all_codes
-    assert len(specialized) == 57
-    assert len(generic) == 3
-    assert generic == {"A04", "A16", "C02"}
+    assert len(specialized) == 58
+    assert len(generic) == 2
+    assert generic == {"A04", "A16"}
 
 
-def test_validation_audit_is_ready_after_payroll_and_core_flow_hardening():
+def test_validation_audit_is_ready_after_payroll_core_and_capstone_hardening():
     audit = build_training_validation_quality_audit_2026()
 
     assert audit["hardening_findings"] == []
     assert audit["status"] == "ready"
+
+
+def test_generic_validation_scope_is_explicit_for_a16():
+    audit = build_training_validation_quality_audit_2026()
+    notes = {item["code"]: item["scope"] for item in audit["scope_notes"]}
+
+    assert "A16" in notes
+    assert "A18-A22" in notes["A16"]
 
 
 def test_a18_scope_is_explicit_and_not_misreported_as_full_legal_certification():
