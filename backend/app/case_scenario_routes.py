@@ -13,7 +13,7 @@ from app.schemas.teacher_case_dashboard import (
     TeacherCaseDashboardResponse,
     TeacherCaseDetailResponse,
 )
-from app.services.training_activity_runtime_service import build_activity_course
+from app.services.training_course_projection_2026 import build_master_activity_course_2026
 from app.services.case_scenario_service import (
     CaseScenarioError,
     build_assignment_scenario,
@@ -87,8 +87,8 @@ def _translate_error(error: CaseScenarioError):
 
 @router.get("/course-activities")
 def read_course_activities(db: Session = Depends(get_db)):
-    """Return the data-driven course view built on existing case/task progress."""
-    return build_activity_course(db)
+    """Return only master-syllabus activities projected onto executable runtime steps."""
+    return build_master_activity_course_2026(db)
 
 
 @router.get("/teacher-dashboard", response_model=TeacherCaseDashboardResponse)
