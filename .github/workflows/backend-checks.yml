@@ -68,7 +68,7 @@ jobs:
       - name: Training runtime tests
         id: training_runtime
         continue-on-error: true
-        run: python -m pytest -q --tb=short tests/test_activity_explicit_review_condition.py tests/test_training_course_projection_2026.py tests/test_training_foundation_runtime_2026.py tests/test_training_hiring_runtime_2026.py tests/test_training_incident_runtime_2026.py tests/test_training_social_security_runtime_2026.py tests/test_training_fiscal_runtime_2026.py tests/test_training_regularization_runtime_2026.py tests/test_employment_termination_service.py tests/test_training_termination_runtime_2026.py tests/test_training_document_runtime_2026.py tests/test_training_integrated_runtime_2026.py >> backend-test-output.txt 2>&1
+        run: python -m pytest -q --tb=short tests/test_activity_explicit_review_condition.py tests/test_training_course_projection_2026.py tests/test_training_runtime_manifest_2026.py tests/test_training_foundation_runtime_2026.py tests/test_training_hiring_runtime_2026.py tests/test_training_incident_runtime_2026.py tests/test_training_social_security_runtime_2026.py tests/test_training_fiscal_runtime_2026.py tests/test_training_regularization_runtime_2026.py tests/test_employment_termination_service.py tests/test_training_termination_runtime_2026.py tests/test_training_document_runtime_2026.py tests/test_training_integrated_runtime_2026.py >> backend-test-output.txt 2>&1
       - name: Simulated mail and guided case tests
         id: mail_tests
         continue-on-error: true
