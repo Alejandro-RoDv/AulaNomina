@@ -18,9 +18,11 @@ import {
 import {
   completeActivityManually,
   fetchActivityCourse,
+  saveActivityResponse,
   validateActivity,
 } from "../../services/activityApi.js";
 import { getCaseActionLabel, openCaseModule } from "../../utils/caseNavigation.js";
+import ActivityResponseForm from "./ActivityResponseForm.jsx";
 import "./activities.css";
 
 const ACTIVE_CASE_CONTEXT_KEY = "aulanomina:active-case-context";
@@ -99,6 +101,7 @@ export default function ActivitiesCenter() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [checkingId, setCheckingId] = useState(null);
+  const [responseDraft, setResponseDraft] = useState({});
 
   const loadCourse = useCallback(async ({ preserveSelection = true } = {}) => {
     try {
@@ -155,13 +158,14 @@ export default function ActivitiesCenter() {
   const pending = course?.course?.pending;
   const topicCount = course?.topics?.length || 0;
   const failedMessages = failedValidationMessages(selectedActivity);
-  const moduleActionLabel = selectedActivity?.context
+  const moduleActionLabel = selectedActivity?.context && !selectedActivity?.response_schema
     ? getCaseActionLabel(selectedActivity.context.actionCode, selectedActivity.context.moduleCode)
     : null;
 
   useEffect(() => {
     if (selectedActivity?.topic_key) setExpandedTopicKey(selectedActivity.topic_key);
-  }, [selectedActivity?.id, selectedActivity?.topic_key]);
+    setResponseDraft(selectedActivity?.validation_result?.student_response || {});
+  }, [selectedActivity?.id, selectedActivity?.topic_key, selectedActivity?.validation_result?.student_response]);
 
   const openCenter = async () => {
     setOpen(true);
@@ -207,10 +211,30 @@ export default function ActivitiesCenter() {
       || !requiresExplicitReview(selectedActivity)
     ) return;
 
+    const responseSchema = selectedActivity.response_schema;
+    if (responseSchema) {
+      if (!responseDraft?.decision) {
+        setError("Selecciona una respuesta antes de comprobar la actividad.");
+        return;
+      }
+      if (responseSchema.explanation_required && !String(responseDraft?.explanation || "").trim()) {
+        setError("Añade una justificación profesional antes de comprobar la actividad.");
+        return;
+      }
+    }
+
     try {
       setCheckingId(selectedActivity.id);
       setError("");
       persistActivityContext(selectedActivity);
+      if (responseSchema) {
+        await saveActivityResponse(
+          selectedActivity.assignment_id,
+          selectedActivity.task_id,
+          responseDraft,
+          selectedActivity.validation_result || {}
+        );
+      }
       await validateActivity(selectedActivity.assignment_id, selectedActivity.task_id);
       await loadCourse({ preserveSelection: true });
     } catch (requestError) {
@@ -384,6 +408,15 @@ export default function ActivitiesCenter() {
                   )}
                 </section>
 
+                {selectedActivity.response_schema && (
+                  <ActivityResponseForm
+                    schema={selectedActivity.response_schema}
+                    value={responseDraft}
+                    onChange={setResponseDraft}
+                    disabled={selectedActivity.is_completed || checkingId === selectedActivity.id}
+                  />
+                )}
+
                 <section className={`activity-center__result-card${selectedActivity.is_completed ? " is-completed" : ""}${failedMessages.length ? " has-errors" : ""}`}>
                   <div className="activity-center__result-heading">
                     <span className="activity-center__section-label">Resultado esperado</span>
@@ -429,9 +462,11 @@ export default function ActivitiesCenter() {
                     <small className="activity-center__result-note">
                       {checkingId === selectedActivity.id
                         ? "Comprobando el resultado actual…"
-                        : requiresExplicitReview(selectedActivity)
-                          ? "Revisa los datos del módulo relacionado y pulsa «Comprobar resultado» cuando hayas terminado el análisis."
-                          : "AulaNomina comprobará el resultado automáticamente al realizar la operación correspondiente."}
+                        : selectedActivity.response_schema
+                          ? "Selecciona una respuesta, justifica tu criterio y comprueba el resultado cuando hayas terminado."
+                          : requiresExplicitReview(selectedActivity)
+                            ? "Revisa los datos del módulo relacionado y pulsa «Comprobar resultado» cuando hayas terminado el análisis."
+                            : "AulaNomina comprobará el resultado automáticamente al realizar la operación correspondiente."}
                     </small>
                   )}
                 </section>
@@ -462,12 +497,18 @@ export default function ActivitiesCenter() {
                 {!selectedActivity.is_completed && selectedActivity.completion_condition?.automatic && requiresExplicitReview(selectedActivity) && (
                   <section className="activity-center__manual-action">
                     <div>
-                      <strong>¿Has revisado el resultado?</strong>
-                      <span>La comprobación se ejecutará ahora sobre los datos reales guardados en AulaNomina.</span>
+                      <strong>{selectedActivity.response_schema ? "¿Has razonado tu respuesta?" : "¿Has revisado el resultado?"}</strong>
+                      <span>
+                        {selectedActivity.response_schema
+                          ? "La respuesta se guardará y se contrastará con los criterios definidos para este supuesto."
+                          : "La comprobación se ejecutará ahora sobre los datos reales guardados en AulaNomina."}
+                      </span>
                     </div>
                     <button type="button" className="activity-center__quiet-button" onClick={validateSelectedExplicitly} disabled={checkingId === selectedActivity.id}>
                       <Check size={15} aria-hidden="true" />
-                      {checkingId === selectedActivity.id ? "Comprobando…" : "Comprobar resultado"}
+                      {checkingId === selectedActivity.id
+                        ? "Comprobando…"
+                        : selectedActivity.response_schema ? "Guardar y comprobar" : "Comprobar resultado"}
                     </button>
                   </section>
                 )}
