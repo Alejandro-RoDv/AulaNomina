@@ -144,11 +144,19 @@ def test_multistep_practice_counts_as_one_completed_master_activity():
 
 
 def test_strengthened_steps_are_forced_to_explicit_review_after_master_projection():
-    assert FORCE_EXPLICIT_REVIEW_CODES_2026 == {"A07", "A09", "A14", "A29"}
+    assert FORCE_EXPLICIT_REVIEW_CODES_2026 == {"A07", "A09", "A14", "A29", "C02"}
 
     for index, code in enumerate(sorted(FORCE_EXPLICIT_REVIEW_CODES_2026), start=1):
-        scenario = "ALT-2026-021" if code == "A09" else f"TRAIN-2026-{code}"
-        activity = _activity(f"{20 + index}:{120 + index}", code, inferred=(code == "A09"), scenario=scenario)
+        if code == "A09":
+            scenario = "ALT-2026-021"
+            inferred = True
+        elif code == "C02":
+            scenario = "LAB-2026-001"
+            inferred = True
+        else:
+            scenario = f"TRAIN-2026-{code}"
+            inferred = False
+        activity = _activity(f"{20 + index}:{120 + index}", code, inferred=inferred, scenario=scenario)
         activity["validation_interaction"] = "operation"
         projected = project_master_activity_course_2026(_course(activity))
         visible = projected["topics"][0]["activities"]
