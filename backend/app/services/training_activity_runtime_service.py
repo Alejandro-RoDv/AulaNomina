@@ -59,6 +59,8 @@ INTEGRAL_CASE_CODES = {
 }
 
 GUIDED_MULTISTEP_SCENARIOS = {
+    "TRAIN-2026-FOUND-A01": "A01",
+    "TRAIN-2026-FOUND-A03": "A03",
     "TRAIN-2026-INCIDENT-A23": "A23",
     "TRAIN-2026-INCIDENT-A24": "A24",
     "TRAIN-2026-INCIDENT-A25": "A25",
@@ -77,6 +79,15 @@ GUIDED_MULTISTEP_SCENARIOS = {
 
 MULTISTEP_CASE_TITLES = {
     "Expediente documental incompleto": "A52",
+}
+
+PUBLIC_RESPONSE_SCHEMA_FIELDS = {
+    "type",
+    "prompt",
+    "options",
+    "explanation_required",
+    "explanation_label",
+    "explanation_placeholder",
 }
 
 
@@ -156,6 +167,17 @@ def _append_case_row(rows: list[dict[str, str]], label: str, value: Any) -> None
     rows.append({"label": label, "value": str(value)})
 
 
+def _public_response_schema(task: CaseTask) -> dict[str, Any] | None:
+    schema = (task.trigger_condition or {}).get("response_schema")
+    if not isinstance(schema, dict):
+        return None
+    return {
+        key: deepcopy(value)
+        for key, value in schema.items()
+        if key in PUBLIC_RESPONSE_SCHEMA_FIELDS
+    }
+
+
 def _training_case_data(task: CaseTask, code: str, current_rows: list[dict[str, str]]) -> list[dict[str, str]]:
     rows = [dict(item) for item in (current_rows or [])]
     state = task.case_study.initial_state or {}
@@ -180,6 +202,10 @@ def _training_case_data(task: CaseTask, code: str, current_rows: list[dict[str, 
     seniority_regularization_data = state.get("seniority_regularization_data") or {}
     salary_revision_data = state.get("salary_revision_data") or {}
     traceability_data = state.get("traceability_data") or {}
+
+    for fact in (task.trigger_condition or {}).get("case_facts") or []:
+        if isinstance(fact, dict):
+            _append_case_row(rows, fact.get("label"), fact.get("value"))
 
     if code == "A07":
         _append_case_row(rows, "Fecha de inicio", state.get("start_date"))
@@ -395,9 +421,9 @@ def _training_case_data(task: CaseTask, code: str, current_rows: list[dict[str, 
 def _catalog_result_criteria(
     activity: dict[str, Any],
     training: dict[str, Any],
-    binding: dict[str, Any] | None,
+    options: dict[str, Any] | None,
 ) -> list[dict[str, str]]:
-    if not (binding or {}).get("use_catalog_result_criteria"):
+    if not (options or {}).get("use_catalog_result_criteria"):
         return list(activity.get("result_criteria") or [])
 
     labels = list(training.get("evaluation_criteria") or [])
@@ -446,6 +472,11 @@ def _enrich_activity(activity: dict[str, Any], task: CaseTask) -> dict[str, Any]
         or (binding or {}).get("validation_interaction")
         or "operation"
     )
+    criteria_options = {**(binding or {})}
+    if "use_catalog_result_criteria" in trigger_condition:
+        criteria_options["use_catalog_result_criteria"] = bool(trigger_condition.get("use_catalog_result_criteria"))
+    public_response_schema = _public_response_schema(task)
+    student_response = dict((activity.get("validation_result") or {}).get("student_response") or {})
 
     enriched.update(
         {
@@ -479,6 +510,8 @@ def _enrich_activity(activity: dict[str, Any], task: CaseTask) -> dict[str, Any]
             "feedback_if_failed": list(training.get("feedback_if_failed") or []),
             "official_source_codes": list(training.get("sources") or []),
             "validation_interaction": validation_interaction,
+            "response_schema": public_response_schema,
+            "student_response": student_response,
             "runtime_migrated": True,
             "runtime_migration_kind": descriptor["kind"],
             "runtime_binding_inferred": descriptor["inferred"],
@@ -486,7 +519,7 @@ def _enrich_activity(activity: dict[str, Any], task: CaseTask) -> dict[str, Any]
             "training_substep_total": descriptor["substep_total"],
         }
     )
-    enriched["result_criteria"] = _catalog_result_criteria(enriched, training, binding)
+    enriched["result_criteria"] = _catalog_result_criteria(enriched, training, criteria_options)
     enriched["context"] = {
         **(enriched.get("context") or {}),
         "trainingCode": code,
