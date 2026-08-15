@@ -19,12 +19,22 @@ from app.services.training_activity_runtime_service import (
 from app.training import list_training_activities_2026
 
 
+MASTER_ACTIVITY_CATALOG_2026 = tuple(
+    list_training_activities_2026(include_source_metadata=False)
+)
 MASTER_ACTIVITY_CODES_2026 = tuple(
-    activity["code"]
-    for activity in list_training_activities_2026(include_source_metadata=False)
+    activity["code"] for activity in MASTER_ACTIVITY_CATALOG_2026
 )
 MASTER_ACTIVITY_ORDER_2026 = {
     code: index for index, code in enumerate(MASTER_ACTIVITY_CODES_2026, start=1)
+}
+MASTER_ACTIVITY_CODES_BY_BLOCK_2026: dict[str, tuple[str, ...]] = {
+    block_code: tuple(
+        activity["code"]
+        for activity in MASTER_ACTIVITY_CATALOG_2026
+        if activity["block_code"] == block_code
+    )
+    for block_code in {activity["block_code"] for activity in MASTER_ACTIVITY_CATALOG_2026}
 }
 
 # A09 reutiliza deliberadamente el caso profesional de sustitución existente.
@@ -103,6 +113,19 @@ def _normalise_activity_number(activity: dict[str, Any]) -> None:
     activity["display_number"] = f"{code}.{substep}" if substep else code
 
 
+def _completed_master_codes(activities: list[dict[str, Any]]) -> set[str]:
+    by_code: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for activity in activities:
+        code = str(activity.get("training_code") or "").strip().upper()
+        if code:
+            by_code[code].append(activity)
+    return {
+        code
+        for code, steps in by_code.items()
+        if steps and all(step.get("is_completed") for step in steps)
+    }
+
+
 def project_master_activity_course_2026(course: dict[str, Any]) -> dict[str, Any]:
     """Elimina ruido legacy y recalcula la vista del curso con numeración maestra."""
     all_runtime_steps = [
@@ -112,6 +135,7 @@ def project_master_activity_course_2026(course: dict[str, Any]) -> dict[str, Any
     ]
     selected, suppressed_duplicate_steps = _select_canonical_runtime_steps(all_runtime_steps)
     selected_ids = {activity.get("id") for activity in selected}
+    completed_codes = _completed_master_codes(selected)
 
     ordered_visible: list[dict[str, Any]] = []
     for topic in course.get("topics", []):
@@ -131,12 +155,18 @@ def project_master_activity_course_2026(course: dict[str, Any]) -> dict[str, Any
             _normalise_activity_number(activity)
             ordered_visible.append(activity)
 
-        completed = sum(1 for activity in visible if activity.get("is_completed"))
-        total = len(visible)
+        block_code = str(topic.get("code") or "").strip().upper()
+        expected_codes = MASTER_ACTIVITY_CODES_BY_BLOCK_2026.get(block_code, ())
+        completed_practices = sum(1 for code in expected_codes if code in completed_codes)
+        total_practices = len(expected_codes)
         topic["activities"] = visible
-        topic["completed"] = completed
-        topic["total"] = total
-        topic["progress_percentage"] = 0 if total == 0 else round((completed / total) * 100)
+        topic["completed"] = completed_practices
+        topic["total"] = total_practices
+        topic["progress_percentage"] = (
+            0
+            if total_practices == 0
+            else round((completed_practices / total_practices) * 100)
+        )
 
     for index, activity in enumerate(ordered_visible, start=1):
         activity["course_order"] = index
@@ -156,19 +186,21 @@ def project_master_activity_course_2026(course: dict[str, Any]) -> dict[str, Any
     represented_ordered = [code for code in MASTER_ACTIVITY_CODES_2026 if code in represented_codes]
     missing_codes = [code for code in MASTER_ACTIVITY_CODES_2026 if code not in represented_codes]
 
-    completed = sum(1 for activity in ordered_visible if activity.get("is_completed"))
-    total = len(ordered_visible)
+    completed_practices = len(completed_codes)
+    total_practices = len(MASTER_ACTIVITY_CODES_2026)
+    visible_runtime_steps = len(ordered_visible)
     course_summary = course.setdefault("course", {})
     course_summary.update(
         {
-            "completed": completed,
-            "total": total,
-            "pending": total - completed,
-            "progress_percentage": 0 if total == 0 else round((completed / total) * 100),
+            "completed": completed_practices,
+            "total": total_practices,
+            "pending": total_practices - completed_practices,
+            "progress_percentage": round((completed_practices / total_practices) * 100),
             "current_activity_id": current.get("id") if current else None,
             "next_activity_id": next_activity.get("id") if next_activity else None,
-            "catalog_total_practices": len(MASTER_ACTIVITY_CODES_2026),
-            "migrated_runtime_steps": total,
+            "catalog_total_practices": total_practices,
+            "visible_runtime_steps": visible_runtime_steps,
+            "migrated_runtime_steps": visible_runtime_steps,
             "migrated_training_practices": len(represented_codes),
             "migrated_training_codes": represented_ordered,
             "missing_training_codes": missing_codes,
