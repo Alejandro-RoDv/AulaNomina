@@ -17,6 +17,8 @@ def _partiality(weekly_hours: float, full_time_weekly_hours: float | None) -> fl
     reference = float(full_time_weekly_hours or 40)
     if reference <= 0:
         raise ContractLifecycleError("La jornada completa de referencia debe ser mayor que cero")
+    if float(weekly_hours) > reference:
+        raise ContractLifecycleError("La jornada semanal no puede superar la jornada completa de referencia")
     return round((float(weekly_hours) / reference) * 100, 2)
 
 
@@ -57,6 +59,8 @@ def register_workday_change(
         raise ContractLifecycleError("La fecha de efectos no puede ser anterior al inicio del contrato")
     if contract.end_date and payload.effective_date > contract.end_date:
         raise ContractLifecycleError("La fecha de efectos no puede ser posterior al fin del contrato")
+    if not payload.reason.strip():
+        raise ContractLifecycleError("La variación de jornada requiere un motivo")
 
     previous_weekly = float(contract.weekly_hours or contract.full_time_weekly_hours or 40)
     previous_partiality = float(contract.partiality_coefficient or _partiality(previous_weekly, contract.full_time_weekly_hours))
@@ -103,10 +107,14 @@ def register_contract_extension(
     contract = get_contract_or_error(db, contract_id)
     if not contract.end_date:
         raise ContractLifecycleError("La prórroga requiere una fecha fin previa")
+    if contract.contract_type not in {"temporal", "formacion", "sustitucion"}:
+        raise ContractLifecycleError("La operación de prórroga está reservada a contratos con vigencia temporal")
     if payload.new_end_date <= contract.end_date:
         raise ContractLifecycleError("La nueva fecha fin debe ser posterior a la vigente")
-    if payload.effective_date > payload.new_end_date:
-        raise ContractLifecycleError("La fecha de efectos no puede ser posterior a la nueva fecha fin")
+    if payload.effective_date < contract.start_date or payload.effective_date > payload.new_end_date:
+        raise ContractLifecycleError("La fecha de efectos debe quedar dentro de la vigencia contractual")
+    if not payload.reason.strip():
+        raise ContractLifecycleError("La prórroga requiere un motivo")
 
     previous_end_date = contract.end_date
     event = ContractLifecycleEvent(
