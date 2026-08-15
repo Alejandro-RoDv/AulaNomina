@@ -1,6 +1,5 @@
 from fastapi import APIRouter, HTTPException, Query
 
-import app.crud.case_assignment as case_assignment_crud
 import app.services.training_activity_runtime_service as training_activity_runtime_service
 from app.employment_termination_routes import router as employment_termination_router
 from app.payroll_salary_structure_routes import router as application_aggregate_router
@@ -12,10 +11,7 @@ from app.training import (
     list_training_activities_2026,
     training_dependency_graph_2026,
 )
-from app.training.document_runtime_bootstrap_2026 import bootstrap_document_training_2026
-from app.training.integrated_runtime_bootstrap_2026 import bootstrap_integrated_training_2026
 from app.training.integrated_runtime_cases_2026 import INTEGRATED_SCENARIO_CODES
-from app.training.termination_runtime_bootstrap_2026 import bootstrap_termination_training_2026
 
 
 # `main.py` ya incluye application_aggregate_router sin prefijo. Extendemos ese
@@ -167,42 +163,6 @@ if not getattr(training_activity_runtime_service._training_case_data, "_integrat
 
     _training_case_data_with_integrated._integrated_data_wrapped = True
     training_activity_runtime_service._training_case_data = _training_case_data_with_integrated
-
-# El endpoint /seed-demo importa seed_demo_case_assignments después de este módulo.
-# Envolvemos una sola vez el seeder existente para restaurar los datasets
-# formativos aislados cada vez que se reinicia la demo.
-if not getattr(case_assignment_crud.seed_demo_case_assignments, "_termination_training_wrapped", False):
-    _base_seed_demo_case_assignments = case_assignment_crud.seed_demo_case_assignments
-
-    def _seed_demo_case_assignments_with_terminations(db):
-        result = _base_seed_demo_case_assignments(db)
-        bootstrap_termination_training_2026(db)
-        return result
-
-    _seed_demo_case_assignments_with_terminations._termination_training_wrapped = True
-    case_assignment_crud.seed_demo_case_assignments = _seed_demo_case_assignments_with_terminations
-
-if not getattr(case_assignment_crud.seed_demo_case_assignments, "_document_training_wrapped", False):
-    _base_seed_demo_case_assignments_b09 = case_assignment_crud.seed_demo_case_assignments
-
-    def _seed_demo_case_assignments_with_documents(db):
-        result = _base_seed_demo_case_assignments_b09(db)
-        bootstrap_document_training_2026(db)
-        return result
-
-    _seed_demo_case_assignments_with_documents._document_training_wrapped = True
-    case_assignment_crud.seed_demo_case_assignments = _seed_demo_case_assignments_with_documents
-
-if not getattr(case_assignment_crud.seed_demo_case_assignments, "_integrated_training_wrapped", False):
-    _base_seed_demo_case_assignments_b10 = case_assignment_crud.seed_demo_case_assignments
-
-    def _seed_demo_case_assignments_with_integrated(db):
-        result = _base_seed_demo_case_assignments_b10(db)
-        bootstrap_integrated_training_2026(db)
-        return result
-
-    _seed_demo_case_assignments_with_integrated._integrated_training_wrapped = True
-    case_assignment_crud.seed_demo_case_assignments = _seed_demo_case_assignments_with_integrated
 
 
 router = APIRouter(prefix="/training", tags=["training"])
