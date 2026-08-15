@@ -182,70 +182,93 @@ DEMO_THREADS = [
         "context_actions": ["employees", "contracts", "affiliations"],
     },
     {
-        "subject": "Diferencia detectada en el Modelo 111 del segundo trimestre",
-        "preview": "La suma de las retenciones de profesionales no coincide con el importe declarado.",
+        "subject": "Documentación pendiente de incorporación",
+        "preview": "El expediente de incorporación tiene documentación obligatoria todavía pendiente.",
         "folder": "inbox",
-        "status": "waiting",
+        "status": "open",
+        "priority": "normal",
+        "category": "document",
+        "case_reference": "DOC-2026-001",
+        "is_read": False,
+        "sent_at": datetime(2026, 8, 4, 12, 4),
+        "sender_name": "Administración de personal",
+        "sender_address": "personal@empresa-demo.es",
+        "body_text": (
+            "Buenos días:\n\nAntes de cerrar la incorporación necesitamos comprobar que el expediente contiene "
+            "toda la documentación obligatoria. Revisa los documentos pendientes y actualiza el expediente."
+        ),
+        "attachments": [],
+        "expected_actions": ["Revisar expediente documental", "Actualizar estados de documentos"],
+        "context_actions": ["documents"],
+    },
+    {
+        "subject": "Solicitud de certificado de empresa",
+        "preview": "La trabajadora solicita un certificado de empresa para presentarlo ante otra entidad.",
+        "folder": "inbox",
+        "status": "open",
+        "priority": "normal",
+        "category": "document",
+        "case_reference": "DOC-2026-002",
+        "is_read": False,
+        "sent_at": datetime(2026, 8, 3, 11, 20),
+        "sender_name": "Laura Sánchez Romero",
+        "sender_address": "laura.sanchez@empresa-demo.es",
+        "body_text": "Buenos días. Necesito un certificado de empresa actualizado. ¿Podéis prepararlo y dejarlo archivado en mi expediente?",
+        "attachments": [],
+        "expected_actions": ["Generar certificado", "Archivar documento"],
+        "context_actions": ["documents"],
+    },
+    {
+        "subject": "Revisión trimestral Modelo 111",
+        "preview": "Necesitamos comprobar el trimestre antes de la presentación simulada del Modelo 111.",
+        "folder": "inbox",
+        "status": "open",
         "priority": "high",
         "category": "tax",
-        "case_reference": "FIS-2026-006",
+        "case_reference": "FIS-2026-001",
         "is_read": True,
-        "sent_at": datetime(2026, 8, 3, 11, 3),
+        "sent_at": datetime(2026, 8, 2, 9, 34),
         "sender_name": "Departamento fiscal",
         "sender_address": "fiscal@empresa-demo.es",
-        "body_text": (
-            "La suma de las retenciones de profesionales no coincide con el importe declarado en el Modelo 111 "
-            "del segundo trimestre.\n\nRevisa las facturas registradas, identifica la diferencia y prepara una "
-            "declaración complementaria cuando proceda."
-        ),
-        "attachments": [("Detalle_retenciones_Q2.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "tax_detail")],
-        "expected_actions": [
-            "Conciliar facturas profesionales",
-            "Recalcular el Modelo 111",
-            "Documentar la corrección",
-        ],
+        "body_text": "Revisa las retenciones del trimestre y prepara la presentación simulada del Modelo 111.",
+        "attachments": [("Detalle_retenciones_Q2.csv", "text/csv", "tax_detail")],
+        "expected_actions": ["Revisar retenciones", "Preparar Modelo 111"],
         "context_actions": ["model111"],
     },
     {
-        "subject": "Certificado de empresa incorporado al expediente",
-        "preview": "El certificado solicitado ha sido generado y está disponible en el gestor documental.",
-        "folder": "inbox",
+        "subject": "Caso resuelto: certificado archivado",
+        "preview": "El certificado solicitado ya se encuentra archivado en el expediente.",
+        "folder": "archive",
         "status": "resolved",
         "priority": "low",
         "category": "document",
         "case_reference": "DOC-2026-003",
         "is_read": True,
-        "sent_at": datetime(2026, 8, 1, 13, 20),
-        "sender_name": "Archivo laboral",
-        "sender_address": "documentos@empresa-demo.es",
-        "body_text": (
-            "El certificado solicitado ha sido generado y está disponible en el gestor documental.\n\n"
-            "No quedan acciones pendientes. El caso puede mantenerse archivado como evidencia del ejercicio."
-        ),
+        "sent_at": datetime(2026, 8, 1, 15, 0),
+        "sender_name": "Administración de personal",
+        "sender_address": "personal@empresa-demo.es",
+        "body_text": "El certificado de empresa solicitado ha sido generado y archivado correctamente.",
         "attachments": [("Certificado_empresa.pdf", "application/pdf", "certificate")],
-        "expected_actions": ["Documento generado", "Expediente actualizado"],
+        "expected_actions": ["Documento archivado"],
         "context_actions": ["documents"],
     },
     {
-        "subject": "Regularización de antigüedad completada",
-        "preview": "Se ha revisado el expediente y recalculado la nómina con el complemento correspondiente.",
+        "subject": "Regularización de diferencias de julio",
+        "preview": "Se han detectado diferencias salariales que deben trasladarse a la nómina siguiente.",
         "folder": "sent",
         "status": "resolved",
         "priority": "normal",
         "category": "payroll",
-        "case_reference": "NOM-2026-009",
+        "case_reference": "NOM-2026-014",
         "is_read": True,
-        "sent_at": datetime(2026, 8, 4, 12, 6),
+        "sent_at": datetime(2026, 8, 5, 11, 2),
         "sender_name": DEMO_MAILBOX_NAME,
         "sender_address": DEMO_MAILBOX_ADDRESS,
-        "recipient_name": "Administración",
+        "recipient_name": "María López · Administración",
         "recipient_address": "administracion@empresa-demo.es",
         "direction": "outgoing",
         "message_type": "reply",
-        "body_text": (
-            "Se ha revisado el expediente y recalculado la nómina con el complemento correspondiente. "
-            "Se conserva la trazabilidad de la regularización en el módulo de nómina."
-        ),
+        "body_text": "Se ha revisado la antigüedad y se ha generado la regularización correspondiente. La nómina queda recalculada.",
         "attachments": [],
         "expected_actions": ["Respuesta enviada"],
         "context_actions": ["regularizations"],
@@ -299,7 +322,7 @@ def _seed_demo_teaching_context(db: Session) -> None:
     seed_demo_student_groups(db)
     seed_demo_students(db)
     seed_demo_case_studies(db)
-    seed_demo_case_assignments(db)
+    seed_demo_case_assignments(db, reset_training_data=False)
 
 
 def _resolve_case_link(db: Session, case_reference: str | None) -> tuple[int | None, int | None, int | None]:
@@ -519,25 +542,13 @@ def update_thread(db: Session, thread: EmailThread, payload: EmailThreadUpdate) 
     values = payload.model_dump(exclude_unset=True)
     for field, value in values.items():
         setattr(thread, field, value)
-    if "is_read" in values:
-        read_at = datetime.utcnow() if values["is_read"] else None
-        for message in thread.messages:
-            if message.direction == "incoming":
-                message.read_at = read_at
     thread.updated_at = datetime.utcnow()
     db.commit()
     return get_thread(db, thread.id)
 
 
-def _create_attachments(db: Session, message_id: int, attachments) -> None:
-    for attachment in attachments:
-        values = attachment.model_dump()
-        if not values.get("size_bytes") and values.get("content_text"):
-            values["size_bytes"] = len(values["content_text"].encode("utf-8"))
-        db.add(EmailAttachment(message_id=message_id, **values))
-
-
-def create_thread_message(db: Session, thread: EmailThread, payload: EmailMessageCreate) -> EmailThread:
+def create_message(db: Session, thread: EmailThread, payload: EmailMessageCreate) -> EmailMessage:
+    now = datetime.utcnow()
     message = EmailMessage(
         thread_id=thread.id,
         sender_name=payload.sender_name,
@@ -547,185 +558,51 @@ def create_thread_message(db: Session, thread: EmailThread, payload: EmailMessag
         cc_address=payload.cc_address,
         body_html=payload.body_html,
         body_text=payload.body_text,
+        sent_at=now,
+        read_at=now,
         direction=payload.direction,
         message_type=payload.message_type,
     )
     db.add(message)
     db.flush()
     _create_attachments(db, message.id, payload.attachments)
-
-    thread.preview = payload.body_text[:220]
-    thread.updated_at = datetime.utcnow()
-    thread.is_read = True
-    if payload.message_type == "draft":
-        thread.folder = "drafts"
+    thread.preview = (payload.body_text or "").strip()[:220]
+    thread.updated_at = now
+    if payload.direction == "outgoing" and thread.status == "open":
         thread.status = "in_progress"
-    elif payload.direction == "outgoing":
-        if thread.folder in {"drafts", "trash"}:
-            thread.folder = "sent"
-        thread.status = "in_progress" if thread.status != "resolved" else "resolved"
     db.commit()
-    return get_thread(db, thread.id)
-
-
-def get_attachment(db: Session, attachment_id: int) -> EmailAttachment | None:
-    return db.query(EmailAttachment).filter(EmailAttachment.id == attachment_id).first()
-
-
-def attachment_preview(attachment: EmailAttachment) -> dict:
-    content_text = attachment.content_text or DEMO_ATTACHMENT_CONTENT.get(
-        attachment.document_type,
-        f"Documento simulado: {attachment.filename}",
-    )
-    return {
-        "id": attachment.id,
-        "filename": attachment.filename,
-        "content_type": attachment.content_type,
-        "document_type": attachment.document_type,
-        "content_text": content_text,
-        "linked_document_id": attachment.linked_document_id,
-        "preview_supported": True,
-    }
-
-
-def _pdf_bytes(text: str) -> bytes:
-    lines = [line[:110] for line in text.splitlines() if line.strip()][:45] or ["Documento simulado"]
-    commands = ["BT", "/F1 10 Tf", "48 790 Td"]
-    for index, line in enumerate(lines):
-        if index:
-            commands.append("0 -15 Td")
-        safe = line.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
-        commands.append(f"({safe}) Tj")
-    commands.append("ET")
-    stream = "\n".join(commands).encode("latin-1", errors="replace")
-    objects = [
-        b"<< /Type /Catalog /Pages 2 0 R >>",
-        b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
-        b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>",
-        b"<< /Length " + str(len(stream)).encode() + b" >>\nstream\n" + stream + b"\nendstream",
-        b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
-    ]
-    output = bytearray(b"%PDF-1.4\n")
-    offsets = [0]
-    for number, obj in enumerate(objects, start=1):
-        offsets.append(len(output))
-        output.extend(f"{number} 0 obj\n".encode())
-        output.extend(obj)
-        output.extend(b"\nendobj\n")
-    xref = len(output)
-    output.extend(f"xref\n0 {len(objects) + 1}\n".encode())
-    output.extend(b"0000000000 65535 f \n")
-    for offset in offsets[1:]:
-        output.extend(f"{offset:010d} 00000 n \n".encode())
-    output.extend(
-        f"trailer\n<< /Size {len(objects) + 1} /Root 1 0 R >>\nstartxref\n{xref}\n%%EOF".encode()
-    )
-    return bytes(output)
-
-
-def _xlsx_bytes(text: str) -> bytes:
-    rows = []
-    for line in text.splitlines():
-        separator = ";" if ";" in line else ","
-        rows.append([cell.strip() for cell in line.split(separator)])
-    if not rows:
-        rows = [["Documento simulado"]]
-    sheet_rows = []
-    for row_index, row in enumerate(rows, start=1):
-        cells = []
-        for column_index, value in enumerate(row, start=1):
-            column = chr(64 + min(column_index, 26))
-            cells.append(f'<c r="{column}{row_index}" t="inlineStr"><is><t>{escape(value)}</t></is></c>')
-        sheet_rows.append(f'<row r="{row_index}">{"".join(cells)}</row>')
-    sheet = (
-        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
-        '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
-        f'<sheetData>{"".join(sheet_rows)}</sheetData></worksheet>'
-    )
-    buffer = BytesIO()
-    with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as archive:
-        archive.writestr(
-            "[Content_Types].xml",
-            '<?xml version="1.0" encoding="UTF-8"?>'
-            '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
-            '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
-            '<Default Extension="xml" ContentType="application/xml"/>'
-            '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'
-            '<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'
-            '</Types>',
-        )
-        archive.writestr(
-            "_rels/.rels",
-            '<?xml version="1.0" encoding="UTF-8"?>'
-            '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
-            '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>'
-            '</Relationships>',
-        )
-        archive.writestr(
-            "xl/workbook.xml",
-            '<?xml version="1.0" encoding="UTF-8"?>'
-            '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" '
-            'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
-            '<sheets><sheet name="Datos" sheetId="1" r:id="rId1"/></sheets></workbook>',
-        )
-        archive.writestr(
-            "xl/_rels/workbook.xml.rels",
-            '<?xml version="1.0" encoding="UTF-8"?>'
-            '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
-            '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>'
-            '</Relationships>',
-        )
-        archive.writestr("xl/worksheets/sheet1.xml", sheet)
-    return buffer.getvalue()
-
-
-def attachment_download(attachment: EmailAttachment) -> tuple[bytes, str]:
-    text = attachment_preview(attachment)["content_text"]
-    extension = Path(attachment.filename).suffix.lower()
-    if extension == ".pdf" or attachment.content_type == "application/pdf":
-        return _pdf_bytes(text), "application/pdf"
-    if extension == ".xlsx":
-        return _xlsx_bytes(text), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    if extension == ".xml":
-        return f"<aulanomina-document><content>{escape(text)}</content></aulanomina-document>".encode(), "application/xml"
-    if extension == ".csv":
-        return text.encode("utf-8"), "text/csv; charset=utf-8"
-    return text.encode("utf-8"), attachment.content_type or "text/plain; charset=utf-8"
+    db.refresh(message)
+    return message
 
 
 def create_operational_response(
     db: Session,
-    assignment_id: int,
-    *,
-    action_code: str | None,
+    thread_id: int,
+    action_code: str,
     operation_status: str,
-    event_id: str | None,
-    validation: dict | None,
-) -> int | None:
-    template = OPERATIONAL_RESPONSE_TEMPLATES.get(action_code or "")
-    if not template:
+    event_id: str | None = None,
+) -> EmailMessage | None:
+    thread = get_thread(db, thread_id)
+    template = OPERATIONAL_RESPONSE_TEMPLATES.get(action_code)
+    if not thread or not template:
         return None
-    assignment = db.query(CaseAssignment).filter(CaseAssignment.id == assignment_id).first()
-    if not assignment or not assignment.email_threads:
-        return None
-    thread = assignment.email_threads[0]
-    marker = f"operational-event:{event_id}" if event_id else None
+
+    normalized_status = "success" if operation_status == "success" else "error" if operation_status == "error" else "pending"
+    marker = f"event:{event_id}" if event_id else None
     if marker:
         existing = (
             db.query(EmailMessage)
-            .filter(EmailMessage.thread_id == thread.id, EmailMessage.body_html == marker)
+            .filter(
+                EmailMessage.thread_id == thread.id,
+                EmailMessage.direction == "system",
+                EmailMessage.message_type == "automatic",
+                EmailMessage.body_html == marker,
+            )
             .first()
         )
         if existing:
-            return existing.id
+            return existing
 
-    if operation_status == "error":
-        outcome = "error"
-    elif validation and validation.get("passed"):
-        outcome = "success"
-    else:
-        outcome = "pending"
-    body = template[outcome]
     now = datetime.utcnow()
     message = EmailMessage(
         thread_id=thread.id,
@@ -734,40 +611,145 @@ def create_operational_response(
         recipient_name=thread.mailbox.display_name if thread.mailbox else DEMO_MAILBOX_NAME,
         recipient_address=thread.mailbox.address if thread.mailbox else DEMO_MAILBOX_ADDRESS,
         body_html=marker,
-        body_text=body,
+        body_text=template[normalized_status],
         sent_at=now,
-        direction="incoming",
+        read_at=None,
+        direction="system",
         message_type="automatic",
     )
     db.add(message)
-    db.flush()
-    thread.preview = body[:220]
-    thread.is_read = False
+    thread.preview = template[normalized_status]
     thread.updated_at = now
+    thread.is_read = False
+    if normalized_status == "success" and action_code in {"submit_affiliation", "present_model_111", "present_model_190"}:
+        thread.status = "resolved"
+    elif normalized_status == "error":
+        thread.status = "in_progress"
     db.commit()
-    return message.id
+    db.refresh(message)
+    return message
 
 
-def mailbox_stats(db: Session, mailbox_id: int) -> dict[str, int]:
-    threads = db.query(EmailThread).filter(EmailThread.mailbox_id == mailbox_id).all()
-    result = {
-        "total": len(threads),
-        "unread": sum(1 for item in threads if not item.is_read),
-        "inbox": 0,
-        "sent": 0,
-        "drafts": 0,
-        "archive": 0,
-        "trash": 0,
-        "pending": 0,
-        "in_progress": 0,
-        "waiting": 0,
-        "resolved": 0,
-    }
-    for thread in threads:
-        if thread.folder in result:
-            result[thread.folder] += 1
-        if thread.status == "open":
-            result["pending"] += 1
-        elif thread.status in result:
-            result[thread.status] += 1
-    return result
+def get_attachment(db: Session, attachment_id: int) -> EmailAttachment | None:
+    return db.query(EmailAttachment).filter(EmailAttachment.id == attachment_id).first()
+
+
+def _create_attachments(db: Session, message_id: int, attachments) -> None:
+    for attachment in attachments or []:
+        content_text = attachment.content_text or ""
+        db.add(
+            EmailAttachment(
+                message_id=message_id,
+                filename=attachment.filename,
+                content_type=attachment.content_type,
+                storage_reference=attachment.storage_reference,
+                document_type=attachment.document_type,
+                content_text=content_text or None,
+                size_bytes=attachment.size_bytes if attachment.size_bytes is not None else len(content_text.encode("utf-8")),
+            )
+        )
+
+
+def _wrap_pdf_lines(lines: list[str], max_chars: int = 92) -> list[str]:
+    wrapped: list[str] = []
+    for raw_line in lines:
+        line = str(raw_line or "")
+        if not line:
+            wrapped.append("")
+            continue
+        while len(line) > max_chars:
+            split_at = line.rfind(" ", 0, max_chars + 1)
+            if split_at <= 0:
+                split_at = max_chars
+            wrapped.append(line[:split_at].strip())
+            line = line[split_at:].strip()
+        wrapped.append(line)
+    return wrapped
+
+
+def _pdf_escape(value: str) -> str:
+    return str(value).replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
+
+
+def _pdf_bytes(lines: list[str], title: str) -> bytes:
+    wrapped = _wrap_pdf_lines([title, ""] + lines)
+    commands = ["BT", "/F1 11 Tf", "48 790 Td", "14 TL"]
+    for index, line in enumerate(wrapped):
+        if index:
+            commands.append("T*")
+        commands.append(f"({_pdf_escape(line)}) Tj")
+    commands.append("ET")
+    stream = "\n".join(commands).encode("latin-1", errors="replace")
+
+    objects = [
+        b"<< /Type /Catalog /Pages 2 0 R >>",
+        b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+        b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>",
+        f"<< /Length {len(stream)} >>\nstream\n".encode("ascii") + stream + b"\nendstream",
+        b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+    ]
+
+    output = BytesIO()
+    output.write(b"%PDF-1.4\n")
+    offsets = [0]
+    for number, obj in enumerate(objects, start=1):
+        offsets.append(output.tell())
+        output.write(f"{number} 0 obj\n".encode("ascii"))
+        output.write(obj)
+        output.write(b"\nendobj\n")
+
+    xref_offset = output.tell()
+    output.write(f"xref\n0 {len(objects) + 1}\n".encode("ascii"))
+    output.write(b"0000000000 65535 f \n")
+    for offset in offsets[1:]:
+        output.write(f"{offset:010d} 00000 n \n".encode("ascii"))
+    output.write(
+        f"trailer\n<< /Size {len(objects) + 1} /Root 1 0 R >>\nstartxref\n{xref_offset}\n%%EOF".encode("ascii")
+    )
+    return output.getvalue()
+
+
+def _docx_bytes(lines: list[str], title: str) -> bytes:
+    paragraphs = [title, ""] + lines
+    document_xml = "".join(
+        f"<w:p><w:r><w:t xml:space=\"preserve\">{escape(str(line))}</w:t></w:r></w:p>"
+        for line in paragraphs
+    )
+    document = (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">'
+        f"<w:body>{document_xml}<w:sectPr><w:pgSz w:w=\"11906\" w:h=\"16838\"/></w:sectPr></w:body>"
+        "</w:document>"
+    )
+    content_types = (
+        '<?xml version="1.0" encoding="UTF-8"?>'
+        '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
+        '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
+        '<Default Extension="xml" ContentType="application/xml"/>'
+        '<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>'
+        "</Types>"
+    )
+    rels = (
+        '<?xml version="1.0" encoding="UTF-8"?>'
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+        '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>'
+        "</Relationships>"
+    )
+    buffer = BytesIO()
+    with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as archive:
+        archive.writestr("[Content_Types].xml", content_types)
+        archive.writestr("_rels/.rels", rels)
+        archive.writestr("word/document.xml", document)
+    return buffer.getvalue()
+
+
+def render_attachment_bytes(attachment: EmailAttachment) -> bytes:
+    text = attachment.content_text or f"Documento simulado: {attachment.filename}"
+    lines = text.splitlines() or [text]
+    suffix = Path(attachment.filename or "").suffix.lower()
+    content_type = (attachment.content_type or "").lower()
+    if suffix == ".pdf" or content_type == "application/pdf":
+        return _pdf_bytes(lines, attachment.filename)
+    if suffix == ".docx" or "wordprocessingml" in content_type:
+        return _docx_bytes(lines, attachment.filename)
+    return text.encode("utf-8")
