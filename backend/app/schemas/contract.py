@@ -23,6 +23,16 @@ class ContractBase(BaseModel):
     termination_reason: Optional[str] = None
     status: Optional[str] = "active"
 
+    temporary_cause: Optional[str] = None
+    training_contract_subtype: Optional[str] = None
+    training_program: Optional[str] = None
+    training_center: Optional[str] = None
+    training_company_tutor: Optional[str] = None
+    training_plan_reference: Optional[str] = None
+    training_work_percentage: Optional[float] = None
+    qualification_name: Optional[str] = None
+    qualification_date: Optional[date] = None
+
     transformation_from_contract_id: Optional[int] = None
     transformation_date: Optional[date] = None
     transformation_reason: Optional[str] = None
@@ -131,6 +141,25 @@ class ContractBase(BaseModel):
             raise ValueError("contract_type no puede estar vacío")
         return value.strip()
 
+    @field_validator("training_contract_subtype")
+    @classmethod
+    def validate_training_contract_subtype(cls, value):
+        if value in {None, ""}:
+            return None
+        allowed = {"alternance", "professional_practice"}
+        if value not in allowed:
+            raise ValueError("training_contract_subtype debe ser alternance o professional_practice")
+        return value
+
+    @field_validator("training_work_percentage")
+    @classmethod
+    def validate_training_work_percentage(cls, value):
+        if value is None:
+            return None
+        if value <= 0 or value > 100:
+            raise ValueError("training_work_percentage debe estar entre 0 y 100")
+        return value
+
     @field_validator("pay_schedule")
     @classmethod
     def validate_pay_schedule(cls, value):
@@ -167,6 +196,8 @@ class ContractBase(BaseModel):
             raise ValueError("bonus_end_date no puede ser anterior a bonus_start_date")
         if self.legal_workday_reduction_end and self.legal_workday_reduction_start and self.legal_workday_reduction_end < self.legal_workday_reduction_start:
             raise ValueError("legal_workday_reduction_end no puede ser anterior a legal_workday_reduction_start")
+        if self.qualification_date and self.start_date and self.qualification_date > self.start_date:
+            raise ValueError("qualification_date no puede ser posterior al inicio del contrato")
         return self
 
 
