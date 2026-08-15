@@ -1,6 +1,7 @@
 import app.incident_payroll_schema_patch  # noqa: F401
 import app.payroll_stability_schema_patch  # noqa: F401
 import app.model190_schema_patch  # noqa: F401
+import app.contract_training_schema_patch  # noqa: F401
 
 from app.models.user import User
 from app.models.communication_file import CommunicationFile, CommunicationFileEvent
@@ -12,6 +13,7 @@ from app.models.social_security_settlement import (
 )
 from app.models.employee import Employee
 from app.models.contract import Contract
+from app.models.contract_lifecycle_event import ContractLifecycleEvent
 from app.models.employment_termination import EmploymentTermination
 from app.models.social_security_registration import SocialSecurityRegistration
 from app.models.company import Company
