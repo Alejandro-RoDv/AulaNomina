@@ -23,6 +23,14 @@ from app.services.case_scenario_service import (
     update_assignment_step,
 )
 from app.services.case_validation_service import record_assignment_event
+from app.services.training_affiliation_preparation_review_service import (
+    handles_training_affiliation_preparation_review,
+    validate_training_affiliation_preparation_review,
+)
+from app.services.training_core_contract_review_service import (
+    handles_training_core_contract_review,
+    validate_training_core_contract_review,
+)
 from app.services.training_document_review_service import (
     handles_training_document_review,
     validate_training_document_review,
@@ -165,6 +173,10 @@ def validate_assignment_step_endpoint(
             return validate_training_foundation_review(db, assignment_id, task_id)
         if task and handles_training_hiring_review(assignment, task):
             return validate_training_hiring_review(db, assignment_id, task_id)
+        if task and handles_training_core_contract_review(assignment, task):
+            return validate_training_core_contract_review(db, assignment_id, task_id)
+        if task and handles_training_affiliation_preparation_review(assignment, task):
+            return validate_training_affiliation_preparation_review(db, assignment_id, task_id)
         if task and handles_training_payroll_structure_review(assignment, task):
             return validate_training_payroll_structure_review(db, assignment_id, task_id)
         if task and handles_training_document_review(assignment, task):
