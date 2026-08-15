@@ -1,6 +1,7 @@
 const ACTIVE_CASE_CONTEXT_KEY = "aulanomina:active-case-context";
 const LAST_CASE_FEEDBACK_KEY = "aulanomina:last-case-operation-feedback";
 const MUTATING_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+const EXPLICIT_REVIEW_TRAINING_CODES = new Set(["A07", "A09", "A14", "A29"]);
 
 const OPERATION_ACTION_ALIASES = {
   manage_termination: new Set([
@@ -202,9 +203,11 @@ export async function emitCaseOperationEvent({
   const request = fetchImpl || (typeof fetch !== "undefined" ? fetch.bind(globalThis) : null);
   if (!request) return null;
 
-  // A14 necesita comprobar el importe real del concepto después de guardar. El
-  // puente registra la operación, pero deja la validación para «Comprobar resultado».
-  const explicitEconomicReview = String(context.trainingCode || "").toUpperCase() === "A14";
+  // Estas prácticas registran la operación ERP pero necesitan una comprobación
+  // pedagógica posterior más estricta que el validador genérico por existencia.
+  const explicitCaseReview = EXPLICIT_REVIEW_TRAINING_CODES.has(
+    String(context.trainingCode || "").toUpperCase()
+  );
 
   const payload = {
     task_id: Number(context.taskId),
@@ -213,7 +216,7 @@ export async function emitCaseOperationEvent({
     target: operation.path,
     operation_status: operationStatus,
     response_summary: responseSummary || operation.label,
-    auto_validate: operationStatus === "success" && !explicitEconomicReview,
+    auto_validate: operationStatus === "success" && !explicitCaseReview,
     metadata: {
       event_id: createEventId(),
       source: "erp_api",
