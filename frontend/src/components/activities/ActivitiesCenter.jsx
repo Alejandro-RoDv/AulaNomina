@@ -158,7 +158,8 @@ export default function ActivitiesCenter() {
   const pending = course?.course?.pending;
   const topicCount = course?.topics?.length || 0;
   const failedMessages = failedValidationMessages(selectedActivity);
-  const moduleActionLabel = selectedActivity?.context && !selectedActivity?.response_schema
+  const moduleActionLabel = selectedActivity?.context
+    && (!selectedActivity?.response_schema || selectedActivity.context.moduleCode !== "general")
     ? getCaseActionLabel(selectedActivity.context.actionCode, selectedActivity.context.moduleCode)
     : null;
 
