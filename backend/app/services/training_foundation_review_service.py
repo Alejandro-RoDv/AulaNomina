@@ -30,6 +30,7 @@ from app.training.foundation_runtime_cases_2026 import (
     FOUNDATION_COMPANY_CCC,
     FOUNDATION_COMPANY_CIF,
     FOUNDATION_COMPANY_NAME,
+    FOUNDATION_DECISION_RULES,
     FOUNDATION_SCENARIO_CODES,
 )
 
@@ -72,19 +73,21 @@ def _student_response(progress) -> dict[str, Any]:
 
 def _review_decision(task, progress) -> dict[str, Any]:
     schema = (task.trigger_condition or {}).get("response_schema") or {}
+    validation_key = str(schema.get("validation_key") or "").strip()
+    rule = FOUNDATION_DECISION_RULES.get(validation_key) or {}
     response = _student_response(progress)
     decision = str(response.get("decision") or "").strip()
     explanation = str(response.get("explanation") or "").strip()
-    expected = str(schema.get("expected_decision") or "").strip()
-    keywords = [_normalize(item) for item in schema.get("evidence_keywords") or [] if _normalize(item)]
+    expected = str(rule.get("expected_decision") or "").strip()
+    keywords = [_normalize(item) for item in rule.get("evidence_keywords") or [] if _normalize(item)]
     normalized_explanation = _normalize(explanation)
     matched = [keyword for keyword in keywords if keyword in normalized_explanation]
-    minimum_matches = int(schema.get("minimum_keyword_matches") or 0)
+    minimum_matches = int(rule.get("minimum_keyword_matches") or 0)
     explanation_required = bool(schema.get("explanation_required", True))
 
-    decision_ok = bool(expected and decision == expected)
+    decision_ok = bool(validation_key and expected and decision == expected)
     explanation_ok = bool(explanation) if explanation_required else True
-    evidence_ok = len(matched) >= minimum_matches
+    evidence_ok = bool(keywords) and len(matched) >= minimum_matches
     passed = decision_ok and explanation_ok and evidence_ok
     return _check(
         passed,
@@ -94,11 +97,13 @@ def _review_decision(task, progress) -> dict[str, Any]:
             else "Revisa la clasificación y justifícala con los indicios materiales del supuesto, no solo con una etiqueta."
         ),
         {
+            "validation_key": validation_key or None,
             "decision": decision or None,
             "decision_matches_expected": decision_ok,
             "explanation_present": explanation_ok,
             "matched_evidence": matched,
             "minimum_keyword_matches": minimum_matches,
+            "validation_rule_available": bool(rule),
         },
         rule_type="training_foundation_decision",
     )
