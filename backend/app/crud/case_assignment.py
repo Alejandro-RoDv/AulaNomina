@@ -244,6 +244,9 @@ def seed_demo_case_assignments(db: Session, *, reset_training_data: bool = True)
     seed_regularization_runtime_cases_2026(db)
 
     if reset_training_data:
+        from app.seed_demo_agreements import seed_demo_collective_agreements
+
+        seed_demo_collective_agreements(db)
         _reset_training_workday_baseline(db)
         prepare_foundation_training_data_2026(db)
         ensure_training_incident_fie_2026(db, reset=True)
