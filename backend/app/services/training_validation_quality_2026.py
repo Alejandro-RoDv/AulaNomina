@@ -13,9 +13,11 @@ from __future__ import annotations
 
 import inspect
 from collections import defaultdict
+from types import SimpleNamespace
 from typing import Any, Callable, Iterable
 
 from app.crud.case_study import _demo_cases
+from app.services.integrated_demo_case_service import TASK_DEFINITIONS as C02_TASK_DEFINITIONS
 from app.services.training_course_projection_2026 import MASTER_ACTIVITY_CODES_2026
 from app.services.training_payroll_structure_review_service import _review_a14, _review_a15
 from app.training.document_runtime_cases_2026 import build_document_runtime_cases_2026
@@ -43,24 +45,13 @@ RUNTIME_CASE_BUILDERS: tuple[CaseBuilder, ...] = (
     build_integrated_runtime_cases_2026,
 )
 
-# Estas prácticas pasan por servicios pedagógicos específicos que inspeccionan
-# el estado real del ERP. Solo A04, A16 y C02 permanecen sobre reglas genéricas.
+# A04 y A16 conservan deliberadamente el validador general: A04 compara el
+# perfil completo del alta y A16 acredita la existencia de un cálculo real del
+# periodo, cuyo contenido económico se revisa inmediatamente en A18-A22.
+GENERIC_RULE_CODES_2026 = frozenset({"A04", "A16"})
 SPECIALIZED_REVIEW_CODES_2026 = frozenset(
-    {
-        "A01", "A02", "A03", "A05",
-        "A06", "A07", "A08", "A09", "A10", "A11", "A12", "A13",
-        "A14", "A15", "A17", "A18", "A19", "A20", "A21", "A22",
-        "A23", "A24", "A25", "A26", "A27",
-        "A28", "A29", "A30", "A31", "A32", "A33", "A34", "A35",
-        "A36", "A37", "A38", "A39", "A40", "A41",
-        "A42", "A43", "A44", "A45",
-        "A46", "A47", "A48", "A49", "A50",
-        "A51", "A52", "A53", "A54",
-        "C01", "C03", "C04", "C05", "C06",
-    }
+    set(MASTER_ACTIVITY_CODES_2026) - set(GENERIC_RULE_CODES_2026)
 )
-
-GENERIC_RULE_CODES_2026 = frozenset({"A04", "A16", "C02"})
 
 LEGACY_SCENARIO_CODES = {
     "ALT-2026-021": "A09",
@@ -107,10 +98,29 @@ def _task_training_code(case_study: Any, task: Any) -> str | None:
     return sequence[0] if len(sequence) == 1 else None
 
 
+def _c02_case_definition() -> Any:
+    return SimpleNamespace(
+        scenario_code="LAB-2026-001",
+        initial_state={},
+        tasks=[
+            SimpleNamespace(
+                trigger_condition={},
+                expected_action=definition.get("expected_action"),
+                validation_rules=definition.get("validation_rules") or [],
+            )
+            for definition in C02_TASK_DEFINITIONS
+        ],
+    )
+
+
 def _all_case_definitions() -> Iterable[Any]:
     for builder in RUNTIME_CASE_BUILDERS:
         yield from builder()
     yield from _demo_cases()
+    # C02 se materializa mediante integrated_demo_case_service y no forma parte
+    # del constructor de los otros capstones, por lo que se incorpora de forma
+    # explícita al manifiesto estático.
+    yield _c02_case_definition()
 
 
 def _validation_path(code: str, task: Any) -> str:
@@ -202,9 +212,13 @@ def build_training_validation_quality_audit_2026() -> dict[str, Any]:
 
     scope_notes = [
         {
+            "code": "A16",
+            "scope": "A16 acredita la ejecución del cálculo ordinario del periodo; A18-A22 validan después bases, cuotas, IRPF, líquido y coste empresa.",
+        },
+        {
             "code": "A18",
             "scope": "La validación comprueba coherencia base diaria × días; no certifica mínimos/máximos normativos por grupo de cotización.",
-        }
+        },
     ]
 
     return {
