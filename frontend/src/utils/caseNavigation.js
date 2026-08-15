@@ -3,6 +3,11 @@ const ACTION_TARGETS = {
   employees: { label: "Abrir trabajadores", page: "employees-list" },
   create_employee: { label: "Dar de alta trabajadora", page: "employees" },
   assign_employee: { label: "Abrir expediente", page: "employee-record" },
+  companies: { label: "Abrir empresas y centros", page: "companies" },
+  review_company_structure: { label: "Revisar empresa y centro", page: "companies" },
+  "collective-agreements": { label: "Abrir convenios", page: "collective-agreements" },
+  review_collective_agreement_assignment: { label: "Revisar contrato y convenio", page: "contracts" },
+  review_employee_data_correction: { label: "Abrir trabajadores", page: "employees-list" },
   contracts: { label: "Abrir contratos", page: "contracts" },
   create_contract: { label: "Registrar contrato", page: "contracts" },
   review_contract: { label: "Revisar contrato", page: "employee-record" },
@@ -61,6 +66,9 @@ const ACTION_TARGETS = {
 
 const MODULE_TARGETS = {
   employees: ACTION_TARGETS.employees,
+  companies: ACTION_TARGETS.companies,
+  "work-centers": ACTION_TARGETS.companies,
+  "collective-agreements": ACTION_TARGETS["collective-agreements"],
   contracts: ACTION_TARGETS.contracts,
   incidents: ACTION_TARGETS.incidents,
   payrolls: ACTION_TARGETS.payrolls,
