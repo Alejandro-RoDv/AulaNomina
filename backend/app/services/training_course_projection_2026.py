@@ -37,9 +37,9 @@ MASTER_ACTIVITY_CODES_BY_BLOCK_2026: dict[str, tuple[str, ...]] = {
     for block_code in {activity["block_code"] for activity in MASTER_ACTIVITY_CATALOG_2026}
 }
 
-# A14 registra primero la operación ERP y después ejecuta una comprobación
-# económica reforzada de salario base + importe del complemento.
-FORCE_EXPLICIT_REVIEW_CODES_2026 = frozenset({"A14"})
+# Estas prácticas registran primero la operación ERP y después pasan por una
+# comprobación pedagógica más estricta que el validador genérico por existencia.
+FORCE_EXPLICIT_REVIEW_CODES_2026 = frozenset({"A07", "A09", "A14", "A29"})
 
 # A09 reutiliza el caso profesional de sustitución previo y C02 promueve el
 # caso integral LAB-2026-001. Son las únicas fuentes no TRAIN-2026 canónicas.
