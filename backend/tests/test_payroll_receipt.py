@@ -222,14 +222,18 @@ def test_line_explanations_describe_earnings_deductions_and_bases():
     ]
 
     explanations = line_explanations_payload(lines)
+    by_code = {item["code"]: item for item in explanations}
 
-    assert [item["section"] for item in explanations] == ["Devengo", "Deducción", "Base informativa"]
-    assert explanations[0]["affects_gross"] is True
-    assert explanations[0]["contribution_base"] is True
-    assert "Suma 1200.00 €" in explanations[0]["explanation"]
-    assert "Resta 120.00 €" in explanations[1]["explanation"]
-    assert "no se paga ni se descuenta" in explanations[2]["explanation"]
-    assert any("fórmula".lower() in point.lower() for point in explanations[0]["learning_points"])
+    assert set(by_code) == {"SALARIO_BASE", "IRPF", "BASE_CC"}
+    assert by_code["SALARIO_BASE"]["section"] == "Devengo"
+    assert by_code["IRPF"]["section"] == "Deducción"
+    assert by_code["BASE_CC"]["section"] == "Base informativa"
+    assert by_code["SALARIO_BASE"]["affects_gross"] is True
+    assert by_code["SALARIO_BASE"]["contribution_base"] is True
+    assert "Suma 1200.00 €" in by_code["SALARIO_BASE"]["explanation"]
+    assert "Resta 120.00 €" in by_code["IRPF"]["explanation"]
+    assert "no se paga ni se descuenta" in by_code["BASE_CC"]["explanation"]
+    assert any("fórmula".lower() in point.lower() for point in by_code["SALARIO_BASE"]["learning_points"])
 
 
 def test_line_explanations_mark_incident_origin_and_non_taxable_extra_salary():
@@ -245,9 +249,10 @@ def test_line_explanations_mark_incident_origin_and_non_taxable_extra_salary():
     ]
 
     explanations = line_explanations_payload(lines)
+    by_code = {item["code"]: item for item in explanations}
 
-    it_line = explanations[0]
-    diet_line = explanations[1]
+    it_line = by_code["PRESTACION_IT"]
+    diet_line = by_code["DIETAS"]
     assert "origen incidencia" in it_line["explanation"]
     assert any("incidencia" in point for point in it_line["learning_points"])
     assert diet_line["contribution_base"] is False
