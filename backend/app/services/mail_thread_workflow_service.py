@@ -85,9 +85,14 @@ def create_thread_message(
 
 def mailbox_stats(db: Session, mailbox_id: int) -> dict[str, int]:
     threads = db.query(EmailThread).filter(EmailThread.mailbox_id == mailbox_id).all()
+    visible_threads = [
+        item
+        for item in threads
+        if item.folder != "training_locked" and item.related_entity_type != "training_duplicate"
+    ]
     result = {
-        "total": len(threads),
-        "unread": sum(1 for item in threads if not item.is_read and item.folder != "training_locked"),
+        "total": len(visible_threads),
+        "unread": sum(1 for item in visible_threads if item.folder == "inbox" and not item.is_read),
         "inbox": 0,
         "sent": 0,
         "drafts": 0,
@@ -98,7 +103,7 @@ def mailbox_stats(db: Session, mailbox_id: int) -> dict[str, int]:
         "waiting": 0,
         "resolved": 0,
     }
-    for thread in threads:
+    for thread in visible_threads:
         if thread.folder in result:
             result[thread.folder] += 1
         if thread.status == "open":
