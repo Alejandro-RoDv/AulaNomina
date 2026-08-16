@@ -46,29 +46,13 @@ FOUNDATION_SCENARIO_CODES = {
     "TRAIN-2026-FOUND-A05",
 }
 
-# Las claves de corrección se mantienen en código servidor. No forman parte de
-# response_schema y, por tanto, no aparecen en el endpoint de escenario.
+# La clave de corrección del test permanece en servidor. La explicación escrita
+# ya no forma parte de la corrección automática: se utiliza para autoevaluación.
 FOUNDATION_DECISION_RULES: dict[str, dict[str, Any]] = {
-    "A01-1": {
-        "expected_decision": "ordinary_labor",
-        "evidence_keywords": ["dependencia", "ajenidad", "retribución", "voluntariedad", "horario", "organiza"],
-        "minimum_keyword_matches": 2,
-    },
-    "A01-2": {
-        "expected_decision": "non_labor",
-        "evidence_keywords": ["autónom", "riesgo", "horario", "precio", "medios", "organiza", "independ"],
-        "minimum_keyword_matches": 2,
-    },
-    "A01-3": {
-        "expected_decision": "special_labor",
-        "evidence_keywords": ["especial", "hogar", "domést", "servicio", "retribu", "empleador"],
-        "minimum_keyword_matches": 2,
-    },
-    "A03-2": {
-        "expected_decision": "salary_worktime_classification",
-        "evidence_keywords": ["salario", "retribu", "jornada", "clasificación", "categoría", "grupo"],
-        "minimum_keyword_matches": 2,
-    },
+    "A01-1": {"expected_decision": "ordinary_labor"},
+    "A01-2": {"expected_decision": "non_labor"},
+    "A01-3": {"expected_decision": "special_labor"},
+    "A03-2": {"expected_decision": "salary_worktime_classification"},
 }
 
 
@@ -77,16 +61,18 @@ def _response_schema(
     prompt: str,
     options: list[tuple[str, str]],
     validation_key: str,
-    explanation_placeholder: str,
+    reference_answer: str,
 ) -> dict[str, Any]:
     return {
         "type": "decision",
         "prompt": prompt,
         "options": [{"value": value, "label": label} for value, label in options],
         "validation_key": validation_key,
-        "explanation_required": True,
-        "explanation_label": "Justificación profesional",
-        "explanation_placeholder": explanation_placeholder,
+        "explanation_required": False,
+        "explanation_label": "Tu razonamiento (opcional)",
+        # Este campo ya forma parte del esquema público. La interfaz no lo usa
+        # como placeholder: lo revela únicamente al pulsar «Mostrar respuesta».
+        "explanation_placeholder": reference_answer,
     }
 
 
@@ -159,7 +145,11 @@ def build_foundation_runtime_cases_2026() -> list[CaseStudyCreate]:
                         prompt="¿Cómo clasificarías esta prestación?",
                         options=relationship_options,
                         validation_key="A01-1",
-                        explanation_placeholder="Explica qué indicios de dependencia, ajenidad, voluntariedad o retribución observas.",
+                        reference_answer=(
+                            "Es una relación laboral ordinaria porque concurren los elementos propios del trabajo por cuenta ajena: "
+                            "la prestación es retribuida, la empresa fija el horario y organiza el trabajo, aporta los medios y "
+                            "asume el resultado económico. Esos indicios reflejan dependencia y ajenidad."
+                        ),
                     ),
                     case_facts=[
                         {"label": "Horario", "value": "Fijado por la empresa"},
@@ -179,7 +169,10 @@ def build_foundation_runtime_cases_2026() -> list[CaseStudyCreate]:
                         prompt="¿Cómo clasificarías esta prestación?",
                         options=relationship_options,
                         validation_key="A01-2",
-                        explanation_placeholder="Justifica por qué los indicios apuntan o no a dependencia y ajenidad.",
+                        reference_answer=(
+                            "Es una prestación autónoma y, por tanto, no una relación laboral ordinaria: el profesional organiza "
+                            "su horario, fija el precio, utiliza sus propios medios y asume el riesgo económico del trabajo."
+                        ),
                     ),
                     case_facts=[
                         {"label": "Horario", "value": "Lo decide el profesional"},
@@ -199,7 +192,11 @@ def build_foundation_runtime_cases_2026() -> list[CaseStudyCreate]:
                         prompt="¿Cómo clasificarías esta prestación?",
                         options=relationship_options,
                         validation_key="A01-3",
-                        explanation_placeholder="Indica por qué existe relación laboral y qué elemento hace que su régimen sea especial.",
+                        reference_answer=(
+                            "Existe relación laboral porque el servicio es personal, retribuido y se presta bajo la organización de "
+                            "la persona empleadora. Es de carácter especial porque el empleador es un hogar familiar y la actividad "
+                            "consiste en tareas domésticas."
+                        ),
                     ),
                     case_facts=[
                         {"label": "Empleador", "value": "Hogar familiar"},
@@ -304,7 +301,10 @@ def build_foundation_runtime_cases_2026() -> list[CaseStudyCreate]:
                             ("tax_only", "Únicamente el porcentaje de IRPF"),
                         ],
                         validation_key="A03-2",
-                        explanation_placeholder="Explica al menos dos variables laborales que revisarías y por qué.",
+                        reference_answer=(
+                            "El convenio puede condicionar la clasificación o grupo profesional, la jornada y la distribución del "
+                            "tiempo de trabajo, y la estructura retributiva —por ejemplo salario base, complementos o pagas—."
+                        ),
                     ),
                     case_facts=[
                         {"label": "Convenio", "value": FOUNDATION_AGREEMENT_CODE},
