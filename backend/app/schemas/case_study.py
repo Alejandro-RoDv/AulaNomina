@@ -28,6 +28,7 @@ TASK_MODULES = {
     "incidents",
     "payrolls",
     "companies",
+    "agreements",
     "affiliations",
     "fie",
     "siltra",
