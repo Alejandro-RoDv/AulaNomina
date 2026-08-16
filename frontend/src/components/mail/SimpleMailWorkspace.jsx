@@ -90,7 +90,11 @@ function countForFolder(stats, folder) {
   return folder === "inbox" ? stats.unread || 0 : stats[folder] || 0;
 }
 
-export default function SimpleMailWorkspace({ onClose }) {
+function withReadState(items, threadId, isRead) {
+  return items.map((item) => item.id === threadId ? { ...item, unread: !isRead } : item);
+}
+
+export default function SimpleMailWorkspace({ onClose, initialThreadId = null }) {
   const [mailbox, setMailbox] = useState(null);
   const [threads, setThreads] = useState([]);
   const [stats, setStats] = useState(EMPTY_STATS);
@@ -105,6 +109,7 @@ export default function SimpleMailWorkspace({ onClose }) {
   const [newMessageOpen, setNewMessageOpen] = useState(false);
   const [attachmentViewer, setAttachmentViewer] = useState(null);
   const requestSequence = useRef(0);
+  const requestedThreadId = useRef(initialThreadId);
 
   const selected = threads.find((thread) => thread.id === selectedId) || null;
 
@@ -131,15 +136,35 @@ export default function SimpleMailWorkspace({ onClose }) {
         fetchMailboxThreads(mailbox.id, { folder: "inbox" }),
       ]);
       if (sequence !== requestSequence.current) return;
-      const visibleThreads = (nextThreads || []).map((thread) => ({ ...thread, unread: isProfessionalUnread(thread) }));
-      const professionalUnread = (inboxThreads || []).filter(isProfessionalUnread).length;
+
+      let visibleThreads = (nextThreads || []).map((thread) => ({ ...thread, unread: isProfessionalUnread(thread) }));
+      let professionalUnread = (inboxThreads || []).filter(isProfessionalUnread).length;
+      const requestedId = requestedThreadId.current;
+      const requested = requestedId ? visibleThreads.find((thread) => thread.id === requestedId) : null;
+
+      if (requested) {
+        requestedThreadId.current = null;
+        setSelectedId(requested.id);
+        if (requested.unread) {
+          visibleThreads = withReadState(visibleThreads, requested.id, true);
+          professionalUnread = Math.max(0, professionalUnread - 1);
+          try {
+            await updateMailThread(requested.id, { is_read: true });
+            publishStats();
+          } catch {
+            // El hilo sigue abierto aunque no se haya podido persistir el leído.
+          }
+        }
+      } else {
+        setSelectedId((current) => {
+          const wanted = preferredId || current;
+          if (wanted && visibleThreads.some((thread) => thread.id === wanted)) return wanted;
+          return visibleThreads[0]?.id || null;
+        });
+      }
+
       setThreads(visibleThreads);
       setStats({ ...(nextStats || EMPTY_STATS), unread: professionalUnread });
-      setSelectedId((current) => {
-        const wanted = preferredId || current;
-        if (wanted && visibleThreads.some((thread) => thread.id === wanted)) return wanted;
-        return visibleThreads[0]?.id || null;
-      });
       publishStats();
     } catch (requestError) {
       if (sequence === requestSequence.current) setError(requestError.message || "No se ha podido cargar el correo.");
@@ -169,12 +194,36 @@ export default function SimpleMailWorkspace({ onClose }) {
     setSelectedId(thread.id);
     setComposer(null);
     if (!thread.unread) return;
-    setThreads((current) => current.map((item) => item.id === thread.id ? { ...item, unread: false } : item));
+
+    setThreads((current) => withReadState(current, thread.id, true));
+    setStats((current) => ({ ...current, unread: Math.max(0, (current.unread || 0) - 1) }));
     try {
       await updateMailThread(thread.id, { is_read: true });
-      await loadThreads({ quiet: true, preferredId: thread.id });
+      publishStats();
     } catch (requestError) {
+      await loadThreads({ quiet: true, preferredId: thread.id });
       setError(requestError.message || "No se ha podido marcar el mensaje como leído.");
+    }
+  };
+
+  const toggleSelectedRead = async () => {
+    if (!selected) return;
+    const markAsRead = selected.unread;
+    setBusy(true);
+    setError("");
+    setThreads((current) => withReadState(current, selected.id, markAsRead));
+    setStats((current) => ({
+      ...current,
+      unread: Math.max(0, (current.unread || 0) + (markAsRead ? -1 : 1)),
+    }));
+    try {
+      await updateMailThread(selected.id, { is_read: markAsRead });
+      publishStats();
+    } catch (requestError) {
+      await loadThreads({ quiet: true, preferredId: selected.id });
+      setError(requestError.message || "No se ha podido cambiar el estado de lectura.");
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -294,7 +343,10 @@ export default function SimpleMailWorkspace({ onClose }) {
               <div className="simple-mail__toolbar">
                 <button type="button" onClick={openReply}><Reply size={15} /> Responder</button>
                 <button type="button" onClick={() => moveSelected({ folder: "archive", is_read: true })} disabled={busy}><Archive size={15} /> Archivar</button>
-                <button type="button" onClick={() => moveSelected({ is_read: selected.unread })} disabled={busy}>{selected.unread ? <MailOpen size={15} /> : <Mail size={15} />} Leído / no leído</button>
+                <button type="button" onClick={toggleSelectedRead} disabled={busy}>
+                  {selected.unread ? <MailOpen size={15} /> : <Mail size={15} />}
+                  {selected.unread ? "Marcar como leído" : "Marcar como no leído"}
+                </button>
                 <button type="button" onClick={() => moveSelected({ folder: "trash", is_read: true })} disabled={busy}><Trash2 size={15} /> Eliminar</button>
               </div>
 
