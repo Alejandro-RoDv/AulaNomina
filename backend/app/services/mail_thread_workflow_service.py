@@ -10,6 +10,12 @@ from app.services.mail_service import create_message, get_thread
 
 
 def update_thread(db: Session, thread: EmailThread, payload: EmailThreadUpdate) -> EmailThread:
+    """Actualiza metadatos del hilo sin alterar su orden cronológico.
+
+    ``updated_at`` representa la última actividad real de conversación y se usa
+    para ordenar el buzón. Marcar leído/no leído, archivar o cambiar prioridad no
+    debe convertir el hilo en el más reciente ni provocar saltos en la lista.
+    """
     values = payload.model_dump(exclude_unset=True)
     for field, value in values.items():
         setattr(thread, field, value)
@@ -20,7 +26,6 @@ def update_thread(db: Session, thread: EmailThread, payload: EmailThreadUpdate) 
             if message.direction == "incoming":
                 message.read_at = read_at
 
-    thread.updated_at = datetime.utcnow()
     db.commit()
     return get_thread(db, thread.id)
 
@@ -55,7 +60,7 @@ def mailbox_stats(db: Session, mailbox_id: int) -> dict[str, int]:
     threads = db.query(EmailThread).filter(EmailThread.mailbox_id == mailbox_id).all()
     result = {
         "total": len(threads),
-        "unread": sum(1 for item in threads if not item.is_read),
+        "unread": sum(1 for item in threads if not item.is_read and item.folder != "training_locked"),
         "inbox": 0,
         "sent": 0,
         "drafts": 0,
