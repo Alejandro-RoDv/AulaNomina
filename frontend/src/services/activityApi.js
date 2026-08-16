@@ -14,13 +14,79 @@ function hideUnvalidatedReferenceAnswers(course) {
   return course;
 }
 
+async function fetchActivityMailThreads() {
+  try {
+    const mailbox = await apiRequest(
+      "/mail/demo-mailbox",
+      {},
+      "No se ha podido preparar el correo formativo"
+    );
+    if (!mailbox?.id) return [];
+    return await apiRequest(
+      `/mail/mailboxes/${mailbox.id}/threads`,
+      {},
+      "No se han podido cargar los correos relacionados"
+    );
+  } catch {
+    return [];
+  }
+}
+
+function bindMailThreads(course, threads) {
+  const byAssignment = new Map();
+  for (const thread of threads || []) {
+    if (!thread?.case_assignment_id || thread.folder === "trash") continue;
+    const current = byAssignment.get(thread.case_assignment_id) || [];
+    current.push(thread);
+    byAssignment.set(thread.case_assignment_id, current);
+  }
+
+  for (const topic of course?.topics || []) {
+    for (const activity of topic.activities || []) {
+      const candidates = byAssignment.get(activity.assignment_id) || [];
+      if (!candidates.length) continue;
+      const direct = candidates.filter((thread) => thread.case_task_id === activity.task_id);
+      const thread = (direct.length ? direct : candidates)[0];
+      const messages = [...(thread.messages || [])].sort((a, b) => new Date(a.sent_at || 0) - new Date(b.sent_at || 0));
+      const incoming = messages.find((message) => message.direction === "incoming") || messages[0] || null;
+      const attachments = messages.flatMap((message) => message.attachments || []);
+      const actionCode = activity?.context?.actionCode || "";
+      const role = actionCode === "reply_mail" ? "reply" : attachments.length > 0 ? "attachment" : "consult";
+
+      activity.requires_mail = true;
+      activity.related_mail_thread_ids = [thread.id];
+      activity.mail_context = {
+        thread_id: thread.id,
+        role,
+        subject: thread.subject,
+        sender: incoming?.sender_name || "Correo relacionado",
+        has_attachments: attachments.length > 0,
+        attachment_count: attachments.length,
+        locked: thread.folder === "training_locked",
+      };
+      activity.situation = "Has recibido una comunicación relacionada con este ejercicio. Consulta el correo antes de continuar.";
+      activity.instructions = role === "reply"
+        ? "Consulta el correo relacionado y sus adjuntos, realiza la gestión indicada en AulaNomina y responde por el mismo hilo cuando hayas terminado."
+        : role === "attachment"
+          ? "Consulta el correo relacionado y sus adjuntos. Con la información recibida, realiza en AulaNomina la gestión solicitada."
+          : "Consulta el correo relacionado. Con la información recibida, realiza en AulaNomina la gestión solicitada.";
+      activity.case_data = [];
+    }
+  }
+  return course;
+}
+
 export async function fetchActivityCourse() {
-  const course = await apiRequest(
-    "/case-assignments/course-activities",
-    {},
-    "No se ha podido cargar el curso práctico"
-  );
-  return hideUnvalidatedReferenceAnswers(normalizeActivityCourseForView(course));
+  const [rawCourse, threads] = await Promise.all([
+    apiRequest(
+      "/case-assignments/course-activities",
+      {},
+      "No se ha podido cargar el curso práctico"
+    ),
+    fetchActivityMailThreads(),
+  ]);
+  const course = normalizeActivityCourseForView(rawCourse);
+  return hideUnvalidatedReferenceAnswers(bindMailThreads(course, threads));
 }
 
 export function validateActivity(assignmentId, taskId) {
