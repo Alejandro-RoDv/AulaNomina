@@ -49,6 +49,109 @@ ALLOWED_LEGACY_RUNTIME_SOURCES_2026 = {
 }
 
 
+def _count_runtime_cases(db: Session, scenario_codes: set[str]) -> int:
+    from app.models.case_study import CaseStudy
+
+    return (
+        db.query(CaseStudy.id)
+        .filter(CaseStudy.scenario_code.in_(sorted(scenario_codes)))
+        .count()
+    )
+
+
+def _ensure_master_runtime_availability_2026(db: Session) -> None:
+    """Materializa únicamente los bloques runtime que falten en bases ya existentes.
+
+    Split 43 puede ejecutarse sobre una base demo creada durante una fase anterior.
+    En ese caso el catálogo maestro conoce A01-A54/C01-C06, pero algunos CaseStudy y
+    CaseAssignment todavía no existen. El resultado era un bloque con contador
+    (por ejemplo 0/6) pero sin filas al desplegarlo.
+
+    La reparación evita un reset global: los casos completos no se reseedean. Solo
+    se crean casos/asignaciones ausentes; los bootstraps que restauran datos base se
+    ejecutan únicamente cuando un bloque tardío no existía en absoluto.
+    """
+    from app.training.document_runtime_bootstrap_2026 import bootstrap_document_training_2026
+    from app.training.document_runtime_cases_2026 import (
+        DOCUMENT_SCENARIO_CODES,
+        seed_document_runtime_assignments_2026,
+        seed_document_runtime_cases_2026,
+    )
+    from app.training.fiscal_runtime_cases_2026 import (
+        FISCAL_SCENARIO_CODES,
+        seed_fiscal_runtime_assignments_2026,
+        seed_fiscal_runtime_cases_2026,
+    )
+    from app.training.incident_runtime_cases_2026 import (
+        INCIDENT_SCENARIO_CODES,
+        ensure_training_incident_fie_2026,
+        seed_incident_runtime_assignments_2026,
+        seed_incident_runtime_cases_2026,
+    )
+    from app.training.integrated_runtime_bootstrap_2026 import bootstrap_integrated_training_2026
+    from app.training.integrated_runtime_cases_2026 import (
+        NEW_INTEGRATED_SCENARIOS,
+        seed_integrated_runtime_assignments_2026,
+        seed_integrated_runtime_cases_2026,
+    )
+    from app.training.regularization_reset_2026 import normalize_regularization_training_tables_2026
+    from app.training.regularization_runtime_cases_2026 import (
+        REGULARIZATION_SCENARIO_CODES,
+        prepare_regularization_training_data_2026,
+        seed_regularization_runtime_assignments_2026,
+        seed_regularization_runtime_cases_2026,
+    )
+    from app.training.termination_runtime_bootstrap_2026 import bootstrap_termination_training_2026
+    from app.training.termination_runtime_cases_2026 import (
+        TERMINATION_SCENARIO_CODES,
+        seed_termination_runtime_assignments_2026,
+        seed_termination_runtime_cases_2026,
+    )
+
+    incident_count = _count_runtime_cases(db, INCIDENT_SCENARIO_CODES)
+    if incident_count < len(INCIDENT_SCENARIO_CODES):
+        seed_incident_runtime_cases_2026(db)
+        ensure_training_incident_fie_2026(db, reset=False)
+    seed_incident_runtime_assignments_2026(db)
+
+    fiscal_count = _count_runtime_cases(db, FISCAL_SCENARIO_CODES)
+    if fiscal_count < len(FISCAL_SCENARIO_CODES):
+        seed_fiscal_runtime_cases_2026(db)
+    seed_fiscal_runtime_assignments_2026(db)
+
+    regularization_count = _count_runtime_cases(db, REGULARIZATION_SCENARIO_CODES)
+    if regularization_count < len(REGULARIZATION_SCENARIO_CODES):
+        seed_regularization_runtime_cases_2026(db)
+        if regularization_count == 0:
+            normalize_regularization_training_tables_2026(db)
+            prepare_regularization_training_data_2026(db)
+    seed_regularization_runtime_assignments_2026(db)
+
+    termination_count = _count_runtime_cases(db, TERMINATION_SCENARIO_CODES)
+    if termination_count == 0:
+        bootstrap_termination_training_2026(db)
+    else:
+        if termination_count < len(TERMINATION_SCENARIO_CODES):
+            seed_termination_runtime_cases_2026(db)
+        seed_termination_runtime_assignments_2026(db)
+
+    document_count = _count_runtime_cases(db, DOCUMENT_SCENARIO_CODES)
+    if document_count == 0:
+        bootstrap_document_training_2026(db)
+    else:
+        if document_count < len(DOCUMENT_SCENARIO_CODES):
+            seed_document_runtime_cases_2026(db)
+        seed_document_runtime_assignments_2026(db)
+
+    integrated_count = _count_runtime_cases(db, NEW_INTEGRATED_SCENARIOS)
+    if integrated_count == 0:
+        bootstrap_integrated_training_2026(db)
+    else:
+        if integrated_count < len(NEW_INTEGRATED_SCENARIOS):
+            seed_integrated_runtime_cases_2026(db)
+        seed_integrated_runtime_assignments_2026(db)
+
+
 def _is_master_runtime_candidate(activity: dict[str, Any]) -> bool:
     code = str(activity.get("training_code") or "").strip().upper()
     if code not in MASTER_ACTIVITY_ORDER_2026 or not activity.get("runtime_migrated"):
@@ -221,4 +324,5 @@ def project_master_activity_course_2026(course: dict[str, Any]) -> dict[str, Any
 
 
 def build_master_activity_course_2026(db: Session) -> dict[str, Any]:
+    _ensure_master_runtime_availability_2026(db)
     return project_master_activity_course_2026(build_runtime_activity_course(db))
