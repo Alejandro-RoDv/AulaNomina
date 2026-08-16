@@ -30,8 +30,10 @@ from app.services.mail_service import (
     reset_demo_mailbox,
 )
 from app.services.mail_thread_workflow_service import (
+    capture_mailbox_view_state,
     create_thread_message,
     mailbox_stats,
+    restore_mailbox_view_state,
     update_thread,
 )
 from app.training.activity_mail_2026 import ensure_activity_mail_2026
@@ -55,11 +57,23 @@ def _prepare_demo_mailbox(db: Session, *, reset: bool = False):
     if reset:
         bootstrap_document_training_2026(db)
         mailbox = get_demo_mailbox(db, seed_if_empty=False)
+
+    # Los upserts demo actualizan contenido y relaciones, pero una recarga normal
+    # no debe reabrir correos leídos, devolver archivados al inbox ni reordenar la
+    # bandeja. En un reset explícito sí se parte del estado docente inicial.
+    view_state = {} if reset else capture_mailbox_view_state(db, mailbox.id)
+
     ensure_integrated_fie_communication(db, reset=reset)
     integrated_thread = ensure_integrated_demo_case(db, mailbox)
     if reset and integrated_thread.case_assignment_id:
         reset_assignment_progress(db, integrated_thread.case_assignment_id)
     ensure_integrated_training_mail_2026(db, mailbox)
+
+    if view_state:
+        restore_mailbox_view_state(db, view_state)
+
+    # Se ejecuta después de restaurar el estado para que la limpieza de duplicados
+    # formativos tenga prioridad sobre estados heredados de migraciones antiguas.
     ensure_activity_mail_2026(db, mailbox)
     return mailbox
 
