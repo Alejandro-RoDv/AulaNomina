@@ -19,9 +19,8 @@ from app.schemas.mail import (
 from app.services.case_scenario_service import reset_assignment_progress
 from app.services.integrated_demo_case_service import ensure_integrated_demo_case
 from app.services.integrated_demo_process_seed import ensure_integrated_fie_communication
+from app.services.mail_attachment_service import attachment_download, attachment_preview
 from app.services.mail_service import (
-    attachment_download,
-    attachment_preview,
     create_thread,
     create_thread_message,
     get_attachment,
