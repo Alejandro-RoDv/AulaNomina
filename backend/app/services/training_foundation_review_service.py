@@ -35,6 +35,14 @@ from app.training.foundation_runtime_cases_2026 import (
 )
 
 
+SCENARIO_TO_CODE = {
+    "TRAIN-2026-FOUND-A01": "A01",
+    "TRAIN-2026-FOUND-A02": "A02",
+    "TRAIN-2026-FOUND-A03": "A03",
+    "TRAIN-2026-FOUND-A05": "A05",
+}
+
+
 def _normalize(value: Any) -> str:
     text = unicodedata.normalize("NFKD", str(value or ""))
     return "".join(character for character in text if not unicodedata.combining(character)).casefold().strip()
@@ -82,9 +90,9 @@ def _review_decision(task, progress) -> dict[str, Any]:
     return _check(
         decision_ok,
         (
-            "La opción seleccionada es correcta. La justificación queda como reflexión para compararla con la solución orientativa."
+            "Respuesta correcta."
             if decision_ok
-            else "La opción seleccionada no es correcta. Revisa los datos del supuesto y vuelve a intentarlo."
+            else "Respuesta tipo test incorrecta. Revisa los datos del supuesto y vuelve a intentarlo."
         ),
         {
             "validation_key": validation_key or None,
@@ -268,6 +276,17 @@ def validate_training_foundation_review(db: Session, assignment_id: int, task_id
 
     passed = bool(check.get("passed"))
     previous = dict(progress.validation_result or {})
+    response_schema = (task.trigger_condition or {}).get("response_schema") or {}
+    student_response = dict(previous.get("student_response") or {})
+    if response_schema:
+        student_response["_validation_passed"] = passed
+        if passed:
+            reference_answer = str(response_schema.get("explanation_placeholder") or "").strip()
+            if reference_answer:
+                student_response["_reference_answer"] = reference_answer
+        else:
+            student_response.pop("_reference_answer", None)
+
     validation_result = {
         **previous,
         "mode": "explicit_review",
@@ -276,6 +295,9 @@ def validate_training_foundation_review(db: Session, assignment_id: int, task_id
         "manual_required": False,
         "checks": [check],
     }
+    if response_schema:
+        validation_result["student_response"] = student_response
+
     scenario = update_assignment_step(
         db,
         assignment_id,
@@ -290,7 +312,11 @@ def validate_training_foundation_review(db: Session, assignment_id: int, task_id
         "passed": passed,
         "manual_required": False,
         "message": (
-            "Comprobación superada. El ejercicio inicial cumple los criterios del caso."
+            "Respuesta correcta."
+            if passed and response_schema
+            else "Respuesta tipo test incorrecta. Revisa el supuesto y vuelve a intentarlo."
+            if response_schema
+            else "Comprobación superada. El ejercicio inicial cumple los criterios del caso."
             if passed
             else "La comprobación no se ha superado. Revisa la decisión o los datos guardados en el módulo relacionado."
         ),
