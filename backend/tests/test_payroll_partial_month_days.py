@@ -73,5 +73,7 @@ def test_earning_lines_reduce_monthly_salary_for_inactive_contract_days():
         day_result=day_result,
     )
 
-    assert result["worked_base_salary"] == Decimal("1111.67")
-    assert result["gross_salary"] == Decimal("1111.67")
+    # El simulador monetiza primero el salario diario: 1.450 / 30 = 48,33 €.
+    # Siete días inactivos reducen 338,31 €, por lo que quedan 1.111,69 €.
+    assert result["worked_base_salary"] == Decimal("1111.69")
+    assert result["gross_salary"] == Decimal("1111.69")
