@@ -7,6 +7,16 @@
   background: #f9fafb;
 }
 
+.activity-response.is-correct {
+  border-color: #86efac;
+  background: #f0fdf4;
+}
+
+.activity-response.is-incorrect {
+  border-color: #fca5a5;
+  background: #fef2f2;
+}
+
 .activity-response__heading {
   display: flex;
   align-items: baseline;
@@ -59,6 +69,18 @@
   background: #f3f4f6;
 }
 
+.activity-response__choice.is-selected.is-correct {
+  border-color: #22c55e;
+  background: #dcfce7;
+  color: #166534;
+}
+
+.activity-response__choice.is-selected.is-incorrect {
+  border-color: #ef4444;
+  background: #fee2e2;
+  color: #991b1b;
+}
+
 .activity-response__choice input {
   margin-top: 2px;
 }
@@ -66,6 +88,35 @@
 .activity-response__choice span {
   font-size: 14px;
   line-height: 1.4;
+}
+
+.activity-response__quiz-feedback {
+  display: grid;
+  gap: 3px;
+  padding: 11px 13px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+}
+
+.activity-response__quiz-feedback strong {
+  font-size: 13px;
+}
+
+.activity-response__quiz-feedback span {
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.activity-response__quiz-feedback.is-correct {
+  border-color: #86efac;
+  background: #dcfce7;
+  color: #166534;
+}
+
+.activity-response__quiz-feedback.is-incorrect {
+  border-color: #fca5a5;
+  background: #fee2e2;
+  color: #991b1b;
 }
 
 .activity-response__explanation {
@@ -97,36 +148,14 @@
   outline-offset: 1px;
 }
 
-.activity-response__self-review {
-  display: grid;
-  gap: 10px;
-  justify-items: start;
-}
-
-.activity-response__answer-button {
-  border: 1px solid #cbd5e1;
-  border-radius: 8px;
-  padding: 8px 12px;
-  background: #fff;
-  color: #334155;
-  font: inherit;
-  font-size: 13px;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.activity-response__answer-button:hover {
-  background: #f1f5f9;
-}
-
 .activity-response__reference-answer {
   width: 100%;
   box-sizing: border-box;
   padding: 13px 14px;
-  border: 1px solid #bfdbfe;
+  border: 1px solid #86efac;
   border-radius: 8px;
-  background: #eff6ff;
-  color: #1e3a5f;
+  background: #f0fdf4;
+  color: #14532d;
 }
 
 .activity-response__reference-answer strong {
@@ -144,7 +173,7 @@
 .activity-response__reference-answer small {
   display: block;
   margin-top: 7px;
-  color: #64748b;
+  color: #4b5563;
   font-size: 11px;
 }
 
