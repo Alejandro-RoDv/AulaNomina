@@ -97,6 +97,57 @@
   outline-offset: 1px;
 }
 
+.activity-response__self-review {
+  display: grid;
+  gap: 10px;
+  justify-items: start;
+}
+
+.activity-response__answer-button {
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 8px 12px;
+  background: #fff;
+  color: #334155;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.activity-response__answer-button:hover {
+  background: #f1f5f9;
+}
+
+.activity-response__reference-answer {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 13px 14px;
+  border: 1px solid #bfdbfe;
+  border-radius: 8px;
+  background: #eff6ff;
+  color: #1e3a5f;
+}
+
+.activity-response__reference-answer strong {
+  display: block;
+  margin-bottom: 5px;
+  font-size: 13px;
+}
+
+.activity-response__reference-answer p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.activity-response__reference-answer small {
+  display: block;
+  margin-top: 7px;
+  color: #64748b;
+  font-size: 11px;
+}
+
 @media (max-width: 760px) {
   .activity-response__heading {
     align-items: flex-start;
