@@ -1,6 +1,12 @@
 name: Frontend checks
 
 on:
+  push:
+    branches:
+      - "split-43-actividades-integradas"
+    paths:
+      - "frontend/**"
+      - ".github/workflows/frontend-checks.yml"
   pull_request:
     paths:
       - "frontend/**"
@@ -55,6 +61,7 @@ jobs:
           src/pages/TeacherDashboardPage.jsx src/services/caseAssignmentApi.js
           src/utils/caseNavigation.js src/utils/caseOperationBridge.js
           src/tests/caseNavigation.test.js src/tests/caseOperationBridge.test.js
+          src/tests/caseOperationBridgeExplicitReview.test.js
           src/pages/AffiliationRemittancesPage.jsx src/App.jsx
           src/components/reports/ReportsRoute.jsx src/pages/Model111Page.jsx src/services/model111Service.js
           src/components/model190/Model190DeclarationsPanel.jsx
