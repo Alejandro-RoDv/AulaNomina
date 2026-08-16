@@ -80,6 +80,16 @@ jobs:
           --rule 'react-hooks/preserve-manual-memoization: off'
           --max-warnings=-1
           > lint-output.txt 2>&1
+      - name: Full frontend lint
+        id: full_lint
+        continue-on-error: true
+        run: >-
+          npx eslint .
+          --rule 'react-hooks/set-state-in-effect: off'
+          --rule 'react-hooks/immutability: off'
+          --rule 'react-hooks/preserve-manual-memoization: off'
+          --max-warnings=-1
+          > full-lint-output.txt 2>&1
       - name: Frontend regression tests
         id: tests
         continue-on-error: true
@@ -94,6 +104,12 @@ jobs:
         with:
           name: frontend-lint-output
           path: frontend/lint-output.txt
+      - name: Upload full lint output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-full-lint-output
+          path: frontend/full-lint-output.txt
       - name: Upload build output
         if: always()
         uses: actions/upload-artifact@v4
@@ -101,5 +117,5 @@ jobs:
           name: frontend-build-output
           path: frontend/build-output.txt
       - name: Fail when checks fail
-        if: steps.lint.outcome == 'failure' || steps.tests.outcome == 'failure' || steps.build.outcome == 'failure'
+        if: steps.lint.outcome == 'failure' || steps.full_lint.outcome == 'failure' || steps.tests.outcome == 'failure' || steps.build.outcome == 'failure'
         run: exit 1
