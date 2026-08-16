@@ -77,14 +77,12 @@ function bindMailThreads(course, threads) {
 }
 
 export async function fetchActivityCourse() {
-  const [rawCourse, threads] = await Promise.all([
-    apiRequest(
-      "/case-assignments/course-activities",
-      {},
-      "No se ha podido cargar el curso práctico"
-    ),
-    fetchActivityMailThreads(),
-  ]);
+  const rawCourse = await apiRequest(
+    "/case-assignments/course-activities",
+    {},
+    "No se ha podido cargar el curso práctico"
+  );
+  const threads = await fetchActivityMailThreads();
   const course = normalizeActivityCourseForView(rawCourse);
   return hideUnvalidatedReferenceAnswers(bindMailThreads(course, threads));
 }
