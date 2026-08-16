@@ -132,6 +132,26 @@ test("B02 dirige altas temporales, formativas y variaciones al módulo de contra
 });
 
 
+test("A44 abre el convenio y la tabla salarial que origina los atrasos", () => {
+  const url = new URL(buildCaseModuleUrl({
+    actionCode: "review_salary_table_revision",
+    moduleCode: "agreements",
+    assignmentId: 744,
+    taskId: 844,
+    scenarioCode: "TRAIN-2026-REG-A44",
+    companyId: 1,
+  }, "http://localhost:5173/"));
+
+  assert.equal(url.searchParams.get("page"), "collective-agreements");
+  assert.equal(url.searchParams.get("caseAction"), "review_salary_table_revision");
+  assert.equal(url.searchParams.get("scenario"), "TRAIN-2026-REG-A44");
+  assert.equal(getCaseActionLabel("review_salary_table_revision", "agreements"), "Revisar tabla salarial");
+
+  const fallback = resolveCaseTarget("accion_convenio_desconocida", "agreements");
+  assert.equal(fallback.page, "collective-agreements");
+});
+
+
 test("C06 abre Contratos conservando el contexto del expediente integral", () => {
   const url = new URL(buildCaseModuleUrl({
     actionCode: "review_integrated_c06_termination",
