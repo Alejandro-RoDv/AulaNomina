@@ -12,11 +12,13 @@ from app.schemas.mail import (
 from app.services.mail_attachment_service import attachment_download, attachment_preview
 from app.services.mail_service import (
     create_thread,
-    create_thread_message,
     get_attachment,
     get_demo_mailbox,
     get_thread,
     list_threads,
+)
+from app.services.mail_thread_workflow_service import (
+    create_thread_message,
     mailbox_stats,
     update_thread,
 )
