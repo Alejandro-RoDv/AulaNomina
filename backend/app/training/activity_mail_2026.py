@@ -273,7 +273,7 @@ def attach_activity_mail_context(db: Session, course: dict) -> dict:
 
     threads = (
         db.query(EmailThread)
-        .filter(EmailThread.folder != "trash", EmailThread.related_entity_type != "training_duplicate")
+        .filter(EmailThread.folder != "trash")
         .order_by(EmailThread.id.asc())
         .all()
     )
@@ -281,6 +281,8 @@ def attach_activity_mail_context(db: Session, course: dict) -> dict:
     by_reference: dict[str, list[EmailThread]] = defaultdict(list)
     by_code: dict[str, list[EmailThread]] = defaultdict(list)
     for thread in threads:
+        if thread.related_entity_type == "training_duplicate":
+            continue
         if thread.case_assignment_id in assignment_ids:
             by_assignment[thread.case_assignment_id].append(thread)
         if thread.case_reference in scenario_codes:
