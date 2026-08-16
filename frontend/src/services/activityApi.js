@@ -19,6 +19,10 @@ export function validateActivity(assignmentId, taskId) {
 }
 
 export function saveActivityResponse(assignmentId, taskId, response, validationResult = {}) {
+  const studentResponse = { ...(response || {}) };
+  delete studentResponse._validation_passed;
+  delete studentResponse._reference_answer;
+
   return apiRequest(
     `/case-assignments/${assignmentId}/steps/${taskId}`,
     {
@@ -26,10 +30,10 @@ export function saveActivityResponse(assignmentId, taskId, response, validationR
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         status: "in_progress",
-        student_notes: JSON.stringify(response || {}),
+        student_notes: JSON.stringify(studentResponse),
         validation_result: {
           ...(validationResult || {}),
-          student_response: response || {},
+          student_response: studentResponse,
         },
       }),
     },
