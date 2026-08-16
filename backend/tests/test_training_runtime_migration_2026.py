@@ -1,11 +1,9 @@
 from types import SimpleNamespace
 
 from app.crud.case_study import _demo_cases
-from app.services.training_activity_runtime_service import (
-    _enrich_activity,
-    _regroup_course_topics,
-    _runtime_descriptor,
-)
+from app.services.training_activity_runtime_service import _enrich_activity, _runtime_descriptor
+from app.services.training_course_projection_2026 import project_master_activity_course_2026
+from app.training.document_runtime_cases_2026 import build_document_runtime_cases_2026
 from app.training.runtime_bindings_2026 import (
     PAYROLL_CORE_ACTIVITY_CODES_2026,
     PAYROLL_PARTIAL_ACTIVITY_CODES_2026,
@@ -249,64 +247,67 @@ def test_partial_payroll_enrichment_exposes_start_date_and_expected_days():
     assert any(row["label"] == "Días esperados" and row["value"] == "23" for row in enriched["case_data"])
 
 
-def test_existing_it_and_regularization_cases_are_integral_master_practices():
-    it_case = SimpleNamespace(
-        scenario_code="IT-2026-008",
-        title="Incidencia IT y nomina",
-        tasks=[1, 2, 3, 4],
-    )
-    it_task = SimpleNamespace(
-        trigger_condition={},
-        expected_action="review_fie",
-        task_order=1,
-        case_study=it_case,
-    )
-    regularization_case = SimpleNamespace(
-        scenario_code="NOM-2026-014",
-        title="Regularización de antigüedad en nómina",
-        tasks=[1, 2, 3, 4],
-    )
-    regularization_task = SimpleNamespace(
-        trigger_condition={},
-        expected_action="review_contract",
-        task_order=1,
-        case_study=regularization_case,
-    )
-
-    assert _runtime_descriptor(it_task) == {
-        "code": "C02",
-        "kind": "integral_case",
-        "substep": 1,
-        "substep_total": 4,
-        "inferred": True,
+def test_only_canonical_c02_source_survives_master_projection():
+    legacy_it = {
+        "id": "1:1",
+        "assignment_id": 1,
+        "task_id": 1,
+        "scenario_code": "IT-2026-008",
+        "training_code": "C02",
+        "runtime_migrated": True,
+        "runtime_binding_inferred": True,
+        "training_substep": 1,
+        "course_order": 1,
+        "is_completed": False,
     }
-    assert _runtime_descriptor(regularization_task)["code"] == "C03"
-
-
-def test_existing_document_case_maps_to_a52_as_multistep_practice():
-    case_study = SimpleNamespace(
-        scenario_code=None,
-        title="Expediente documental incompleto",
-        tasks=[1, 2, 3, 4],
-    )
-    task = SimpleNamespace(
-        trigger_condition={},
-        expected_action="update_document",
-        task_order=2,
-        case_study=case_study,
-    )
-
-    descriptor = _runtime_descriptor(task)
-    assert descriptor == {
-        "code": "A52",
-        "kind": "guided_multistep",
-        "substep": 2,
-        "substep_total": 4,
-        "inferred": True,
+    canonical = {
+        "id": "2:2",
+        "assignment_id": 2,
+        "task_id": 2,
+        "scenario_code": "LAB-2026-001",
+        "training_code": "C02",
+        "runtime_migrated": True,
+        "runtime_binding_inferred": True,
+        "training_substep": 1,
+        "course_order": 2,
+        "is_completed": False,
+    }
+    course = {
+        "course": {},
+        "topics": [
+            {
+                "key": "integral",
+                "code": "B10",
+                "order": 10,
+                "title": "Casos profesionales integrados",
+                "activities": [legacy_it, canonical],
+            }
+        ],
     }
 
+    projected = project_master_activity_course_2026(course)
+    visible = projected["topics"][0]["activities"]
 
-def test_existing_substitution_contract_maps_to_a09():
+    assert [item["scenario_code"] for item in visible] == ["LAB-2026-001"]
+    assert visible[0]["display_number"] == "C02.1"
+    assert projected["course"]["hidden_legacy_runtime_steps"] == 1
+
+
+def test_a52_has_a_dedicated_explicit_runtime_instead_of_title_inference():
+    case = next(
+        item for item in build_document_runtime_cases_2026()
+        if item.scenario_code == "TRAIN-2026-DOC-A52"
+    )
+
+    assert case.initial_state["training_sequence"] == ["A52"]
+    assert len(case.tasks) == 1
+    task = case.tasks[0]
+    assert task.trigger_condition["training_code"] == "A52"
+    assert task.trigger_condition["validation_interaction"] == "explicit_review"
+    assert task.expected_action == "review_document_status_resolution"
+
+
+def test_existing_substitution_contract_still_maps_to_a09_while_legacy_source_is_allowed():
     case_study = SimpleNamespace(
         scenario_code="ALT-2026-021",
         title="Alta de sustitución por incapacidad temporal",
@@ -323,42 +324,3 @@ def test_existing_substitution_contract_maps_to_a09():
     assert descriptor["code"] == "A09"
     assert descriptor["kind"] == "guided"
     assert descriptor["inferred"] is True
-
-
-def test_regrouping_exposes_ten_master_blocks_and_prioritizes_migrated_work():
-    course = {
-        "course": {},
-        "topics": [
-            {
-                "key": "environment",
-                "activities": [
-                    {
-                        "id": "1:1",
-                        "task_id": 1,
-                        "topic_key": "environment",
-                        "course_order": 1,
-                        "is_completed": False,
-                        "runtime_migrated": True,
-                        "training_code": "A04",
-                        "block_code": "B01",
-                    },
-                    {
-                        "id": "2:2",
-                        "task_id": 2,
-                        "topic_key": "environment",
-                        "course_order": 2,
-                        "is_completed": False,
-                        "runtime_migrated": False,
-                    },
-                ],
-            }
-        ],
-    }
-
-    rebuilt = _regroup_course_topics(course)
-
-    assert len(rebuilt["topics"]) == 10
-    assert rebuilt["topics"][0]["code"] == "B01"
-    assert rebuilt["topics"][0]["title"] == "Fundamentos y organización laboral"
-    assert rebuilt["course"]["current_activity_id"] == "1:1"
-    assert rebuilt["topics"][0]["activities"][0]["display_number"] == "A04"
