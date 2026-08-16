@@ -6,12 +6,21 @@ function isMailRoute() {
   return window.location.hash === "#mail";
 }
 
+function requestedThreadId() {
+  const value = new URL(window.location.href).searchParams.get("mailThread");
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+}
+
 function leaveMailRoute() {
   window.close();
 
   window.setTimeout(() => {
     if (window.closed) return;
-    window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
+    const url = new URL(window.location.href);
+    url.searchParams.delete("mailThread");
+    url.hash = "";
+    window.history.replaceState(null, "", `${url.pathname}${url.search}`);
     window.dispatchEvent(new Event("aulanomina-route-change"));
   }, 80);
 }
@@ -31,5 +40,5 @@ export default function MailRoute() {
 
   if (!active) return null;
 
-  return <SimpleMailWorkspace onClose={leaveMailRoute} />;
+  return <SimpleMailWorkspace onClose={leaveMailRoute} initialThreadId={requestedThreadId()} />;
 }
