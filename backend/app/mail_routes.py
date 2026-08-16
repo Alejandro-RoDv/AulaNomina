@@ -22,14 +22,16 @@ from app.services.integrated_demo_process_seed import ensure_integrated_fie_comm
 from app.services.mail_attachment_service import attachment_download, attachment_preview
 from app.services.mail_service import (
     create_thread,
-    create_thread_message,
     get_attachment,
     get_demo_mailbox,
     get_mailbox,
     get_thread,
     list_threads,
-    mailbox_stats,
     reset_demo_mailbox,
+)
+from app.services.mail_thread_workflow_service import (
+    create_thread_message,
+    mailbox_stats,
     update_thread,
 )
 from app.training.document_runtime_bootstrap_2026 import bootstrap_document_training_2026
