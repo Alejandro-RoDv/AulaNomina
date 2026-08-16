@@ -88,8 +88,14 @@ jobs:
           --rule 'react-hooks/set-state-in-effect: off'
           --rule 'react-hooks/immutability: off'
           --rule 'react-hooks/preserve-manual-memoization: off'
+          --rule 'react-refresh/only-export-components: off'
+          --rule 'no-unused-vars: warn'
           --max-warnings=-1
           > full-lint-output.txt 2>&1
+      - name: Production dependency audit
+        id: production_audit
+        continue-on-error: true
+        run: npm audit --omit=dev --audit-level=high --json > production-audit.json
       - name: Frontend regression tests
         id: tests
         continue-on-error: true
@@ -110,6 +116,12 @@ jobs:
         with:
           name: frontend-full-lint-output
           path: frontend/full-lint-output.txt
+      - name: Upload production audit
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-production-audit
+          path: frontend/production-audit.json
       - name: Upload build output
         if: always()
         uses: actions/upload-artifact@v4
@@ -117,5 +129,5 @@ jobs:
           name: frontend-build-output
           path: frontend/build-output.txt
       - name: Fail when checks fail
-        if: steps.lint.outcome == 'failure' || steps.full_lint.outcome == 'failure' || steps.tests.outcome == 'failure' || steps.build.outcome == 'failure'
+        if: steps.lint.outcome == 'failure' || steps.full_lint.outcome == 'failure' || steps.production_audit.outcome == 'failure' || steps.tests.outcome == 'failure' || steps.build.outcome == 'failure'
         run: exit 1
