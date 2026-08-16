@@ -7,16 +7,6 @@
   background: #f9fafb;
 }
 
-.activity-response.is-correct {
-  border-color: #86efac;
-  background: #f0fdf4;
-}
-
-.activity-response.is-incorrect {
-  border-color: #fca5a5;
-  background: #fef2f2;
-}
-
 .activity-response__heading {
   display: flex;
   align-items: baseline;
@@ -67,18 +57,6 @@
 .activity-response__choice.is-selected {
   border-color: #6b7280;
   background: #f3f4f6;
-}
-
-.activity-response__choice.is-selected.is-correct {
-  border-color: #22c55e;
-  background: #dcfce7;
-  color: #166534;
-}
-
-.activity-response__choice.is-selected.is-incorrect {
-  border-color: #ef4444;
-  background: #fee2e2;
-  color: #991b1b;
 }
 
 .activity-response__choice input {
@@ -152,15 +130,16 @@
   width: 100%;
   box-sizing: border-box;
   padding: 13px 14px;
-  border: 1px solid #86efac;
+  border: 1px solid #d1d5db;
   border-radius: 8px;
-  background: #f0fdf4;
-  color: #14532d;
+  background: #fff;
+  color: #374151;
 }
 
 .activity-response__reference-answer strong {
   display: block;
   margin-bottom: 5px;
+  color: #111827;
   font-size: 13px;
 }
 
@@ -173,7 +152,7 @@
 .activity-response__reference-answer small {
   display: block;
   margin-top: 7px;
-  color: #4b5563;
+  color: #6b7280;
   font-size: 11px;
 }
 
