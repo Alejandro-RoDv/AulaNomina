@@ -83,6 +83,10 @@ def _ensure_master_runtime_availability_2026(db: Session) -> None:
         seed_fiscal_runtime_assignments_2026,
         seed_fiscal_runtime_cases_2026,
     )
+    from app.training.foundation_runtime_cases_2026 import (
+        seed_foundation_runtime_assignments_2026,
+        seed_foundation_runtime_cases_2026,
+    )
     from app.training.incident_runtime_cases_2026 import (
         INCIDENT_SCENARIO_CODES,
         ensure_training_incident_fie_2026,
@@ -108,6 +112,11 @@ def _ensure_master_runtime_availability_2026(db: Session) -> None:
         seed_termination_runtime_assignments_2026,
         seed_termination_runtime_cases_2026,
     )
+
+    # B01 se reseedea de forma idempotente para que cambios pedagógicos del
+    # esquema de respuesta lleguen también a bases creadas antes de la revisión.
+    seed_foundation_runtime_cases_2026(db)
+    seed_foundation_runtime_assignments_2026(db)
 
     incident_count = _count_runtime_cases(db, INCIDENT_SCENARIO_CODES)
     if incident_count < len(INCIDENT_SCENARIO_CODES):
