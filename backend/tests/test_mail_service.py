@@ -9,9 +9,8 @@ from app.schemas.mail import (
     EmailThreadCreate,
     EmailThreadUpdate,
 )
+from app.services.mail_attachment_service import attachment_download, attachment_preview
 from app.services.mail_service import (
-    attachment_download,
-    attachment_preview,
     create_thread,
     create_thread_message,
     get_attachment,
