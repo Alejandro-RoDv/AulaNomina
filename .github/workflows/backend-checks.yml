@@ -1,6 +1,12 @@
 name: Backend checks
 
 on:
+  push:
+    branches:
+      - "split-43-actividades-integradas"
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend-checks.yml"
   pull_request:
     paths:
       - "backend/**"
