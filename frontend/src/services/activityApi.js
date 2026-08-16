@@ -1,13 +1,26 @@
 import { apiRequest } from "./httpClient.js";
 import { normalizeActivityCourseForView } from "../utils/activityCourseView.js";
 
+function hideUnvalidatedReferenceAnswers(course) {
+  for (const topic of course?.topics || []) {
+    for (const activity of topic.activities || []) {
+      if (!activity?.response_schema) continue;
+      const quizPassed = activity?.validation_result?.student_response?._validation_passed === true;
+      if (quizPassed) continue;
+      const { explanation_placeholder: _hiddenReferenceAnswer, ...safeSchema } = activity.response_schema;
+      activity.response_schema = safeSchema;
+    }
+  }
+  return course;
+}
+
 export async function fetchActivityCourse() {
   const course = await apiRequest(
     "/case-assignments/course-activities",
     {},
     "No se ha podido cargar el curso práctico"
   );
-  return normalizeActivityCourseForView(course);
+  return hideUnvalidatedReferenceAnswers(normalizeActivityCourseForView(course));
 }
 
 export function validateActivity(assignmentId, taskId) {
