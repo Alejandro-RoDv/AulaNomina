@@ -53,8 +53,9 @@ def _count_runtime_cases(db: Session, scenario_codes: set[str]) -> int:
     from app.models.case_study import CaseStudy
 
     return (
-        db.query(CaseStudy.id)
+        db.query(CaseStudy.scenario_code)
         .filter(CaseStudy.scenario_code.in_(sorted(scenario_codes)))
+        .distinct()
         .count()
     )
 
@@ -168,10 +169,20 @@ def _is_master_runtime_candidate(activity: dict[str, Any]) -> bool:
 
 
 def _source_key(activity: dict[str, Any]) -> tuple[str, str]:
+    """Separa instancias duplicadas del mismo escenario por su asignación.
+
+    Bases creadas durante migraciones intermedias pueden conservar más de un
+    CaseStudy con el mismo scenario_code. Cada uno tiene una asignación distinta.
+    Si agrupamos solo por scenario_code, sus tareas se concatenan y A36.1/A36.2
+    aparecen dos veces. Una asignación representa una ejecución canónica completa.
+    """
+    assignment_id = str(activity.get("assignment_id") or "").strip()
+    if assignment_id:
+        return ("assignment", assignment_id)
     scenario_code = str(activity.get("scenario_code") or "").strip().upper()
     if scenario_code:
         return ("scenario", scenario_code)
-    return ("assignment", str(activity.get("assignment_id") or ""))
+    return ("activity", str(activity.get("id") or activity.get("task_id") or ""))
 
 
 def _source_rank(items: list[dict[str, Any]]) -> tuple[int, int, int]:
