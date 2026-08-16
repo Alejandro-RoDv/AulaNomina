@@ -20,10 +20,7 @@ export default function ActivityResponseForm({ schema, value, onChange, disabled
   };
 
   return (
-    <section
-      className={`activity-response${validationState ? ` is-${validationState}` : ""}`}
-      aria-label="Respuesta del ejercicio"
-    >
+    <section className="activity-response" aria-label="Respuesta del ejercicio">
       <div className="activity-response__heading">
         <span>Tipo test</span>
         <small>La opción se corrige automáticamente. Tu razonamiento escrito no se puntúa.</small>
@@ -36,7 +33,7 @@ export default function ActivityResponseForm({ schema, value, onChange, disabled
           return (
             <label
               key={option.value}
-              className={`activity-response__choice${selected ? " is-selected" : ""}${selected && validationState ? ` is-${validationState}` : ""}`}
+              className={`activity-response__choice${selected ? " is-selected" : ""}`}
             >
               <input
                 type="radio"
