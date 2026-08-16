@@ -73,10 +73,10 @@ def test_public_response_schema_does_not_expose_answer_key_or_validator_keywords
     assert "minimum_keyword_matches" not in public
 
 
-def test_foundation_decision_requires_correct_choice_and_material_justification():
+def test_foundation_decision_grades_choice_but_not_written_rationale():
     task = _definitions()["TRAIN-2026-FOUND-A01"].tasks[0]
 
-    correct = _review_decision(
+    correct_with_detailed_rationale = _review_decision(
         task,
         SimpleNamespace(
             student_notes=json.dumps(
@@ -87,22 +87,27 @@ def test_foundation_decision_requires_correct_choice_and_material_justification(
             )
         ),
     )
-    assert correct["passed"] is True
-    assert correct["evidence"]["validation_rule_available"] is True
-    assert len(correct["evidence"]["matched_evidence"]) >= 2
+    assert correct_with_detailed_rationale["passed"] is True
+    assert correct_with_detailed_rationale["evidence"]["written_response_graded"] is False
 
-    unsupported = _review_decision(
+    correct_with_natural_rationale = _review_decision(
         task,
         SimpleNamespace(
             student_notes=json.dumps(
                 {
                     "decision": "ordinary_labor",
-                    "explanation": "Es laboral porque parece un contrato de trabajo.",
+                    "explanation": "Es una trabajadora por cuenta ajena porque realiza su actividad bajo la dirección de otra persona de manera retribuida.",
                 }
             )
         ),
     )
-    assert unsupported["passed"] is False
+    assert correct_with_natural_rationale["passed"] is True
+
+    correct_without_rationale = _review_decision(
+        task,
+        SimpleNamespace(student_notes=json.dumps({"decision": "ordinary_labor", "explanation": ""})),
+    )
+    assert correct_without_rationale["passed"] is True
 
     wrong = _review_decision(
         task,
