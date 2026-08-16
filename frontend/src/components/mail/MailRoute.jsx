@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 
+import { fetchMailThread, updateMailThread } from "../../services/mailApi.js";
 import SimpleMailWorkspace from "./SimpleMailWorkspace";
 
 function isMailRoute() {
@@ -27,6 +28,8 @@ function leaveMailRoute() {
 
 export default function MailRoute() {
   const [active, setActive] = useState(isMailRoute());
+  const [targetReady, setTargetReady] = useState(false);
+  const threadId = requestedThreadId();
 
   useEffect(() => {
     const handleRouteChange = () => setActive(isMailRoute());
@@ -38,7 +41,28 @@ export default function MailRoute() {
     };
   }, []);
 
-  if (!active) return null;
+  useEffect(() => {
+    if (!active || !threadId) {
+      setTargetReady(true);
+      return undefined;
+    }
+    let cancelled = false;
+    setTargetReady(false);
+    const focusThread = async () => {
+      try {
+        await fetchMailThread(threadId);
+        await updateMailThread(threadId, { folder: "inbox", is_read: true });
+      } catch {
+        // Si el hilo ya no existe, el buzón general sigue siendo utilizable.
+      } finally {
+        if (!cancelled) setTargetReady(true);
+      }
+    };
+    focusThread();
+    return () => { cancelled = true; };
+  }, [active, threadId]);
 
-  return <SimpleMailWorkspace onClose={leaveMailRoute} initialThreadId={requestedThreadId()} />;
+  if (!active || !targetReady) return null;
+
+  return <SimpleMailWorkspace onClose={leaveMailRoute} />;
 }
