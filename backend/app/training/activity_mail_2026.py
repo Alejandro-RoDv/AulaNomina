@@ -99,3 +99,53 @@ def ensure_activity_mail_2026(db: Session, mailbox: Mailbox):
         ids.append(thread.id)
     db.commit()
     return ids
+
+
+def attach_activity_mail_context(db: Session, course: dict):
+    """Convierte los hilos ligados al caso en parte explícita de cada actividad."""
+    activities = [item for topic in course.get("topics", []) for item in topic.get("activities", [])]
+    assignment_ids = {item.get("assignment_id") for item in activities if item.get("assignment_id")}
+    threads = (
+        db.query(EmailThread)
+        .filter(EmailThread.case_assignment_id.in_(assignment_ids), EmailThread.folder != "trash")
+        .order_by(EmailThread.id.asc())
+        .all()
+        if assignment_ids else []
+    )
+    by_assignment = {}
+    for thread in threads:
+        by_assignment.setdefault(thread.case_assignment_id, []).append(thread)
+
+    for activity in activities:
+        candidates = by_assignment.get(activity.get("assignment_id"), [])
+        if not candidates:
+            continue
+        task_id = activity.get("task_id")
+        direct = [thread for thread in candidates if thread.case_task_id == task_id]
+        thread = (direct or candidates)[0]
+        messages = sorted(thread.messages or [], key=lambda item: (item.sent_at, item.id))
+        incoming = next((item for item in messages if item.direction == "incoming"), messages[0] if messages else None)
+        attachments = [attachment for message in messages for attachment in (message.attachments or [])]
+        action = str((activity.get("context") or {}).get("actionCode") or "")
+        role = "reply" if action == "reply_mail" else "attachment" if attachments else "consult"
+        activity["requires_mail"] = True
+        activity["related_mail_thread_ids"] = [thread.id]
+        activity["mail_context"] = {
+            "thread_id": thread.id,
+            "role": role,
+            "subject": thread.subject,
+            "sender": incoming.sender_name if incoming else "Correo relacionado",
+            "has_attachments": bool(attachments),
+            "attachment_count": len(attachments),
+            "locked": thread.folder == "training_locked",
+        }
+        activity["situation"] = "Has recibido una comunicación relacionada con este ejercicio. Consulta el correo antes de continuar."
+        activity["instructions"] = (
+            "Consulta el correo relacionado y sus adjuntos, realiza la gestión indicada en AulaNomina y responde por el mismo hilo cuando hayas terminado."
+            if role == "reply"
+            else "Consulta el correo relacionado y sus adjuntos. Con la información recibida, realiza en AulaNomina la gestión solicitada."
+            if role == "attachment"
+            else "Consulta el correo relacionado. Con la información recibida, realiza en AulaNomina la gestión solicitada."
+        )
+        activity["case_data"] = []
+    return course
