@@ -156,6 +156,25 @@
   font-size: 11px;
 }
 
+/* El marcador azul identifica solo la actividad seleccionada. La siguiente
+   actividad pendiente conserva el círculo neutro para evitar dos focos a la vez. */
+.activity-center__activity:not(.is-selected) .activity-center__current-dot {
+  width: 15px;
+  height: 15px;
+  margin-left: 0;
+  box-sizing: border-box;
+  border: 1px solid #a7b2c2;
+  background: transparent;
+  box-shadow: none;
+}
+
+/* El hover genérico de navegación no debe blanquear el botón primario. */
+.activity-center__navigation button.is-primary:hover:not(:disabled) {
+  border-color: #1d4ed8;
+  background: #1d4ed8;
+  color: #ffffff;
+}
+
 @media (max-width: 760px) {
   .activity-response__heading {
     align-items: flex-start;
