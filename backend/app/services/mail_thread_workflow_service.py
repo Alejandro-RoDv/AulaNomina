@@ -9,6 +9,33 @@ from app.schemas.mail import EmailMessageCreate, EmailThreadUpdate
 from app.services.mail_service import create_message, get_thread
 
 
+def capture_mailbox_view_state(db: Session, mailbox_id: int) -> dict[int, dict]:
+    """Captura estado controlado por el usuario antes de ejecutar upserts demo."""
+    return {
+        thread.id: {
+            "folder": thread.folder,
+            "is_read": thread.is_read,
+            "updated_at": thread.updated_at,
+        }
+        for thread in db.query(EmailThread).filter(EmailThread.mailbox_id == mailbox_id).all()
+    }
+
+
+def restore_mailbox_view_state(db: Session, state: dict[int, dict]) -> None:
+    """Evita que un reseed idempotente reabra o reordene correos ya existentes."""
+    if not state:
+        return
+    threads = db.query(EmailThread).filter(EmailThread.id.in_(list(state))).all()
+    for thread in threads:
+        previous = state.get(thread.id)
+        if not previous:
+            continue
+        thread.folder = previous["folder"]
+        thread.is_read = previous["is_read"]
+        thread.updated_at = previous["updated_at"]
+    db.commit()
+
+
 def update_thread(db: Session, thread: EmailThread, payload: EmailThreadUpdate) -> EmailThread:
     """Actualiza metadatos del hilo sin alterar su orden cronológico.
 
