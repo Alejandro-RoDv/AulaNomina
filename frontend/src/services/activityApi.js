@@ -1,11 +1,13 @@
 import { apiRequest } from "./httpClient.js";
+import { normalizeActivityCourseForView } from "../utils/activityCourseView.js";
 
-export function fetchActivityCourse() {
-  return apiRequest(
+export async function fetchActivityCourse() {
+  const course = await apiRequest(
     "/case-assignments/course-activities",
     {},
     "No se ha podido cargar el curso práctico"
   );
+  return normalizeActivityCourseForView(course);
 }
 
 export function validateActivity(assignmentId, taskId) {
