@@ -123,7 +123,7 @@ def test_employee_exists_completes_step_automatically(db):
 
 
 def test_unsupported_rule_keeps_step_open_for_manual_confirmation(db):
-    assignment, task = build_assignment(db, expected_action="create_regularization")
+    assignment, task = build_assignment(db, expected_action="unsupported_training_action")
     start_assignment(db, assignment.id)
 
     result = validate_assignment_step(db, assignment.id, task.id)
