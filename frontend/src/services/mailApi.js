@@ -111,6 +111,15 @@ export async function fetchMailboxThreads(mailboxId, filters = {}) {
   return (data || []).map(mapThreadToWorkspaceMessage);
 }
 
+export async function fetchMailThread(threadId) {
+  const data = await apiRequest(
+    `/mail/threads/${threadId}`,
+    {},
+    "No se ha podido abrir el correo relacionado"
+  );
+  return mapThreadToWorkspaceMessage(data);
+}
+
 export async function createMailThread(mailboxId, payload) {
   const data = await apiRequest(
     `/mail/mailboxes/${mailboxId}/threads`,
