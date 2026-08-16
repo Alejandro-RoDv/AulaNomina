@@ -213,15 +213,9 @@ export default function ActivitiesCenter() {
     ) return;
 
     const responseSchema = selectedActivity.response_schema;
-    if (responseSchema) {
-      if (!responseDraft?.decision) {
-        setError("Selecciona una respuesta antes de comprobar la actividad.");
-        return;
-      }
-      if (responseSchema.explanation_required && !String(responseDraft?.explanation || "").trim()) {
-        setError("Añade una justificación profesional antes de comprobar la actividad.");
-        return;
-      }
+    if (responseSchema && !responseDraft?.decision) {
+      setError("Selecciona una respuesta antes de comprobar la actividad.");
+      return;
     }
 
     try {
@@ -425,7 +419,7 @@ export default function ActivitiesCenter() {
                       {selectedActivity.is_completed
                         ? "Completado"
                         : selectedActivity.completion_condition?.automatic
-                          ? requiresExplicitReview(selectedActivity) ? "Comprobación bajo demanda" : "Comprobación automática"
+                          ? selectedActivity.response_schema ? "Tipo test" : requiresExplicitReview(selectedActivity) ? "Comprobación bajo demanda" : "Comprobación automática"
                           : "Verificación manual"}
                     </span>
                   </div>
@@ -464,7 +458,7 @@ export default function ActivitiesCenter() {
                       {checkingId === selectedActivity.id
                         ? "Comprobando el resultado actual…"
                         : selectedActivity.response_schema
-                          ? "Selecciona una respuesta, justifica tu criterio y comprueba el resultado cuando hayas terminado."
+                          ? "Selecciona una opción y comprueba el test. Si quieres, escribe tu razonamiento y compáralo con la respuesta orientativa; esa redacción no se puntúa."
                           : requiresExplicitReview(selectedActivity)
                             ? "Revisa los datos del módulo relacionado y pulsa «Comprobar resultado» cuando hayas terminado el análisis."
                             : "AulaNomina comprobará el resultado automáticamente al realizar la operación correspondiente."}
@@ -498,10 +492,10 @@ export default function ActivitiesCenter() {
                 {!selectedActivity.is_completed && selectedActivity.completion_condition?.automatic && requiresExplicitReview(selectedActivity) && (
                   <section className="activity-center__manual-action">
                     <div>
-                      <strong>{selectedActivity.response_schema ? "¿Has razonado tu respuesta?" : "¿Has revisado el resultado?"}</strong>
+                      <strong>{selectedActivity.response_schema ? "¿Has elegido una respuesta?" : "¿Has revisado el resultado?"}</strong>
                       <span>
                         {selectedActivity.response_schema
-                          ? "La respuesta se guardará y se contrastará con los criterios definidos para este supuesto."
+                          ? "La opción del test se corregirá automáticamente. Tu razonamiento escrito se guarda solo como autoevaluación."
                           : "La comprobación se ejecutará ahora sobre los datos reales guardados en AulaNomina."}
                       </span>
                     </div>
@@ -509,7 +503,7 @@ export default function ActivitiesCenter() {
                       <Check size={15} aria-hidden="true" />
                       {checkingId === selectedActivity.id
                         ? "Comprobando…"
-                        : selectedActivity.response_schema ? "Guardar y comprobar" : "Comprobar resultado"}
+                        : selectedActivity.response_schema ? "Comprobar respuesta" : "Comprobar resultado"}
                     </button>
                   </section>
                 )}
