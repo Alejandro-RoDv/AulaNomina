@@ -21,9 +21,11 @@ import {
   saveActivityResponse,
   validateActivity,
 } from "../../services/activityApi.js";
+import { updateMailThread } from "../../services/mailApi.js";
 import { getCaseActionLabel, openCaseModule } from "../../utils/caseNavigation.js";
 import ActivityResponseForm from "./ActivityResponseForm.jsx";
 import "./activities.css";
+import "./activityMail.css";
 
 const ACTIVE_CASE_CONTEXT_KEY = "aulanomina:active-case-context";
 
@@ -62,7 +64,7 @@ function persistActivityContext(activity) {
 
 function ActivityStateIcon({ activity, selected }) {
   if (activity.is_completed) return <CheckCircle2 className="activity-center__state activity-center__state--done" aria-hidden="true" />;
-  if (selected || activity.is_current) return <span className="activity-center__current-dot" aria-hidden="true" />;
+  if (selected) return <span className="activity-center__current-dot" aria-hidden="true" />;
   return <Circle className="activity-center__state activity-center__state--pending" aria-hidden="true" />;
 }
 
@@ -91,6 +93,13 @@ function failedValidationMessages(activity) {
     .filter((check) => check?.supported !== false && !check?.passed && check?.message)
     .map((check) => check.message)
     .slice(0, 3);
+}
+
+function mailUrl(threadId) {
+  const url = new URL(window.location.href);
+  url.searchParams.set("mailThread", String(threadId));
+  url.hash = "mail";
+  return url.toString();
 }
 
 export default function ActivitiesCenter() {
@@ -168,6 +177,24 @@ export default function ActivitiesCenter() {
     setResponseDraft(selectedActivity?.validation_result?.student_response || {});
   }, [selectedActivity?.id, selectedActivity?.topic_key, selectedActivity?.validation_result?.student_response]);
 
+  useEffect(() => {
+    const threadId = selectedActivity?.mail_context?.thread_id;
+    if (!threadId || !selectedActivity?.mail_context?.locked) return undefined;
+    let cancelled = false;
+    const unlock = async () => {
+      try {
+        await updateMailThread(threadId, { folder: "inbox" });
+        if (cancelled) return;
+        window.dispatchEvent(new Event("aulanomina-mail-stats-refresh"));
+        await loadCourse({ preserveSelection: true });
+      } catch {
+        // El botón de correo volverá a intentarlo al abrir el hilo.
+      }
+    };
+    unlock();
+    return () => { cancelled = true; };
+  }, [selectedActivity?.id, selectedActivity?.mail_context?.thread_id, selectedActivity?.mail_context?.locked, loadCourse]);
+
   const openCenter = async () => {
     setOpen(true);
     await loadCourse({ preserveSelection: true });
@@ -181,6 +208,7 @@ export default function ActivitiesCenter() {
 
     if (
       activity.is_completed
+      || activity.requires_mail
       || !activity.completion_condition?.automatic
       || requiresExplicitReview(activity)
     ) return;
@@ -202,6 +230,21 @@ export default function ActivitiesCenter() {
     if (!selectedActivity?.context) return;
     persistActivityContext(selectedActivity);
     openCaseModule(selectedActivity.context);
+  };
+
+  const openSelectedMail = async () => {
+    const threadId = selectedActivity?.mail_context?.thread_id;
+    if (!threadId) return;
+    persistActivityContext(selectedActivity);
+    try {
+      if (selectedActivity?.mail_context?.locked) {
+        await updateMailThread(threadId, { folder: "inbox" });
+        window.dispatchEvent(new Event("aulanomina-mail-stats-refresh"));
+      }
+    } catch {
+      // El hilo puede seguir abriéndose directamente aunque el contador no se actualice.
+    }
+    window.open(mailUrl(threadId), "_blank", "noopener,noreferrer");
   };
 
   const validateSelectedExplicitly = async () => {
@@ -384,11 +427,18 @@ export default function ActivitiesCenter() {
                     </div>
                   )}
 
-                  {selectedActivity.requires_mail && (
-                    <div className="activity-center__mail-note">
-                      <Mail size={17} aria-hidden="true" />
-                      <span>La información necesaria parte de una comunicación recibida. Consulta Correo antes de resolver la actividad.</span>
-                    </div>
+                  {selectedActivity.mail_context && (
+                    <button type="button" className="activity-center__mail-card" onClick={openSelectedMail}>
+                      <Mail size={18} aria-hidden="true" />
+                      <span className="activity-center__mail-card-copy">
+                        <strong>Consulta el correo</strong>
+                        <span>{selectedActivity.mail_context.sender} · {selectedActivity.mail_context.subject}</span>
+                        {selectedActivity.mail_context.has_attachments && (
+                          <small>{selectedActivity.mail_context.attachment_count} adjunto{selectedActivity.mail_context.attachment_count === 1 ? "" : "s"} disponible{selectedActivity.mail_context.attachment_count === 1 ? "" : "s"}</small>
+                        )}
+                      </span>
+                      <span className="activity-center__mail-card-action">Abrir mensaje <ArrowRight size={14} aria-hidden="true" /></span>
+                    </button>
                   )}
                 </section>
 
