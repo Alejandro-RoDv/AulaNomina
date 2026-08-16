@@ -126,6 +126,25 @@ def test_projection_uses_master_code_plus_substep_for_multistep_practices():
     assert projected["course"]["visible_runtime_steps"] == 2
 
 
+def test_projection_collapses_duplicate_case_instances_for_same_training_scenario():
+    projected = project_master_activity_course_2026(
+        _course(
+            _activity("10:101", "A36", scenario="TRAIN-2026-TAX-A36", substep=1),
+            _activity("10:102", "A36", scenario="TRAIN-2026-TAX-A36", substep=2),
+            _activity("20:201", "A36", scenario="TRAIN-2026-TAX-A36", substep=1),
+            _activity("20:202", "A36", scenario="TRAIN-2026-TAX-A36", substep=2),
+            block_code="B06",
+            block_order=6,
+            block_title="IRPF y fiscalidad laboral",
+        )
+    )
+
+    visible = projected["topics"][0]["activities"]
+    assert [item["id"] for item in visible] == ["10:101", "10:102"]
+    assert [item["display_number"] for item in visible] == ["A36.1", "A36.2"]
+    assert projected["course"]["suppressed_duplicate_runtime_steps"] == 2
+
+
 def test_multistep_practice_counts_as_one_completed_master_activity():
     projected = project_master_activity_course_2026(
         _course(
