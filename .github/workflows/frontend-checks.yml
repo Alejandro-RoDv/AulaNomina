@@ -1,12 +1,6 @@
 name: Frontend checks
 
 on:
-  push:
-    branches:
-      - "split-43-actividades-integradas"
-    paths:
-      - "frontend/**"
-      - ".github/workflows/frontend-checks.yml"
   pull_request:
     paths:
       - "frontend/**"
