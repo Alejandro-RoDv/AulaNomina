@@ -35,14 +35,6 @@ from app.training.foundation_runtime_cases_2026 import (
 )
 
 
-SCENARIO_TO_CODE = {
-    "TRAIN-2026-FOUND-A01": "A01",
-    "TRAIN-2026-FOUND-A02": "A02",
-    "TRAIN-2026-FOUND-A03": "A03",
-    "TRAIN-2026-FOUND-A05": "A05",
-}
-
-
 def _normalize(value: Any) -> str:
     text = unicodedata.normalize("NFKD", str(value or ""))
     return "".join(character for character in text if not unicodedata.combining(character)).casefold().strip()
@@ -72,6 +64,12 @@ def _student_response(progress) -> dict[str, Any]:
 
 
 def _review_decision(task, progress) -> dict[str, Any]:
+    """Corrige únicamente la opción tipo test.
+
+    La explicación escrita se conserva como reflexión del alumno, pero no se
+    puntúa ni se analiza por palabras clave. Dos respuestas conceptualmente
+    equivalentes no deben producir resultados distintos por su redacción.
+    """
     schema = (task.trigger_condition or {}).get("response_schema") or {}
     validation_key = str(schema.get("validation_key") or "").strip()
     rule = FOUNDATION_DECISION_RULES.get(validation_key) or {}
@@ -79,33 +77,24 @@ def _review_decision(task, progress) -> dict[str, Any]:
     decision = str(response.get("decision") or "").strip()
     explanation = str(response.get("explanation") or "").strip()
     expected = str(rule.get("expected_decision") or "").strip()
-    keywords = [_normalize(item) for item in rule.get("evidence_keywords") or [] if _normalize(item)]
-    normalized_explanation = _normalize(explanation)
-    matched = [keyword for keyword in keywords if keyword in normalized_explanation]
-    minimum_matches = int(rule.get("minimum_keyword_matches") or 0)
-    explanation_required = bool(schema.get("explanation_required", True))
 
     decision_ok = bool(validation_key and expected and decision == expected)
-    explanation_ok = bool(explanation) if explanation_required else True
-    evidence_ok = bool(keywords) and len(matched) >= minimum_matches
-    passed = decision_ok and explanation_ok and evidence_ok
     return _check(
-        passed,
+        decision_ok,
         (
-            "La clasificación y la justificación utilizan indicios materiales coherentes con el supuesto."
-            if passed
-            else "Revisa la clasificación y justifícala con los indicios materiales del supuesto, no solo con una etiqueta."
+            "La opción seleccionada es correcta. La justificación queda como reflexión para compararla con la solución orientativa."
+            if decision_ok
+            else "La opción seleccionada no es correcta. Revisa los datos del supuesto y vuelve a intentarlo."
         ),
         {
             "validation_key": validation_key or None,
             "decision": decision or None,
             "decision_matches_expected": decision_ok,
-            "explanation_present": explanation_ok,
-            "matched_evidence": matched,
-            "minimum_keyword_matches": minimum_matches,
+            "explanation_present": bool(explanation),
+            "written_response_graded": False,
             "validation_rule_available": bool(rule),
         },
-        rule_type="training_foundation_decision",
+        rule_type="training_foundation_quiz_decision",
     )
 
 
