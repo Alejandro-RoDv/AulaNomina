@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 
 import ActivitiesCenter from "./ActivitiesCenter";
+import TrainingOnboarding from "./TrainingOnboarding";
 
 function createLauncherSlot() {
   const siltraLauncher = document.querySelector(".siltra-global-launcher");
@@ -47,5 +48,10 @@ export default function ActivitiesLauncherBridge() {
     };
   }, []);
 
-  return target ? createPortal(<ActivitiesCenter />, target) : null;
+  return (
+    <>
+      <TrainingOnboarding />
+      {target ? createPortal(<ActivitiesCenter />, target) : null}
+    </>
+  );
 }
