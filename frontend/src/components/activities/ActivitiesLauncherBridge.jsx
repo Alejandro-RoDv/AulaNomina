@@ -30,12 +30,19 @@ export default function ActivitiesLauncherBridge() {
       if (slot) setTarget(slot);
     };
 
+    const resetActivityDetailScroll = () => {
+      const detail = document.querySelector(".activity-center__detail");
+      if (detail) detail.scrollTo({ top: 0, left: 0, behavior: "auto" });
+    };
+
     mountLauncher();
     const observer = new MutationObserver(mountLauncher);
     observer.observe(document.body, { childList: true, subtree: true });
+    window.addEventListener("aulanomina-case-context", resetActivityDetailScroll);
 
     return () => {
       observer.disconnect();
+      window.removeEventListener("aulanomina-case-context", resetActivityDetailScroll);
       document.querySelector(".activities-launcher-slot")?.remove();
     };
   }, []);
