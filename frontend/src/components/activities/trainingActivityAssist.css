@@ -1,0 +1,221 @@
+.training-activity-assist {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 2px;
+  padding-top: 2px;
+}
+
+.training-activity-assist__heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 2px 0 4px;
+}
+
+.training-activity-assist__heading > div {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+}
+
+.training-activity-assist__heading strong {
+  color: #28344a;
+  font-size: 13px;
+}
+
+.training-activity-assist__heading span {
+  color: #7a8495;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.training-activity-assist__revealed {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.training-activity-assist__revealed article {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  gap: 9px;
+  padding: 11px 12px;
+  border: 1px solid #d8dee7;
+  border-radius: 9px;
+  color: #344158;
+  background: #f8fafc;
+}
+
+.training-activity-assist__revealed article.is-procedure {
+  border-color: #bfc9d7;
+  background: #f1f5f9;
+}
+
+.training-activity-assist__revealed article svg {
+  margin-top: 1px;
+}
+
+.training-activity-assist__revealed article strong {
+  display: block;
+  margin-bottom: 3px;
+  font-size: 12px;
+}
+
+.training-activity-assist__revealed article p {
+  margin: 0;
+  color: #536075;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.training-activity-assist__help-button {
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 11px;
+  border: 1px solid #cfd6e0;
+  border-radius: 9px;
+  color: #303d53;
+  background: #ffffff;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.training-activity-assist__help-button span {
+  flex: 1;
+  text-align: left;
+}
+
+.training-activity-assist__help-button:disabled {
+  color: #7c8696;
+  background: #f5f7fa;
+  cursor: default;
+}
+
+.training-activity-assist__evaluation-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 11px 12px;
+  border: 1px solid #d7dde6;
+  border-radius: 9px;
+  color: #526075;
+  background: #f7f9fc;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.training-activity-assist__evaluation-note svg {
+  flex: 0 0 auto;
+  margin-top: 1px;
+}
+
+.training-activity-assist__attempts {
+  overflow: hidden;
+  border: 1px solid #d8dee7;
+  border-radius: 9px;
+  background: #ffffff;
+}
+
+.training-activity-assist__attempts summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  color: #3f4b60;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  list-style: none;
+}
+
+.training-activity-assist__attempts summary::-webkit-details-marker {
+  display: none;
+}
+
+.training-activity-assist__attempts summary > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.training-activity-assist__attempts summary > strong {
+  min-width: 24px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  color: #ffffff;
+  background: #59677f;
+  font-size: 10px;
+  text-align: center;
+}
+
+.training-activity-assist__attempt-list {
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid #e3e7ed;
+}
+
+.training-activity-assist__attempt-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 4px 12px;
+  padding: 10px 12px;
+  border-bottom: 1px solid #edf0f4;
+}
+
+.training-activity-assist__attempt-row:last-child {
+  border-bottom: 0;
+}
+
+.training-activity-assist__attempt-row > span,
+.training-activity-assist__attempt-row > strong {
+  color: #3d495f;
+  font-size: 12px;
+}
+
+.training-activity-assist__attempt-row > strong {
+  text-align: right;
+}
+
+.training-activity-assist__attempt-row > small {
+  grid-column: 1 / -1;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: #788294;
+  font-size: 10px;
+}
+
+.training-activity-assist__attempt-list > p {
+  margin: 0;
+  padding: 11px 12px;
+  color: #727d90;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.training-activity-assist__error {
+  padding: 9px 10px;
+  border: 1px solid #efc1c1;
+  border-radius: 8px;
+  color: #8b2f2f;
+  background: #fff6f6;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.training-activity-assist .is-spinning {
+  animation: training-assist-spin 0.8s linear infinite;
+}
+
+@keyframes training-assist-spin {
+  to { transform: rotate(360deg); }
+}
