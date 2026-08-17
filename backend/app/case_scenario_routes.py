@@ -7,6 +7,8 @@ from app.schemas.case_scenario import (
     CaseOperationEventResponse,
     CaseScenarioResponse,
     CaseStepValidationResponse,
+    CaseTaskAttemptResponse,
+    CaseTaskHintResponse,
     CaseTaskProgressUpdate,
 )
 from app.schemas.teacher_case_dashboard import (
@@ -18,7 +20,9 @@ from app.services.case_scenario_service import (
     CaseScenarioError,
     build_assignment_scenario,
     ensure_assignment_progress,
+    get_assignment_attempts,
     reset_assignment_progress,
+    reveal_next_task_hint,
     start_assignment,
     update_assignment_step,
 )
@@ -138,6 +142,18 @@ def read_assignment_scenario(assignment_id: int, db: Session = Depends(get_db)):
         _translate_error(error)
 
 
+@router.get("/{assignment_id}/attempts", response_model=list[CaseTaskAttemptResponse])
+def read_assignment_attempts(
+    assignment_id: int,
+    task_id: int | None = Query(default=None),
+    db: Session = Depends(get_db),
+):
+    try:
+        return get_assignment_attempts(db, assignment_id, task_id=task_id)
+    except CaseScenarioError as error:
+        _translate_error(error)
+
+
 @router.post("/{assignment_id}/start", response_model=CaseScenarioResponse)
 def start_assignment_scenario(assignment_id: int, db: Session = Depends(get_db)):
     try:
@@ -155,6 +171,18 @@ def patch_assignment_step(
 ):
     try:
         return update_assignment_step(db, assignment_id, task_id, payload)
+    except CaseScenarioError as error:
+        _translate_error(error)
+
+
+@router.post("/{assignment_id}/steps/{task_id}/hint", response_model=CaseTaskHintResponse)
+def reveal_assignment_step_hint(
+    assignment_id: int,
+    task_id: int,
+    db: Session = Depends(get_db),
+):
+    try:
+        return reveal_next_task_hint(db, assignment_id, task_id)
     except CaseScenarioError as error:
         _translate_error(error)
 
