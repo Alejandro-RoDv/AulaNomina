@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 
 import ActivitiesCenter from "./ActivitiesCenter";
 import TrainingOnboarding from "./TrainingOnboarding";
+import TrainingProgress from "./TrainingProgress";
 
 function createLauncherSlot() {
   const siltraLauncher = document.querySelector(".siltra-global-launcher");
@@ -16,6 +17,7 @@ function createLauncherSlot() {
   slot.className = "activities-launcher-slot";
   slot.style.display = "inline-flex";
   slot.style.alignItems = "center";
+  slot.style.gap = "8px";
 
   const mailSlot = parent.querySelector(".mail-launcher-slot");
   parent.insertBefore(slot, mailSlot || siltraLauncher);
@@ -51,7 +53,13 @@ export default function ActivitiesLauncherBridge() {
   return (
     <>
       <TrainingOnboarding />
-      {target ? createPortal(<ActivitiesCenter />, target) : null}
+      {target ? createPortal(
+        <>
+          <ActivitiesCenter />
+          <TrainingProgress />
+        </>,
+        target
+      ) : null}
     </>
   );
 }
