@@ -131,6 +131,59 @@ def _case_context(db: Session, code: str):
     return case_study, assignment, first_task
 
 
+def _thread_rank(thread: EmailThread) -> tuple[int, int, int, int]:
+    has_student_content = any(
+        message.direction == "outgoing" and message.message_type in {"reply", "draft", "initial"}
+        for message in thread.messages or []
+    )
+    return (
+        0 if has_student_content else 1,
+        0 if thread.related_entity_type != "training_duplicate" else 1,
+        0 if thread.folder == "inbox" else 1,
+        thread.id,
+    )
+
+
+def _integrated_thread_candidates(
+    db: Session,
+    mailbox: Mailbox,
+    references: list[str],
+    subject: str,
+) -> list[EmailThread]:
+    """Localiza tanto el hilo actual como copias históricas de migraciones previas."""
+    by_id: dict[int, EmailThread] = {}
+    for thread in (
+        db.query(EmailThread)
+        .filter(EmailThread.mailbox_id == mailbox.id, EmailThread.case_reference.in_(references))
+        .order_by(EmailThread.id.asc())
+        .all()
+    ):
+        by_id[thread.id] = thread
+    for thread in (
+        db.query(EmailThread)
+        .filter(EmailThread.mailbox_id == mailbox.id, EmailThread.subject == subject)
+        .order_by(EmailThread.id.asc())
+        .all()
+    ):
+        by_id[thread.id] = thread
+    return sorted(by_id.values(), key=_thread_rank)
+
+
+def _suppress_integrated_duplicates(candidates: list[EmailThread]) -> EmailThread | None:
+    if not candidates:
+        return None
+    keep = candidates[0]
+    for duplicate in candidates[1:]:
+        duplicate.folder = "training_locked"
+        duplicate.is_read = True
+        duplicate.status = "resolved"
+        duplicate.related_entity_type = "training_duplicate"
+        duplicate.case_study_id = None
+        duplicate.case_assignment_id = None
+        duplicate.case_task_id = None
+    return keep
+
+
 def _upsert_thread(db: Session, mailbox: Mailbox, code: str) -> EmailThread | None:
     definition = MAIL_CASES[code]
     case_study, assignment, first_task = _case_context(db, code)
@@ -141,12 +194,8 @@ def _upsert_thread(db: Session, mailbox: Mailbox, code: str) -> EmailThread | No
     references = [scenario_code]
     if definition.get("legacy_reference"):
         references.append(definition["legacy_reference"])
-    thread = (
-        db.query(EmailThread)
-        .filter(EmailThread.mailbox_id == mailbox.id, EmailThread.case_reference.in_(references))
-        .order_by(EmailThread.id.asc())
-        .first()
-    )
+    candidates = _integrated_thread_candidates(db, mailbox, references, definition["subject"])
+    thread = _suppress_integrated_duplicates(candidates)
     employee = _employee_for_case(db, code)
     values = {
         "company_id": employee.company_id if employee else case_study.company_id,
