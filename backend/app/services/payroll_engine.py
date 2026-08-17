@@ -26,6 +26,7 @@ STANDARD_MONTH_DAYS = Decimal("30")
 
 IT_INCIDENT_TYPES = {"IT", "RECAIDA", "COMMON_SICK_LEAVE", "WORK_ACCIDENT"}
 WORK_ACCIDENT_TYPES = {"WORK_ACCIDENT"}
+WORK_ACCIDENT_PROCESS_TYPES = {"work_accident", "occupational_disease"}
 
 
 class UnsupportedPayrollPeriodError(ValueError):
@@ -78,12 +79,15 @@ def get_period_incidents(db: Session, contract: Contract, period_start: date, pe
 def build_empty_day_result() -> dict:
     return {
         "period_days": 0,
+        "active_days": 0,
+        "inactive_contract_days": 0,
         "worked_days": 0,
         "incident_days": 0,
         "contribution_days": 0,
         "non_contribution_days": 0,
         "payroll_affecting_incident_days": 0,
         "has_payroll_affecting_incidents": False,
+        "active_day_ratio": Decimal("0.0000"),
         "contribution_day_ratio": Decimal("0.0000"),
         "worked_day_ratio": Decimal("0.0000"),
         "incident_breakdown": [],
@@ -95,10 +99,11 @@ def calculate_it_days(day_result: dict) -> tuple[int, int]:
     work_accident_days = 0
     for item in day_result.get("incident_breakdown", []):
         incident_type = item.get("incident_type")
+        process_type = str(item.get("process_type") or "").strip().lower()
         days = int(item.get("days") or 0)
         if incident_type in IT_INCIDENT_TYPES:
             it_days += days
-        if incident_type in WORK_ACCIDENT_TYPES:
+        if incident_type in WORK_ACCIDENT_TYPES or process_type in WORK_ACCIDENT_PROCESS_TYPES:
             work_accident_days += days
     return min(30, it_days), min(30, work_accident_days)
 
@@ -114,7 +119,8 @@ def calculate_simulated_earning_lines(
     daily_base_salary = money(base_salary / STANDARD_MONTH_DAYS) if STANDARD_MONTH_DAYS else Decimal("0.00")
     it_days, work_accident_days = calculate_it_days(day_result)
     non_contribution_days = int(day_result.get("non_contribution_days") or 0)
-    salary_reduced_days = min(30, it_days + non_contribution_days)
+    inactive_contract_days = int(day_result.get("inactive_contract_days") or 0)
+    salary_reduced_days = min(30, it_days + non_contribution_days + inactive_contract_days)
 
     normal_salary_reduction = money(daily_base_salary * Decimal(salary_reduced_days))
     worked_base_salary = money(max(Decimal("0.00"), base_salary - normal_salary_reduction))
@@ -143,6 +149,7 @@ def calculate_simulated_earning_lines(
         "temporary_disability_benefit": temporary_disability_benefit,
         "company_disability_complement": company_disability_complement,
         "it_days": it_days,
+        "work_accident_days": work_accident_days,
         "gross_salary": gross_salary,
     }
 
@@ -153,6 +160,7 @@ def build_empty_earning_lines(gross_salary: Decimal) -> dict:
         "temporary_disability_benefit": Decimal("0.00"),
         "company_disability_complement": Decimal("0.00"),
         "it_days": 0,
+        "work_accident_days": 0,
     }
 
 
@@ -270,7 +278,13 @@ def calculate_monthly_period_result(
         raise UnsupportedPayrollPeriodError("Periodo mensual no válido")
 
     incidents = get_period_incidents(db, contract, period_start, period_end)
-    day_result = calculate_payroll_days(incidents=incidents, period_start=period_start, period_end=period_end)
+    day_result = calculate_payroll_days(
+        incidents=incidents,
+        period_start=period_start,
+        period_end=period_end,
+        contract_start_date=contract.start_date,
+        contract_end_date=contract.end_date,
+    )
 
     base_salary = calculate_contract_base_salary(contract, period_month)
     seniority_result = calculate_monthly_seniority(

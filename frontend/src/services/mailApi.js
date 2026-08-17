@@ -111,6 +111,15 @@ export async function fetchMailboxThreads(mailboxId, filters = {}) {
   return (data || []).map(mapThreadToWorkspaceMessage);
 }
 
+export async function fetchMailThread(threadId) {
+  const data = await apiRequest(
+    `/mail/threads/${threadId}`,
+    {},
+    "No se ha podido abrir el correo relacionado"
+  );
+  return mapThreadToWorkspaceMessage(data);
+}
+
 export async function createMailThread(mailboxId, payload) {
   const data = await apiRequest(
     `/mail/mailboxes/${mailboxId}/threads`,
@@ -163,6 +172,22 @@ export async function fetchMailAttachmentPreview(attachmentId) {
     `/mail/attachments/${attachmentId}/preview`,
     {},
     "No se ha podido abrir el adjunto"
+  );
+}
+
+export async function fetchMailAttachmentCandidateDocuments(attachmentId) {
+  return apiRequest(
+    `/mail/attachments/${attachmentId}/candidate-documents`,
+    {},
+    "No se han podido cargar los documentos candidatos"
+  );
+}
+
+export async function linkMailAttachmentToDocument(attachmentId, documentId) {
+  return apiRequest(
+    `/mail/attachments/${attachmentId}/link-document/${documentId}`,
+    { method: "POST" },
+    "No se ha podido vincular el adjunto al documento ERP"
   );
 }
 

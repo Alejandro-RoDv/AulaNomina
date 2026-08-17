@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 import mailLogo from "../../assets/mail-access.svg";
-import { fetchDemoMailbox, fetchMailboxStats } from "../../services/mailApi";
+import { fetchDemoMailbox, fetchMailboxThreads } from "../../services/mailApi";
 import "./mailLauncher.css";
 
 function buildMailUrl() {
@@ -10,14 +10,20 @@ function buildMailUrl() {
   return url.toString();
 }
 
+function isProfessionalUnread(thread) {
+  if (!thread?.unread) return false;
+  const latest = [...(thread.messages || [])].reverse()[0];
+  return latest?.sender_address !== "tutor@aulanomina.local" && latest?.message_type !== "automatic";
+}
+
 export default function MailGlobalLauncher() {
   const [unread, setUnread] = useState(null);
 
   const loadUnread = useCallback(async () => {
     try {
       const mailbox = await fetchDemoMailbox();
-      const stats = await fetchMailboxStats(mailbox.id);
-      setUnread(stats.unread || 0);
+      const threads = await fetchMailboxThreads(mailbox.id, { folder: "inbox" });
+      setUnread((threads || []).filter(isProfessionalUnread).length);
     } catch {
       setUnread(null);
     }
@@ -40,8 +46,8 @@ export default function MailGlobalLauncher() {
       type="button"
       className="mail-global-launcher"
       onClick={openMail}
-      title="Abrir correo simulado en una pestaña nueva"
-      aria-label="Abrir correo simulado en una pestaña nueva"
+      title="Abrir correo en una pestaña nueva"
+      aria-label="Abrir correo en una pestaña nueva"
     >
       <img src={mailLogo} alt="" className="mail-global-launcher__logo" />
       <span>Correo</span>

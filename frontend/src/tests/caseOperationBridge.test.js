@@ -48,6 +48,20 @@ test("clasifica únicamente operaciones mutables relevantes", () => {
     method: "PATCH",
     path: "/incidents/42",
   });
+  assert.deepEqual(classifyCaseOperation("/payroll-generation", "POST"), {
+    moduleCode: "payrolls",
+    actionCode: "recalculate_payroll",
+    label: "Nómina generada",
+    method: "POST",
+    path: "/payroll-generation",
+  });
+  assert.deepEqual(classifyCaseOperation("/payrolls/prepare-monthly", "POST"), {
+    moduleCode: "payrolls",
+    actionCode: "recalculate_payroll",
+    label: "Nóminas del periodo preparadas",
+    method: "POST",
+    path: "/payrolls/prepare-monthly",
+  });
   assert.equal(classifyCaseOperation("/employees", "GET"), null);
   assert.equal(classifyCaseOperation("/case-assignments/4/events", "POST"), null);
 });
@@ -114,6 +128,47 @@ test("emite el evento, solicita validación y publica el feedback", async () => 
   assert.equal(result.feedbackMessageId, 91);
   assert.equal(result.feedbackNotice, "Paso completado");
   assert.equal(JSON.parse(storage.getItem(LAST_CASE_FEEDBACK_KEY)).assignmentId, 12);
+});
+
+
+test("A14 registra el concepto pero difiere la validación económica al botón de comprobación", async () => {
+  const storage = new MemoryStorage();
+  storage.setItem(ACTIVE_CASE_CONTEXT_KEY, JSON.stringify({
+    assignmentId: 30,
+    taskId: 114,
+    actionCode: "update_payroll_concept",
+    moduleCode: "payrolls",
+    scenarioCode: "TRAIN-2026-PAYROLL-001",
+    trainingCode: "A14",
+    employeeName: "Laura Martín Ruiz",
+  }));
+
+  let requestPayload = null;
+  const result = await emitCaseOperationEvent({
+    apiBaseUrl: "http://127.0.0.1:8000",
+    path: "/contracts/9/payroll-concepts",
+    method: "POST",
+    operationStatus: "success",
+    responseData: { id: 301 },
+    storage,
+    fetchImpl: async (_url, options) => {
+      requestPayload = JSON.parse(options.body);
+      return {
+        ok: true,
+        json: async () => ({
+          feedback_message_id: null,
+          professional_message_id: null,
+          validation: null,
+          scenario: { assignment_id: 30 },
+        }),
+      };
+    },
+  });
+
+  assert.equal(requestPayload.action_code, "update_payroll_concept");
+  assert.equal(requestPayload.auto_validate, false);
+  assert.equal(requestPayload.metadata.resource_id, 301);
+  assert.equal(result.validation, null);
 });
 
 

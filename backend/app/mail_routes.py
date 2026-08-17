@@ -5,6 +5,8 @@ from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
 from app.db import SessionLocal
+from app.models.document import Document
+from app.schemas.document import DocumentResponse
 from app.schemas.mail import (
     EmailAttachmentPreviewResponse,
     EmailMessageCreate,
@@ -17,20 +19,26 @@ from app.schemas.mail import (
 from app.services.case_scenario_service import reset_assignment_progress
 from app.services.integrated_demo_case_service import ensure_integrated_demo_case
 from app.services.integrated_demo_process_seed import ensure_integrated_fie_communication
+from app.services.mail_attachment_service import attachment_download, attachment_preview
 from app.services.mail_service import (
-    attachment_download,
-    attachment_preview,
     create_thread,
-    create_thread_message,
     get_attachment,
     get_demo_mailbox,
     get_mailbox,
     get_thread,
     list_threads,
-    mailbox_stats,
     reset_demo_mailbox,
+)
+from app.services.mail_thread_workflow_service import (
+    capture_mailbox_view_state,
+    create_thread_message,
+    mailbox_stats,
+    restore_mailbox_view_state,
     update_thread,
 )
+from app.training.activity_mail_2026 import ensure_activity_mail_2026
+from app.training.document_runtime_bootstrap_2026 import bootstrap_document_training_2026
+from app.training.integrated_runtime_mail_2026 import ensure_integrated_training_mail_2026
 
 
 router = APIRouter(prefix="/mail", tags=["mail"])
@@ -46,10 +54,27 @@ def get_db():
 
 def _prepare_demo_mailbox(db: Session, *, reset: bool = False):
     mailbox = reset_demo_mailbox(db) if reset else get_demo_mailbox(db)
+    if reset:
+        bootstrap_document_training_2026(db)
+        mailbox = get_demo_mailbox(db, seed_if_empty=False)
+
+    # Los upserts demo actualizan contenido y relaciones, pero una recarga normal
+    # no debe reabrir correos leídos, devolver archivados al inbox ni reordenar la
+    # bandeja. En un reset explícito sí se parte del estado docente inicial.
+    view_state = {} if reset else capture_mailbox_view_state(db, mailbox.id)
+
     ensure_integrated_fie_communication(db, reset=reset)
     integrated_thread = ensure_integrated_demo_case(db, mailbox)
     if reset and integrated_thread.case_assignment_id:
         reset_assignment_progress(db, integrated_thread.case_assignment_id)
+    ensure_integrated_training_mail_2026(db, mailbox)
+
+    if view_state:
+        restore_mailbox_view_state(db, view_state)
+
+    # Se ejecuta después de restaurar el estado para que la limpieza de duplicados
+    # formativos tenga prioridad sobre estados heredados de migraciones antiguas.
+    ensure_activity_mail_2026(db, mailbox)
     return mailbox
 
 
@@ -124,6 +149,47 @@ def read_attachment_preview(attachment_id: int, db: Session = Depends(get_db)):
     attachment = get_attachment(db, attachment_id)
     if not attachment:
         raise HTTPException(status_code=404, detail="Adjunto no encontrado")
+    return attachment_preview(attachment)
+
+
+@router.get("/attachments/{attachment_id}/candidate-documents", response_model=list[DocumentResponse])
+def read_attachment_candidate_documents(attachment_id: int, db: Session = Depends(get_db)):
+    attachment = get_attachment(db, attachment_id)
+    if not attachment:
+        raise HTTPException(status_code=404, detail="Adjunto no encontrado")
+    thread = attachment.message.thread if attachment.message else None
+    if not thread or not thread.employee_id:
+        return []
+    return (
+        db.query(Document)
+        .filter(Document.employee_id == thread.employee_id)
+        .order_by(Document.document_type.asc(), Document.id.asc())
+        .all()
+    )
+
+
+@router.post("/attachments/{attachment_id}/link-document/{document_id}", response_model=EmailAttachmentPreviewResponse)
+def link_attachment_to_document(
+    attachment_id: int,
+    document_id: int,
+    db: Session = Depends(get_db),
+):
+    attachment = get_attachment(db, attachment_id)
+    if not attachment:
+        raise HTTPException(status_code=404, detail="Adjunto no encontrado")
+    document = db.query(Document).filter(Document.id == document_id).first()
+    if not document:
+        raise HTTPException(status_code=404, detail="Documento ERP no encontrado")
+
+    thread = attachment.message.thread if attachment.message else None
+    if thread and thread.employee_id and document.employee_id != thread.employee_id:
+        raise HTTPException(
+            status_code=400,
+            detail="El documento seleccionado no pertenece al trabajador relacionado con este correo",
+        )
+    attachment.linked_document_id = document.id
+    db.commit()
+    db.refresh(attachment)
     return attachment_preview(attachment)
 
 

@@ -46,22 +46,65 @@ def normalize_period_days(period_start: date, period_end: date) -> int:
     return STANDARD_MONTH_DAYS
 
 
+def calculate_contract_active_days(
+    period_start: date,
+    period_end: date,
+    contract_start_date: date | None = None,
+    contract_end_date: date | None = None,
+) -> int:
+    """Return active payroll days on the simulated 30-day monthly convention.
+
+    A contract covering the complete calendar month always contributes 30 days,
+    including February and 31-day months. When the contract starts or ends inside
+    the period, the boundary day is projected onto the 1..30 payroll scale.
+    """
+
+    if period_start > period_end:
+        return 0
+    if contract_end_date and contract_end_date < period_start:
+        return 0
+    if contract_start_date and contract_start_date > period_end:
+        return 0
+
+    start_day = 1
+    if contract_start_date and contract_start_date > period_start:
+        start_day = min(STANDARD_MONTH_DAYS, contract_start_date.day)
+
+    end_day = STANDARD_MONTH_DAYS
+    if contract_end_date and contract_end_date < period_end:
+        end_day = min(STANDARD_MONTH_DAYS, contract_end_date.day)
+
+    if end_day < start_day:
+        return 0
+    return clamp_day_count(end_day - start_day + 1)
+
+
 def calculate_payroll_days(
     incidents: Iterable[Any],
     period_start: date,
     period_end: date,
+    contract_start_date: date | None = None,
+    contract_end_date: date | None = None,
 ) -> dict:
     """Calculate simulated payroll day data for a monthly payroll period.
 
     MVP interpretation:
     - Monthly payroll periods use 30 standard days.
+    - A start/end date inside the month limits active, worked and contribution days.
     - IT and relapse reduce worked days but not contribution days.
     - Vacations and paid leave are informative for payroll contribution.
     - Unpaid absences reduce salary-relevant and contribution days.
-    - Overlapping incidents are capped so totals never exceed 30 days.
+    - Overlapping incidents are capped so totals never exceed the active contract days.
     """
 
     period_days = normalize_period_days(period_start, period_end)
+    active_days = calculate_contract_active_days(
+        period_start,
+        period_end,
+        contract_start_date=contract_start_date,
+        contract_end_date=contract_end_date,
+    )
+    inactive_contract_days = clamp_day_count(period_days - active_days)
     incident_breakdown = []
 
     total_incident_days = 0
@@ -69,55 +112,71 @@ def calculate_payroll_days(
     non_contribution_days = 0
     payroll_affecting_incident_days = 0
 
-    for incident in incidents:
-        days = calculate_overlap_days(
-            start_date=incident.start_date,
-            end_date=incident.end_date,
-            period_start=period_start,
-            period_end=period_end,
-        )
-        days = clamp_day_count(days)
-        if days == 0:
-            continue
+    effective_period_start = period_start
+    effective_period_end = period_end
+    if contract_start_date:
+        effective_period_start = max(effective_period_start, contract_start_date)
+    if contract_end_date:
+        effective_period_end = min(effective_period_end, contract_end_date)
 
-        rule = resolve_incident_rule(incident.incident_type)
+    if active_days > 0 and effective_period_start <= effective_period_end:
+        for incident in incidents:
+            days = calculate_overlap_days(
+                start_date=incident.start_date,
+                end_date=incident.end_date,
+                period_start=effective_period_start,
+                period_end=effective_period_end,
+            )
+            days = min(active_days, clamp_day_count(days))
+            if days == 0:
+                continue
 
-        total_incident_days += days
-        if rule.reduces_worked_days:
-            worked_day_reductions += days
-        if rule.reduces_contribution_days:
-            non_contribution_days += days
-        if rule.affects_payroll:
-            payroll_affecting_incident_days += days
+            rule = resolve_incident_rule(incident.incident_type)
+            details = getattr(incident, "details", None) or {}
 
-        incident_breakdown.append(
-            {
-                "incident_id": getattr(incident, "id", None),
-                "incident_type": incident.incident_type,
-                "label": rule.display_label,
-                "days": days,
-                "affects_payroll": rule.affects_payroll,
-                "reduces_worked_days": rule.reduces_worked_days,
-                "reduces_contribution_days": rule.reduces_contribution_days,
-            }
-        )
+            total_incident_days += days
+            if rule.reduces_worked_days:
+                worked_day_reductions += days
+            if rule.reduces_contribution_days:
+                non_contribution_days += days
+            if rule.affects_payroll:
+                payroll_affecting_incident_days += days
 
-    total_incident_days = clamp_day_count(total_incident_days)
-    worked_day_reductions = clamp_day_count(worked_day_reductions)
-    non_contribution_days = clamp_day_count(non_contribution_days)
-    payroll_affecting_incident_days = clamp_day_count(payroll_affecting_incident_days)
+            incident_breakdown.append(
+                {
+                    "incident_id": getattr(incident, "id", None),
+                    "incident_type": incident.incident_type,
+                    "process_type": details.get("process_type"),
+                    "benefit_type": details.get("benefit_type"),
+                    "label": rule.display_label,
+                    "days": days,
+                    "affects_payroll": rule.affects_payroll,
+                    "reduces_worked_days": rule.reduces_worked_days,
+                    "reduces_contribution_days": rule.reduces_contribution_days,
+                }
+            )
 
-    worked_days = clamp_day_count(period_days - worked_day_reductions)
-    contribution_days = clamp_day_count(period_days - non_contribution_days)
+    total_incident_days = min(active_days, clamp_day_count(total_incident_days))
+    worked_day_reductions = min(active_days, clamp_day_count(worked_day_reductions))
+    non_contribution_days = min(active_days, clamp_day_count(non_contribution_days))
+    payroll_affecting_incident_days = min(active_days, clamp_day_count(payroll_affecting_incident_days))
+
+    worked_days = max(0, active_days - worked_day_reductions)
+    contribution_days = max(0, active_days - non_contribution_days)
 
     return {
         "period_days": period_days,
+        "active_days": active_days,
+        "inactive_contract_days": inactive_contract_days,
         "worked_days": worked_days,
         "incident_days": total_incident_days,
         "contribution_days": contribution_days,
         "non_contribution_days": non_contribution_days,
         "payroll_affecting_incident_days": payroll_affecting_incident_days,
         "has_payroll_affecting_incidents": payroll_affecting_incident_days > 0,
+        "active_day_ratio": Decimal(active_days) / Decimal(STANDARD_MONTH_DAYS)
+        if STANDARD_MONTH_DAYS
+        else Decimal("0"),
         "contribution_day_ratio": Decimal(contribution_days) / Decimal(STANDARD_MONTH_DAYS)
         if STANDARD_MONTH_DAYS
         else Decimal("0"),

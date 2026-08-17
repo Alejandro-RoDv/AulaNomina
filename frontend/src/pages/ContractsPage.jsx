@@ -8,6 +8,12 @@ import "../components/contracts/contractSplit42Refinements.css";
 import "../components/contracts/contractEditSplit42.css";
 import "../components/contracts/contractHistoryTableCompact.css";
 
+const CREATION_ACTION_TYPES = {
+  review_temporary_contract: "temporal",
+  review_alternance_contract: "formacion",
+  review_professional_practice_contract: "formacion",
+};
+
 function getStoredMode() {
   return window.sessionStorage.getItem("aulanomina:contractsMode") || "history";
 }
@@ -51,6 +57,7 @@ function readInitialCaseContext() {
       actionCode: params.get("caseAction"),
       assignmentId: params.get("caseAssignmentId"),
       taskId: params.get("caseTaskId"),
+      scenarioCode: params.get("scenario"),
       employeeId: params.get("employeeId"),
       employeeName: params.get("employee"),
       companyId: params.get("companyId"),
@@ -62,6 +69,18 @@ function readInitialCaseContext() {
   } catch {
     return null;
   }
+}
+
+function isCreationAction(actionCode) {
+  return actionCode === "create_contract" || Boolean(CREATION_ACTION_TYPES[actionCode]);
+}
+
+function contractTypeForContext(context) {
+  if (CREATION_ACTION_TYPES[context?.actionCode]) return CREATION_ACTION_TYPES[context.actionCode];
+  if (context?.actionCode === "create_contract") {
+    return context?.scenarioCode === "ALT-2026-021" ? "sustitucion" : "indefinido";
+  }
+  return "";
 }
 
 export default function ContractsPage({
@@ -83,6 +102,7 @@ export default function ContractsPage({
 }) {
   const [contractMode, setContractMode] = useState(getStoredMode);
   const appliedContextRef = useRef("");
+  const activeContextRef = useRef(readInitialCaseContext());
   const currentMode = mode || contractMode;
   const isHistory = currentMode === "history";
   const isPrint = currentMode === "print";
@@ -103,12 +123,22 @@ export default function ContractsPage({
 
   useEffect(() => {
     const applyContext = (context) => {
-      if (!context || context.page !== "contracts" || context.actionCode !== "create_contract") return;
+      if (!context || context.page !== "contracts") return;
+      activeContextRef.current = context;
+
+      if (!isCreationAction(context.actionCode)) {
+        window.sessionStorage.setItem("aulanomina:contractsMode", "history");
+        setContractMode("history");
+        window.dispatchEvent(new Event("aulanomina-contract-mode"));
+        return;
+      }
+
       const contextKey = [
         context.assignmentId || "",
         context.taskId || "",
         context.employeeId || context.employeeName || "",
         context.startDate || "",
+        context.actionCode || "",
       ].join(":");
       if (contextKey && appliedContextRef.current === contextKey) return;
 
@@ -120,6 +150,7 @@ export default function ContractsPage({
       const employeeId = employee?.id || context.employeeId || "";
       const companyId = employee?.company_id || context.companyId || "";
       const centerId = employee?.center_id || "";
+      const targetType = contractTypeForContext(context);
 
       window.sessionStorage.setItem("aulanomina:contractsMode", "new");
       setContractMode("new");
@@ -128,7 +159,7 @@ export default function ContractsPage({
       if (companyId) onContractChange({ target: { name: "company_id", value: String(companyId) } });
       if (centerId) onContractChange({ target: { name: "center_id", value: String(centerId) } });
       if (context.startDate) onContractChange({ target: { name: "start_date", value: context.startDate } });
-      onContractChange({ target: { name: "contract_type", value: "sustitucion" } });
+      if (targetType) onContractChange({ target: { name: "contract_type", value: targetType } });
       onContractChange({ target: { name: "status", value: "active" } });
       appliedContextRef.current = contextKey;
     };
@@ -138,6 +169,13 @@ export default function ContractsPage({
     window.addEventListener("aulanomina-case-context", handleContext);
     return () => window.removeEventListener("aulanomina-case-context", handleContext);
   }, [employees, onContractChange]);
+
+  useEffect(() => {
+    if (!contractSuccess || !isCreationAction(activeContextRef.current?.actionCode)) return;
+    window.sessionStorage.setItem("aulanomina:contractsMode", "history");
+    setContractMode("history");
+    window.dispatchEvent(new Event("aulanomina-contract-mode"));
+  }, [contractSuccess]);
 
   return (
     <div className="contract-page-split42">

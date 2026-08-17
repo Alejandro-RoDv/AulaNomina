@@ -16,6 +16,7 @@ from app.affiliation_remittance_routes import router as affiliation_remittance_r
 from app.case_scenario_routes import router as case_scenario_router
 from app.communication_file_routes import router as communication_file_router
 from app.communication_submission_routes import router as communication_submission_router
+from app.contract_lifecycle_routes import router as contract_lifecycle_router
 from app.cra_routes import router as cra_router
 from app.environment_reset_routes import router as environment_reset_router
 from app.fie_routes import router as fie_router
@@ -31,6 +32,7 @@ router.include_router(affiliation_remittance_router)
 router.include_router(case_scenario_router)
 router.include_router(communication_file_router)
 router.include_router(communication_submission_router)
+router.include_router(contract_lifecycle_router)
 router.include_router(cra_router)
 router.include_router(environment_reset_router)
 router.include_router(fie_router)

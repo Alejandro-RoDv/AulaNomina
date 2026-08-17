@@ -55,6 +55,7 @@ jobs:
           src/pages/TeacherDashboardPage.jsx src/services/caseAssignmentApi.js
           src/utils/caseNavigation.js src/utils/caseOperationBridge.js
           src/tests/caseNavigation.test.js src/tests/caseOperationBridge.test.js
+          src/tests/caseOperationBridgeExplicitReview.test.js
           src/pages/AffiliationRemittancesPage.jsx src/App.jsx
           src/components/reports/ReportsRoute.jsx src/pages/Model111Page.jsx src/services/model111Service.js
           src/components/model190/Model190DeclarationsPanel.jsx
@@ -65,12 +66,30 @@ jobs:
           src/tests/model190View.test.js src/tests/model190Presentation.test.js
           src/tests/model190Documents.test.js src/tests/model190Demo.test.js
           src/affiliation-siltra-bridge.js src/main.jsx
+          src/components/terminations/EmploymentTerminationRoute.jsx src/services/employmentTerminationApi.js
           src/services/socialSecurityApi.js src/services/affiliationApi.js src/services/craApi.js src/services/fieApi.js
           src/utils/siltraSimulation.js src/tests/siltraSimulation.test.js
           --rule 'react-hooks/set-state-in-effect: off'
           --rule 'react-hooks/immutability: off'
+          --rule 'react-hooks/preserve-manual-memoization: off'
           --max-warnings=-1
           > lint-output.txt 2>&1
+      - name: Full frontend lint
+        id: full_lint
+        continue-on-error: true
+        run: >-
+          npx eslint .
+          --rule 'react-hooks/set-state-in-effect: off'
+          --rule 'react-hooks/immutability: off'
+          --rule 'react-hooks/preserve-manual-memoization: off'
+          --rule 'react-refresh/only-export-components: off'
+          --rule 'no-unused-vars: warn'
+          --max-warnings=-1
+          > full-lint-output.txt 2>&1
+      - name: Production dependency audit
+        id: production_audit
+        continue-on-error: true
+        run: npm audit --omit=dev --audit-level=high --json > production-audit.json
       - name: Frontend regression tests
         id: tests
         continue-on-error: true
@@ -85,6 +104,18 @@ jobs:
         with:
           name: frontend-lint-output
           path: frontend/lint-output.txt
+      - name: Upload full lint output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-full-lint-output
+          path: frontend/full-lint-output.txt
+      - name: Upload production audit
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-production-audit
+          path: frontend/production-audit.json
       - name: Upload build output
         if: always()
         uses: actions/upload-artifact@v4
@@ -92,5 +123,5 @@ jobs:
           name: frontend-build-output
           path: frontend/build-output.txt
       - name: Fail when checks fail
-        if: steps.lint.outcome == 'failure' || steps.tests.outcome == 'failure' || steps.build.outcome == 'failure'
+        if: steps.lint.outcome == 'failure' || steps.full_lint.outcome == 'failure' || steps.production_audit.outcome == 'failure' || steps.tests.outcome == 'failure' || steps.build.outcome == 'failure'
         run: exit 1

@@ -63,6 +63,120 @@ test("buildCaseModuleUrl filtra el histórico de nómina por trabajador y period
 });
 
 
+test("B01 abre las superficies ERP de empresa, convenio y expediente", () => {
+  const companyUrl = new URL(buildCaseModuleUrl({
+    actionCode: "review_company_structure",
+    moduleCode: "companies",
+    assignmentId: 101,
+    taskId: 401,
+    companyId: 7,
+  }, "http://localhost:5173/"));
+  assert.equal(companyUrl.searchParams.get("page"), "companies");
+  assert.equal(companyUrl.searchParams.get("companyId"), "7");
+  assert.equal(companyUrl.hash, "#company-detail/7/centers");
+  assert.equal(getCaseActionLabel("review_company_structure", "companies"), "Revisar empresa y centro");
+
+  const agreementUrl = new URL(buildCaseModuleUrl({
+    actionCode: "review_collective_agreement_assignment",
+    moduleCode: "contracts",
+    employeeName: "Elena Ruiz Mora",
+    companyId: 7,
+  }, "http://localhost:5173/"));
+  assert.equal(agreementUrl.searchParams.get("page"), "contracts");
+  assert.equal(agreementUrl.searchParams.get("employee"), "Elena Ruiz Mora");
+  assert.equal(getCaseActionLabel("review_collective_agreement_assignment", "contracts"), "Revisar contrato y convenio");
+
+  const employeeUrl = new URL(buildCaseModuleUrl({
+    actionCode: "review_employee_data_correction",
+    moduleCode: "employees",
+    employeeName: "Nuria Gómez Alba",
+    companyId: 7,
+  }, "http://localhost:5173/"));
+  assert.equal(employeeUrl.searchParams.get("page"), "employees-list");
+  assert.equal(employeeUrl.searchParams.get("employee"), "Nuria Gómez Alba");
+  assert.equal(employeeUrl.searchParams.get("companyId"), "7");
+});
+
+
+test("B02 dirige altas temporales, formativas y variaciones al módulo de contratos", () => {
+  const temporaryUrl = new URL(buildCaseModuleUrl({
+    actionCode: "review_temporary_contract",
+    moduleCode: "contracts",
+    assignmentId: 202,
+    taskId: 502,
+    scenarioCode: "TRAIN-2026-HIRE-A08",
+    employeeName: "Marta Soler Vidal",
+    companyId: 7,
+  }, "http://localhost:5173/"));
+  assert.equal(temporaryUrl.searchParams.get("page"), "contracts");
+  assert.equal(temporaryUrl.searchParams.get("caseAction"), "review_temporary_contract");
+  assert.equal(temporaryUrl.searchParams.get("scenario"), "TRAIN-2026-HIRE-A08");
+  assert.equal(temporaryUrl.searchParams.get("employee"), "Marta Soler Vidal");
+  assert.equal(getCaseActionLabel("review_temporary_contract", "contracts"), "Formalizar contrato temporal");
+
+  const alternance = resolveCaseTarget("review_alternance_contract", "contracts");
+  assert.equal(alternance.page, "contracts");
+  assert.equal(alternance.label, "Formalizar formación en alternancia");
+
+  const practice = resolveCaseTarget("review_professional_practice_contract", "contracts");
+  assert.equal(practice.page, "contracts");
+  assert.equal(practice.label, "Formalizar práctica profesional");
+
+  const workday = resolveCaseTarget("review_workday_variation", "contracts");
+  assert.equal(workday.page, "contracts");
+  assert.equal(workday.label, "Registrar variación de jornada");
+
+  const extension = resolveCaseTarget("review_contract_extension_decision", "contracts");
+  assert.equal(extension.page, "contracts");
+  assert.equal(extension.label, "Revisar y prorrogar contrato");
+});
+
+
+test("A44 abre el convenio y la tabla salarial que origina los atrasos", () => {
+  const url = new URL(buildCaseModuleUrl({
+    actionCode: "review_salary_table_revision",
+    moduleCode: "agreements",
+    assignmentId: 744,
+    taskId: 844,
+    scenarioCode: "TRAIN-2026-REG-A44",
+    companyId: 1,
+  }, "http://localhost:5173/"));
+
+  assert.equal(url.searchParams.get("page"), "collective-agreements");
+  assert.equal(url.searchParams.get("caseAction"), "review_salary_table_revision");
+  assert.equal(url.searchParams.get("scenario"), "TRAIN-2026-REG-A44");
+  assert.equal(getCaseActionLabel("review_salary_table_revision", "agreements"), "Revisar tabla salarial");
+
+  const fallback = resolveCaseTarget("accion_convenio_desconocida", "agreements");
+  assert.equal(fallback.page, "collective-agreements");
+});
+
+
+test("C06 abre Contratos conservando el contexto del expediente integral", () => {
+  const url = new URL(buildCaseModuleUrl({
+    actionCode: "review_integrated_c06_termination",
+    moduleCode: "terminations",
+    assignmentId: 91,
+    taskId: 301,
+    scenarioCode: "TRAIN-2026-INT-C06",
+    employeeName: "Lucía Prieto Solís",
+    companyId: 1,
+    startDate: "2026-12-31",
+  }, "http://127.0.0.1:5173/#mail"));
+
+  assert.equal(url.searchParams.get("page"), "contracts");
+  assert.equal(url.searchParams.get("caseAction"), "review_integrated_c06_termination");
+  assert.equal(url.searchParams.get("caseAssignmentId"), "91");
+  assert.equal(url.searchParams.get("caseTaskId"), "301");
+  assert.equal(url.searchParams.get("scenario"), "TRAIN-2026-INT-C06");
+  assert.equal(url.searchParams.get("employee"), "Lucía Prieto Solís");
+  assert.equal(url.searchParams.get("companyId"), "1");
+  assert.equal(url.searchParams.get("startDate"), "2026-12-31");
+  assert.equal(url.hash, "");
+  assert.equal(getCaseActionLabel("review_integrated_c06_termination", "terminations"), "Abrir relación contractual");
+});
+
+
 test("resolveCaseTarget usa el módulo cuando la acción no está catalogada", () => {
   const target = resolveCaseTarget("accion_desconocida", "contracts");
   assert.equal(target.page, "contracts");

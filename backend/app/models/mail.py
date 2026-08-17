@@ -48,7 +48,9 @@ class EmailThread(Base):
     expected_actions = Column(JSON, default=list, nullable=False)
     context_actions = Column(JSON, default=list, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False, index=True)
+    # Se actualiza explícitamente cuando entra/sale un mensaje. Cambios de estado
+    # (leído, carpeta, prioridad) no deben alterar el orden cronológico del buzón.
+    updated_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
 
     mailbox = relationship("Mailbox", back_populates="threads")
     employee = relationship("Employee")

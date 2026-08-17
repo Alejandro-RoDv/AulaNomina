@@ -13,17 +13,69 @@ from app.schemas.teacher_case_dashboard import (
     TeacherCaseDashboardResponse,
     TeacherCaseDetailResponse,
 )
+from app.services.training_course_projection_2026 import build_master_activity_course_2026
 from app.services.case_scenario_service import (
     CaseScenarioError,
     build_assignment_scenario,
+    ensure_assignment_progress,
     reset_assignment_progress,
     start_assignment,
     update_assignment_step,
 )
-from app.services.case_validation_service import (
-    record_assignment_event,
-    validate_assignment_step,
+from app.services.case_validation_service import record_assignment_event
+from app.services.training_affiliation_preparation_review_service import (
+    handles_training_affiliation_preparation_review,
+    validate_training_affiliation_preparation_review,
 )
+from app.services.training_core_contract_review_service import (
+    handles_training_core_contract_review,
+    validate_training_core_contract_review,
+)
+from app.services.training_document_review_service import (
+    handles_training_document_review,
+    validate_training_document_review,
+)
+from app.services.training_foundation_review_service import (
+    handles_training_foundation_review,
+    validate_training_foundation_review,
+)
+from app.services.training_hiring_review_service import (
+    handles_training_hiring_review,
+    validate_training_hiring_review,
+)
+from app.services.training_fiscal_review_service import (
+    handles_training_fiscal_review,
+    validate_training_fiscal_review,
+)
+from app.services.training_incident_review_service import (
+    handles_training_incident_review,
+    validate_training_incident_review,
+)
+from app.services.training_integrated_c02_review_service import (
+    handles_training_integrated_c02_review,
+    validate_training_integrated_c02_review,
+)
+from app.services.training_integrated_review_service import (
+    handles_training_integrated_review,
+    validate_training_integrated_review,
+)
+from app.services.training_payroll_structure_review_service import (
+    handles_training_payroll_structure_review,
+    validate_training_payroll_structure_review,
+)
+from app.services.training_regularization_chain_review_service import (
+    handles_training_regularization_review,
+    validate_training_regularization_review,
+)
+from app.services.training_social_security_review_service import (
+    handles_training_social_security_review,
+    validate_training_social_security_review,
+)
+from app.services.training_termination_review_service import (
+    handles_training_termination_review,
+    validate_training_termination_review,
+)
+from app.services.training_payroll_review_service import validate_training_aware_assignment_step
 from app.services.professional_response_service import create_professional_response
 from app.services.teacher_case_dashboard_service import (
     get_teacher_case_dashboard,
@@ -47,6 +99,12 @@ def _translate_error(error: CaseScenarioError):
         status_code=error.status_code,
         detail={"code": error.code, "message": error.message},
     ) from error
+
+
+@router.get("/course-activities")
+def read_course_activities(db: Session = Depends(get_db)):
+    """Return only master-syllabus activities projected onto executable runtime steps."""
+    return build_master_activity_course_2026(db)
 
 
 @router.get("/teacher-dashboard", response_model=TeacherCaseDashboardResponse)
@@ -111,7 +169,35 @@ def validate_assignment_step_endpoint(
     db: Session = Depends(get_db),
 ):
     try:
-        return validate_assignment_step(db, assignment_id, task_id)
+        assignment = ensure_assignment_progress(db, assignment_id)
+        task = next((item for item in assignment.case_study.tasks if item.id == task_id), None)
+        if task and handles_training_integrated_c02_review(assignment, task):
+            return validate_training_integrated_c02_review(db, assignment_id, task_id)
+        if task and handles_training_integrated_review(assignment, task):
+            return validate_training_integrated_review(db, assignment_id, task_id)
+        if task and handles_training_foundation_review(assignment, task):
+            return validate_training_foundation_review(db, assignment_id, task_id)
+        if task and handles_training_hiring_review(assignment, task):
+            return validate_training_hiring_review(db, assignment_id, task_id)
+        if task and handles_training_core_contract_review(assignment, task):
+            return validate_training_core_contract_review(db, assignment_id, task_id)
+        if task and handles_training_affiliation_preparation_review(assignment, task):
+            return validate_training_affiliation_preparation_review(db, assignment_id, task_id)
+        if task and handles_training_payroll_structure_review(assignment, task):
+            return validate_training_payroll_structure_review(db, assignment_id, task_id)
+        if task and handles_training_document_review(assignment, task):
+            return validate_training_document_review(db, assignment_id, task_id)
+        if task and handles_training_termination_review(assignment, task):
+            return validate_training_termination_review(db, assignment_id, task_id)
+        if task and handles_training_regularization_review(assignment, task):
+            return validate_training_regularization_review(db, assignment_id, task_id)
+        if task and handles_training_fiscal_review(assignment, task):
+            return validate_training_fiscal_review(db, assignment_id, task_id)
+        if task and handles_training_social_security_review(assignment, task):
+            return validate_training_social_security_review(db, assignment_id, task_id)
+        if task and handles_training_incident_review(assignment, task):
+            return validate_training_incident_review(db, assignment_id, task_id)
+        return validate_training_aware_assignment_step(db, assignment_id, task_id)
     except CaseScenarioError as error:
         _translate_error(error)
 

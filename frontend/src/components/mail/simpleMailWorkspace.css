@@ -1,0 +1,147 @@
+.simple-mail {
+  position: fixed;
+  inset: 0;
+  z-index: 2147481000;
+  display: flex;
+  flex-direction: column;
+  background: #f5f7fb;
+  color: #172033;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.simple-mail--loading { align-items: center; justify-content: center; gap: 10px; color: #64748b; font-size: 13px; }
+
+.simple-mail__topbar {
+  min-height: 64px;
+  display: grid;
+  grid-template-columns: 240px minmax(320px, 620px) 1fr;
+  align-items: center;
+  gap: 24px;
+  padding: 0 22px;
+  border-bottom: 1px solid #dbe3ef;
+  background: #ffffff;
+}
+
+.simple-mail__brand { display: flex; align-items: center; gap: 10px; }
+.simple-mail__brand img { width: 30px; height: 30px; }
+.simple-mail__brand div { display: flex; flex-direction: column; }
+.simple-mail__brand strong { font-size: 14px; color: #1f2937; }
+.simple-mail__brand span { font-size: 10px; color: #7b8798; }
+
+.simple-mail__search {
+  height: 38px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 0 12px;
+  border: 1px solid #dbe3ef;
+  border-radius: 9px;
+  background: #f8fafc;
+  color: #8190a3;
+}
+.simple-mail__search input { width: 100%; border: 0; outline: 0; background: transparent; color: #263449; font: inherit; font-size: 13px; }
+
+.simple-mail__back {
+  justify-self: end;
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 11px;
+  border: 1px solid #dbe3ef;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #475569;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.simple-mail__error { display: flex; justify-content: space-between; align-items: center; padding: 8px 22px; border-bottom: 1px solid #fecaca; background: #fff4f4; color: #a43b3b; font-size: 12px; }
+.simple-mail__error button { border: 0; background: transparent; color: inherit; cursor: pointer; }
+
+.simple-mail__workspace { min-height: 0; flex: 1; display: grid; grid-template-columns: 230px 370px minmax(0, 1fr); }
+
+.simple-mail__folders { min-height: 0; padding: 18px 12px; border-right: 1px solid #dbe3ef; background: #f8fafc; }
+.simple-mail__compose { width: 100%; min-height: 38px; display: flex; align-items: center; justify-content: center; gap: 7px; margin-bottom: 17px; border: 1px solid #2563eb; border-radius: 8px; background: #2563eb; color: #ffffff; font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
+.simple-mail__account { display: flex; flex-direction: column; gap: 2px; padding: 0 8px 15px; border-bottom: 1px solid #e2e8f0; }
+.simple-mail__account strong { font-size: 12px; color: #334155; }
+.simple-mail__account span { overflow: hidden; color: #8491a3; font-size: 10px; text-overflow: ellipsis; }
+.simple-mail__folders nav { display: flex; flex-direction: column; gap: 2px; padding-top: 12px; }
+.simple-mail__folders nav button { min-height: 36px; display: grid; grid-template-columns: 20px 1fr auto; align-items: center; gap: 7px; padding: 0 9px; border: 0; border-radius: 7px; background: transparent; color: #526174; text-align: left; font: inherit; font-size: 12px; cursor: pointer; }
+.simple-mail__folders nav button:hover { background: #edf2f8; }
+.simple-mail__folders nav button.is-active { background: #e8f1ff; color: #185ca8; font-weight: 700; }
+.simple-mail__folders nav small { min-width: 20px; text-align: right; color: #718096; font-size: 10px; }
+
+.simple-mail__list { min-width: 0; min-height: 0; display: flex; flex-direction: column; border-right: 1px solid #dbe3ef; background: #ffffff; }
+.simple-mail__list > header { min-height: 68px; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; border-bottom: 1px solid #e2e8f0; }
+.simple-mail__list > header div { display: flex; flex-direction: column; gap: 2px; }
+.simple-mail__list h1 { margin: 0; color: #243247; font-size: 15px; }
+.simple-mail__list > header span { color: #8a97a8; font-size: 10px; }
+.simple-mail__list > header button { width: 32px; height: 32px; display: grid; place-items: center; border: 1px solid #dbe3ef; border-radius: 7px; background: #fff; color: #64748b; cursor: pointer; }
+.simple-mail__thread-scroll { min-height: 0; overflow: auto; }
+.simple-mail__list-state { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 120px; color: #8190a3; font-size: 12px; }
+
+.simple-mail__thread { width: 100%; display: flex; flex-direction: column; gap: 5px; padding: 13px 15px; border: 0; border-bottom: 1px solid #edf1f6; background: #ffffff; color: #526174; text-align: left; font: inherit; cursor: pointer; }
+.simple-mail__thread:hover { background: #f8fafc; }
+.simple-mail__thread.is-selected { background: #eef5ff; box-shadow: inset 3px 0 #2563eb; }
+.simple-mail__thread.is-unread { background: #fbfdff; }
+.simple-mail__thread > div { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.simple-mail__thread strong { overflow: hidden; color: #334155; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.simple-mail__thread.is-unread strong, .simple-mail__thread.is-unread .simple-mail__subject { color: #172033; font-weight: 750; }
+.simple-mail__thread time { flex: 0 0 auto; color: #96a1b0; font-size: 9px; }
+.simple-mail__subject { overflow: hidden; color: #344256; font-size: 12px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.simple-mail__thread p { margin: 0; overflow: hidden; color: #7b8798; font-size: 10px; line-height: 1.45; text-overflow: ellipsis; white-space: nowrap; }
+.simple-mail__thread > small { display: inline-flex; align-items: center; gap: 4px; color: #8491a3; font-size: 9px; }
+
+.simple-mail__reading { min-width: 0; min-height: 0; display: flex; flex-direction: column; background: #ffffff; }
+.simple-mail__toolbar { min-height: 50px; display: flex; align-items: center; gap: 5px; padding: 0 20px; border-bottom: 1px solid #e2e8f0; }
+.simple-mail__toolbar button { min-height: 32px; display: inline-flex; align-items: center; gap: 6px; padding: 0 9px; border: 1px solid transparent; border-radius: 7px; background: transparent; color: #526174; font: inherit; font-size: 11px; cursor: pointer; }
+.simple-mail__toolbar button:hover { border-color: #dbe3ef; background: #f8fafc; }
+.simple-mail__message { min-height: 0; overflow: auto; padding: 28px clamp(24px, 4vw, 58px) 48px; }
+.simple-mail__message-heading { padding-bottom: 22px; border-bottom: 1px solid #e2e8f0; }
+.simple-mail__message-heading h2 { margin: 0 0 18px; color: #172033; font-size: 22px; line-height: 1.3; font-weight: 720; }
+.simple-mail__sender { display: flex; justify-content: space-between; gap: 24px; }
+.simple-mail__sender > div { display: flex; flex-direction: column; gap: 2px; }
+.simple-mail__sender strong { color: #334155; font-size: 12px; }
+.simple-mail__sender span, .simple-mail__sender small, .simple-mail__sender time { color: #7e8b9c; font-size: 10px; }
+.simple-mail__conversation { display: flex; flex-direction: column; gap: 18px; padding: 24px 0; }
+.simple-mail__conversation-item { padding-bottom: 18px; border-bottom: 1px solid #edf1f6; }
+.simple-mail__conversation-item:last-child { border-bottom: 0; }
+.simple-mail__conversation-item--outgoing { padding-left: 22px; border-left: 2px solid #d7e6fb; }
+.simple-mail__conversation-item > header { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; margin-bottom: 12px; }
+.simple-mail__conversation-item > header div { display: flex; flex-direction: column; gap: 2px; }
+.simple-mail__conversation-item > header strong { color: #334155; font-size: 11px; }
+.simple-mail__conversation-item > header span, .simple-mail__conversation-item > header time { color: #8b97a7; font-size: 9px; }
+.simple-mail__conversation-item p { margin: 0 0 12px; color: #344256; font-size: 13px; line-height: 1.7; }
+.simple-mail__conversation-item p:last-child { margin-bottom: 0; }
+.simple-mail__attachments { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 12px; }
+.simple-mail__attachments button { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 0 9px; border: 1px solid #dbe3ef; border-radius: 7px; background: #fff; color: #526174; font: inherit; font-size: 10px; cursor: pointer; }
+.simple-mail__attachments--thread { display: block; padding-top: 18px; border-top: 1px solid #e2e8f0; }
+.simple-mail__attachments--thread > span { display: block; margin-bottom: 9px; color: #64748b; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+.simple-mail__attachments--thread > div { display: flex; flex-wrap: wrap; gap: 7px; }
+
+.simple-mail__reply-box { margin-top: 24px; padding: 16px; border: 1px solid #dbe3ef; border-radius: 9px; background: #f8fafc; }
+.simple-mail__reply-box > header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.simple-mail__reply-box > header strong { color: #334155; font-size: 12px; }
+.simple-mail__reply-box > header button { border: 0; background: transparent; color: #718096; cursor: pointer; }
+.simple-mail__reply-box label { display: grid; grid-template-columns: 48px 1fr; align-items: center; margin-bottom: 8px; color: #718096; font-size: 10px; }
+.simple-mail__reply-box input, .simple-mail__reply-box textarea { border: 1px solid #dbe3ef; border-radius: 7px; background: #fff; color: #334155; font: inherit; font-size: 12px; }
+.simple-mail__reply-box input { height: 34px; padding: 0 9px; }
+.simple-mail__reply-box textarea { width: 100%; min-height: 120px; resize: vertical; padding: 10px; box-sizing: border-box; }
+.simple-mail__reply-box footer { display: flex; gap: 7px; margin-top: 9px; }
+.simple-mail__reply-box footer button { min-height: 33px; display: inline-flex; align-items: center; gap: 6px; padding: 0 10px; border: 1px solid #dbe3ef; border-radius: 7px; background: #fff; color: #526174; font: inherit; font-size: 10px; font-weight: 650; cursor: pointer; }
+.simple-mail__reply-box footer button.is-primary { border-color: #2563eb; background: #2563eb; color: #fff; }
+
+.simple-mail__empty { min-height: 420px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; color: #9aa5b4; text-align: center; }
+.simple-mail__empty h2, .simple-mail__empty p { margin: 0; }
+.simple-mail__empty h2 { color: #526174; font-size: 15px; }
+.simple-mail__empty p { font-size: 11px; }
+.simple-mail__spinner { animation: simple-mail-spin .8s linear infinite; }
+@keyframes simple-mail-spin { to { transform: rotate(360deg); } }
+
+@media (max-width: 1050px) {
+  .simple-mail__workspace { grid-template-columns: 190px 330px minmax(0, 1fr); }
+  .simple-mail__topbar { grid-template-columns: 190px minmax(260px, 1fr) auto; gap: 14px; }
+}

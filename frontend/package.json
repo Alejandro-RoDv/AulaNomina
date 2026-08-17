@@ -9,14 +9,15 @@
     "lint": "eslint .",
     "design-system:audit": "node scripts/audit-design-system.mjs",
     "validate": "npm run design-system:audit && npm run lint && npm run build",
-    "test": "npm run test:convenios && npm run test:embargos && npm run test:incidencias && npm run test:seguridad-social && npm run test:siltra && npm run test:model190 && npm run test:mail",
+    "test": "npm run test:convenios && npm run test:embargos && npm run test:incidencias && npm run test:seguridad-social && npm run test:siltra && npm run test:model190 && npm run test:mail && npm run test:activities",
     "test:convenios": "node scripts/run-convenios-tests.mjs",
     "test:embargos": "node --test src/tests/embargoCalculator.test.js",
     "test:incidencias": "node --test src/tests/incidentPayloads.test.js src/tests/incidentWorkspace.test.js src/tests/incidentApiErrors.test.js",
     "test:seguridad-social": "node --test src/tests/socialSecuritySettlement.test.js",
     "test:siltra": "node --test src/tests/siltraSimulation.test.js",
     "test:model190": "node --test src/tests/model190View.test.js src/tests/model190Presentation.test.js src/tests/model190Documents.test.js src/tests/model190Demo.test.js",
-    "test:mail": "node --test src/tests/mailApi.test.js src/tests/caseNavigation.test.js src/tests/caseOperationBridge.test.js",
+    "test:mail": "node --test src/tests/mailApi.test.js src/tests/caseNavigation.test.js src/tests/caseOperationBridge.test.js src/tests/caseOperationBridgeTermination.test.js src/tests/caseOperationBridgeExplicitReview.test.js",
+    "test:activities": "node --test src/tests/activityCourseView.test.js",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -30,7 +31,7 @@
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.1",
     "eslint": "^9.39.4",
-    "eslint-plugin-react-hooks": "^7.1.0",
+    "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.5.2",
     "globals": "^17.4.0",
     "vite": "^8.0.4"

@@ -1,0 +1,326 @@
+from types import SimpleNamespace
+
+from app.crud.case_study import _demo_cases
+from app.services.training_activity_runtime_service import _enrich_activity, _runtime_descriptor
+from app.services.training_course_projection_2026 import project_master_activity_course_2026
+from app.training.document_runtime_cases_2026 import build_document_runtime_cases_2026
+from app.training.runtime_bindings_2026 import (
+    PAYROLL_CORE_ACTIVITY_CODES_2026,
+    PAYROLL_PARTIAL_ACTIVITY_CODES_2026,
+    PILOT_ACTIVITY_CODES_2026,
+    build_payroll_core_task_definitions_2026,
+    build_payroll_partial_task_definitions_2026,
+    build_pilot_task_definitions_2026,
+    get_runtime_binding_2026,
+)
+
+
+def test_pilot_sequence_is_a04_a07_a29_and_uses_automatic_runtime_actions():
+    assert PILOT_ACTIVITY_CODES_2026 == ("A04", "A07", "A29")
+
+    a04 = get_runtime_binding_2026("A04")
+    a07 = get_runtime_binding_2026("A07")
+    a29 = get_runtime_binding_2026("A29")
+
+    assert a04["expected_action"] == "create_employee"
+    assert a04["runtime_prerequisites"] == []
+    assert a07["expected_action"] == "create_contract"
+    assert a07["runtime_prerequisites"] == ["A04"]
+    assert a29["expected_action"] == "prepare_affiliation"
+    assert a29["runtime_prerequisites"] == ["A07"]
+
+
+def test_pilot_task_definitions_keep_training_code_inside_trigger_condition():
+    definitions = build_pilot_task_definitions_2026()
+
+    assert [item["task_order"] for item in definitions] == [1, 2, 3]
+    assert [item["trigger_condition"]["training_code"] for item in definitions] == ["A04", "A07", "A29"]
+    assert all(item["trigger_type"] == "module_event" for item in definitions)
+    assert all(item["blocking"] is True for item in definitions)
+
+
+def test_payroll_sequence_covers_a14_to_a22_core_without_catalog_gaps():
+    assert PAYROLL_CORE_ACTIVITY_CODES_2026 == (
+        "A14",
+        "A15",
+        "A16",
+        "A18",
+        "A19",
+        "A20",
+        "A21",
+        "A22",
+    )
+    definitions = build_payroll_core_task_definitions_2026()
+
+    assert [item["trigger_condition"]["training_code"] for item in definitions] == list(
+        PAYROLL_CORE_ACTIVITY_CODES_2026
+    )
+    assert definitions[0]["expected_action"] == "update_payroll_concept"
+    assert definitions[0]["trigger_condition"]["validation_interaction"] == "operation"
+    assert definitions[1]["expected_action"] == "review_extra_pay"
+    assert definitions[1]["trigger_condition"]["validation_interaction"] == "explicit_review"
+    assert definitions[2]["expected_action"] == "recalculate_payroll"
+    assert definitions[2]["trigger_condition"]["validation_interaction"] == "operation"
+    assert all(
+        item["trigger_condition"].get("validation_interaction") == "explicit_review"
+        for item in definitions[3:]
+    )
+    assert all(item["trigger_condition"].get("use_catalog_result_criteria") for item in definitions)
+
+
+def test_partial_payroll_sequence_exposes_a17_as_explicit_review():
+    assert PAYROLL_PARTIAL_ACTIVITY_CODES_2026 == ("A17",)
+    definitions = build_payroll_partial_task_definitions_2026()
+
+    assert len(definitions) == 1
+    assert definitions[0]["trigger_condition"]["training_code"] == "A17"
+    assert definitions[0]["expected_action"] == "review_partial_payroll"
+    assert definitions[0]["trigger_condition"]["validation_interaction"] == "explicit_review"
+    assert definitions[0]["trigger_condition"]["use_catalog_result_criteria"] is True
+
+
+def test_demo_onboarding_case_is_backed_by_master_training_codes():
+    case = next(item for item in _demo_cases() if item.scenario_code == "TRAIN-2026-001")
+
+    assert case.title == "Alta completa de trabajador"
+    assert case.initial_state["training_sequence"] == ["A04", "A07", "A29"]
+    assert len(case.tasks) == 3
+    assert [task.trigger_condition["training_code"] for task in case.tasks] == ["A04", "A07", "A29"]
+    assert [task.expected_action for task in case.tasks] == [
+        "create_employee",
+        "create_contract",
+        "prepare_affiliation",
+    ]
+
+
+def test_demo_payroll_case_is_backed_by_master_training_codes():
+    case = next(item for item in _demo_cases() if item.scenario_code == "TRAIN-2026-PAYROLL-001")
+
+    assert case.title == "Nómina ordinaria y comprobaciones básicas"
+    assert case.initial_state["employee"] == "Laura Martín Ruiz"
+    assert case.initial_state["payroll_period"] == "2026-06"
+    assert case.initial_state["training_sequence"] == list(PAYROLL_CORE_ACTIVITY_CODES_2026)
+    assert case.initial_state["salary_structure"]["target_pay_schedule"] == "prorated_12"
+    assert [task.trigger_condition["training_code"] for task in case.tasks] == list(PAYROLL_CORE_ACTIVITY_CODES_2026)
+
+
+def test_demo_partial_payroll_case_uses_january_start_date_and_expected_days():
+    case = next(
+        item for item in _demo_cases()
+        if item.scenario_code == "TRAIN-2026-PAYROLL-PARTIAL-001"
+    )
+
+    assert case.initial_state["employee"] == "Javier Romero Sánchez"
+    assert case.initial_state["payroll_period"] == "2026-01"
+    assert case.initial_state["start_date"] == "2026-01-08"
+    assert case.initial_state["expected_payroll_days"] == 23
+    assert [task.trigger_condition["training_code"] for task in case.tasks] == ["A17"]
+
+
+def test_runtime_enrichment_uses_master_catalog_content_without_losing_execution_state():
+    case_study = SimpleNamespace(
+        scenario_code="TRAIN-2026-001",
+        title="Alta completa de trabajador",
+        tasks=[],
+        initial_state={
+            "start_date": "2026-09-01",
+            "contract_data": {
+                "working_day": "Jornada completa",
+                "weekly_hours": 40,
+                "job_position": "Administrativo/a de RRHH",
+            },
+        },
+    )
+    task = SimpleNamespace(
+        trigger_condition={"training_code": "A07"},
+        expected_action="create_contract",
+        task_order=2,
+        case_study=case_study,
+    )
+    legacy = {
+        "id": "10:20",
+        "task_id": 20,
+        "display_number": "2.1",
+        "title": "Texto antiguo",
+        "case_data": [{"label": "Trabajador", "value": "Fulanito Pérez"}],
+        "context": {"assignmentId": 10, "taskId": 20},
+        "status": "pending",
+        "is_completed": False,
+        "result_criteria": [{"label": "Contrato activo registrado", "status": "pending"}],
+    }
+
+    enriched = _enrich_activity(legacy, task)
+
+    assert enriched["training_code"] == "A07"
+    assert enriched["display_number"] == "A07"
+    assert enriched["runtime_migrated"] is True
+    assert enriched["block_code"] == "B02"
+    assert enriched["context"]["trainingCode"] == "A07"
+    assert enriched["status"] == "pending"
+    assert enriched["result_criteria"] == legacy["result_criteria"]
+    assert any(row["label"] == "Jornada" for row in enriched["case_data"])
+    assert any(row["label"] == "Puesto" for row in enriched["case_data"])
+
+
+def test_payroll_review_enrichment_uses_catalog_criteria_and_explicit_validation():
+    case_study = SimpleNamespace(
+        scenario_code="TRAIN-2026-PAYROLL-001",
+        title="Nómina ordinaria y comprobaciones básicas",
+        tasks=[],
+        initial_state={
+            "employee": "Laura Martín Ruiz",
+            "payroll_period": "2026-06",
+            "salary_structure": {},
+        },
+    )
+    task = SimpleNamespace(
+        trigger_condition={
+            "training_code": "A18",
+            "validation_interaction": "explicit_review",
+            "use_catalog_result_criteria": True,
+        },
+        expected_action="review_payroll",
+        task_order=4,
+        case_study=case_study,
+    )
+    legacy = {
+        "id": "20:30",
+        "task_id": 30,
+        "title": "Base antigua",
+        "case_data": [{"label": "Trabajador", "value": "Laura Martín Ruiz"}],
+        "context": {"assignmentId": 20, "taskId": 30},
+        "status": "pending",
+        "is_completed": False,
+        "result_criteria": [{"label": "Nómina recalculada", "status": "pending"}],
+        "validation_result": {},
+    }
+
+    enriched = _enrich_activity(legacy, task)
+
+    assert enriched["training_code"] == "A18"
+    assert enriched["validation_interaction"] == "explicit_review"
+    assert len(enriched["result_criteria"]) == 3
+    assert all(item["status"] == "pending" for item in enriched["result_criteria"])
+    assert any(row["label"] == "Revisión" for row in enriched["case_data"])
+
+
+def test_partial_payroll_enrichment_exposes_start_date_and_expected_days():
+    case_study = SimpleNamespace(
+        scenario_code="TRAIN-2026-PAYROLL-PARTIAL-001",
+        title="Nómina con alta dentro del mes",
+        tasks=[],
+        initial_state={
+            "employee": "Javier Romero Sánchez",
+            "payroll_period": "2026-01",
+            "start_date": "2026-01-08",
+            "expected_payroll_days": 23,
+            "salary_structure": {"base_salary": "1.450,00 €"},
+        },
+    )
+    task = SimpleNamespace(
+        trigger_condition={
+            "training_code": "A17",
+            "validation_interaction": "explicit_review",
+            "use_catalog_result_criteria": True,
+        },
+        expected_action="review_partial_payroll",
+        task_order=1,
+        case_study=case_study,
+    )
+    legacy = {
+        "id": "21:31",
+        "task_id": 31,
+        "title": "Nómina parcial",
+        "case_data": [{"label": "Trabajador", "value": "Javier Romero Sánchez"}],
+        "context": {"assignmentId": 21, "taskId": 31},
+        "status": "pending",
+        "is_completed": False,
+        "result_criteria": [],
+        "validation_result": {},
+    }
+
+    enriched = _enrich_activity(legacy, task)
+
+    assert enriched["training_code"] == "A17"
+    assert enriched["validation_interaction"] == "explicit_review"
+    assert any(row["label"] == "Fecha de alta" and row["value"] == "2026-01-08" for row in enriched["case_data"])
+    assert any(row["label"] == "Días esperados" and row["value"] == "23" for row in enriched["case_data"])
+
+
+def test_only_canonical_c02_source_survives_master_projection():
+    legacy_it = {
+        "id": "1:1",
+        "assignment_id": 1,
+        "task_id": 1,
+        "scenario_code": "IT-2026-008",
+        "training_code": "C02",
+        "runtime_migrated": True,
+        "runtime_binding_inferred": True,
+        "training_substep": 1,
+        "course_order": 1,
+        "is_completed": False,
+    }
+    canonical = {
+        "id": "2:2",
+        "assignment_id": 2,
+        "task_id": 2,
+        "scenario_code": "LAB-2026-001",
+        "training_code": "C02",
+        "runtime_migrated": True,
+        "runtime_binding_inferred": True,
+        "training_substep": 1,
+        "course_order": 2,
+        "is_completed": False,
+    }
+    course = {
+        "course": {},
+        "topics": [
+            {
+                "key": "integral",
+                "code": "B10",
+                "order": 10,
+                "title": "Casos profesionales integrados",
+                "activities": [legacy_it, canonical],
+            }
+        ],
+    }
+
+    projected = project_master_activity_course_2026(course)
+    visible = projected["topics"][0]["activities"]
+
+    assert [item["scenario_code"] for item in visible] == ["LAB-2026-001"]
+    assert visible[0]["display_number"] == "C02.1"
+    assert projected["course"]["hidden_legacy_runtime_steps"] == 1
+
+
+def test_a52_has_a_dedicated_explicit_runtime_instead_of_title_inference():
+    case = next(
+        item for item in build_document_runtime_cases_2026()
+        if item.scenario_code == "TRAIN-2026-DOC-A52"
+    )
+
+    assert case.initial_state["training_sequence"] == ["A52"]
+    assert len(case.tasks) == 1
+    task = case.tasks[0]
+    assert task.trigger_condition["training_code"] == "A52"
+    assert task.trigger_condition["validation_interaction"] == "explicit_review"
+    assert task.expected_action == "review_document_status_resolution"
+
+
+def test_existing_substitution_contract_still_maps_to_a09_while_legacy_source_is_allowed():
+    case_study = SimpleNamespace(
+        scenario_code="ALT-2026-021",
+        title="Alta de sustitución por incapacidad temporal",
+        tasks=[1, 2, 3],
+    )
+    task = SimpleNamespace(
+        trigger_condition={},
+        expected_action="create_contract",
+        task_order=2,
+        case_study=case_study,
+    )
+
+    descriptor = _runtime_descriptor(task)
+    assert descriptor["code"] == "A09"
+    assert descriptor["kind"] == "guided"
+    assert descriptor["inferred"] is True

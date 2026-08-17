@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, Column, Integer, String, Date, DateTime, ForeignKey, Numeric, Float
+from sqlalchemy import Boolean, Column, Integer, String, Date, DateTime, ForeignKey, Numeric, Float, Text
 from sqlalchemy.orm import relationship
 from datetime import datetime
 
@@ -24,6 +24,17 @@ class Contract(Base):
     end_date = Column(Date, nullable=True)
     termination_reason = Column(String, nullable=True)
     status = Column(String, default="active", nullable=False)
+
+    # Causalidad temporal y contratos formativos
+    temporary_cause = Column(Text, nullable=True)
+    training_contract_subtype = Column(String, nullable=True)
+    training_program = Column(String, nullable=True)
+    training_center = Column(String, nullable=True)
+    training_company_tutor = Column(String, nullable=True)
+    training_plan_reference = Column(String, nullable=True)
+    training_work_percentage = Column(Float, nullable=True)
+    qualification_name = Column(String, nullable=True)
+    qualification_date = Column(Date, nullable=True)
 
     # Transformación contractual
     transformation_from_contract_id = Column(Integer, ForeignKey("contracts.id"), nullable=True)

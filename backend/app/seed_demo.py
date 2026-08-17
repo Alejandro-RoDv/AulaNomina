@@ -4,6 +4,29 @@ from decimal import Decimal
 
 from app.db import Base, SessionLocal, engine
 from app.models import Company, Contract, Employee, Incident, Payroll, WorkCenter
+from app.models.affiliation_worker_state import AffiliationWorkerState
+from app.models.communication_file import CommunicationFile, CommunicationFileEvent
+from app.models.communication_submission import CommunicationSubmission
+from app.models.document import Document
+from app.models.fie import FieCommunication, FieProcessingEvent
+from app.models.model111 import (
+    Model111Declaration,
+    Model111Line,
+    Professional,
+    ProfessionalInvoice,
+    TaxWithholdingAdjustment,
+)
+from app.models.model190 import (
+    Model190Declaration,
+    Model190Recipient,
+    Model190RecipientLine,
+    Model190RecipientOverride,
+)
+from app.models.social_security_settlement import (
+    SocialSecuritySettlement,
+    SocialSecuritySettlementLine,
+)
+from app.models.tax_profile import TaxProfile
 from app.seed_demo_payroll_incident_cases import seed_demo_payroll_incident_cases
 from app.seed_demo_payroll_salary_structure import seed_demo_payroll_items
 
@@ -185,6 +208,181 @@ def get_or_create_payroll(db, employee, contract, company, center, supplement=De
     return payroll
 
 
+def _delete_demo_fie(db, *, company_id: int | None, employee_ids: list[int]) -> None:
+    query = db.query(FieCommunication.id)
+    if company_id is not None:
+        query = query.filter(FieCommunication.company_id == company_id)
+    elif employee_ids:
+        query = query.filter(FieCommunication.employee_id.in_(employee_ids))
+    else:
+        return
+    communication_ids = [row[0] for row in query.all()]
+    if not communication_ids:
+        return
+    db.query(FieProcessingEvent).filter(
+        FieProcessingEvent.communication_id.in_(communication_ids)
+    ).delete(synchronize_session=False)
+    db.query(FieCommunication).filter(
+        FieCommunication.id.in_(communication_ids)
+    ).delete(synchronize_session=False)
+
+
+def _delete_demo_fiscal_artifacts(
+    db,
+    *,
+    company_id: int | None,
+    employee_ids: list[int],
+) -> None:
+    """Borra primero las evidencias fiscales que referencian empresa, perceptores o trabajadores demo."""
+    if company_id is not None:
+        declaration_190_ids = [
+            row[0]
+            for row in db.query(Model190Declaration.id)
+            .filter(Model190Declaration.company_id == company_id)
+            .all()
+        ]
+        if declaration_190_ids:
+            recipient_ids = [
+                row[0]
+                for row in db.query(Model190Recipient.id)
+                .filter(Model190Recipient.declaration_id.in_(declaration_190_ids))
+                .all()
+            ]
+            if recipient_ids:
+                db.query(Model190RecipientLine).filter(
+                    Model190RecipientLine.model190_recipient_id.in_(recipient_ids)
+                ).delete(synchronize_session=False)
+                db.query(Model190Recipient).filter(
+                    Model190Recipient.id.in_(recipient_ids)
+                ).delete(synchronize_session=False)
+            db.query(Model190Declaration).filter(
+                Model190Declaration.id.in_(declaration_190_ids)
+            ).delete(synchronize_session=False)
+
+        db.query(Model190RecipientOverride).filter(
+            Model190RecipientOverride.company_id == company_id
+        ).delete(synchronize_session=False)
+
+        declaration_111_ids = [
+            row[0]
+            for row in db.query(Model111Declaration.id)
+            .filter(Model111Declaration.company_id == company_id)
+            .all()
+        ]
+        if declaration_111_ids:
+            db.query(Model111Line).filter(
+                Model111Line.declaration_id.in_(declaration_111_ids)
+            ).delete(synchronize_session=False)
+            db.query(Model111Declaration).filter(
+                Model111Declaration.id.in_(declaration_111_ids)
+            ).delete(synchronize_session=False)
+
+        db.query(TaxWithholdingAdjustment).filter(
+            TaxWithholdingAdjustment.company_id == company_id
+        ).delete(synchronize_session=False)
+        db.query(ProfessionalInvoice).filter(
+            ProfessionalInvoice.company_id == company_id
+        ).delete(synchronize_session=False)
+        db.query(Professional).filter(
+            Professional.company_id == company_id
+        ).delete(synchronize_session=False)
+        db.query(Document).filter(Document.company_id == company_id).delete(synchronize_session=False)
+
+    if employee_ids:
+        db.query(TaxProfile).filter(TaxProfile.employee_id.in_(employee_ids)).delete(
+            synchronize_session=False
+        )
+        if company_id is None:
+            db.query(Document).filter(Document.employee_id.in_(employee_ids)).delete(
+                synchronize_session=False
+            )
+
+
+def _delete_demo_social_security_artifacts(db, company_id: int | None) -> None:
+    """Remove RED/SILTRA artefacts before deleting their company/payroll parents."""
+    if company_id is None:
+        return
+
+    settlement_ids = [
+        row[0]
+        for row in db.query(SocialSecuritySettlement.id)
+        .filter(SocialSecuritySettlement.company_id == company_id)
+        .all()
+    ]
+    if settlement_ids:
+        db.query(SocialSecuritySettlementLine).filter(
+            SocialSecuritySettlementLine.settlement_id.in_(settlement_ids)
+        ).delete(synchronize_session=False)
+        db.query(SocialSecuritySettlement).filter(
+            SocialSecuritySettlement.id.in_(settlement_ids)
+        ).delete(synchronize_session=False)
+
+    db.query(AffiliationWorkerState).filter(
+        AffiliationWorkerState.company_id == company_id
+    ).delete(synchronize_session=False)
+
+    file_ids = [
+        row[0]
+        for row in db.query(CommunicationFile.id)
+        .filter(CommunicationFile.company_id == company_id)
+        .all()
+    ]
+
+    db.query(CommunicationSubmission).filter(
+        CommunicationSubmission.company_id == company_id
+    ).delete(synchronize_session=False)
+
+    if file_ids:
+        db.query(CommunicationFileEvent).filter(
+            CommunicationFileEvent.communication_file_id.in_(file_ids)
+        ).delete(synchronize_session=False)
+        db.query(CommunicationFile).filter(
+            CommunicationFile.id.in_(file_ids)
+        ).update({CommunicationFile.response_file_id: None}, synchronize_session=False)
+        db.query(CommunicationFile).filter(
+            CommunicationFile.id.in_(file_ids)
+        ).delete(synchronize_session=False)
+
+
+def _delete_demo_payroll_artifacts(
+    db,
+    *,
+    company_id: int | None,
+    employee_ids: list[int],
+) -> None:
+    """Limpia dependencias sin ON DELETE CASCADE antes del borrado masivo de nóminas."""
+    query = db.query(Payroll.id)
+    if company_id is not None:
+        query = query.filter(Payroll.company_id == company_id)
+    elif employee_ids:
+        query = query.filter(Payroll.employee_id.in_(employee_ids))
+    else:
+        return
+    payroll_ids = [row[0] for row in query.all()]
+    if not payroll_ids:
+        return
+
+    payroll_items = Base.metadata.tables.get("payroll_items")
+    if payroll_items is not None:
+        db.execute(payroll_items.delete().where(payroll_items.c.payroll_id.in_(payroll_ids)))
+
+    incident_details = Base.metadata.tables.get("incident_details")
+    if incident_details is not None:
+        db.execute(
+            incident_details.update()
+            .where(incident_details.c.processed_payroll_id.in_(payroll_ids))
+            .values(processed_payroll_id=None)
+        )
+
+    garnishment_movements = Base.metadata.tables.get("wage_garnishment_movements")
+    if garnishment_movements is not None:
+        db.execute(
+            garnishment_movements.update()
+            .where(garnishment_movements.c.payroll_id.in_(payroll_ids))
+            .values(payroll_id=None)
+        )
+
+
 def reset_only_demo_data(db):
     """Delete only the controlled demo dataset, never the full business tables."""
 
@@ -195,6 +393,23 @@ def reset_only_demo_data(db):
         .filter(Employee.dni.in_(["10000001A", "10000002B", "10000003C", "10000004D", "10000005E"]))
         .all()
     ]
+
+    _delete_demo_fie(
+        db,
+        company_id=company.id if company else None,
+        employee_ids=demo_employee_ids,
+    )
+    _delete_demo_fiscal_artifacts(
+        db,
+        company_id=company.id if company else None,
+        employee_ids=demo_employee_ids,
+    )
+    _delete_demo_social_security_artifacts(db, company.id if company else None)
+    _delete_demo_payroll_artifacts(
+        db,
+        company_id=company.id if company else None,
+        employee_ids=demo_employee_ids,
+    )
 
     if company:
         db.query(Payroll).filter(Payroll.company_id == company.id).delete(synchronize_session=False)
@@ -372,6 +587,10 @@ def seed_demo_data(reset=False):
                 status="active",
                 salary_base=Decimal("1680.00"),
                 pay_schedule="not_prorated_14",
+                working_day_type="full_time",
+                weekly_hours=40,
+                full_time_weekly_hours=40,
+                partiality_coefficient=100,
             ),
             "javier": get_or_create_contract(
                 db,

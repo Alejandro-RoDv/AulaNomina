@@ -4,7 +4,6 @@ import {
   Calculator,
   ChevronDown,
   FileCheck2,
-  GraduationCap,
   Landmark,
   LayoutDashboard,
   UsersRound,
@@ -167,51 +166,6 @@ const groups = [
     items: [
       { id: "documents", label: "Documentos", enabled: true, hash: "#documents" },
       { id: "reports", label: "Informes", enabled: true, hash: "#reports" },
-    ],
-  },
-  {
-    id: "training",
-    title: "Formación",
-    icon: GraduationCap,
-    items: [
-      { id: "mail-launcher", label: "Bandeja de entrada", enabled: true, launchSelector: ".mail-global-launcher" },
-      { id: "student-demo", label: "Mis casos prácticos", enabled: true, hash: "#student-demo" },
-    ],
-  },
-  {
-    id: "teaching",
-    title: "Docencia",
-    icon: GraduationCap,
-    items: [
-      { id: "teacher-dashboard", label: "Panel docente", enabled: true, hash: "#teacher-dashboard" },
-      { id: "case-studies", label: "Casos prácticos", enabled: true, hash: "#case-studies" },
-      {
-        id: "teaching-cases-menu",
-        label: "Gestión de casos",
-        enabled: true,
-        children: [
-          { id: "assignments", label: "Asignaciones", enabled: true, hash: "#assignments" },
-          { id: "corrections", label: "Correcciones", enabled: true, hash: "#corrections" },
-        ],
-      },
-      {
-        id: "teaching-students-menu",
-        label: "Alumnos",
-        enabled: true,
-        children: [
-          { id: "students", label: "Alumnos", enabled: true, hash: "#students" },
-          { id: "groups", label: "Grupos", enabled: true, hash: "#groups" },
-        ],
-      },
-      {
-        id: "teaching-tracking-menu",
-        label: "Seguimiento",
-        enabled: true,
-        children: [
-          { id: "progress", label: "Progreso", enabled: true, hash: "#progress" },
-          { id: "teaching-alerts", label: "Alertas docentes", enabled: true, hash: "#teaching-alerts" },
-        ],
-      },
     ],
   },
 ];

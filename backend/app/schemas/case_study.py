@@ -16,6 +16,11 @@ CASE_CATEGORIES = {
     "document",
     "general",
 }
+CASE_CATEGORY_ALIASES = {
+    "social-security": "social_security",
+    "regularizations": "payroll",
+    "terminations": "contract",
+}
 TASK_MODULES = {
     "employees",
     "contracts",
@@ -23,16 +28,32 @@ TASK_MODULES = {
     "incidents",
     "payrolls",
     "companies",
+    "agreements",
     "affiliations",
     "fie",
     "siltra",
     "model111",
     "model190",
     "regularizations",
+    "tax",
+    "irpf",
+    "cra",
+    "social-security",
+    "terminations",
+    "mail",
     "general",
 }
 TASK_STATUSES = {"pending", "in_progress", "completed"}
 TASK_TRIGGER_TYPES = {"manual", "module_event", "mail_response", "system"}
+
+
+def normalize_case_category(value: str | None) -> str | None:
+    if value is None:
+        return None
+    normalized = CASE_CATEGORY_ALIASES.get(value, value)
+    if normalized not in CASE_CATEGORIES:
+        raise ValueError("Categoria de caso no valida")
+    return normalized
 
 
 class CaseTaskBase(BaseModel):
@@ -154,9 +175,7 @@ class CaseStudyBase(BaseModel):
     @field_validator("category")
     @classmethod
     def validate_category(cls, value):
-        if value not in CASE_CATEGORIES:
-            raise ValueError("Categoria de caso no valida")
-        return value
+        return normalize_case_category(value)
 
 
 class CaseStudyCreate(CaseStudyBase):
@@ -193,9 +212,7 @@ class CaseStudyUpdate(BaseModel):
     @field_validator("category")
     @classmethod
     def validate_category(cls, value):
-        if value is not None and value not in CASE_CATEGORIES:
-            raise ValueError("Categoria de caso no valida")
-        return value
+        return normalize_case_category(value)
 
 
 class CaseStudyResponse(CaseStudyBase):

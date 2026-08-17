@@ -16,6 +16,7 @@ const CONTRACT_NUMERIC_FIELDS = new Set([
   "it_rate",
   "ims_rate",
   "transformation_from_contract_id",
+  "training_work_percentage",
 ]);
 
 const CONTRACT_BOOLEAN_FIELDS = new Set([

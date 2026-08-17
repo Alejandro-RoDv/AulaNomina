@@ -1,0 +1,72 @@
+.activity-center__mail-card {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  margin-top: 14px;
+  padding: 12px 14px;
+  border: 1px solid #c9dcf7;
+  border-radius: 9px;
+  background: #f3f8ff;
+  color: #315c91;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+  transition: border-color 140ms ease, background 140ms ease;
+}
+
+.activity-center__mail-card:hover {
+  border-color: #94b9ea;
+  background: #eaf3ff;
+}
+
+.activity-center__mail-card:focus-visible {
+  outline: 3px solid rgba(37, 99, 235, 0.2);
+  outline-offset: 2px;
+}
+
+.activity-center__mail-card-copy {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.activity-center__mail-card-copy strong {
+  color: #244f82;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.activity-center__mail-card-copy > span {
+  overflow: hidden;
+  color: #405f82;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.activity-center__mail-card-copy small {
+  color: #64748b;
+  font-size: 10px;
+}
+
+.activity-center__mail-card-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: #245f9f;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+@media (max-width: 760px) {
+  .activity-center__mail-card {
+    grid-template-columns: 22px minmax(0, 1fr);
+  }
+
+  .activity-center__mail-card-action {
+    grid-column: 2;
+  }
+}
