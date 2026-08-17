@@ -29,6 +29,10 @@ CASE_ASSIGNMENT_COLUMNS = {
     "completion_percentage": "INTEGER DEFAULT 0",
 }
 
+CASE_TASK_PROGRESS_COLUMNS = {
+    "hints_used": "INTEGER DEFAULT 0 NOT NULL",
+}
+
 EMAIL_THREAD_COLUMNS = {
     "case_assignment_id": "INTEGER REFERENCES case_assignments(id)",
     "case_task_id": "INTEGER REFERENCES case_tasks(id)",
@@ -67,6 +71,7 @@ def _create_progress_table(connection) -> None:
                     task_id INTEGER NOT NULL REFERENCES case_tasks(id) ON DELETE CASCADE,
                     status VARCHAR DEFAULT 'pending' NOT NULL,
                     attempts INTEGER DEFAULT 0 NOT NULL,
+                    hints_used INTEGER DEFAULT 0 NOT NULL,
                     validation_result JSON,
                     student_notes TEXT,
                     started_at TIMESTAMP,
@@ -87,12 +92,60 @@ def _create_progress_table(connection) -> None:
                     task_id INTEGER NOT NULL REFERENCES case_tasks(id) ON DELETE CASCADE,
                     status VARCHAR DEFAULT 'pending' NOT NULL,
                     attempts INTEGER DEFAULT 0 NOT NULL,
+                    hints_used INTEGER DEFAULT 0 NOT NULL,
                     validation_result JSON,
                     student_notes TEXT,
                     started_at TIMESTAMP,
                     completed_at TIMESTAMP,
                     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
                     CONSTRAINT uq_case_task_progress_assignment_task UNIQUE (assignment_id, task_id)
+                )
+                """
+            )
+        )
+
+
+def _create_attempt_table(connection) -> None:
+    if engine.dialect.name == "postgresql":
+        connection.execute(
+            text(
+                """
+                CREATE TABLE IF NOT EXISTS case_task_attempts (
+                    id SERIAL PRIMARY KEY,
+                    assignment_id INTEGER NOT NULL REFERENCES case_assignments(id) ON DELETE CASCADE,
+                    task_id INTEGER NOT NULL REFERENCES case_tasks(id) ON DELETE CASCADE,
+                    attempt_number INTEGER NOT NULL,
+                    status VARCHAR NOT NULL,
+                    score INTEGER,
+                    hints_used INTEGER DEFAULT 0 NOT NULL,
+                    validation_result JSON,
+                    started_at TIMESTAMP,
+                    completed_at TIMESTAMP,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+                    CONSTRAINT uq_case_task_attempt_assignment_task_number
+                        UNIQUE (assignment_id, task_id, attempt_number)
+                )
+                """
+            )
+        )
+    else:
+        connection.execute(
+            text(
+                """
+                CREATE TABLE IF NOT EXISTS case_task_attempts (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    assignment_id INTEGER NOT NULL REFERENCES case_assignments(id) ON DELETE CASCADE,
+                    task_id INTEGER NOT NULL REFERENCES case_tasks(id) ON DELETE CASCADE,
+                    attempt_number INTEGER NOT NULL,
+                    status VARCHAR NOT NULL,
+                    score INTEGER,
+                    hints_used INTEGER DEFAULT 0 NOT NULL,
+                    validation_result JSON,
+                    started_at TIMESTAMP,
+                    completed_at TIMESTAMP,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+                    CONSTRAINT uq_case_task_attempt_assignment_task_number
+                        UNIQUE (assignment_id, task_id, attempt_number)
                 )
                 """
             )
@@ -110,6 +163,8 @@ def add_missing_case_scenario_columns() -> None:
             _add_columns(connection, "case_tasks", CASE_TASK_COLUMNS)
         if "case_assignments" in table_names:
             _add_columns(connection, "case_assignments", CASE_ASSIGNMENT_COLUMNS)
+        if "case_task_progress" in table_names:
+            _add_columns(connection, "case_task_progress", CASE_TASK_PROGRESS_COLUMNS)
         if "email_threads" in table_names:
             _add_columns(connection, "email_threads", EMAIL_THREAD_COLUMNS)
         if "email_messages" in table_names:
@@ -119,6 +174,7 @@ def add_missing_case_scenario_columns() -> None:
 
         if {"case_assignments", "case_tasks"}.issubset(table_names):
             _create_progress_table(connection)
+            _create_attempt_table(connection)
 
         if "case_studies" in table_names:
             if engine.dialect.name == "postgresql":
