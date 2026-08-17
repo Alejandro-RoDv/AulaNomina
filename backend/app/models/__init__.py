@@ -54,6 +54,7 @@ from app.models.student import Student
 from app.models.student_group import StudentGroup
 from app.models.case_assignment import CaseAssignment
 from app.models.case_progress import CaseTaskProgress
+from app.models.case_task_attempt import CaseTaskAttempt
 from app.models.mail import EmailAttachment, EmailMessage, EmailThread, Mailbox
 from app.models.agreement_extra_pay import AgreementExtraPay, AgreementExtraPayConcept
 from app.models.agreement_seniority import AgreementSeniorityRule
