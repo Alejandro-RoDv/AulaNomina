@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 
 import ActivitiesCenter from "./ActivitiesCenter";
+import TrainingActivityAssist from "./TrainingActivityAssist";
 import TrainingOnboarding from "./TrainingOnboarding";
 import TrainingProgress from "./TrainingProgress";
 
@@ -53,6 +54,7 @@ export default function ActivitiesLauncherBridge() {
   return (
     <>
       <TrainingOnboarding />
+      <TrainingActivityAssist />
       {target ? createPortal(
         <>
           <ActivitiesCenter />
