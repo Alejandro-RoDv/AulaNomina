@@ -95,6 +95,23 @@ export function validateActivity(assignmentId, taskId) {
   );
 }
 
+export function requestActivityHint(assignmentId, taskId) {
+  return apiRequest(
+    `/case-assignments/${assignmentId}/steps/${taskId}/hint`,
+    { method: "POST" },
+    "No se ha podido mostrar la siguiente ayuda"
+  );
+}
+
+export function fetchActivityAttempts(assignmentId, taskId = null) {
+  const query = taskId == null ? "" : `?task_id=${encodeURIComponent(taskId)}`;
+  return apiRequest(
+    `/case-assignments/${assignmentId}/attempts${query}`,
+    {},
+    "No se ha podido cargar el historial de intentos"
+  );
+}
+
 export function saveActivityResponse(assignmentId, taskId, response, validationResult = {}) {
   const studentResponse = { ...(response || {}) };
   delete studentResponse._validation_passed;
