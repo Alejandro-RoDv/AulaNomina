@@ -4,7 +4,7 @@ from typing import Any, Optional
 from pydantic import BaseModel, Field, field_validator
 
 
-STEP_PROGRESS_STATUSES = {"pending", "in_progress", "completed", "failed"}
+STEP_PROGRESS_STATUSES = {"pending", "in_progress", "checking", "completed", "failed"}
 CASE_OPERATION_STATUSES = {"opened", "success", "error"}
 
 
@@ -63,6 +63,7 @@ class CaseScenarioStepResponse(BaseModel):
     progress_id: int
     progress_status: str
     attempts: int
+    hints_used: int = 0
     validation_result: dict[str, Any] = Field(default_factory=dict)
     student_notes: Optional[str] = None
     started_at: Optional[datetime] = None
@@ -107,3 +108,28 @@ class CaseOperationEventResponse(BaseModel):
     professional_message_id: Optional[int] = None
     validation: Optional[CaseStepValidationResponse] = None
     scenario: CaseScenarioResponse
+
+
+class CaseTaskHintResponse(BaseModel):
+    task_id: int
+    level: int
+    kind: str
+    text: str
+    hints_used: int
+    total_levels: int = 3
+
+
+class CaseTaskAttemptResponse(BaseModel):
+    id: int
+    assignment_id: int
+    task_id: int
+    attempt_number: int
+    status: str
+    score: Optional[int] = None
+    hints_used: int = 0
+    validation_result: dict[str, Any] = Field(default_factory=dict)
+    started_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
