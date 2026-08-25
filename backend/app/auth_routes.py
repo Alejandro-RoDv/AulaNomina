@@ -14,6 +14,7 @@ from app.services.auth_service import (
     AuthPrincipal,
     authenticate_user,
     create_user_session,
+    ensure_student_workspace,
     hash_password,
     revoke_session,
 )
@@ -57,6 +58,7 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)):
             status_code=403,
             detail="La cuenta de alumno no está vinculada a un perfil formativo",
         )
+    workspace = ensure_student_workspace(db, student)
 
     return LoginResponse(
         access_token=token,
@@ -66,6 +68,8 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)):
             role=user.role,
             student_id=student.id if student else None,
             student_name=_student_name(student),
+            workspace_id=workspace.id if workspace else None,
+            workspace_code=workspace.workspace_code if workspace else None,
             expires_at=session.expires_at,
         ),
     )
@@ -79,6 +83,8 @@ def me(principal: AuthPrincipal = Depends(get_current_principal)):
         role=principal.role,
         student_id=principal.student_id,
         student_name=principal.student_name,
+        workspace_id=principal.workspace_id,
+        workspace_code=principal.workspace_code,
     )
 
 
@@ -104,6 +110,7 @@ def bootstrap_student_accounts(
 
     created = 0
     linked = 0
+    workspaces = 0
     for student in db.query(Student).filter(Student.is_active.is_(True)).order_by(Student.id.asc()).all():
         if not student.email:
             continue
@@ -121,5 +128,12 @@ def bootstrap_student_accounts(
         if student.user_id != user.id:
             student.user_id = user.id
             linked += 1
+        if ensure_student_workspace(db, student):
+            workspaces += 1
     db.commit()
-    return {"ok": True, "created_users": created, "linked_students": linked}
+    return {
+        "ok": True,
+        "created_users": created,
+        "linked_students": linked,
+        "available_workspaces": workspaces,
+    }
