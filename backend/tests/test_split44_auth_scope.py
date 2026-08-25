@@ -13,6 +13,7 @@ from app.models.case_study import CaseStudy, CaseTask
 from app.models.mail import EmailMessage, EmailThread, Mailbox
 from app.models.student import Student
 from app.models.student_group import StudentGroup
+from app.models.training_workspace import TrainingWorkspace
 from app.models.user import User
 from app.schemas.case_scenario import CaseTaskProgressUpdate
 from app.services.auth_service import (
@@ -166,6 +167,10 @@ def test_password_hash_and_session_resolution(db):
     assert principal is not None
     assert principal.user_id == user.id
     assert principal.student_id == students[0].id
+    assert principal.workspace_id is not None
+    assert principal.workspace_code.startswith("WS-")
+    workspace = db.query(TrainingWorkspace).filter_by(id=principal.workspace_id).one()
+    assert workspace.student_id == students[0].id
 
     revoke_session(db, session.id)
     assert resolve_principal(db, raw_token) is None
@@ -184,11 +189,14 @@ def test_group_template_materializes_private_assignments_progress_and_mail(db):
     assignment_a = next(item for item in assignments_a if item.case_study_id == template.case_study_id)
     assignment_b = next(item for item in assignments_b if item.case_study_id == template.case_study_id)
 
+    assert principals[0].workspace_id != principals[1].workspace_id
     assert assignment_a.id != assignment_b.id
     assert assignment_a.id != template.id
     assert assignment_b.id != template.id
     assert assignment_a.student_id == students[0].id
     assert assignment_b.student_id == students[1].id
+    assert assignment_a.workspace_id == principals[0].workspace_id
+    assert assignment_b.workspace_id == principals[1].workspace_id
     assert assignment_a.group_id is None
     assert assignment_b.group_id is None
 
