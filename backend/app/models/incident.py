@@ -11,6 +11,7 @@ class Incident(Base):
     __tablename__ = "incidents"
 
     id = Column(Integer, primary_key=True, index=True)
+    workspace_id = Column(Integer, ForeignKey("training_workspaces.id", ondelete="CASCADE"), nullable=True, index=True)
     employee_id = Column(Integer, ForeignKey("employees.id"), nullable=False)
     contract_id = Column(Integer, ForeignKey("contracts.id"), nullable=False)
     company_id = Column(Integer, ForeignKey("companies.id"), nullable=False)
