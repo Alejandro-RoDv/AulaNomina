@@ -5,15 +5,31 @@ from datetime import datetime
 from sqlalchemy.orm import Session
 
 from app.models.case_assignment import CaseAssignment
+from app.models.case_progress import CaseTaskProgress
 from app.models.training_workspace import TrainingWorkspace
 from app.services.auth_service import AuthPrincipal
-from app.services.case_scenario_service import reset_assignment_progress
+from app.services.case_scenario_service import ensure_assignment_progress
 from app.services.workspace_context import bind_workspace, reset_workspace
 from app.services.workspace_seed_service import seed_workspace_from_baseline
 
 
 class WorkspaceResetError(Exception):
     pass
+
+
+def _reset_assignment_state(db: Session, assignment: CaseAssignment, now: datetime) -> None:
+    db.query(CaseTaskProgress).filter(CaseTaskProgress.assignment_id == assignment.id).delete(
+        synchronize_session=False
+    )
+    assignment.status = "assigned"
+    assignment.started_at = None
+    assignment.completed_at = None
+    assignment.current_task_order = 1
+    assignment.completion_percentage = 0
+    for thread in assignment.email_threads:
+        thread.status = "open"
+        thread.case_task_id = None
+        thread.updated_at = now
 
 
 def reset_learner_workspace(db: Session, principal: AuthPrincipal) -> TrainingWorkspace:
@@ -64,6 +80,7 @@ def reset_learner_workspace(db: Session, principal: AuthPrincipal) -> TrainingWo
     )
     for assignment in assignments:
         assignment.workspace_id = fresh.id
+        _reset_assignment_state(db, assignment, now)
     db.commit()
 
     # El request que ejecuta el reset sigue ligado a la generación anterior.
@@ -74,10 +91,10 @@ def reset_learner_workspace(db: Session, principal: AuthPrincipal) -> TrainingWo
     finally:
         reset_workspace(scope_token)
 
-    # Reiniciamos el estado ejecutable pero no eliminamos CaseTaskAttempt: el
-    # historial pedagógico sobrevive al reset del entorno ERP.
+    # Recrear los CaseTaskProgress no toca CaseTaskAttempt: los intentos y sus
+    # puntuaciones sobreviven a la restauración del escenario ERP.
     for assignment in assignments:
-        reset_assignment_progress(db, assignment.id)
+        ensure_assignment_progress(db, assignment.id)
 
     db.refresh(fresh)
     return fresh
