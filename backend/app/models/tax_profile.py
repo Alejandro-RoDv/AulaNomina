@@ -10,6 +10,7 @@ class TaxProfile(Base):
     __tablename__ = "tax_profiles"
 
     id = Column(Integer, primary_key=True, index=True)
+    workspace_id = Column(Integer, ForeignKey("training_workspaces.id", ondelete="CASCADE"), nullable=True, index=True)
     employee_id = Column(Integer, ForeignKey("employees.id"), unique=True, nullable=False, index=True)
 
     birth_year = Column(Integer, nullable=True)
