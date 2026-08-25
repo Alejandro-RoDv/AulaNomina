@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
+from app.auth_dependencies import get_optional_principal
 from app.db import SessionLocal
 from app.schemas.case_scenario import (
     CaseContextEventCreate,
@@ -15,7 +16,9 @@ from app.schemas.teacher_case_dashboard import (
     TeacherCaseDashboardResponse,
     TeacherCaseDetailResponse,
 )
-from app.services.training_course_projection_2026 import build_master_activity_course_2026
+from app.services.auth_service import AuthPrincipal
+from app.services.learner_course_service import build_learner_course
+from app.services.learner_scope_service import assert_assignment_access
 from app.services.case_scenario_service import (
     CaseScenarioError,
     build_assignment_scenario,
@@ -105,10 +108,18 @@ def _translate_error(error: CaseScenarioError):
     ) from error
 
 
+def _assert_staff(principal: AuthPrincipal | None) -> None:
+    if principal is not None and not principal.is_staff:
+        raise HTTPException(status_code=403, detail="Acceso reservado a docentes y administradores")
+
+
 @router.get("/course-activities")
-def read_course_activities(db: Session = Depends(get_db)):
-    """Return only master-syllabus activities projected onto executable runtime steps."""
-    return build_master_activity_course_2026(db)
+def read_course_activities(
+    db: Session = Depends(get_db),
+    principal: AuthPrincipal | None = Depends(get_optional_principal),
+):
+    """Return the master course projected only onto the current learner's assignments."""
+    return build_learner_course(db, principal)
 
 
 @router.get("/teacher-dashboard", response_model=TeacherCaseDashboardResponse)
@@ -117,7 +128,9 @@ def read_teacher_case_dashboard(
     assignee_type: str | None = Query(default=None),
     search: str | None = Query(default=None),
     db: Session = Depends(get_db),
+    principal: AuthPrincipal | None = Depends(get_optional_principal),
 ):
+    _assert_staff(principal)
     return get_teacher_case_dashboard(
         db,
         status=status,
@@ -127,7 +140,12 @@ def read_teacher_case_dashboard(
 
 
 @router.get("/{assignment_id}/teacher-detail", response_model=TeacherCaseDetailResponse)
-def read_teacher_case_detail(assignment_id: int, db: Session = Depends(get_db)):
+def read_teacher_case_detail(
+    assignment_id: int,
+    db: Session = Depends(get_db),
+    principal: AuthPrincipal | None = Depends(get_optional_principal),
+):
+    _assert_staff(principal)
     try:
         return get_teacher_case_detail(db, assignment_id)
     except CaseScenarioError as error:
@@ -135,7 +153,12 @@ def read_teacher_case_detail(assignment_id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/{assignment_id}/scenario", response_model=CaseScenarioResponse)
-def read_assignment_scenario(assignment_id: int, db: Session = Depends(get_db)):
+def read_assignment_scenario(
+    assignment_id: int,
+    db: Session = Depends(get_db),
+    principal: AuthPrincipal | None = Depends(get_optional_principal),
+):
+    assert_assignment_access(db, principal, assignment_id)
     try:
         return build_assignment_scenario(db, assignment_id)
     except CaseScenarioError as error:
@@ -147,7 +170,9 @@ def read_assignment_attempts(
     assignment_id: int,
     task_id: int | None = Query(default=None),
     db: Session = Depends(get_db),
+    principal: AuthPrincipal | None = Depends(get_optional_principal),
 ):
+    assert_assignment_access(db, principal, assignment_id)
     try:
         return get_assignment_attempts(db, assignment_id, task_id=task_id)
     except CaseScenarioError as error:
@@ -155,7 +180,12 @@ def read_assignment_attempts(
 
 
 @router.post("/{assignment_id}/start", response_model=CaseScenarioResponse)
-def start_assignment_scenario(assignment_id: int, db: Session = Depends(get_db)):
+def start_assignment_scenario(
+    assignment_id: int,
+    db: Session = Depends(get_db),
+    principal: AuthPrincipal | None = Depends(get_optional_principal),
+):
+    assert_assignment_access(db, principal, assignment_id)
     try:
         return start_assignment(db, assignment_id)
     except CaseScenarioError as error:
@@ -168,7 +198,9 @@ def patch_assignment_step(
     task_id: int,
     payload: CaseTaskProgressUpdate,
     db: Session = Depends(get_db),
+    principal: AuthPrincipal | None = Depends(get_optional_principal),
 ):
+    assert_assignment_access(db, principal, assignment_id)
     try:
         return update_assignment_step(db, assignment_id, task_id, payload)
     except CaseScenarioError as error:
@@ -180,7 +212,9 @@ def reveal_assignment_step_hint(
     assignment_id: int,
     task_id: int,
     db: Session = Depends(get_db),
+    principal: AuthPrincipal | None = Depends(get_optional_principal),
 ):
+    assert_assignment_access(db, principal, assignment_id)
     try:
         return reveal_next_task_hint(db, assignment_id, task_id)
     except CaseScenarioError as error:
@@ -195,7 +229,9 @@ def validate_assignment_step_endpoint(
     assignment_id: int,
     task_id: int,
     db: Session = Depends(get_db),
+    principal: AuthPrincipal | None = Depends(get_optional_principal),
 ):
+    assert_assignment_access(db, principal, assignment_id)
     try:
         assignment = ensure_assignment_progress(db, assignment_id)
         task = next((item for item in assignment.case_study.tasks if item.id == task_id), None)
@@ -235,7 +271,9 @@ def record_assignment_event_endpoint(
     assignment_id: int,
     payload: CaseContextEventCreate,
     db: Session = Depends(get_db),
+    principal: AuthPrincipal | None = Depends(get_optional_principal),
 ):
+    assert_assignment_access(db, principal, assignment_id)
     try:
         result = record_assignment_event(db, assignment_id, payload)
         event_id = str((payload.metadata or {}).get("event_id") or "").strip() or None
@@ -254,7 +292,12 @@ def record_assignment_event_endpoint(
 
 
 @router.post("/{assignment_id}/reset-progress", response_model=CaseScenarioResponse)
-def reset_assignment_scenario(assignment_id: int, db: Session = Depends(get_db)):
+def reset_assignment_scenario(
+    assignment_id: int,
+    db: Session = Depends(get_db),
+    principal: AuthPrincipal | None = Depends(get_optional_principal),
+):
+    assert_assignment_access(db, principal, assignment_id)
     try:
         return reset_assignment_progress(db, assignment_id)
     except CaseScenarioError as error:
