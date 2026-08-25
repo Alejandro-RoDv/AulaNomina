@@ -1,4 +1,5 @@
 import { emitCaseOperationEvent } from "../utils/caseOperationBridge.js";
+import { clearAuthSession, withAuthHeaders } from "./authStorage.js";
 
 export const API_BASE_URL = import.meta.env?.VITE_API_BASE_URL || "http://127.0.0.1:8000";
 
@@ -29,6 +30,13 @@ function resolveCompatibilityPath(path) {
   return path === "/demo/reset" ? "/demo/clear" : path;
 }
 
+function authenticatedOptions(options = {}) {
+  return {
+    ...options,
+    headers: withAuthHeaders(options.headers || {}),
+  };
+}
+
 async function publishCaseOperation({
   path,
   options,
@@ -51,9 +59,10 @@ async function publishCaseOperation({
 export async function apiRequest(path, options = {}, fallbackMessage = "Error de comunicación con la API") {
   let response;
   const resolvedPath = resolveCompatibilityPath(path);
+  const requestOptions = authenticatedOptions(options);
 
   try {
-    response = await fetch(`${API_BASE_URL}${resolvedPath}`, options);
+    response = await fetch(`${API_BASE_URL}${resolvedPath}`, requestOptions);
   } catch {
     throw new ApiRequestError(
       `No se ha podido conectar con la API (${API_BASE_URL}). Revisa que el backend esté arrancado y que VITE_API_BASE_URL apunte correctamente.`,
@@ -68,9 +77,15 @@ export async function apiRequest(path, options = {}, fallbackMessage = "Error de
   if (!response.ok) {
     const detail = data?.detail ?? null;
     const errorMessage = messageFromDetail(detail, fallbackMessage, response.status);
+    if (response.status === 401 && !resolvedPath.startsWith("/auth/login")) {
+      clearAuthSession();
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("aulanomina-auth-expired"));
+      }
+    }
     await publishCaseOperation({
       path: resolvedPath,
-      options,
+      options: requestOptions,
       operationStatus: "error",
       responseData: data,
       responseSummary: errorMessage,
@@ -84,7 +99,7 @@ export async function apiRequest(path, options = {}, fallbackMessage = "Error de
 
   await publishCaseOperation({
     path: resolvedPath,
-    options,
+    options: requestOptions,
     operationStatus: "success",
     responseData: data,
     responseSummary: fallbackMessage.replace(/^Error al\s+/i, "").replace(/^Error de\s+/i, ""),
