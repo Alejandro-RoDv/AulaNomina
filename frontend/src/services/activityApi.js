@@ -112,6 +112,14 @@ export function fetchActivityAttempts(assignmentId, taskId = null) {
   );
 }
 
+export function fetchEvaluationResult(assignmentId) {
+  return apiRequest(
+    `/case-assignments/${assignmentId}/evaluation-result`,
+    {},
+    "No se ha podido calcular el resultado de la evaluación"
+  );
+}
+
 export function saveActivityResponse(assignmentId, taskId, response, validationResult = {}) {
   const studentResponse = { ...(response || {}) };
   delete studentResponse._validation_passed;
