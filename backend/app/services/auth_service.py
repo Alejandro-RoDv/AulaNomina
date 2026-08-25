@@ -10,6 +10,7 @@ from typing import Optional
 from sqlalchemy.orm import Session
 
 from app.models.student import Student
+from app.models.training_workspace import TrainingWorkspace
 from app.models.user import User
 from app.models.user_session import UserSession
 
@@ -17,6 +18,7 @@ from app.models.user_session import UserSession
 PASSWORD_SCHEME = "pbkdf2_sha256"
 PASSWORD_ITERATIONS = 210_000
 SESSION_HOURS = 12
+WORKSPACE_SEED_VERSION = "2026.1"
 
 
 @dataclass(frozen=True)
@@ -26,6 +28,8 @@ class AuthPrincipal:
     role: str
     student_id: Optional[int]
     student_name: Optional[str]
+    workspace_id: Optional[int]
+    workspace_code: Optional[str]
     session_id: int
 
     @property
@@ -86,6 +90,30 @@ def _student_for_user(db: Session, user: User) -> Student | None:
     return student
 
 
+def ensure_student_workspace(db: Session, student: Student | None) -> TrainingWorkspace | None:
+    if student is None:
+        return None
+    workspace = (
+        db.query(TrainingWorkspace)
+        .filter(TrainingWorkspace.student_id == student.id)
+        .first()
+    )
+    if workspace:
+        return workspace
+
+    workspace = TrainingWorkspace(
+        student_id=student.id,
+        workspace_code=f"WS-{student.id:06d}",
+        status="active",
+        seed_version=WORKSPACE_SEED_VERSION,
+        reset_generation=0,
+    )
+    db.add(workspace)
+    db.commit()
+    db.refresh(workspace)
+    return workspace
+
+
 def authenticate_user(db: Session, email: str, password: str) -> User | None:
     user = db.query(User).filter(User.email == email.strip().lower()).first()
     if not user or not user.is_active:
@@ -106,7 +134,9 @@ def create_user_session(db: Session, user: User) -> tuple[str, UserSession, Stud
     db.add(session)
     db.commit()
     db.refresh(session)
-    return raw_token, session, _student_for_user(db, user)
+    student = _student_for_user(db, user)
+    ensure_student_workspace(db, student)
+    return raw_token, session, student
 
 
 def resolve_principal(db: Session, raw_token: str) -> AuthPrincipal | None:
@@ -124,6 +154,7 @@ def resolve_principal(db: Session, raw_token: str) -> AuthPrincipal | None:
         return None
 
     student = _student_for_user(db, session.user)
+    workspace = ensure_student_workspace(db, student)
     session.last_seen_at = now
     db.commit()
     return AuthPrincipal(
@@ -132,6 +163,8 @@ def resolve_principal(db: Session, raw_token: str) -> AuthPrincipal | None:
         role=session.user.role,
         student_id=student.id if student else None,
         student_name=student.full_name if student else None,
+        workspace_id=workspace.id if workspace else None,
+        workspace_code=workspace.workspace_code if workspace else None,
         session_id=session.id,
     )
 
