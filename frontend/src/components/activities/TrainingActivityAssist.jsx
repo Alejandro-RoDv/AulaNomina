@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import { ChevronRight, Clock3, History, Lightbulb, LoaderCircle, Route } from "lucide-react";
+import { CheckCircle2, ChevronRight, Clock3, History, Lightbulb, LoaderCircle, Route } from "lucide-react";
 
 import {
   fetchActivityAttempts,
   fetchActivityCourse,
+  fetchEvaluationResult,
   requestActivityHint,
 } from "../../services/activityApi.js";
 import { fetchAssignmentScenario } from "../../services/caseScenarioApi.js";
@@ -82,12 +83,56 @@ function HelpIcon({ kind }) {
   return <Lightbulb size={16} aria-hidden="true" />;
 }
 
+function EvaluationScorecard({ result }) {
+  if (!result) return null;
+  const complete = result.status === "completed";
+  return (
+    <section className={`training-activity-assist__scorecard${complete ? " is-complete" : ""}`}>
+      <div className="training-activity-assist__scorecard-heading">
+        <div>
+          <span>{result.evaluation_code} · Evaluación práctica</span>
+          <strong>{result.title}</strong>
+        </div>
+        <div className="training-activity-assist__score">
+          <strong>{result.score}</strong>
+          <span>/100</span>
+        </div>
+      </div>
+
+      <div className="training-activity-assist__scorecard-progress">
+        <span>{result.completed_tasks}/{result.total_tasks} apartados completados</span>
+        <strong>{complete ? (result.passed ? "Superada" : "No superada") : "En curso"}</strong>
+      </div>
+
+      <div className="training-activity-assist__section-scores">
+        {(result.sections || []).map((section) => (
+          <div key={section.key} className="training-activity-assist__section-score">
+            <span>{section.label}</span>
+            <span className="training-activity-assist__section-track" aria-hidden="true">
+              <span style={{ width: `${Math.max(0, Math.min(100, section.score || 0))}%` }} />
+            </span>
+            <strong>{section.score}/100</strong>
+          </div>
+        ))}
+      </div>
+
+      {complete && result.passed && (
+        <div className="training-activity-assist__scorecard-result is-passed">
+          <CheckCircle2 size={16} aria-hidden="true" />
+          <span>Evaluación completada con una puntuación de {result.score}/100.</span>
+        </div>
+      )}
+    </section>
+  );
+}
+
 export default function TrainingActivityAssist() {
   const [target, setTarget] = useState(null);
   const [context, setContext] = useState(readContext);
   const [activity, setActivity] = useState(null);
   const [scenarioStep, setScenarioStep] = useState(null);
   const [attempts, setAttempts] = useState([]);
+  const [evaluationResult, setEvaluationResult] = useState(null);
   const [revealedHelp, setRevealedHelp] = useState(() => readStoredHelp(readContext()));
   const [loading, setLoading] = useState(false);
   const [hintLoading, setHintLoading] = useState(false);
@@ -113,6 +158,18 @@ export default function TrainingActivityAssist() {
       setActivity(nextActivity || null);
       setScenarioStep(nextStep || null);
       setAttempts(attemptRows || []);
+
+      const nextTrainingCode = String(nextActivity?.training_code || nextStep?.trigger_condition?.training_code || "").toUpperCase();
+      if (/^C\d{2}$/.test(nextTrainingCode)) {
+        try {
+          setEvaluationResult(await fetchEvaluationResult(activeContext.assignmentId));
+        } catch (evaluationError) {
+          if (evaluationError?.code !== "ASSIGNMENT_NOT_EVALUATION") throw evaluationError;
+          setEvaluationResult(null);
+        }
+      } else {
+        setEvaluationResult(null);
+      }
 
       const backendHintsUsed = Number(nextStep?.hints_used || 0);
       if (backendHintsUsed === 0) {
@@ -215,10 +272,13 @@ export default function TrainingActivityAssist() {
       </div>
 
       {evaluationMode ? (
-        <div className="training-activity-assist__evaluation-note">
-          <History size={16} aria-hidden="true" />
-          <span>Las evaluaciones C01–C06 no muestran pistas ni procedimiento durante la realización.</span>
-        </div>
+        <>
+          <div className="training-activity-assist__evaluation-note">
+            <History size={16} aria-hidden="true" />
+            <span>Las evaluaciones C01–C06 no muestran pistas ni procedimiento durante la realización.</span>
+          </div>
+          <EvaluationScorecard result={evaluationResult} />
+        </>
       ) : (
         <>
           {revealedHelp.length > 0 && (
