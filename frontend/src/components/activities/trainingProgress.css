@@ -111,15 +111,81 @@
   padding: 24px 28px 28px;
 }
 
-.training-progress__error {
+.training-progress__error,
+.training-progress__notice {
   margin: 18px 28px 0;
   padding: 10px 12px;
-  border: 1px solid #f0b7b7;
   border-radius: 8px;
-  color: #8b2525;
-  background: #fff5f5;
   font-size: 13px;
   font-weight: 700;
+}
+
+.training-progress__error {
+  border: 1px solid #f0b7b7;
+  color: #8b2525;
+  background: #fff5f5;
+}
+
+.training-progress__notice {
+  border: 1px solid #cbdccf;
+  color: #315d3d;
+  background: #f3f9f4;
+}
+
+.training-progress__reset-confirm {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 13px;
+  margin-bottom: 18px;
+  padding: 15px 16px;
+  border: 1px solid #e5c5a1;
+  border-radius: 12px;
+  color: #67451e;
+  background: #fffaf2;
+}
+
+.training-progress__reset-confirm > svg {
+  margin-top: 2px;
+}
+
+.training-progress__reset-confirm strong {
+  color: #563919;
+  font-size: 13px;
+}
+
+.training-progress__reset-confirm p {
+  margin: 5px 0 12px;
+  color: #735b3f;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.training-progress__reset-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.training-progress__reset-actions button {
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 10px;
+  border: 1px solid #cfd6df;
+  border-radius: 8px;
+  color: #3f4b5f;
+  background: #ffffff;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.training-progress__reset-actions button.is-danger {
+  border-color: #a84a4a;
+  color: #ffffff;
+  background: #9d3f3f;
 }
 
 .training-progress__overview {
@@ -312,13 +378,21 @@
   background: #f8fafc;
 }
 
-.training-progress__footer > span {
+.training-progress__footer-meta {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+}
+
+.training-progress__footer-meta > span {
   color: #657085;
   font-size: 12px;
   font-weight: 750;
 }
 
-.training-progress__footer button {
+.training-progress__footer > button {
   min-height: 40px;
   display: inline-flex;
   align-items: center;
@@ -334,7 +408,27 @@
   cursor: pointer;
 }
 
-.training-progress__footer button:disabled {
+.training-progress__reset-link {
+  min-height: 30px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+  border: 0;
+  border-radius: 7px;
+  color: #7a4a42;
+  background: transparent;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.training-progress__reset-link:hover {
+  background: #f7eded;
+}
+
+.training-progress button:disabled {
   opacity: 0.45;
   cursor: default;
 }
@@ -374,5 +468,20 @@
 
   .training-progress__continuation {
     grid-template-columns: 1fr;
+  }
+
+  .training-progress__footer {
+    align-items: flex-end;
+  }
+}
+
+@media (max-width: 520px) {
+  .training-progress__footer {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .training-progress__footer > button {
+    justify-content: center;
   }
 }
