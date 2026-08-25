@@ -1,11 +1,13 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { ArrowLeft, ArrowRight, BookOpen, CheckCircle2, Mail, Monitor, RotateCcw, X } from "lucide-react";
 
+import {
+  readTutorialState,
+  restartTutorial,
+  writeTutorialState,
+} from "./trainingTutorialState.js";
 import "./trainingOnboarding.css";
-
-const ONBOARDING_KEY = "aulanomina:training-onboarding-v1";
-const FAMILIARIZATION_KEY = "aulanomina:training-familiarization-v1";
 
 const slides = [
   {
@@ -18,8 +20,8 @@ const slides = [
   {
     eyebrow: "Cómo funciona el ERP",
     title: "El curso y el ERP son el mismo entorno",
-    body: "Cada actividad te plantea un encargo y te lleva al módulo donde debes investigar o realizar la gestión. Usa «Continuar curso» para volver a la actividad en la que estás trabajando. «Progreso del curso» sirve únicamente para consultar tu avance, bloques completados e historial de recorrido.",
-    note: "Puedes moverte por el ERP con normalidad y regresar a la actividad cuando necesites revisar el encargo.",
+    body: "Cada actividad te plantea un encargo y te lleva al módulo donde debes investigar o realizar la gestión. El botón «Curso» te devuelve siempre a la actividad en la que estás trabajando y muestra también tu avance general y por bloques.",
+    note: "Puedes moverte por el ERP con normalidad y regresar al encargo cuando necesites comprobar qué estabas haciendo.",
     icon: Monitor,
   },
   {
@@ -33,7 +35,7 @@ const slides = [
     eyebrow: "Correo y contexto",
     title: "Algunos casos empiezan en tu bandeja de entrada",
     body: "Si una actividad indica que revises el correo, abre el mensaje relacionado, consulta sus adjuntos y vuelve al ERP para realizar la gestión. Cuando corresponda, responderás desde el mismo hilo.",
-    note: "AulaNomina relaciona el correo con la actividad para que siempre sepas qué expediente estás trabajando.",
+    note: "Si no recuerdas dónde está una función, «Tutorial y ayuda» incluye un buscador de módulos y preguntas frecuentes.",
     icon: Mail,
   },
 ];
@@ -69,22 +71,6 @@ const familiarizationSteps = [
   },
 ];
 
-function readStoredState(key) {
-  try {
-    return window.localStorage.getItem(key) === "completed";
-  } catch {
-    return false;
-  }
-}
-
-function storeCompleted(key) {
-  try {
-    window.localStorage.setItem(key, "completed");
-  } catch {
-    // La experiencia sigue funcionando aunque el navegador bloquee almacenamiento local.
-  }
-}
-
 function openErpPage(page) {
   if (!page) return;
   if (window.location.hash) {
@@ -100,30 +86,75 @@ function openActivitiesCenter() {
 }
 
 export default function TrainingOnboarding() {
-  const [phase, setPhase] = useState(() => {
-    if (!readStoredState(ONBOARDING_KEY)) return "onboarding";
-    if (!readStoredState(FAMILIARIZATION_KEY)) return "familiarization";
-    return "hidden";
-  });
-  const [slideIndex, setSlideIndex] = useState(0);
-  const [familiarizationIndex, setFamiliarizationIndex] = useState(0);
-  const [coachMinimized, setCoachMinimized] = useState(false);
+  const initialState = useMemo(() => readTutorialState(), []);
+  const [tutorialState, setTutorialState] = useState(initialState);
+  const [visiblePhase, setVisiblePhase] = useState(() => (
+    initialState.completed || initialState.dismissed ? "hidden" : initialState.phase
+  ));
 
+  const slideIndex = tutorialState.slideIndex;
+  const familiarizationIndex = tutorialState.familiarizationIndex;
   const slide = slides[slideIndex];
   const familiarizationStep = familiarizationSteps[familiarizationIndex];
   const SlideIcon = slide?.icon || BookOpen;
-  const onboardingProgress = useMemo(() => ((slideIndex + 1) / slides.length) * 100, [slideIndex]);
+  const onboardingProgress = ((slideIndex + 1) / slides.length) * 100;
   const isLastFamiliarizationStep = familiarizationIndex >= familiarizationSteps.length - 1;
 
+  const persist = (patch) => {
+    setTutorialState((current) => writeTutorialState({ ...current, ...patch }));
+  };
+
+  useEffect(() => {
+    const handleTutorialRequest = (event) => {
+      const mode = event.detail?.mode || "resume";
+      if (mode === "restart") {
+        const restarted = restartTutorial();
+        setTutorialState(restarted);
+        setVisiblePhase("onboarding");
+        return;
+      }
+
+      const stored = readTutorialState();
+      const resumable = stored.completed ? restartTutorial() : writeTutorialState({ ...stored, dismissed: false });
+      setTutorialState(resumable);
+      setVisiblePhase(resumable.phase === "hidden" ? "onboarding" : resumable.phase);
+    };
+
+    window.addEventListener("aulanomina-tutorial-open", handleTutorialRequest);
+    return () => window.removeEventListener("aulanomina-tutorial-open", handleTutorialRequest);
+  }, []);
+
+  const dismissTutorial = () => {
+    persist({ dismissed: true });
+    setVisiblePhase("hidden");
+    window.dispatchEvent(new Event("aulanomina-tutorial-state-changed"));
+  };
+
   const finishOnboarding = () => {
-    storeCompleted(ONBOARDING_KEY);
-    setPhase("familiarization");
-    setFamiliarizationIndex(0);
+    const next = writeTutorialState({
+      ...tutorialState,
+      phase: "familiarization",
+      slideIndex: slides.length - 1,
+      familiarizationIndex: 0,
+      completed: false,
+      dismissed: false,
+    });
+    setTutorialState(next);
+    setVisiblePhase("familiarization");
+    window.dispatchEvent(new Event("aulanomina-tutorial-state-changed"));
   };
 
   const finishFamiliarization = () => {
-    storeCompleted(FAMILIARIZATION_KEY);
-    setPhase("hidden");
+    const next = writeTutorialState({
+      ...tutorialState,
+      phase: "hidden",
+      familiarizationIndex: familiarizationSteps.length - 1,
+      completed: true,
+      dismissed: false,
+    });
+    setTutorialState(next);
+    setVisiblePhase("hidden");
+    window.dispatchEvent(new Event("aulanomina-tutorial-state-changed"));
     window.setTimeout(openActivitiesCenter, 0);
   };
 
@@ -132,13 +163,16 @@ export default function TrainingOnboarding() {
       finishFamiliarization();
       return;
     }
-    setFamiliarizationIndex((current) => current + 1);
-    setCoachMinimized(false);
+    persist({
+      phase: "familiarization",
+      familiarizationIndex: Math.min(familiarizationSteps.length - 1, familiarizationIndex + 1),
+      dismissed: false,
+    });
   };
 
-  if (phase === "hidden") return null;
+  if (visiblePhase === "hidden") return null;
 
-  if (phase === "onboarding") {
+  if (visiblePhase === "onboarding") {
     return createPortal(
       <div className="training-onboarding__backdrop" role="presentation">
         <section className="training-onboarding" role="dialog" aria-modal="true" aria-labelledby="training-onboarding-title">
@@ -151,7 +185,12 @@ export default function TrainingOnboarding() {
           <div className="training-onboarding__content">
             <div className="training-onboarding__topline">
               <span>{slide.eyebrow}</span>
-              <small>{slideIndex + 1} / {slides.length}</small>
+              <div className="training-onboarding__top-actions">
+                <small>{slideIndex + 1} / {slides.length}</small>
+                <button type="button" className="training-onboarding__dismiss" onClick={dismissTutorial} aria-label="Cerrar tutorial por ahora" title="Cerrar por ahora">
+                  <X size={17} aria-hidden="true" />
+                </button>
+              </div>
             </div>
             <div className="training-onboarding__progress" aria-hidden="true">
               <span style={{ width: `${onboardingProgress}%` }} />
@@ -170,7 +209,7 @@ export default function TrainingOnboarding() {
               <button
                 type="button"
                 className="training-onboarding__button is-secondary"
-                onClick={() => setSlideIndex((current) => Math.max(0, current - 1))}
+                onClick={() => persist({ slideIndex: Math.max(0, slideIndex - 1) })}
                 disabled={slideIndex === 0}
               >
                 <ArrowLeft size={16} aria-hidden="true" />
@@ -181,9 +220,9 @@ export default function TrainingOnboarding() {
                 className="training-onboarding__button is-primary"
                 onClick={() => slideIndex === slides.length - 1
                   ? finishOnboarding()
-                  : setSlideIndex((current) => Math.min(slides.length - 1, current + 1))}
+                  : persist({ slideIndex: Math.min(slides.length - 1, slideIndex + 1) })}
               >
-                {slideIndex === slides.length - 1 ? "Empezar Actividad 0" : "Siguiente"}
+                {slideIndex === slides.length - 1 ? "Empezar familiarización" : "Siguiente"}
                 <ArrowRight size={16} aria-hidden="true" />
               </button>
             </div>
@@ -195,47 +234,43 @@ export default function TrainingOnboarding() {
   }
 
   return createPortal(
-    <aside className={`training-familiarization${coachMinimized ? " is-minimized" : ""}`} aria-label="Actividad 0 de familiarización">
+    <aside className="training-familiarization" aria-label="Actividad 0 de familiarización">
       <header className="training-familiarization__header">
         <div>
           <span>Actividad 0 · No evaluable</span>
           <strong>Familiarización con AulaNomina</strong>
         </div>
-        <button type="button" onClick={() => setCoachMinimized((current) => !current)} aria-label={coachMinimized ? "Mostrar actividad" : "Minimizar actividad"}>
-          {coachMinimized ? <BookOpen size={17} /> : <X size={17} />}
+        <button type="button" onClick={dismissTutorial} aria-label="Cerrar tutorial por ahora" title="Cerrar por ahora">
+          <X size={17} aria-hidden="true" />
         </button>
       </header>
 
-      {!coachMinimized && (
-        <>
-          <div className="training-familiarization__progress">
-            {familiarizationSteps.map((step, index) => (
-              <span key={step.title} className={index <= familiarizationIndex ? "is-active" : ""} />
-            ))}
-          </div>
-          <div className="training-familiarization__body">
-            <small>Paso {familiarizationIndex + 1} de {familiarizationSteps.length}</small>
-            <h3>{familiarizationStep.title}</h3>
-            <p>{familiarizationStep.description}</p>
-            <div className="training-familiarization__actions">
-              {familiarizationStep.page && (
-                <button
-                  type="button"
-                  className="training-onboarding__button is-secondary"
-                  onClick={() => openErpPage(familiarizationStep.page)}
-                >
-                  {familiarizationStep.action}
-                  <ArrowRight size={15} aria-hidden="true" />
-                </button>
-              )}
-              <button type="button" className="training-onboarding__button is-primary" onClick={confirmFamiliarizationStep}>
-                <CheckCircle2 size={15} aria-hidden="true" />
-                {familiarizationStep.done}
-              </button>
-            </div>
-          </div>
-        </>
-      )}
+      <div className="training-familiarization__progress">
+        {familiarizationSteps.map((step, index) => (
+          <span key={step.title} className={index <= familiarizationIndex ? "is-active" : ""} />
+        ))}
+      </div>
+      <div className="training-familiarization__body">
+        <small>Paso {familiarizationIndex + 1} de {familiarizationSteps.length}</small>
+        <h3>{familiarizationStep.title}</h3>
+        <p>{familiarizationStep.description}</p>
+        <div className="training-familiarization__actions">
+          {familiarizationStep.page && (
+            <button
+              type="button"
+              className="training-onboarding__button is-secondary"
+              onClick={() => openErpPage(familiarizationStep.page)}
+            >
+              {familiarizationStep.action}
+              <ArrowRight size={15} aria-hidden="true" />
+            </button>
+          )}
+          <button type="button" className="training-onboarding__button is-primary" onClick={confirmFamiliarizationStep}>
+            <CheckCircle2 size={15} aria-hidden="true" />
+            {familiarizationStep.done}
+          </button>
+        </div>
+      </div>
     </aside>,
     document.body
   );
