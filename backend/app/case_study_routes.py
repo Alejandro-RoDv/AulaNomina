@@ -1,6 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
+from app.auth_routes import router as auth_router
+from app.auth_schema_patch import add_missing_auth_columns
 from app.catalog_routes import router as catalog_router
 from app.case_scenario_schema_patch import add_missing_case_scenario_columns
 from app.db import SessionLocal
@@ -65,11 +67,13 @@ from app.schemas.student_group import StudentGroupCreate, StudentGroupResponse, 
 
 router = APIRouter(tags=["teaching"])
 router.include_router(catalog_router)
+router.include_router(auth_router)
 
 
 @router.on_event("startup")
 def apply_case_scenario_schema_patch():
     add_missing_case_scenario_columns()
+    add_missing_auth_columns()
 
 
 def get_db():
