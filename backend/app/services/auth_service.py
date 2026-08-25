@@ -13,6 +13,7 @@ from app.models.student import Student
 from app.models.training_workspace import TrainingWorkspace
 from app.models.user import User
 from app.models.user_session import UserSession
+from app.services.workspace_seed_service import seed_workspace_from_baseline
 
 
 PASSWORD_SCHEME = "pbkdf2_sha256"
@@ -99,6 +100,7 @@ def ensure_student_workspace(db: Session, student: Student | None) -> TrainingWo
         .first()
     )
     if workspace:
+        seed_workspace_from_baseline(db, workspace)
         return workspace
 
     workspace = TrainingWorkspace(
@@ -110,6 +112,8 @@ def ensure_student_workspace(db: Session, student: Student | None) -> TrainingWo
     )
     db.add(workspace)
     db.commit()
+    db.refresh(workspace)
+    seed_workspace_from_baseline(db, workspace)
     db.refresh(workspace)
     return workspace
 
