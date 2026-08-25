@@ -1,5 +1,6 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
+from app.auth_dependencies import get_optional_principal
 from app.catalogs.contract_codes import CONTRACT_CODES
 from app.catalogs.contribution_groups import CONTRIBUTION_GROUPS
 from app.catalogs.red_catalogs import (
@@ -28,7 +29,7 @@ from app.social_security_registration_routes import router as social_security_re
 from app.social_security_settlement_routes import router as social_security_settlement_router
 from app.wage_garnishment_routes import router as wage_garnishment_router
 
-router = APIRouter(tags=["catalogs"])
+router = APIRouter(tags=["catalogs"], dependencies=[Depends(get_optional_principal)])
 router.include_router(affiliation_remittance_router)
 router.include_router(case_scenario_router)
 router.include_router(evaluation_router)
