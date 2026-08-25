@@ -23,6 +23,7 @@ from app.cra_routes import router as cra_router
 from app.environment_reset_routes import router as environment_reset_router
 from app.evaluation_routes import router as evaluation_router
 from app.fie_routes import router as fie_router
+from app.legacy_demo_guard_routes import router as legacy_demo_guard_router
 from app.mail_routes import router as mail_router
 from app.model111_routes import router as model111_router
 from app.model190_routes import router as model190_router
@@ -35,6 +36,7 @@ router = APIRouter(tags=["catalogs"], dependencies=[Depends(get_optional_princip
 # Estas rutas se montan antes que las rutas históricas declaradas en main.py.
 # Así reutilizamos los mismos CRUD con el workspace ligado a la petición sin
 # duplicar la lógica de negocio en cada módulo del ERP.
+router.include_router(legacy_demo_guard_router)
 router.include_router(core_workspace_router)
 router.include_router(workspace_router)
 router.include_router(affiliation_remittance_router)
