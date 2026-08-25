@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { ArrowRight, CheckCircle2, X } from "lucide-react";
 
-import { fetchActivityCourse } from "../../services/activityApi.js";
+import { fetchActivityCourse, fetchEvaluationResult } from "../../services/activityApi.js";
 import "./trainingModuleCompletion.css";
 
 
@@ -32,9 +32,28 @@ function topicHighlights(topic) {
   return rows;
 }
 
+async function topicEvaluationResult(topic) {
+  const assignmentIds = [...new Set(
+    (topic?.activities || [])
+      .map((activity) => Number(activity?.assignment_id))
+      .filter((value) => Number.isFinite(value) && value > 0)
+  )];
+
+  for (const assignmentId of assignmentIds) {
+    try {
+      const result = await fetchEvaluationResult(assignmentId);
+      if (result) return result;
+    } catch (error) {
+      if (error?.code !== "ASSIGNMENT_NOT_EVALUATION" && error?.status !== 409) throw error;
+    }
+  }
+  return null;
+}
+
 export default function TrainingModuleCompletion() {
   const [course, setCourse] = useState(null);
   const [completedTopic, setCompletedTopic] = useState(null);
+  const [evaluationResult, setEvaluationResult] = useState(null);
   const previousCompletedRef = useRef(null);
 
   const loadCourse = useCallback(async ({ detectCompletion = true } = {}) => {
@@ -52,7 +71,15 @@ export default function TrainingModuleCompletion() {
         const newlyCompleted = (nextCourse?.topics || [])
           .filter((topic) => nextCompleted.has(topic.key) && !previousCompletedRef.current.has(topic.key))
           .sort((left, right) => Number(left.order || 0) - Number(right.order || 0));
-        if (newlyCompleted.length) setCompletedTopic(newlyCompleted[0]);
+        if (newlyCompleted.length) {
+          const topic = newlyCompleted[0];
+          setCompletedTopic(topic);
+          try {
+            setEvaluationResult(await topicEvaluationResult(topic));
+          } catch {
+            setEvaluationResult(null);
+          }
+        }
       }
 
       previousCompletedRef.current = nextCompleted;
@@ -122,6 +149,16 @@ export default function TrainingModuleCompletion() {
           </div>
         )}
 
+        {evaluationResult && (
+          <div className={`training-module-completion__evaluation${evaluationResult.passed ? " is-passed" : ""}`}>
+            <div>
+              <span>{evaluationResult.evaluation_code} · Resultado de evaluación</span>
+              <strong>{evaluationResult.passed ? "Evaluación superada" : "Evaluación completada"}</strong>
+            </div>
+            <strong>{evaluationResult.score}/100</strong>
+          </div>
+        )}
+
         <div className="training-module-completion__result">
           <span>Progreso del bloque</span>
           <strong>100%</strong>
@@ -129,6 +166,7 @@ export default function TrainingModuleCompletion() {
 
         <button type="button" className="training-module-completion__continue" onClick={() => {
           setCompletedTopic(null);
+          setEvaluationResult(null);
           window.setTimeout(openActivitiesCenter, 0);
         }}>
           <span>{nextTopic ? `Continuar con ${nextTopic.title}` : "Revisar curso"}</span>
