@@ -106,6 +106,48 @@
   margin-top: 5px;
 }
 
+.training-module-completion__evaluation {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 14px 16px;
+  border: 1px solid #d9dfe8;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.training-module-completion__evaluation.is-passed {
+  border-color: #c8d8cb;
+  background: #f4faf5;
+}
+
+.training-module-completion__evaluation > div {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.training-module-completion__evaluation span {
+  color: #748095;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.training-module-completion__evaluation > div strong {
+  color: #344158;
+  font-size: 13px;
+}
+
+.training-module-completion__evaluation > strong {
+  flex: 0 0 auto;
+  color: #273246;
+  font-size: 21px;
+}
+
 .training-module-completion__result {
   display: flex;
   align-items: center;
@@ -171,5 +213,9 @@
 
   .training-module-completion h2 {
     font-size: 22px;
+  }
+
+  .training-module-completion__evaluation {
+    align-items: flex-start;
   }
 }
