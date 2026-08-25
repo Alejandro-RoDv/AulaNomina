@@ -2,6 +2,7 @@ from sqlalchemy import inspect, text
 
 from app.db import engine
 from app.models.training_workspace import TrainingWorkspace
+from app.workspace_domain_schema_patch import add_missing_workspace_domain_columns
 
 
 def add_missing_auth_columns() -> None:
@@ -48,3 +49,5 @@ def add_missing_auth_columns() -> None:
                     "ON case_assignments(workspace_id)"
                 )
             )
+
+    add_missing_workspace_domain_columns()
