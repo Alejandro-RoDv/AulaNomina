@@ -25,6 +25,12 @@ class Student(Base):
 
     user = relationship("User", back_populates="student_profile")
     group = relationship("StudentGroup", back_populates="students")
+    workspace = relationship(
+        "TrainingWorkspace",
+        back_populates="student",
+        uselist=False,
+        cascade="all, delete-orphan",
+    )
 
     @property
     def full_name(self):
