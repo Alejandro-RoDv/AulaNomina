@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import { ArrowRight, BarChart3, BookOpen, CheckCircle2, RefreshCw, X } from "lucide-react";
+import { AlertTriangle, ArrowRight, BarChart3, BookOpen, CheckCircle2, RefreshCw, RotateCcw, X } from "lucide-react";
 
-import { fetchActivityCourse } from "../../services/activityApi.js";
+import { fetchActivityCourse, resetTrainingWorkspace } from "../../services/activityApi.js";
+import { refreshAuthUser } from "../../services/authApi.js";
 import "./trainingProgress.css";
 
 function flattenActivities(course) {
@@ -35,6 +36,9 @@ export default function TrainingProgress() {
   const [course, setCourse] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [resetConfirm, setResetConfirm] = useState(false);
+  const [resetting, setResetting] = useState(false);
+  const [resetNotice, setResetNotice] = useState("");
 
   const loadProgress = useCallback(async () => {
     try {
@@ -64,27 +68,49 @@ export default function TrainingProgress() {
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     const handleEscape = (event) => {
-      if (event.key === "Escape") setOpen(false);
+      if (event.key === "Escape") {
+        if (resetConfirm) setResetConfirm(false);
+        else setOpen(false);
+      }
     };
     window.addEventListener("keydown", handleEscape);
     return () => {
       document.body.style.overflow = previousOverflow;
       window.removeEventListener("keydown", handleEscape);
     };
-  }, [open]);
+  }, [open, resetConfirm]);
 
   const latestCompleted = useMemo(() => latestCompletedActivity(course), [course]);
   const current = useMemo(() => currentActivity(course), [course]);
   const summary = course?.course || {};
+  const canResetWorkspace = Boolean(summary.workspace_id);
 
   const continueCourse = () => {
     setOpen(false);
     window.setTimeout(openActivitiesCenter, 0);
   };
 
+  const handleWorkspaceReset = async () => {
+    try {
+      setResetting(true);
+      setError("");
+      setResetNotice("");
+      await resetTrainingWorkspace();
+      await refreshAuthUser();
+      setResetConfirm(false);
+      setResetNotice("Entorno restaurado. Los datos del ERP y el progreso vuelven al inicio; el historial de intentos se conserva.");
+      await loadProgress();
+      window.dispatchEvent(new Event("aulanomina-activities-refresh"));
+    } catch (requestError) {
+      setError(requestError.message || "No se ha podido restablecer el entorno práctico.");
+    } finally {
+      setResetting(false);
+    }
+  };
+
   const overlay = open ? createPortal(
     <div className="training-progress__backdrop" role="presentation" onMouseDown={(event) => {
-      if (event.target === event.currentTarget) setOpen(false);
+      if (event.target === event.currentTarget && !resetting) setOpen(false);
     }}>
       <section className="training-progress" role="dialog" aria-modal="true" aria-labelledby="training-progress-title">
         <header className="training-progress__header">
@@ -94,19 +120,37 @@ export default function TrainingProgress() {
             <p>{summary.title || "Curso práctico de gestión laboral"}</p>
           </div>
           <div className="training-progress__header-actions">
-            <button type="button" onClick={loadProgress} disabled={loading}>
+            <button type="button" onClick={loadProgress} disabled={loading || resetting}>
               <RefreshCw size={16} className={loading ? "is-spinning" : ""} aria-hidden="true" />
               Actualizar
             </button>
-            <button type="button" className="training-progress__close" onClick={() => setOpen(false)} aria-label="Cerrar progreso">
+            <button type="button" className="training-progress__close" onClick={() => setOpen(false)} disabled={resetting} aria-label="Cerrar progreso">
               <X size={18} aria-hidden="true" />
             </button>
           </div>
         </header>
 
         {error && <div className="training-progress__error" role="alert">{error}</div>}
+        {resetNotice && <div className="training-progress__notice" role="status">{resetNotice}</div>}
 
         <div className="training-progress__body">
+          {resetConfirm && (
+            <section className="training-progress__reset-confirm" aria-labelledby="training-progress-reset-title">
+              <AlertTriangle size={20} aria-hidden="true" />
+              <div>
+                <strong id="training-progress-reset-title">Restablecer entorno práctico</strong>
+                <p>Se restaurarán los datos del ERP, el correo formativo y el progreso de las actividades al estado inicial. El historial de intentos y puntuaciones se conservará.</p>
+                <div className="training-progress__reset-actions">
+                  <button type="button" onClick={() => setResetConfirm(false)} disabled={resetting}>Cancelar</button>
+                  <button type="button" className="is-danger" onClick={handleWorkspaceReset} disabled={resetting}>
+                    <RotateCcw size={15} className={resetting ? "is-spinning" : ""} aria-hidden="true" />
+                    {resetting ? "Restableciendo…" : "Restablecer entorno"}
+                  </button>
+                </div>
+              </div>
+            </section>
+          )}
+
           <section className="training-progress__overview">
             <div className="training-progress__overview-copy">
               <span>Progreso general</span>
@@ -175,8 +219,19 @@ export default function TrainingProgress() {
         </div>
 
         <footer className="training-progress__footer">
-          <span>{summary.pending || 0} prácticas pendientes</span>
-          <button type="button" onClick={continueCourse} disabled={!current}>
+          <div className="training-progress__footer-meta">
+            <span>{summary.pending || 0} prácticas pendientes</span>
+            {canResetWorkspace && (
+              <button type="button" className="training-progress__reset-link" onClick={() => {
+                setResetNotice("");
+                setResetConfirm(true);
+              }} disabled={resetting}>
+                <RotateCcw size={14} aria-hidden="true" />
+                Restablecer entorno
+              </button>
+            )}
+          </div>
+          <button type="button" onClick={continueCourse} disabled={!current || resetting}>
             {summary.progress_percentage >= 100 ? "Revisar curso" : "Continuar curso"}
             <ArrowRight size={16} aria-hidden="true" />
           </button>
@@ -190,6 +245,8 @@ export default function TrainingProgress() {
     <>
       <button type="button" className="training-progress__launcher" onClick={() => {
         setOpen(true);
+        setResetConfirm(false);
+        setResetNotice("");
         loadProgress();
       }} aria-haspopup="dialog" aria-expanded={open}>
         <BarChart3 size={16} aria-hidden="true" />
