@@ -17,6 +17,7 @@ from app.schemas.teacher_case_dashboard import (
     TeacherCaseDetailResponse,
 )
 from app.services.auth_service import AuthPrincipal
+from app.services.evaluation_policy_service import evaluation_code_for_task
 from app.services.learner_course_service import build_learner_course
 from app.services.learner_scope_service import assert_assignment_access
 from app.services.case_scenario_service import (
@@ -216,6 +217,17 @@ def reveal_assignment_step_hint(
 ):
     assert_assignment_access(db, principal, assignment_id)
     try:
+        assignment = ensure_assignment_progress(db, assignment_id)
+        task = next((item for item in assignment.case_study.tasks if item.id == task_id), None)
+        evaluation_code = evaluation_code_for_task(task)
+        if evaluation_code:
+            raise HTTPException(
+                status_code=403,
+                detail={
+                    "code": "HINTS_DISABLED_FOR_EVALUATION",
+                    "message": f"{evaluation_code} es una evaluación práctica y no muestra pistas durante la realización.",
+                },
+            )
         return reveal_next_task_hint(db, assignment_id, task_id)
     except CaseScenarioError as error:
         _translate_error(error)
