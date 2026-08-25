@@ -10,6 +10,7 @@ class Student(Base):
     __tablename__ = "students"
 
     id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, unique=True, index=True)
     student_code = Column(String, nullable=True, unique=True, index=True)
     first_name = Column(String, nullable=False)
     last_name = Column(String, nullable=False)
@@ -22,6 +23,7 @@ class Student(Base):
     is_active = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
+    user = relationship("User", back_populates="student_profile")
     group = relationship("StudentGroup", back_populates="students")
 
     @property
