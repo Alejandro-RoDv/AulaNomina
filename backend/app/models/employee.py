@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import Boolean, Column, Date, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, Column, Date, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import relationship
 
 from app.db import Base
@@ -8,9 +8,13 @@ from app.db import Base
 
 class Employee(Base):
     __tablename__ = "employees"
+    __table_args__ = (
+        UniqueConstraint("workspace_id", "employee_code", name="uq_employees_workspace_code"),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
-    employee_code = Column(String, unique=True, index=True, nullable=False)
+    workspace_id = Column(Integer, ForeignKey("training_workspaces.id", ondelete="CASCADE"), nullable=True, index=True)
+    employee_code = Column(String, index=True, nullable=False)
     company_id = Column(Integer, ForeignKey("companies.id"), nullable=True)
     center_id = Column(Integer, ForeignKey("work_centers.id"), nullable=True)
     document_type = Column(String, default="DNI", nullable=False)
