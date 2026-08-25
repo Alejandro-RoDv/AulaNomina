@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 
 import ActivitiesCenter from "./ActivitiesCenter";
 import TrainingActivityAssist from "./TrainingActivityAssist";
+import TrainingModuleCompletion from "./TrainingModuleCompletion";
 import TrainingOnboarding from "./TrainingOnboarding";
 import TrainingProgress from "./TrainingProgress";
 
@@ -55,6 +56,7 @@ export default function ActivitiesLauncherBridge() {
     <>
       <TrainingOnboarding />
       <TrainingActivityAssist />
+      <TrainingModuleCompletion />
       {target ? createPortal(
         <>
           <ActivitiesCenter />
