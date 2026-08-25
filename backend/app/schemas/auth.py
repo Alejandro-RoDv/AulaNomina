@@ -1,12 +1,20 @@
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, field_validator
 
 
 class LoginRequest(BaseModel):
-    email: EmailStr
+    email: str
     password: str
+
+    @field_validator("email")
+    @classmethod
+    def normalize_email(cls, value: str):
+        normalized = (value or "").strip().lower()
+        if "@" not in normalized:
+            raise ValueError("Email no válido")
+        return normalized
 
 
 class AuthUserResponse(BaseModel):
