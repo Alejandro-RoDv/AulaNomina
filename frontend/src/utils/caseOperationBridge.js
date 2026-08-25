@@ -1,3 +1,5 @@
+import { withAuthHeaders } from "../services/authStorage.js";
+
 const ACTIVE_CASE_CONTEXT_KEY = "aulanomina:active-case-context";
 const LAST_CASE_FEEDBACK_KEY = "aulanomina:last-case-operation-feedback";
 const MUTATING_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
@@ -203,8 +205,6 @@ export async function emitCaseOperationEvent({
   const request = fetchImpl || (typeof fetch !== "undefined" ? fetch.bind(globalThis) : null);
   if (!request) return null;
 
-  // Estas prácticas registran la operación ERP pero necesitan una comprobación
-  // pedagógica posterior más estricta que el validador genérico por existencia.
   const explicitCaseReview = EXPLICIT_REVIEW_TRAINING_CODES.has(
     String(context.trainingCode || "").toUpperCase()
   );
@@ -240,7 +240,7 @@ export async function emitCaseOperationEvent({
       `${apiBaseUrl}/case-assignments/${encodeURIComponent(context.assignmentId)}/events`,
       {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: withAuthHeaders({ "Content-Type": "application/json" }, targetStorage),
         body: JSON.stringify(payload),
       }
     );
