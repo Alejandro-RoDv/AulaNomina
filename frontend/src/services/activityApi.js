@@ -120,6 +120,14 @@ export function fetchEvaluationResult(assignmentId) {
   );
 }
 
+export function resetTrainingWorkspace() {
+  return apiRequest(
+    "/training-workspace/reset",
+    { method: "POST" },
+    "No se ha podido restablecer el entorno práctico"
+  );
+}
+
 export function saveActivityResponse(assignmentId, taskId, response, validationResult = {}) {
   const studentResponse = { ...(response || {}) };
   delete studentResponse._validation_passed;
