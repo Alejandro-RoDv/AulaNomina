@@ -29,12 +29,14 @@ from app.model190_routes import router as model190_router
 from app.social_security_registration_routes import router as social_security_registration_router
 from app.social_security_settlement_routes import router as social_security_settlement_router
 from app.wage_garnishment_routes import router as wage_garnishment_router
+from app.workspace_routes import router as workspace_router
 
 router = APIRouter(tags=["catalogs"], dependencies=[Depends(get_optional_principal)])
 # Estas rutas se montan antes que las rutas históricas declaradas en main.py.
 # Así reutilizamos los mismos CRUD con el workspace ligado a la petición sin
 # duplicar la lógica de negocio en cada módulo del ERP.
 router.include_router(core_workspace_router)
+router.include_router(workspace_router)
 router.include_router(affiliation_remittance_router)
 router.include_router(case_scenario_router)
 router.include_router(evaluation_router)
