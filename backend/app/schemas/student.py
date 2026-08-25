@@ -53,6 +53,7 @@ class StudentUpdate(BaseModel):
 
 class StudentResponse(StudentBase):
     id: int
+    user_id: Optional[int] = None
     full_name: str
     group_display_name: Optional[str] = None
     created_at: datetime
