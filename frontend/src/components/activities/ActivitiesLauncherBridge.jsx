@@ -3,9 +3,9 @@ import { createPortal } from "react-dom";
 
 import ActivitiesCenter from "./ActivitiesCenter";
 import TrainingActivityAssist from "./TrainingActivityAssist";
+import TrainingHelpCenter from "./TrainingHelpCenter";
 import TrainingModuleCompletion from "./TrainingModuleCompletion";
 import TrainingOnboarding from "./TrainingOnboarding";
-import TrainingProgress from "./TrainingProgress";
 
 function createLauncherSlot() {
   const siltraLauncher = document.querySelector(".siltra-global-launcher");
@@ -31,11 +31,11 @@ function clarifyCourseLauncher() {
   if (!(launcher instanceof HTMLElement)) return;
 
   const label = launcher.querySelector(":scope > span");
-  if (label && label.textContent !== "Continuar curso") {
-    label.textContent = "Continuar curso";
+  if (label && label.textContent !== "Curso") {
+    label.textContent = "Curso";
   }
-  launcher.setAttribute("aria-label", "Continuar curso y abrir la actividad actual");
-  launcher.setAttribute("title", "Abre las actividades del curso para seguir trabajando");
+  launcher.setAttribute("aria-label", "Abrir curso y continuar con la actividad actual");
+  launcher.setAttribute("title", "Actividades, avance y contenido del curso");
 }
 
 export default function ActivitiesLauncherBridge() {
@@ -73,7 +73,7 @@ export default function ActivitiesLauncherBridge() {
       {target ? createPortal(
         <>
           <ActivitiesCenter />
-          <TrainingProgress />
+          <TrainingHelpCenter />
         </>,
         target
       ) : null}
