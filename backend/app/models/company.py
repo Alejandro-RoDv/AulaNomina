@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import Boolean, Column, Date, DateTime, Integer, String, Text
+from sqlalchemy import Boolean, Column, Date, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import relationship
 
 from app.db import Base
@@ -8,11 +8,16 @@ from app.db import Base
 
 class Company(Base):
     __tablename__ = "companies"
+    __table_args__ = (
+        UniqueConstraint("workspace_id", "cif", name="uq_companies_workspace_cif"),
+        UniqueConstraint("workspace_id", "ccc", name="uq_companies_workspace_ccc"),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
+    workspace_id = Column(Integer, ForeignKey("training_workspaces.id", ondelete="CASCADE"), nullable=True, index=True)
     name = Column(String, nullable=False)
-    cif = Column(String, unique=True, index=True, nullable=False)
-    ccc = Column(String, unique=True, index=True, nullable=True)
+    cif = Column(String, index=True, nullable=False)
+    ccc = Column(String, index=True, nullable=True)
     ccc_regime = Column(String, nullable=True)
     ccc_code = Column(String, nullable=True)
     address = Column(String, nullable=True)
