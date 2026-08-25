@@ -18,6 +18,30 @@ def learner_student(db: Session, principal: AuthPrincipal) -> Student | None:
     return db.query(Student).filter(Student.id == principal.student_id).first()
 
 
+def _workspace_id(principal: AuthPrincipal) -> int:
+    if principal.workspace_id is None:
+        raise HTTPException(status_code=403, detail="El alumno no dispone de workspace formativo")
+    return principal.workspace_id
+
+
+def _bind_assignment_workspace(
+    db: Session,
+    principal: AuthPrincipal,
+    assignment: CaseAssignment,
+) -> CaseAssignment:
+    workspace_id = _workspace_id(principal)
+    if assignment.workspace_id is None:
+        assignment.workspace_id = workspace_id
+        db.commit()
+        db.refresh(assignment)
+    elif assignment.workspace_id != workspace_id:
+        raise HTTPException(
+            status_code=409,
+            detail="La asignación está vinculada a un workspace diferente",
+        )
+    return assignment
+
+
 def ensure_user_mailbox(db: Session, principal: AuthPrincipal) -> Mailbox:
     mailbox = db.query(Mailbox).filter(Mailbox.user_id == principal.user_id).first()
     if mailbox:
@@ -27,7 +51,6 @@ def ensure_user_mailbox(db: Session, principal: AuthPrincipal) -> Mailbox:
     if not student:
         raise HTTPException(status_code=403, detail="La cuenta no dispone de perfil de alumno")
 
-    # Reutiliza buzones antiguos si coinciden por email y todavía no tienen dueño.
     if student.email:
         mailbox = (
             db.query(Mailbox)
@@ -168,7 +191,7 @@ def _ensure_assignment_mail_scope(
 ) -> None:
     mailbox = ensure_user_mailbox(db, principal)
     source = source_assignment or assignment
-    for thread in source.email_threads or []:
+    for thread in list(source.email_threads or []):
         if thread.mailbox_id == mailbox.id and thread.case_assignment_id == assignment.id:
             continue
         _clone_thread(db, thread, mailbox, assignment.id)
@@ -182,6 +205,7 @@ def materialize_group_assignments(db: Session, principal: AuthPrincipal) -> list
     student = learner_student(db, principal)
     if not student:
         raise HTTPException(status_code=403, detail="La cuenta no dispone de perfil de alumno")
+    workspace_id = _workspace_id(principal)
 
     if student.group_id:
         templates = (
@@ -205,6 +229,7 @@ def materialize_group_assignments(db: Session, principal: AuthPrincipal) -> list
                     case_study_id=template.case_study_id,
                     student_id=student.id,
                     group_id=None,
+                    workspace_id=workspace_id,
                     assigned_by=template.assigned_by,
                     assigned_at=template.assigned_at,
                     due_date=template.due_date,
@@ -215,6 +240,8 @@ def materialize_group_assignments(db: Session, principal: AuthPrincipal) -> list
                 db.commit()
                 db.refresh(existing)
                 ensure_assignment_progress(db, existing.id)
+            else:
+                _bind_assignment_workspace(db, principal, existing)
             _ensure_assignment_mail_scope(db, principal, existing, template)
 
     assignments = (
@@ -223,10 +250,13 @@ def materialize_group_assignments(db: Session, principal: AuthPrincipal) -> list
         .order_by(CaseAssignment.id.asc())
         .all()
     )
+    scoped: list[CaseAssignment] = []
     for assignment in assignments:
+        assignment = _bind_assignment_workspace(db, principal, assignment)
         ensure_assignment_progress(db, assignment.id)
         _ensure_assignment_mail_scope(db, principal, assignment)
-    return assignments
+        scoped.append(assignment)
+    return scoped
 
 
 def accessible_assignment_ids(db: Session, principal: AuthPrincipal) -> set[int] | None:
