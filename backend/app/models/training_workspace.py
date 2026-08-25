@@ -10,10 +10,12 @@ class TrainingWorkspace(Base):
     __tablename__ = "training_workspaces"
 
     id = Column(Integer, primary_key=True, index=True)
+    # El workspace activo conserva el student_id. Al restablecerlo, la generación
+    # anterior se archiva y libera este vínculo antes de crear la nueva.
     student_id = Column(
         Integer,
         ForeignKey("students.id", ondelete="CASCADE"),
-        nullable=False,
+        nullable=True,
         unique=True,
         index=True,
     )
