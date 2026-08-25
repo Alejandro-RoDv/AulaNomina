@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from app.auth_dependencies import get_current_principal, get_db
+from app.auth_dependencies import auth_required, get_current_principal, get_db
 from app.models.student import Student
 from app.models.user import User
 from app.schemas.auth import AuthUserResponse, LoginRequest, LoginResponse, MeResponse
@@ -28,6 +28,20 @@ class DevStudentBootstrapRequest(BaseModel):
 
 def _student_name(student: Student | None) -> str | None:
     return student.full_name if student else None
+
+
+def _dev_auth_enabled() -> bool:
+    return os.getenv("AULANOMINA_ENABLE_DEV_AUTH", "false").strip().lower() in {
+        "1", "true", "yes", "on"
+    }
+
+
+@router.get("/config")
+def auth_config():
+    return {
+        "required": auth_required(),
+        "dev_bootstrap_enabled": _dev_auth_enabled(),
+    }
 
 
 @router.post("/login", response_model=LoginResponse)
@@ -82,16 +96,8 @@ def bootstrap_student_accounts(
     payload: DevStudentBootstrapRequest,
     db: Session = Depends(get_db),
 ):
-    """Create local demo accounts only when explicitly enabled by environment.
-
-    This endpoint is intentionally unavailable by default. It exists so the
-    Split 44 isolation can be tested locally before the commercial provisioning
-    flow (teacher/admin invites) is implemented.
-    """
-    enabled = os.getenv("AULANOMINA_ENABLE_DEV_AUTH", "false").strip().lower() in {
-        "1", "true", "yes", "on"
-    }
-    if not enabled:
+    """Create local demo accounts only when explicitly enabled by environment."""
+    if not _dev_auth_enabled():
         raise HTTPException(status_code=404, detail="Endpoint no disponible")
     if len(payload.password or "") < 8:
         raise HTTPException(status_code=400, detail="La contraseña debe tener al menos 8 caracteres")
