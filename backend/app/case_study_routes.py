@@ -70,6 +70,9 @@ from app.services.auth_service import AuthPrincipal
 
 router = APIRouter(tags=["teaching"])
 router.include_router(auth_router)
+# catalog_router también agrega Correo, FIE, SILTRA, escenarios y otras rutas ERP.
+# Debe permanecer fuera del guard docente; cada área aplica su propio alcance.
+router.include_router(catalog_router)
 
 
 def get_db():
@@ -89,7 +92,6 @@ def require_staff_or_legacy(
 
 
 staff_router = APIRouter(dependencies=[Depends(require_staff_or_legacy)])
-staff_router.include_router(catalog_router)
 
 
 @router.on_event("startup")
