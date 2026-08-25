@@ -30,6 +30,16 @@ export function fetchMe() {
   return apiRequest("/auth/me", {}, "No se ha podido validar la sesión");
 }
 
+export async function refreshAuthUser() {
+  const current = await fetchMe();
+  const token = getAuthToken();
+  if (token) storeAuthSession(token, current);
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("aulanomina-auth-changed", { detail: current }));
+  }
+  return current;
+}
+
 export async function logout() {
   try {
     if (getAuthToken()) {
