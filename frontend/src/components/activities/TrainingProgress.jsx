@@ -85,7 +85,7 @@ export default function TrainingProgress() {
   const summary = course?.course || {};
   const canResetWorkspace = Boolean(summary.workspace_id);
 
-  const continueCourse = () => {
+  const openCurrentActivity = () => {
     setOpen(false);
     window.setTimeout(openActivitiesCenter, 0);
   };
@@ -115,9 +115,9 @@ export default function TrainingProgress() {
       <section className="training-progress" role="dialog" aria-modal="true" aria-labelledby="training-progress-title">
         <header className="training-progress__header">
           <div>
-            <span>Formación</span>
-            <h2 id="training-progress-title">Mi progreso</h2>
-            <p>{summary.title || "Curso práctico de gestión laboral"}</p>
+            <span>Seguimiento del curso</span>
+            <h2 id="training-progress-title">Progreso del curso</h2>
+            <p>Consulta lo que has completado y tu avance general. Para trabajar una actividad utiliza «Continuar curso».</p>
           </div>
           <div className="training-progress__header-actions">
             <button type="button" onClick={loadProgress} disabled={loading || resetting}>
@@ -205,7 +205,7 @@ export default function TrainingProgress() {
             </div>
 
             <div className="training-progress__activity-card is-current">
-              <span>{summary.progress_percentage >= 100 ? "Curso completado" : "Continuar desde"}</span>
+              <span>{summary.progress_percentage >= 100 ? "Curso completado" : "Actividad actual"}</span>
               {current ? (
                 <>
                   <strong>{current.display_number} · {current.title}</strong>
@@ -231,8 +231,8 @@ export default function TrainingProgress() {
               </button>
             )}
           </div>
-          <button type="button" onClick={continueCourse} disabled={!current || resetting}>
-            {summary.progress_percentage >= 100 ? "Revisar curso" : "Continuar curso"}
+          <button type="button" onClick={openCurrentActivity} disabled={!current || resetting}>
+            {summary.progress_percentage >= 100 ? "Revisar actividades" : "Ir a la actividad actual"}
             <ArrowRight size={16} aria-hidden="true" />
           </button>
         </footer>
@@ -248,9 +248,9 @@ export default function TrainingProgress() {
         setResetConfirm(false);
         setResetNotice("");
         loadProgress();
-      }} aria-haspopup="dialog" aria-expanded={open}>
+      }} aria-haspopup="dialog" aria-expanded={open} aria-label={`Progreso del curso: ${summary.progress_percentage ?? "—"}% completado`}>
         <BarChart3 size={16} aria-hidden="true" />
-        <span>Mi progreso</span>
+        <span>Progreso del curso</span>
         <strong>{summary.progress_percentage ?? "—"}%</strong>
       </button>
       {overlay}
