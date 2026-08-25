@@ -4,6 +4,7 @@ import app.model190_schema_patch  # noqa: F401
 import app.contract_training_schema_patch  # noqa: F401
 
 from app.models.user import User
+from app.models.user_session import UserSession
 from app.models.communication_file import CommunicationFile, CommunicationFileEvent
 from app.models.communication_submission import CommunicationSubmission
 from app.models.affiliation_worker_state import AffiliationWorkerState
