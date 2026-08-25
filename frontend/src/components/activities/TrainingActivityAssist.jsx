@@ -159,20 +159,18 @@ export default function TrainingActivityAssist() {
       setScenarioStep(nextStep || null);
       setAttempts(attemptRows || []);
 
-      const nextTrainingCode = String(nextActivity?.training_code || nextStep?.trigger_condition?.training_code || "").toUpperCase();
-      if (/^C\d{2}$/.test(nextTrainingCode)) {
-        try {
-          setEvaluationResult(await fetchEvaluationResult(activeContext.assignmentId));
-        } catch (evaluationError) {
-          if (evaluationError?.code !== "ASSIGNMENT_NOT_EVALUATION") throw evaluationError;
-          setEvaluationResult(null);
+      let nextEvaluationResult = null;
+      try {
+        nextEvaluationResult = await fetchEvaluationResult(activeContext.assignmentId);
+      } catch (evaluationError) {
+        if (evaluationError?.code !== "ASSIGNMENT_NOT_EVALUATION" && evaluationError?.status !== 409) {
+          throw evaluationError;
         }
-      } else {
-        setEvaluationResult(null);
       }
+      setEvaluationResult(nextEvaluationResult);
 
       const backendHintsUsed = Number(nextStep?.hints_used || 0);
-      if (backendHintsUsed === 0) {
+      if (backendHintsUsed === 0 || nextEvaluationResult) {
         clearStoredHelp(activeContext);
         setRevealedHelp([]);
       } else {
@@ -235,7 +233,8 @@ export default function TrainingActivityAssist() {
   }, [target, context?.assignmentId, context?.taskId, loadActivityState]);
 
   const trainingCode = String(activity?.training_code || scenarioStep?.trigger_condition?.training_code || "").toUpperCase();
-  const evaluationMode = /^C\d{2}$/.test(trainingCode);
+  const evaluationMode = Boolean(evaluationResult) || /^C\d{2}$/.test(trainingCode);
+  const evaluationCode = evaluationResult?.evaluation_code || (/^C\d{2}$/.test(trainingCode) ? trainingCode : "");
   const hintsUsed = Number(scenarioStep?.hints_used || 0);
   const visibleAttempts = useMemo(() => (attempts || []).slice(0, 3), [attempts]);
 
@@ -266,7 +265,7 @@ export default function TrainingActivityAssist() {
       <div className="training-activity-assist__heading">
         <div>
           <strong>Ayuda progresiva</strong>
-          <span>{evaluationMode ? "Evaluación práctica" : `${hintsUsed}/3 ayudas utilizadas`}</span>
+          <span>{evaluationMode ? `${evaluationCode || "Evaluación"} · Sin pistas` : `${hintsUsed}/3 ayudas utilizadas`}</span>
         </div>
         {loading && <LoaderCircle size={16} className="is-spinning" aria-label="Actualizando ayuda" />}
       </div>
