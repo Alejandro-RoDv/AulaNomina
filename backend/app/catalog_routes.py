@@ -19,6 +19,7 @@ from app.communication_submission_routes import router as communication_submissi
 from app.contract_lifecycle_routes import router as contract_lifecycle_router
 from app.cra_routes import router as cra_router
 from app.environment_reset_routes import router as environment_reset_router
+from app.evaluation_routes import router as evaluation_router
 from app.fie_routes import router as fie_router
 from app.mail_routes import router as mail_router
 from app.model111_routes import router as model111_router
@@ -30,6 +31,7 @@ from app.wage_garnishment_routes import router as wage_garnishment_router
 router = APIRouter(tags=["catalogs"])
 router.include_router(affiliation_remittance_router)
 router.include_router(case_scenario_router)
+router.include_router(evaluation_router)
 router.include_router(communication_file_router)
 router.include_router(communication_submission_router)
 router.include_router(contract_lifecycle_router)
