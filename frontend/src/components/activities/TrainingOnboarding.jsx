@@ -18,8 +18,8 @@ const slides = [
   {
     eyebrow: "Cómo funciona el ERP",
     title: "El curso y el ERP son el mismo entorno",
-    body: "Cada actividad te plantea un encargo y te lleva al módulo donde debes investigar o realizar la gestión. Puedes moverte por el menú con normalidad y volver al curso desde el botón Actividades de la barra superior.",
-    note: "No hay un recorrido rígido: el objetivo es aprender a orientarte como en una aplicación profesional.",
+    body: "Cada actividad te plantea un encargo y te lleva al módulo donde debes investigar o realizar la gestión. Usa «Continuar curso» para volver a la actividad en la que estás trabajando. «Progreso del curso» sirve únicamente para consultar tu avance, bloques completados e historial de recorrido.",
+    note: "Puedes moverte por el ERP con normalidad y regresar a la actividad cuando necesites revisar el encargo.",
     icon: Monitor,
   },
   {
@@ -61,11 +61,11 @@ const familiarizationSteps = [
     done: "Contrato consultado",
   },
   {
-    title: "Vuelve al Centro de Actividades",
-    description: "Ya conoces el recorrido básico. Regresa al curso para comenzar la primera práctica evaluable.",
+    title: "Empieza el curso práctico",
+    description: "Ya conoces el recorrido básico del ERP. Finaliza la familiarización y abre la primera actividad del curso.",
     page: null,
-    action: "Abrir Centro de Actividades",
-    done: "Familiarización completada",
+    action: null,
+    done: "Empezar primera actividad",
   },
 ];
 
@@ -113,6 +113,7 @@ export default function TrainingOnboarding() {
   const familiarizationStep = familiarizationSteps[familiarizationIndex];
   const SlideIcon = slide?.icon || BookOpen;
   const onboardingProgress = useMemo(() => ((slideIndex + 1) / slides.length) * 100, [slideIndex]);
+  const isLastFamiliarizationStep = familiarizationIndex >= familiarizationSteps.length - 1;
 
   const finishOnboarding = () => {
     storeCompleted(ONBOARDING_KEY);
@@ -127,7 +128,7 @@ export default function TrainingOnboarding() {
   };
 
   const confirmFamiliarizationStep = () => {
-    if (familiarizationIndex >= familiarizationSteps.length - 1) {
+    if (isLastFamiliarizationStep) {
       finishFamiliarization();
       return;
     }
@@ -217,17 +218,16 @@ export default function TrainingOnboarding() {
             <h3>{familiarizationStep.title}</h3>
             <p>{familiarizationStep.description}</p>
             <div className="training-familiarization__actions">
-              <button
-                type="button"
-                className="training-onboarding__button is-secondary"
-                onClick={() => {
-                  if (familiarizationStep.page) openErpPage(familiarizationStep.page);
-                  else openActivitiesCenter();
-                }}
-              >
-                {familiarizationStep.action}
-                <ArrowRight size={15} aria-hidden="true" />
-              </button>
+              {familiarizationStep.page && (
+                <button
+                  type="button"
+                  className="training-onboarding__button is-secondary"
+                  onClick={() => openErpPage(familiarizationStep.page)}
+                >
+                  {familiarizationStep.action}
+                  <ArrowRight size={15} aria-hidden="true" />
+                </button>
+              )}
               <button type="button" className="training-onboarding__button is-primary" onClick={confirmFamiliarizationStep}>
                 <CheckCircle2 size={15} aria-hidden="true" />
                 {familiarizationStep.done}
