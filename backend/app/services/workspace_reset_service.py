@@ -6,9 +6,11 @@ from sqlalchemy.orm import Session
 
 from app.models.case_assignment import CaseAssignment
 from app.models.case_progress import CaseTaskProgress
+from app.models.mail import Mailbox
 from app.models.training_workspace import TrainingWorkspace
 from app.services.auth_service import AuthPrincipal
 from app.services.case_scenario_service import ensure_assignment_progress
+from app.services.learner_scope_service import materialize_group_assignments
 from app.services.workspace_context import bind_workspace, reset_workspace
 from app.services.workspace_seed_service import seed_workspace_from_baseline
 
@@ -26,10 +28,20 @@ def _reset_assignment_state(db: Session, assignment: CaseAssignment, now: dateti
     assignment.completed_at = None
     assignment.current_task_order = 1
     assignment.completion_percentage = 0
-    for thread in assignment.email_threads:
-        thread.status = "open"
-        thread.case_task_id = None
-        thread.updated_at = now
+
+
+def _clear_private_assignment_threads(
+    db: Session,
+    principal: AuthPrincipal,
+    assignment_ids: set[int],
+) -> None:
+    mailbox = db.query(Mailbox).filter(Mailbox.user_id == principal.user_id).first()
+    if mailbox is None:
+        return
+    for thread in list(mailbox.threads or []):
+        if thread.case_assignment_id in assignment_ids:
+            db.delete(thread)
+    db.commit()
 
 
 def reset_learner_workspace(db: Session, principal: AuthPrincipal) -> TrainingWorkspace:
@@ -78,6 +90,7 @@ def reset_learner_workspace(db: Session, principal: AuthPrincipal) -> TrainingWo
         .filter(CaseAssignment.student_id == principal.student_id)
         .all()
     )
+    assignment_ids = {assignment.id for assignment in assignments}
     for assignment in assignments:
         assignment.workspace_id = fresh.id
         _reset_assignment_state(db, assignment, now)
@@ -95,6 +108,26 @@ def reset_learner_workspace(db: Session, principal: AuthPrincipal) -> TrainingWo
     # puntuaciones sobreviven a la restauración del escenario ERP.
     for assignment in assignments:
         ensure_assignment_progress(db, assignment.id)
+
+    # Los hilos privados sí contienen actuaciones del alumno (respuestas,
+    # lecturas, adjuntos vinculados). Los eliminamos y materializamos otra vez
+    # desde las plantillas del caso para que el escenario vuelva a su inicio.
+    _clear_private_assignment_threads(db, principal, assignment_ids)
+    refreshed_principal = AuthPrincipal(
+        user_id=principal.user_id,
+        email=principal.email,
+        role=principal.role,
+        student_id=principal.student_id,
+        student_name=principal.student_name,
+        workspace_id=fresh.id,
+        workspace_code=fresh.workspace_code,
+        session_id=principal.session_id,
+    )
+    fresh_scope = bind_workspace(fresh.id)
+    try:
+        materialize_group_assignments(db, refreshed_principal)
+    finally:
+        reset_workspace(fresh_scope)
 
     db.refresh(fresh)
     return fresh
