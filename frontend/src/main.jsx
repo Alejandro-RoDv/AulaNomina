@@ -32,6 +32,7 @@ import App from "./App.jsx";
 import "./components/layout/settingsOverlayFix.css";
 import AccessibilityBridge from "./components/accessibility/AccessibilityBridge.jsx";
 import ActivitiesLauncherBridge from "./components/activities/ActivitiesLauncherBridge.jsx";
+import AuthGate from "./components/auth/AuthGate.jsx";
 import FooterBridge from "./components/layout/FooterBridge.jsx";
 import MotionBridge from "./components/motion/MotionBridge.jsx";
 import DesignSystemPreview from "./design-system/DesignSystemPreview.jsx";
@@ -51,7 +52,7 @@ createRoot(document.getElementById("root")).render(
     {showDesignSystem ? (
       <DesignSystemPreview />
     ) : (
-      <>
+      <AuthGate>
         <AccessibilityBridge />
         <MotionBridge />
         <App />
@@ -65,7 +66,7 @@ createRoot(document.getElementById("root")).render(
         <MailLauncherBridge />
         <MailRoute />
         <EmploymentTerminationRoute />
-      </>
+      </AuthGate>
     )}
   </StrictMode>
 );
