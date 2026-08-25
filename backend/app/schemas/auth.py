@@ -23,6 +23,8 @@ class AuthUserResponse(BaseModel):
     role: str
     student_id: Optional[int] = None
     student_name: Optional[str] = None
+    workspace_id: Optional[int] = None
+    workspace_code: Optional[str] = None
     expires_at: datetime
 
 
@@ -38,3 +40,5 @@ class MeResponse(BaseModel):
     role: str
     student_id: Optional[int] = None
     student_name: Optional[str] = None
+    workspace_id: Optional[int] = None
+    workspace_code: Optional[str] = None
