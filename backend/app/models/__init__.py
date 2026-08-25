@@ -53,6 +53,7 @@ from app.models.case_study import CaseStudy, CaseTask
 from app.models.correction import Correction
 from app.models.student import Student
 from app.models.student_group import StudentGroup
+from app.models.training_workspace import TrainingWorkspace
 from app.models.case_assignment import CaseAssignment
 from app.models.case_progress import CaseTaskProgress
 from app.models.case_task_attempt import CaseTaskAttempt
