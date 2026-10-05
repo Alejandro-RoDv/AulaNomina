@@ -1,6 +1,9 @@
 import { apiRequest } from "./httpClient.js";
 import { normalizeActivityCourseForView } from "../utils/activityCourseView.js";
 
+let mailThreadsCache = null;
+let mailThreadsPromise = null;
+
 function hideUnvalidatedReferenceAnswers(course) {
   for (const topic of course?.topics || []) {
     for (const activity of topic.activities || []) {
@@ -30,6 +33,22 @@ async function fetchActivityMailThreads() {
   } catch {
     return [];
   }
+}
+
+function scheduleActivityMailLoad() {
+  if (mailThreadsCache !== null || mailThreadsPromise) return;
+
+  mailThreadsPromise = fetchActivityMailThreads()
+    .then((threads) => {
+      mailThreadsCache = threads;
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("aulanomina-activities-refresh"));
+      }
+      return threads;
+    })
+    .finally(() => {
+      mailThreadsPromise = null;
+    });
 }
 
 function threadTrainingCode(thread) {
@@ -72,8 +91,6 @@ function bindMailThreads(course, threads) {
         attachment_count: attachments.length,
         locked: thread.folder === "training_locked",
       };
-      // El correo es una fuente de datos de la práctica, no debe sustituir la
-      // explicación pedagógica ni la instrucción concreta definida por el curso.
       activity.case_data = [];
     }
   }
@@ -86,9 +103,23 @@ export async function fetchActivityCourse() {
     {},
     "No se ha podido cargar el curso práctico"
   );
-  const threads = await fetchActivityMailThreads();
   const course = normalizeActivityCourseForView(rawCourse);
-  return hideUnvalidatedReferenceAnswers(bindMailThreads(course, threads));
+
+  // El correo puede requerir materialización/sincronización y no debe bloquear
+  // el primer render del curso. Cuando termina, reutilizamos el evento de
+  // refresco existente para enriquecer la ficha con el hilo correspondiente.
+  if (mailThreadsCache === null) {
+    scheduleActivityMailLoad();
+    return hideUnvalidatedReferenceAnswers(course);
+  }
+
+  return hideUnvalidatedReferenceAnswers(bindMailThreads(course, mailThreadsCache));
+}
+
+if (typeof window !== "undefined") {
+  window.addEventListener("aulanomina-mail-stats-refresh", () => {
+    mailThreadsCache = null;
+  });
 }
 
 export function validateActivity(assignmentId, taskId) {
