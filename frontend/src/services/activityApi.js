@@ -32,21 +32,29 @@ async function fetchActivityMailThreads() {
   }
 }
 
+function threadTrainingCode(thread) {
+  const subject = String(thread?.subject || "");
+  const match = subject.match(/^([AC]\d{2})\s*·/i);
+  return match?.[1]?.toUpperCase() || null;
+}
+
 function bindMailThreads(course, threads) {
-  const byAssignment = new Map();
-  for (const thread of threads || []) {
-    if (!thread?.case_assignment_id || thread.folder === "trash") continue;
-    const current = byAssignment.get(thread.case_assignment_id) || [];
-    current.push(thread);
-    byAssignment.set(thread.case_assignment_id, current);
+  const usable = (threads || []).filter((thread) => thread?.folder !== "trash");
+  const byCode = new Map();
+  const byTask = new Map();
+
+  for (const thread of usable) {
+    const code = threadTrainingCode(thread);
+    if (code && !byCode.has(code)) byCode.set(code, thread);
+    if (thread.case_task_id && !byTask.has(thread.case_task_id)) byTask.set(thread.case_task_id, thread);
   }
 
   for (const topic of course?.topics || []) {
     for (const activity of topic.activities || []) {
-      const candidates = byAssignment.get(activity.assignment_id) || [];
-      if (!candidates.length) continue;
-      const direct = candidates.filter((thread) => thread.case_task_id === activity.task_id);
-      const thread = (direct.length ? direct : candidates)[0];
+      const code = String(activity?.training_code || "").toUpperCase();
+      const thread = byTask.get(activity.task_id) || byCode.get(code) || null;
+      if (!thread) continue;
+
       const messages = [...(thread.messages || [])].sort((a, b) => new Date(a.sent_at || 0) - new Date(b.sent_at || 0));
       const incoming = messages.find((message) => message.direction === "incoming") || messages[0] || null;
       const attachments = messages.flatMap((message) => message.attachments || []);
