@@ -6,6 +6,7 @@ from sqlalchemy.pool import StaticPool
 
 import app.models  # noqa: F401
 import app.services.activity_service as activity_service
+import app.services.learner_scope_service as learner_scope_service
 from app.db import Base
 from app.models.case_assignment import CaseAssignment
 from app.models.case_progress import CaseTaskProgress
@@ -26,6 +27,7 @@ from app.services.auth_service import (
 from app.services.case_scenario_service import update_assignment_step
 from app.services.learner_course_service import _ASSIGNMENT_SCOPE
 from app.services.learner_scope_service import (
+    accessible_assignment_ids,
     assert_assignment_access,
     materialize_group_assignments,
 )
@@ -238,6 +240,24 @@ def test_student_cannot_access_another_students_assignment(db):
     with pytest.raises(HTTPException) as exc_info:
         assert_assignment_access(db, principals[0], assignment_b.id)
     assert exc_info.value.status_code == 403
+
+
+def test_accessible_assignment_ids_uses_fast_path_after_materialization(db, monkeypatch):
+    users, _, _, _, _ = _build_group_training(db)
+    token, _, _ = create_user_session(db, users[0])
+    principal = resolve_principal(db, token)
+    private_assignment = materialize_group_assignments(db, principal)[0]
+
+    def fail_materialization(*_args, **_kwargs):
+        raise AssertionError("Una lectura normal no debe rematerializar asignaciones")
+
+    monkeypatch.setattr(
+        learner_scope_service,
+        "materialize_group_assignments",
+        fail_materialization,
+    )
+
+    assert accessible_assignment_ids(db, principal) == {private_assignment.id}
 
 
 def test_activity_selector_respects_request_scoped_assignment_ids(db):
