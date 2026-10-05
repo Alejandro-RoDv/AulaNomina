@@ -1,3 +1,6 @@
+import { fetchTutorialState, saveTutorialState } from "../../services/activityApi.js";
+import { getAuthToken } from "../../services/authStorage.js";
+
 export const TUTORIAL_STATE_KEY = "aulanomina:training-tutorial-state-v2";
 const LEGACY_ONBOARDING_KEY = "aulanomina:training-onboarding-v1";
 const LEGACY_FAMILIARIZATION_KEY = "aulanomina:training-familiarization-v1";
@@ -71,8 +74,40 @@ export function writeTutorialState(nextState, storage = null) {
   return normalized;
 }
 
+function canSyncWithWorkspace(storage = null) {
+  return !storage && typeof window !== "undefined" && Boolean(getAuthToken());
+}
+
+export function persistTutorialState(nextState, storage = null) {
+  const normalized = writeTutorialState(nextState, storage);
+  if (canSyncWithWorkspace(storage)) {
+    saveTutorialState(normalized).catch(() => {
+      // localStorage conserva el progreso hasta que vuelva a estar disponible la API.
+    });
+  }
+  return normalized;
+}
+
+export async function hydrateTutorialState(storage = null) {
+  const localState = readTutorialState(storage);
+  if (!canSyncWithWorkspace(storage)) return localState;
+
+  try {
+    const remoteResponse = await fetchTutorialState();
+    if (!remoteResponse?.initialized) {
+      await saveTutorialState(localState);
+      return localState;
+    }
+    const remoteState = normalizeTutorialState(remoteResponse);
+    writeTutorialState(remoteState, storage);
+    return remoteState;
+  } catch {
+    return localState;
+  }
+}
+
 export function restartTutorial(storage = null) {
-  return writeTutorialState({ ...DEFAULT_TUTORIAL_STATE }, storage);
+  return persistTutorialState({ ...DEFAULT_TUTORIAL_STATE }, storage);
 }
 
 export function tutorialStatusLabel(state) {
