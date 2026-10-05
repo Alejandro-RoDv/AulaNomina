@@ -14,6 +14,9 @@ from app.models.employee import Employee
 from app.models.work_center import WorkCenter
 from app.services.auth_service import AuthPrincipal
 from app.services.learner_scope_service import accessible_assignment_ids
+from app.services.training_activity_runtime_service import (
+    build_activity_course as build_runtime_activity_course,
+)
 from app.services.training_course_projection_2026 import (
     build_master_activity_course_2026,
     project_master_activity_course_2026,
@@ -237,7 +240,7 @@ def build_learner_course(db: Session, principal: AuthPrincipal | None) -> dict[s
     scope_token = _ASSIGNMENT_SCOPE.set(frozenset(allowed))
     cache_token = _ASSIGNMENT_CACHE.set({})
     try:
-        runtime_course = activity_service.build_activity_course(db)
+        runtime_course = build_runtime_activity_course(db)
         course = project_master_activity_course_2026(runtime_course)
     finally:
         _ASSIGNMENT_CACHE.reset(cache_token)
