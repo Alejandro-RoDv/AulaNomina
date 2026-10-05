@@ -36,12 +36,8 @@ MASTER_ACTIVITY_ORDER_2026 = {
     code: index for index, code in enumerate(MASTER_ACTIVITY_CODES_2026, start=1)
 }
 
-# Estas prácticas registran primero la operación ERP y después pasan por una
-# comprobación pedagógica más estricta que el validador genérico por existencia.
 FORCE_EXPLICIT_REVIEW_CODES_2026 = frozenset({"A07", "A09", "A14", "A29", "C02"})
 
-# A09 reutiliza el caso profesional de sustitución previo y C02 promueve el
-# caso integral LAB-2026-001. Son las únicas fuentes no TRAIN-2026 canónicas.
 ALLOWED_LEGACY_RUNTIME_SOURCES_2026 = {
     ("A09", "ALT-2026-021"),
     ("C02", "LAB-2026-001"),
@@ -73,6 +69,7 @@ def _ensure_master_runtime_availability_2026(db: Session) -> None:
         seed_fiscal_runtime_cases_2026,
     )
     from app.training.foundation_runtime_cases_2026 import (
+        FOUNDATION_SCENARIO_CODES,
         seed_foundation_runtime_assignments_2026,
         seed_foundation_runtime_cases_2026,
     )
@@ -102,9 +99,12 @@ def _ensure_master_runtime_availability_2026(db: Session) -> None:
         seed_termination_runtime_cases_2026,
     )
 
-    # B01 se reseedea de forma idempotente para que cambios pedagógicos lleguen
-    # también a bases creadas antes de esta revisión.
-    seed_foundation_runtime_cases_2026(db)
+    # La capa visible aplica los nuevos textos sin tocar las tareas persistidas.
+    # Solo reparamos B01 si realmente faltan escenarios; leer el curso nunca debe
+    # reiniciar el progreso de asignaciones ya existentes.
+    foundation_count = _count_runtime_cases(db, FOUNDATION_SCENARIO_CODES)
+    if foundation_count < len(FOUNDATION_SCENARIO_CODES):
+        seed_foundation_runtime_cases_2026(db)
     seed_foundation_runtime_assignments_2026(db)
 
     incident_count = _count_runtime_cases(db, INCIDENT_SCENARIO_CODES)
