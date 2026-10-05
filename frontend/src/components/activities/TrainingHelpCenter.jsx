@@ -32,31 +32,31 @@ import "./trainingHelpContext.css";
 const FAQ = [
   {
     question: "¿Por dónde empiezo una actividad?",
-    answer: "Abre «Curso» y revisa el Encargo, los Datos del caso, Tu tarea y el Resultado esperado. Desde esa misma actividad tendrás el acceso al módulo del ERP en el que debes trabajar.",
+    answer: "Lee primero la «Idea clave». Después consulta el correo o los datos que aparecen en la actividad y sigue «Hazlo en AulaNomina». La propia actividad te lleva al módulo que necesitas.",
   },
   {
     question: "¿Cómo sé si he hecho bien una gestión?",
-    answer: "Cuando la actividad permita comprobación, AulaNomina revisará los datos reales guardados en el ERP. Si falta algo, mostrará los criterios pendientes para que puedas corregirlo y volver a comprobar.",
+    answer: "Muchas actividades se completan al guardar correctamente la operación. Cuando sea necesaria una revisión adicional verás un único botón «Comprobar». Si algo no coincide, AulaNomina te indicará qué debes revisar.",
   },
   {
     question: "¿Qué ocurre si me equivoco?",
-    answer: "En las prácticas normales puedes corregir los datos y volver a intentarlo. Los intentos quedan registrados con finalidad formativa, pero equivocarte no bloquea el curso.",
+    answer: "Corrige la gestión en el ERP y vuelve a comprobarla. Un error no bloquea el curso.",
   },
   {
     question: "¿Dónde veo mi avance?",
-    answer: "Dentro de «Curso». La cabecera muestra el progreso total y el índice lateral muestra cuántas actividades has completado en cada bloque. No necesitas una pantalla de progreso separada.",
+    answer: "Dentro de «Curso». La cabecera muestra el progreso total y el índice lateral muestra cuántas actividades has completado en cada tema.",
   },
   {
     question: "¿Cómo vuelvo a la actividad que estaba realizando?",
-    answer: "Pulsa «Curso». AulaNomina conserva el contexto de la actividad actual y la selecciona al volver al centro de actividades.",
+    answer: "Pulsa «Curso». AulaNomina conserva la actividad actual para que puedas volver a ella después de trabajar en el ERP o consultar el correo.",
   },
   {
     question: "¿Para qué sirve el correo?",
-    answer: "Algunos casos comienzan con una comunicación simulada. El mensaje puede aportar datos, documentos o instrucciones que debes utilizar después en el ERP y, cuando proceda, responder desde el mismo hilo.",
+    answer: "El correo forma parte de las prácticas. Puede contener los datos de una incorporación, una incidencia, un documento o una solicitud que después debes gestionar en AulaNomina. En algunos casos también tendrás que responder.",
   },
   {
-    question: "¿Las evaluaciones C01–C06 tienen pistas?",
-    answer: "No. Las evaluaciones prácticas no muestran pistas ni procedimiento guiado. Sí puedes consultar el ERP y la información disponible en el propio caso.",
+    question: "¿Cómo funcionan los casos completos C01–C06?",
+    answer: "Son prácticas finales con menos guía. Tendrás que combinar varios módulos de AulaNomina y la información recibida para resolver un proceso de principio a fin.",
   },
   {
     question: "No encuentro una opción del ERP. ¿Qué hago?",
@@ -64,11 +64,11 @@ const FAQ = [
   },
   {
     question: "¿Puedo repetir el tutorial sin borrar mi curso?",
-    answer: "Sí. Repetir o continuar el tutorial no modifica empresas, trabajadores, actividades, intentos ni progreso. Es únicamente una guía de uso de AulaNomina.",
+    answer: "Sí. Repetir o continuar el tutorial no modifica los datos del ERP ni el estado de las actividades.",
   },
   {
     question: "¿El tutorial continúa en otro ordenador?",
-    answer: "Sí, cuando utilizas tu cuenta de alumno. AulaNomina guarda en tu workspace el paso del tutorial en el que te encuentras y lo recupera al iniciar sesión desde otro dispositivo.",
+    answer: "Sí, cuando utilizas tu cuenta de alumno. AulaNomina guarda el paso del tutorial en el que te encuentras y lo recupera al iniciar sesión desde otro dispositivo.",
   },
 ];
 
@@ -153,7 +153,7 @@ export default function TrainingHelpCenter() {
         // El reset del backend ya se ha completado aunque no pueda limpiarse el almacenamiento local.
       }
       setResetConfirm(false);
-      setNotice("Entorno práctico restaurado al estado inicial. El historial de intentos y el tutorial se conservan.");
+      setNotice("Entorno práctico restaurado al estado inicial. El tutorial se conserva.");
       window.dispatchEvent(new Event("aulanomina-activities-refresh"));
     } catch (error) {
       setNotice(error.message || "No se ha podido restablecer el entorno práctico.");
@@ -288,7 +288,7 @@ export default function TrainingHelpCenter() {
               <div>
                 <span>Entorno de prácticas</span>
                 <strong>Restablecer escenario</strong>
-                <p>Úsalo solo si necesitas volver a los datos iniciales del ERP. Los intentos, puntuaciones y estado del tutorial no se eliminan.</p>
+                <p>Devuelve los datos del ERP y el progreso práctico al estado inicial. El tutorial no se reinicia.</p>
               </div>
               {!resetConfirm ? (
                 <button type="button" onClick={() => setResetConfirm(true)}>
