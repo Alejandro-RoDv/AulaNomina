@@ -1,17 +1,20 @@
 .model111-route {
   --m111-border: #dbe3ee;
-  --m111-border-strong: #cbd5e1;
+  --m111-border-strong: #c6d1df;
   --m111-background: #f6f8fb;
   --m111-surface: #ffffff;
   --m111-surface-soft: #f8fafc;
   --m111-text: #172033;
+  --m111-text-soft: #334155;
   --m111-muted: #64748b;
   --m111-primary: #2563eb;
+  --m111-primary-strong: #1d4ed8;
   --m111-primary-soft: #eef5ff;
   --m111-success: #167044;
   --m111-danger: #b42318;
 }
 
+/* Cabecera del módulo */
 .model111-route > header {
   position: sticky;
   top: 0;
@@ -28,6 +31,7 @@
 }
 
 .model111-route > header p {
+  max-width: 760px;
   color: var(--m111-muted) !important;
   font-size: 14px !important;
   font-weight: 500 !important;
@@ -39,39 +43,50 @@
   border: 1px solid var(--m111-border-strong) !important;
   border-radius: 7px !important;
   background: #ffffff !important;
-  color: #334155 !important;
+  color: var(--m111-text-soft) !important;
   box-shadow: none !important;
   font-weight: 800 !important;
+  transition: background-color .14s ease, border-color .14s ease, color .14s ease;
 }
 
-.model111-route > header button:hover {
-  border-color: #9fb5d3 !important;
+.model111-route > header button:hover:not(:disabled) {
+  border-color: #aebfd3 !important;
   background: #f8fafc !important;
+  color: #172033 !important;
+  transform: none !important;
 }
 
+/* Área de trabajo */
 .model111-route > main {
-  max-width: 1380px !important;
-  padding: 28px 32px 48px !important;
+  width: 100% !important;
+  max-width: none !important;
+  padding: 26px 32px 52px !important;
   background: var(--m111-background);
 }
 
 .model111-route > main > div {
-  gap: 18px !important;
+  width: min(1120px, 100%);
+  margin-inline: auto;
+  gap: 20px !important;
   color: var(--m111-text);
 }
 
 /* Contexto: empresa y periodo */
 .model111-route main > div > section:first-child {
-  padding: 18px 20px !important;
+  display: grid !important;
+  grid-template-columns: minmax(300px, 1fr) 100px 100px auto auto;
+  align-items: end !important;
+  gap: 12px !important;
+  padding: 16px 18px !important;
   border: 1px solid var(--m111-border) !important;
-  border-radius: 11px !important;
+  border-radius: 10px !important;
   background: var(--m111-surface) !important;
-  box-shadow: none !important;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, .03) !important;
 }
 
 .model111-route main > div > section:first-child label {
   display: flex !important;
-  min-width: 120px;
+  min-width: 0;
   flex-direction: column !important;
   gap: 6px !important;
   color: #475569;
@@ -80,8 +95,8 @@
 }
 
 .model111-route main > div > section:first-child label:first-child {
-  min-width: min(390px, 100%);
-  flex: 1 1 340px;
+  min-width: 0;
+  flex: none;
 }
 
 .model111-route main > div > section:first-child input,
@@ -103,12 +118,12 @@
 .model111-route main select:focus {
   border-color: var(--m111-primary) !important;
   outline: none !important;
-  box-shadow: 0 0 0 2px rgba(37, 99, 235, .10) !important;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, .10) !important;
 }
 
-/* Cabecera propia del periodo */
+/* Cabecera del periodo */
 .model111-route main > div > div:nth-child(2) {
-  padding: 2px 2px 0;
+  padding: 0 2px;
 }
 
 .model111-route main > div > div:nth-child(2) b {
@@ -118,13 +133,14 @@
   background: #f8fafc !important;
   color: #64748b !important;
   font-size: 9px !important;
-  letter-spacing: .04em;
+  letter-spacing: .05em;
 }
 
 .model111-route main > div > div:nth-child(2) h1 {
-  margin: 9px 0 2px !important;
+  margin: 10px 0 3px !important;
   color: var(--m111-text) !important;
-  font-size: 27px;
+  font-size: 26px;
+  line-height: 1.15;
   letter-spacing: -0.025em;
 }
 
@@ -133,57 +149,74 @@
   font-size: 13px;
 }
 
-/* Pestañas */
+/* Pestañas principales. Se neutralizan explícitamente los hovers globales. */
 .model111-route main > div > nav {
-  display: flex !important;
-  gap: 24px !important;
-  padding: 0 !important;
-  border: 0 !important;
-  border-bottom: 1px solid var(--m111-border) !important;
-  border-radius: 0 !important;
-  background: transparent !important;
+  display: grid !important;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 4px !important;
+  padding: 4px !important;
+  border: 1px solid var(--m111-border) !important;
+  border-radius: 9px !important;
+  background: #edf2f7 !important;
+  box-shadow: none !important;
 }
 
 .model111-route main > div > nav > button {
   position: relative;
-  min-height: 40px;
-  padding: 9px 2px 11px !important;
-  border: 0 !important;
-  border-radius: 0 !important;
+  min-height: 40px !important;
+  margin: 0 !important;
+  padding: 8px 12px !important;
+  border: 1px solid transparent !important;
+  border-radius: 6px !important;
   background: transparent !important;
   color: #64748b !important;
   box-shadow: none !important;
   font-size: 12px;
   font-weight: 800 !important;
+  text-align: center;
+  transform: none !important;
+  transition: background-color .14s ease, border-color .14s ease, color .14s ease !important;
 }
 
-.model111-route main > div > nav > button:hover {
+.model111-route main > div > nav > button:not([style*="border-bottom"]):hover:not(:disabled) {
+  border-color: #d6e0eb !important;
+  background: #f8fafc !important;
   color: #334155 !important;
+  box-shadow: none !important;
+  transform: none !important;
 }
 
-.model111-route main > div > nav > button[style*="rgb(239, 246, 255)"],
-.model111-route main > div > nav > button[style*="#eff6ff"] {
-  color: var(--m111-primary) !important;
+.model111-route main > div > nav > button[style*="border-bottom"] {
+  border-color: #bfd1f7 !important;
+  background: #ffffff !important;
+  color: var(--m111-primary-strong) !important;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, .06) !important;
 }
 
-.model111-route main > div > nav > button[style*="rgb(239, 246, 255)"]::after,
-.model111-route main > div > nav > button[style*="#eff6ff"]::after {
-  position: absolute;
-  right: 0;
-  bottom: -1px;
-  left: 0;
-  height: 2px;
-  background: var(--m111-primary);
-  content: "";
+.model111-route main > div > nav > button[style*="border-bottom"]:hover:not(:disabled) {
+  border-color: #aac2f3 !important;
+  background: #ffffff !important;
+  color: var(--m111-primary-strong) !important;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, .06) !important;
+  transform: none !important;
 }
 
-/* Estados */
+.model111-route main > div > nav > button:focus-visible {
+  outline: 2px solid rgba(37, 99, 235, .42) !important;
+  outline-offset: 1px !important;
+}
+
+.model111-route main > div > nav > button::after {
+  display: none !important;
+}
+
+/* Mensajes y estados */
 .model111-route main > div > div[style*="rgb(240, 253, 244)"],
 .model111-route main > div > div[style*="#f0fdf4"] {
   padding: 11px 13px !important;
-  border: 1px solid #b7dfc7 !important;
+  border: 1px solid #badfca !important;
   border-radius: 8px !important;
-  background: #f7fcf8 !important;
+  background: #f6fbf8 !important;
   color: #166534 !important;
 }
 
@@ -198,33 +231,41 @@
 
 .model111-route main > div > div[style*="rgb(220, 252, 231)"],
 .model111-route main > div > div[style*="#dcfce7"] {
-  border: 1px solid #b7dfc7 !important;
+  border: 1px solid #badfca !important;
   border-radius: 8px !important;
-  background: #f7fcf8 !important;
+  background: #f6fbf8 !important;
+}
+
+.model111-route main > div > div[style*="rgb(240, 253, 244)"] p,
+.model111-route main > div > div[style*="#f0fdf4"] p,
+.model111-route main > div > div[style*="rgb(254, 242, 242)"] p,
+.model111-route main > div > div[style*="#fef2f2"] p {
+  margin: 3px 0 0;
 }
 
 /* Métricas */
 .model111-route main section[style*="grid-template-columns"] article,
 .model111-route main article {
-  min-height: 78px !important;
-  padding: 13px 14px !important;
+  min-height: 82px !important;
+  padding: 14px 15px !important;
   border: 1px solid var(--m111-border) !important;
   border-radius: 9px !important;
   background: #ffffff !important;
-  box-shadow: none !important;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, .025) !important;
 }
 
 .model111-route main article > span:first-child {
   color: #64748b;
   font-size: 10px;
   font-weight: 850;
-  letter-spacing: .025em;
+  letter-spacing: .035em;
   text-transform: uppercase;
 }
 
 .model111-route main article > strong {
   color: var(--m111-text);
-  font-size: 21px;
+  font-size: 20px;
+  line-height: 1.2;
   letter-spacing: -0.015em;
 }
 
@@ -233,20 +274,15 @@
   font-size: 11px;
 }
 
-/* Paneles */
+/* Paneles de trabajo */
 .model111-route main > div > section:not(:first-child),
 .model111-route main > div > section > form,
 .model111-route main > div > section > section {
+  padding: 20px !important;
   border: 1px solid var(--m111-border) !important;
-  border-radius: 11px !important;
+  border-radius: 10px !important;
   background: var(--m111-surface) !important;
-  box-shadow: none !important;
-}
-
-.model111-route main > div > section:not(:first-child),
-.model111-route main > div > section > form,
-.model111-route main > div > section > section {
-  padding: 18px 20px !important;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, .025) !important;
 }
 
 .model111-route main h2,
@@ -257,8 +293,9 @@
 
 .model111-route main h2 {
   margin-top: 0;
-  margin-bottom: 4px;
+  margin-bottom: 5px;
   font-size: 18px;
+  line-height: 1.25;
 }
 
 .model111-route main form > p,
@@ -278,16 +315,17 @@
 
 .model111-route main form button {
   min-height: 38px;
-  margin-top: 12px;
+  margin-top: 14px;
   padding: 8px 13px !important;
   border-radius: 7px !important;
 }
 
-/* Botones */
+/* Botones del contenido */
 .model111-route main button {
   min-height: 36px;
   border-radius: 7px !important;
   box-shadow: none !important;
+  transition: background-color .14s ease, border-color .14s ease, color .14s ease !important;
 }
 
 .model111-route main button[style*="rgb(29, 78, 216)"],
@@ -297,16 +335,42 @@
   color: #ffffff !important;
 }
 
+.model111-route main button[style*="rgb(29, 78, 216)"]:hover:not(:disabled),
+.model111-route main button[style*="#1d4ed8"]:hover:not(:disabled) {
+  border-color: var(--m111-primary-strong) !important;
+  background: var(--m111-primary-strong) !important;
+  color: #ffffff !important;
+  transform: none !important;
+}
+
 .model111-route main button[style*="rgb(248, 243, 181)"],
 .model111-route main button[style*="#f8f3b5"] {
-  border: 1px solid var(--m111-border-strong) !important;
-  background: #ffffff !important;
-  color: #334155 !important;
+  border: 1px solid #b9cdf5 !important;
+  background: var(--m111-primary-soft) !important;
+  color: #1e4fa3 !important;
+}
+
+.model111-route main button[style*="rgb(248, 243, 181)"]:hover:not(:disabled),
+.model111-route main button[style*="#f8f3b5"]:hover:not(:disabled) {
+  border-color: #9fb9ee !important;
+  background: #e5efff !important;
+  color: #173f86 !important;
+  transform: none !important;
 }
 
 .model111-route main button[style*="rgb(255, 255, 255)"],
 .model111-route main button[style*="background: white"] {
   border-color: var(--m111-border-strong) !important;
+  background: #ffffff !important;
+  color: var(--m111-text-soft) !important;
+}
+
+.model111-route main button[style*="rgb(255, 255, 255)"]:hover:not(:disabled),
+.model111-route main button[style*="background: white"]:hover:not(:disabled) {
+  border-color: #aebfd3 !important;
+  background: #f8fafc !important;
+  color: var(--m111-text) !important;
+  transform: none !important;
 }
 
 .model111-route main button:not(:disabled) {
@@ -322,7 +386,7 @@
 .model111-route main table {
   width: 100%;
   min-width: 720px;
-  margin-top: 13px;
+  margin-top: 14px;
   border-collapse: separate;
   border-spacing: 0;
   overflow: hidden;
@@ -332,20 +396,20 @@
 }
 
 .model111-route main thead th {
-  padding: 8px 10px !important;
+  padding: 9px 10px !important;
   border-bottom: 1px solid var(--m111-border) !important;
-  background: #f1f5f9 !important;
-  color: #475569;
+  background: #f3f6f9 !important;
+  color: #526076;
   font-size: 10px;
   font-weight: 900;
   text-align: left;
   text-transform: uppercase;
-  letter-spacing: .03em;
+  letter-spacing: .035em;
   white-space: nowrap;
 }
 
 .model111-route main tbody td {
-  padding: 9px 10px !important;
+  padding: 10px !important;
   border-bottom: 1px solid #edf1f5;
   background: #ffffff;
   color: #334155;
@@ -367,13 +431,22 @@
   font-size: 10px;
 }
 
-/* Estados vacíos e históricos */
+/* Estado vacío e histórico */
 .model111-route main [style*="border: 2px dashed"],
 .model111-route main [style*="border: 1px dashed"] {
-  padding: 22px !important;
-  border: 1px dashed #b9c5d6 !important;
-  border-radius: 9px !important;
-  background: #f8fafc !important;
+  padding: 20px !important;
+  border: 1px solid var(--m111-border) !important;
+  border-radius: 10px !important;
+  background: #ffffff !important;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, .025) !important;
+}
+
+.model111-route main [style*="border: 2px dashed"] > div:first-child,
+.model111-route main [style*="border: 1px dashed"] > div:first-child {
+  border: 1px solid #9eb8da !important;
+  border-radius: 8px;
+  background: #edf5ff !important;
+  color: #1e4fa3;
 }
 
 .model111-route main [style*="grid-template-columns: 1fr auto auto"],
@@ -382,7 +455,7 @@
   background: #ffffff !important;
 }
 
-/* Modal AEAT: conservar identidad de simulación pero sin estética pesada */
+/* Modal AEAT */
 .model111-route [role="dialog"] > div {
   border: 1px solid var(--m111-border) !important;
   border-radius: 12px !important;
@@ -399,34 +472,61 @@
   font-size: inherit;
 }
 
-@media (max-width: 980px) {
+@media (max-width: 1050px) {
+  .model111-route main > div > section:first-child {
+    grid-template-columns: minmax(260px, 1fr) 100px 100px;
+  }
+
+  .model111-route main > div > section:first-child > button {
+    width: 100%;
+  }
+}
+
+@media (max-width: 820px) {
   .model111-route > main {
     padding: 22px 20px 40px !important;
   }
 
+  .model111-route main > div > section:first-child {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .model111-route main > div > section:first-child label:first-child {
+    grid-column: 1 / -1;
+  }
+
   .model111-route main > div > nav {
-    gap: 16px !important;
+    display: flex !important;
     overflow-x: auto;
     flex-wrap: nowrap !important;
   }
 
   .model111-route main > div > nav > button {
     flex: 0 0 auto;
+    min-width: 142px;
   }
 }
 
-@media (max-width: 720px) {
+@media (max-width: 620px) {
   .model111-route > header {
     align-items: flex-start !important;
     flex-direction: column;
     padding: 16px 18px !important;
   }
 
+  .model111-route > main {
+    padding-inline: 14px !important;
+  }
+
+  .model111-route main > div > section:first-child {
+    grid-template-columns: 1fr;
+  }
+
   .model111-route main > div > section:first-child label,
   .model111-route main > div > section:first-child label:first-child {
     width: 100%;
     min-width: 0;
-    flex-basis: 100%;
+    grid-column: auto;
   }
 
   .model111-route main > div > section > form,
