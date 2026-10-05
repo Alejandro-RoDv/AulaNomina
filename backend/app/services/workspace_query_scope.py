@@ -94,6 +94,151 @@ INDIRECT_PARENT_MODELS = {
     Model190RecipientOverride: ("company_id", Company),
 }
 
+# Every FK that points to learner-owned data is checked on write, not only the
+# parent used for SELECT scoping. This prevents mixed records such as a payroll
+# from workspace A referencing a contract, company or employee from workspace B.
+WORKSPACE_FOREIGN_KEYS = {
+    WorkCenter: (("company_id", Company),),
+    Employee: (("company_id", Company), ("center_id", WorkCenter)),
+    Contract: (
+        ("employee_id", Employee),
+        ("company_id", Company),
+        ("center_id", WorkCenter),
+        ("transformation_from_contract_id", Contract),
+    ),
+    Incident: (
+        ("employee_id", Employee),
+        ("contract_id", Contract),
+        ("company_id", Company),
+        ("center_id", WorkCenter),
+    ),
+    Payroll: (
+        ("employee_id", Employee),
+        ("contract_id", Contract),
+        ("company_id", Company),
+        ("center_id", WorkCenter),
+    ),
+    Document: (
+        ("employee_id", Employee),
+        ("company_id", Company),
+        ("center_id", WorkCenter),
+        ("wage_garnishment_id", WageGarnishment),
+    ),
+    TaxProfile: (("employee_id", Employee),),
+    CompanyPreferences: (
+        ("company_id", Company),
+        ("inherited_from_company_id", Company),
+    ),
+    CompanyBankAccount: (("company_id", Company),),
+    CompanyPaymentAssignment: (
+        ("company_id", Company),
+        ("account_id", CompanyBankAccount),
+    ),
+    EmployeeAssignmentHistory: (
+        ("employee_id", Employee),
+        ("company_id", Company),
+        ("center_id", WorkCenter),
+    ),
+    ContractPayrollConcept: (("contract_id", Contract),),
+    SocialSecurityRegistration: (("contract_id", Contract),),
+    ContractLifecycleEvent: (
+        ("contract_id", Contract),
+        ("related_contract_id", Contract),
+    ),
+    EmploymentTermination: (
+        ("contract_id", Contract),
+        ("employee_id", Employee),
+        ("company_id", Company),
+        ("center_id", WorkCenter),
+    ),
+    IncidentDetail: (
+        ("incident_id", Incident),
+        ("processed_payroll_id", Payroll),
+    ),
+    IncidentAudit: (("incident_id", Incident),),
+    IncidentConfirmation: (
+        ("incident_id", Incident),
+        ("document_id", Document),
+    ),
+    PayrollItem: (
+        ("payroll_id", Payroll),
+        ("segment_id", PayrollSegment),
+    ),
+    PayrollSegment: (
+        ("payroll_id", Payroll),
+        ("incident_id", Incident),
+    ),
+    PayrollCalculationSnapshot: (("payroll_id", Payroll),),
+    WageGarnishment: (
+        ("employee_id", Employee),
+        ("contract_id", Contract),
+        ("company_id", Company),
+    ),
+    WageGarnishmentMovement: (
+        ("wage_garnishment_id", WageGarnishment),
+        ("payroll_id", Payroll),
+    ),
+    CommunicationFile: (
+        ("company_id", Company),
+        ("response_file_id", CommunicationFile),
+    ),
+    CommunicationFileEvent: (("communication_file_id", CommunicationFile),),
+    CommunicationSubmission: (
+        ("communication_file_id", CommunicationFile),
+        ("company_id", Company),
+        ("response_file_id", CommunicationFile),
+    ),
+    AffiliationWorkerState: (
+        ("employee_id", Employee),
+        ("company_id", Company),
+        ("contract_id", Contract),
+        ("source_submission_id", CommunicationSubmission),
+    ),
+    FieCommunication: (
+        ("company_id", Company),
+        ("employee_id", Employee),
+        ("contract_id", Contract),
+        ("incident_id", Incident),
+    ),
+    FieProcessingEvent: (("communication_id", FieCommunication),),
+    SocialSecuritySettlement: (
+        ("company_id", Company),
+        ("communication_file_id", CommunicationFile),
+    ),
+    SocialSecuritySettlementLine: (
+        ("settlement_id", SocialSecuritySettlement),
+        ("payroll_id", Payroll),
+        ("employee_id", Employee),
+        ("contract_id", Contract),
+        ("center_id", WorkCenter),
+    ),
+    Professional: (("company_id", Company),),
+    ProfessionalInvoice: (
+        ("professional_id", Professional),
+        ("company_id", Company),
+    ),
+    TaxWithholdingAdjustment: (("company_id", Company),),
+    Model111Declaration: (
+        ("company_id", Company),
+        ("original_declaration_id", Model111Declaration),
+    ),
+    Model111Line: (("declaration_id", Model111Declaration),),
+    Model190Declaration: (
+        ("company_id", Company),
+        ("original_declaration_id", Model190Declaration),
+    ),
+    Model190Recipient: (
+        ("declaration_id", Model190Declaration),
+        ("employee_id", Employee),
+        ("professional_id", Professional),
+    ),
+    Model190RecipientLine: (
+        ("model190_recipient_id", Model190Recipient),
+        ("model111_declaration_id", Model111Declaration),
+    ),
+    Model190RecipientOverride: (("company_id", Company),),
+}
+
 WORKSPACE_SCOPED_MODELS = DIRECT_WORKSPACE_SCOPED_MODELS + tuple(INDIRECT_PARENT_MODELS)
 _INSTALLED = False
 
@@ -142,21 +287,23 @@ def _apply_workspace_filter(execute_state) -> None:
         )
 
 
-def _parent_exists_in_workspace(session: OrmSession, instance, workspace_id: int) -> bool:
-    parent_spec = INDIRECT_PARENT_MODELS.get(type(instance))
-    if parent_spec is None:
-        return True
+def _foreign_keys_belong_to_workspace(session: OrmSession, instance, workspace_id: int) -> bool:
+    specs = WORKSPACE_FOREIGN_KEYS.get(type(instance), ())
+    for foreign_key_name, parent_model in specs:
+        parent_id = getattr(instance, foreign_key_name, None)
+        column = getattr(type(instance), foreign_key_name).property.columns[0]
+        if parent_id is None:
+            if column.nullable:
+                continue
+            return False
 
-    foreign_key_name, parent_model = parent_spec
-    parent_id = getattr(instance, foreign_key_name, None)
-    if parent_id is None:
-        return False
-
-    statement = select(parent_model.id).where(
-        parent_model.id == parent_id,
-        _workspace_condition(parent_model, workspace_id),
-    )
-    return session.connection().execute(statement).scalar_one_or_none() is not None
+        statement = select(parent_model.id).where(
+            parent_model.id == parent_id,
+            _workspace_condition(parent_model, workspace_id),
+        )
+        if session.connection().execute(statement).scalar_one_or_none() is None:
+            return False
+    return True
 
 
 def _assign_and_guard_workspace(session: OrmSession, _flush_context, _instances) -> None:
@@ -171,9 +318,9 @@ def _assign_and_guard_workspace(session: OrmSession, _flush_context, _instances)
                 instance.workspace_id = workspace_id
             elif int(current) != int(workspace_id):
                 raise RuntimeError("No se puede crear un registro fuera del workspace activo")
-        elif type(instance) in INDIRECT_PARENT_MODELS:
-            if not _parent_exists_in_workspace(session, instance, workspace_id):
-                raise RuntimeError("No se puede crear un registro hijo fuera del workspace activo")
+        if type(instance) in WORKSPACE_FOREIGN_KEYS:
+            if not _foreign_keys_belong_to_workspace(session, instance, workspace_id):
+                raise RuntimeError("No se puede crear un registro con relaciones fuera del workspace activo")
 
     for collection in (session.dirty, session.deleted):
         for instance in collection:
@@ -181,9 +328,9 @@ def _assign_and_guard_workspace(session: OrmSession, _flush_context, _instances)
                 current = getattr(instance, "workspace_id", None)
                 if current is None or int(current) != int(workspace_id):
                     raise RuntimeError("No se puede modificar un registro fuera del workspace activo")
-            elif type(instance) in INDIRECT_PARENT_MODELS:
-                if not _parent_exists_in_workspace(session, instance, workspace_id):
-                    raise RuntimeError("No se puede modificar un registro hijo fuera del workspace activo")
+            if type(instance) in WORKSPACE_FOREIGN_KEYS:
+                if not _foreign_keys_belong_to_workspace(session, instance, workspace_id):
+                    raise RuntimeError("No se puede modificar un registro con relaciones fuera del workspace activo")
 
 
 def install_workspace_query_scope() -> None:
