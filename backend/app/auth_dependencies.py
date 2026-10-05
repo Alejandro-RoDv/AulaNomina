@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import os
-from collections.abc import Generator
+from collections.abc import AsyncGenerator, Generator
 
 from fastapi import Depends, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -28,10 +28,10 @@ def auth_required() -> bool:
     return os.getenv("AULANOMINA_REQUIRE_AUTH", "false").strip().lower() in {"1", "true", "yes", "on"}
 
 
-def get_optional_principal(
+def _resolve_optional_principal(
     credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
     db: Session = Depends(get_db),
-) -> Generator[AuthPrincipal | None, None, None]:
+) -> AuthPrincipal | None:
     principal: AuthPrincipal | None = None
     if credentials is None:
         if auth_required():
@@ -42,10 +42,16 @@ def get_optional_principal(
         principal = resolve_principal(db, credentials.credentials)
         if not principal:
             raise HTTPException(status_code=401, detail="Sesión no válida o caducada")
+    return principal
 
+
+async def get_optional_principal(
+    principal: AuthPrincipal | None = Depends(_resolve_optional_principal),
+) -> AsyncGenerator[AuthPrincipal | None, None]:
     workspace_id = None
     if principal is not None and not principal.is_staff:
         workspace_id = principal.workspace_id
+
     token = bind_workspace(workspace_id)
     try:
         yield principal
