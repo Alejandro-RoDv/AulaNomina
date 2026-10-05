@@ -120,6 +120,26 @@ export function fetchEvaluationResult(assignmentId) {
   );
 }
 
+export function fetchTutorialState() {
+  return apiRequest(
+    "/training-workspace/tutorial-state",
+    {},
+    "No se ha podido recuperar el estado del tutorial"
+  );
+}
+
+export function saveTutorialState(state) {
+  return apiRequest(
+    "/training-workspace/tutorial-state",
+    {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(state),
+    },
+    "No se ha podido guardar el estado del tutorial"
+  );
+}
+
 export function resetTrainingWorkspace() {
   return apiRequest(
     "/training-workspace/reset",
