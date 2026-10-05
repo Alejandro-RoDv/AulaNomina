@@ -64,12 +64,8 @@ function bindMailThreads(course, threads) {
         attachment_count: attachments.length,
         locked: thread.folder === "training_locked",
       };
-      activity.situation = "Has recibido una comunicación relacionada con este ejercicio. Consulta el correo antes de continuar.";
-      activity.instructions = role === "reply"
-        ? "Consulta el correo relacionado y sus adjuntos, realiza la gestión indicada en AulaNomina y responde por el mismo hilo cuando hayas terminado."
-        : role === "attachment"
-          ? "Consulta el correo relacionado y sus adjuntos. Con la información recibida, realiza en AulaNomina la gestión solicitada."
-          : "Consulta el correo relacionado. Con la información recibida, realiza en AulaNomina la gestión solicitada.";
+      // El correo es una fuente de datos de la práctica, no debe sustituir la
+      // explicación pedagógica ni la instrucción concreta definida por el curso.
       activity.case_data = [];
     }
   }
