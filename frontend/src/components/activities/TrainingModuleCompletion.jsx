@@ -3,33 +3,18 @@ import { createPortal } from "react-dom";
 import { ArrowRight, CheckCircle2, X } from "lucide-react";
 
 import { fetchActivityCourse, fetchEvaluationResult } from "../../services/activityApi.js";
+import {
+  completedTopicKeys,
+  newlyCompletedTopics,
+  nextTopicAfter,
+  topicHighlights,
+} from "./trainingModuleCompletionState.js";
 import "./trainingModuleCompletion.css";
 
-
-function completedTopicKeys(course) {
-  return new Set(
-    (course?.topics || [])
-      .filter((topic) => Number(topic.total || 0) > 0 && Number(topic.completed || 0) === Number(topic.total || 0))
-      .map((topic) => topic.key)
-  );
-}
 
 function openActivitiesCenter() {
   const launcher = document.querySelector(".activities-global-launcher");
   if (launcher instanceof HTMLElement) launcher.click();
-}
-
-function topicHighlights(topic) {
-  const seen = new Set();
-  const rows = [];
-  for (const activity of topic?.activities || []) {
-    const label = String(activity.title || "").trim();
-    if (!label || seen.has(label)) continue;
-    seen.add(label);
-    rows.push(label);
-    if (rows.length >= 4) break;
-  }
-  return rows;
 }
 
 async function topicEvaluationResult(topic) {
@@ -68,9 +53,7 @@ export default function TrainingModuleCompletion() {
       }
 
       if (detectCompletion) {
-        const newlyCompleted = (nextCourse?.topics || [])
-          .filter((topic) => nextCompleted.has(topic.key) && !previousCompletedRef.current.has(topic.key))
-          .sort((left, right) => Number(left.order || 0) - Number(right.order || 0));
+        const newlyCompleted = newlyCompletedTopics(nextCourse, previousCompletedRef.current);
         if (newlyCompleted.length) {
           const topic = newlyCompleted[0];
           setCompletedTopic(topic);
@@ -114,12 +97,10 @@ export default function TrainingModuleCompletion() {
     };
   }, [completedTopic]);
 
-  const nextTopic = useMemo(() => {
-    if (!completedTopic) return null;
-    return (course?.topics || [])
-      .filter((topic) => Number(topic.order || 0) > Number(completedTopic.order || 0) && Number(topic.total || 0) > 0)
-      .sort((left, right) => Number(left.order || 0) - Number(right.order || 0))[0] || null;
-  }, [course, completedTopic]);
+  const nextTopic = useMemo(
+    () => nextTopicAfter(course, completedTopic),
+    [course, completedTopic]
+  );
 
   if (!completedTopic) return null;
 
