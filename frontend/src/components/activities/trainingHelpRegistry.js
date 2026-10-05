@@ -251,16 +251,52 @@ export function normalizeHelpText(value) {
     .trim();
 }
 
+function helpTokens(value) {
+  return normalizeHelpText(value).split(/[^a-z0-9]+/).filter(Boolean);
+}
+
 export function helpLocationPath(location) {
   return (location?.navigationLabels || []).join(" · ");
+}
+
+function scoreHelpLocation(item, term) {
+  const queryTokens = helpTokens(term);
+  const title = normalizeHelpText(item.title);
+  const path = normalizeHelpText(helpLocationPath(item));
+  const description = normalizeHelpText(item.description);
+  const keywords = normalizeHelpText(item.keywords);
+  const titleTokens = new Set(helpTokens(title));
+  const pathTokens = new Set(helpTokens(path));
+  const keywordTokens = new Set(helpTokens(keywords));
+  const allTokens = new Set([...titleTokens, ...pathTokens, ...keywordTokens, ...helpTokens(description)]);
+
+  const allMatched = queryTokens.every((token) => allTokens.has(token));
+  if (!allMatched) return -1;
+
+  let score = 0;
+  if (title === term) score += 120;
+  if (path === term) score += 100;
+  if (keywords === term) score += 90;
+  if (title.includes(term)) score += 35;
+  if (path.includes(term)) score += 25;
+  if (keywords.includes(term)) score += 20;
+
+  for (const token of queryTokens) {
+    if (keywordTokens.has(token)) score += 50;
+    if (titleTokens.has(token)) score += 40;
+    if (pathTokens.has(token)) score += 30;
+  }
+  return score;
 }
 
 export function searchHelpLocations(query, locations = HELP_LOCATIONS) {
   const term = normalizeHelpText(query);
   if (!term) return locations;
-  return locations.filter((item) => normalizeHelpText(
-    `${item.title} ${helpLocationPath(item)} ${item.description} ${item.keywords}`
-  ).includes(term));
+  return locations
+    .map((item, index) => ({ item, index, score: scoreHelpLocation(item, term) }))
+    .filter(({ score }) => score >= 0)
+    .sort((left, right) => right.score - left.score || left.index - right.index)
+    .map(({ item }) => item);
 }
 
 export function findHelpLocationByLabels(labels, locations = HELP_LOCATIONS) {
