@@ -62,6 +62,7 @@ def reset_learner_workspace(db: Session, principal: AuthPrincipal) -> TrainingWo
 
     now = datetime.utcnow()
     generation = int(current.reset_generation or 0) + 1
+    tutorial_state = current.tutorial_state or "{}"
 
     # La generación anterior queda archivada. Sus filas ERP mantienen el mismo
     # workspace_id, por lo que dejan de ser visibles en cuanto la sesión resuelve
@@ -78,6 +79,7 @@ def reset_learner_workspace(db: Session, principal: AuthPrincipal) -> TrainingWo
         status="active",
         seed_version=current.seed_version or "2026.1",
         reset_generation=generation,
+        tutorial_state=tutorial_state,
         last_reset_at=now,
         created_at=now,
         updated_at=now,
