@@ -17,7 +17,7 @@
     "test:siltra": "node --test src/tests/siltraSimulation.test.js",
     "test:model190": "node --test src/tests/model190View.test.js src/tests/model190Presentation.test.js src/tests/model190Documents.test.js src/tests/model190Demo.test.js",
     "test:mail": "node --test src/tests/mailApi.test.js src/tests/caseNavigation.test.js src/tests/caseOperationBridge.test.js src/tests/caseOperationBridgeTermination.test.js src/tests/caseOperationBridgeExplicitReview.test.js",
-    "test:activities": "node --test src/tests/activityCourseView.test.js",
+    "test:activities": "node --test src/tests/activityCourseView.test.js src/tests/trainingTutorialState.test.js src/tests/trainingHelpRegistry.test.js src/tests/trainingModuleCompletionState.test.js",
     "test:auth": "node --test src/tests/authStorage.test.js",
     "preview": "vite preview"
   },
