@@ -158,14 +158,27 @@ export default function ActivitiesCenter() {
 
   const activities = useMemo(() => flattenActivities(course), [course]);
   const selectedActivity = useMemo(() => findActivity(course, selectedId), [course, selectedId]);
+  const currentCourseActivity = useMemo(
+    () => findActivity(course, course?.course?.current_activity_id) || selectedActivity,
+    [course, selectedActivity]
+  );
+  const currentTopic = useMemo(
+    () => (course?.topics || []).find((topic) => topic.key === currentCourseActivity?.topic_key) || null,
+    [course, currentCourseActivity]
+  );
   const selectedIndex = useMemo(
     () => activities.findIndex((activity) => activity.id === selectedId),
     [activities, selectedId]
   );
   const previousActivity = selectedIndex > 0 ? activities[selectedIndex - 1] : null;
   const nextActivity = selectedIndex >= 0 && selectedIndex < activities.length - 1 ? activities[selectedIndex + 1] : null;
-  const pending = course?.course?.pending;
   const topicCount = course?.topics?.length || 0;
+  const moduleProgress = currentTopic?.total > 0
+    ? `${currentTopic.completed || 0}/${currentTopic.total}`
+    : "—";
+  const moduleProgressLabel = currentTopic?.total > 0
+    ? `${currentTopic.completed || 0} de ${currentTopic.total} actividades completadas en el módulo actual`
+    : "Progreso del módulo actual no disponible";
   const failedMessages = failedValidationMessages(selectedActivity);
   const moduleActionLabel = selectedActivity?.context
     && (!selectedActivity?.response_schema || selectedActivity.context.moduleCode !== "general")
@@ -603,8 +616,8 @@ export default function ActivitiesCenter() {
       <button type="button" className="activities-global-launcher" onClick={openCenter} aria-haspopup="dialog" aria-expanded={open}>
         <BookOpen size={16} aria-hidden="true" />
         <span>Actividades</span>
-        <strong className="activities-global-launcher__counter" aria-label={`${pending ?? 0} actividades pendientes`}>
-          {pending ?? "—"}
+        <strong className="activities-global-launcher__counter" aria-label={moduleProgressLabel}>
+          {moduleProgress}
         </strong>
       </button>
       {overlay}
