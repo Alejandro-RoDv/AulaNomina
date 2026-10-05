@@ -1,0 +1,160 @@
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { ArrowRight, CheckCircle2, X } from "lucide-react";
+
+import { fetchActivityCourse, fetchEvaluationResult } from "../../services/activityApi.js";
+import {
+  completedTopicKeys,
+  newlyCompletedTopics,
+  nextTopicAfter,
+  topicHighlights,
+} from "./trainingModuleCompletionState.js";
+import "./trainingModuleCompletion.css";
+
+
+function openActivitiesCenter() {
+  const launcher = document.querySelector(".activities-global-launcher");
+  if (launcher instanceof HTMLElement) launcher.click();
+}
+
+async function topicEvaluationResult(topic) {
+  const assignmentIds = [...new Set(
+    (topic?.activities || [])
+      .map((activity) => Number(activity?.assignment_id))
+      .filter((value) => Number.isFinite(value) && value > 0)
+  )];
+
+  for (const assignmentId of assignmentIds) {
+    try {
+      const result = await fetchEvaluationResult(assignmentId);
+      if (result) return result;
+    } catch (error) {
+      if (error?.code !== "ASSIGNMENT_NOT_EVALUATION" && error?.status !== 409) throw error;
+    }
+  }
+  return null;
+}
+
+export default function TrainingModuleCompletion() {
+  const [course, setCourse] = useState(null);
+  const [completedTopic, setCompletedTopic] = useState(null);
+  const [evaluationResult, setEvaluationResult] = useState(null);
+  const previousCompletedRef = useRef(null);
+
+  const loadCourse = useCallback(async ({ detectCompletion = true } = {}) => {
+    try {
+      const nextCourse = await fetchActivityCourse();
+      const nextCompleted = completedTopicKeys(nextCourse);
+
+      if (previousCompletedRef.current === null) {
+        previousCompletedRef.current = nextCompleted;
+        setCourse(nextCourse);
+        return;
+      }
+
+      if (detectCompletion) {
+        const newlyCompleted = newlyCompletedTopics(nextCourse, previousCompletedRef.current);
+        if (newlyCompleted.length) {
+          const topic = newlyCompleted[0];
+          setCompletedTopic(topic);
+          try {
+            setEvaluationResult(await topicEvaluationResult(topic));
+          } catch {
+            setEvaluationResult(null);
+          }
+        }
+      }
+
+      previousCompletedRef.current = nextCompleted;
+      setCourse(nextCourse);
+    } catch {
+      // El resumen de cierre no debe interferir con el trabajo del alumno.
+    }
+  }, []);
+
+  useEffect(() => {
+    loadCourse({ detectCompletion: false });
+    const handleRefresh = () => loadCourse({ detectCompletion: true });
+    window.addEventListener("aulanomina-case-operation-feedback", handleRefresh);
+    window.addEventListener("aulanomina-activities-refresh", handleRefresh);
+    return () => {
+      window.removeEventListener("aulanomina-case-operation-feedback", handleRefresh);
+      window.removeEventListener("aulanomina-activities-refresh", handleRefresh);
+    };
+  }, [loadCourse]);
+
+  useEffect(() => {
+    if (!completedTopic) return undefined;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const handleEscape = (event) => {
+      if (event.key === "Escape") setCompletedTopic(null);
+    };
+    window.addEventListener("keydown", handleEscape);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", handleEscape);
+    };
+  }, [completedTopic]);
+
+  const nextTopic = useMemo(
+    () => nextTopicAfter(course, completedTopic),
+    [course, completedTopic]
+  );
+
+  if (!completedTopic) return null;
+
+  const highlights = topicHighlights(completedTopic);
+  return createPortal(
+    <div className="training-module-completion__backdrop" role="presentation" onMouseDown={(event) => {
+      if (event.target === event.currentTarget) setCompletedTopic(null);
+    }}>
+      <section className="training-module-completion" role="dialog" aria-modal="true" aria-labelledby="training-module-completion-title">
+        <button type="button" className="training-module-completion__close" onClick={() => setCompletedTopic(null)} aria-label="Cerrar resumen">
+          <X size={18} aria-hidden="true" />
+        </button>
+
+        <div className="training-module-completion__icon" aria-hidden="true">
+          <CheckCircle2 size={28} />
+        </div>
+        <span className="training-module-completion__eyebrow">Bloque completado</span>
+        <h2 id="training-module-completion-title">{completedTopic.title}</h2>
+        <p>Has completado {completedTopic.completed}/{completedTopic.total} actividades de este bloque.</p>
+
+        {highlights.length > 0 && (
+          <div className="training-module-completion__worked">
+            <strong>Has trabajado</strong>
+            <ul>
+              {highlights.map((label) => <li key={label}>{label}</li>)}
+            </ul>
+          </div>
+        )}
+
+        {evaluationResult && (
+          <div className={`training-module-completion__evaluation${evaluationResult.passed ? " is-passed" : ""}`}>
+            <div>
+              <span>{evaluationResult.evaluation_code} · Resultado de evaluación</span>
+              <strong>{evaluationResult.passed ? "Evaluación superada" : "Evaluación completada"}</strong>
+            </div>
+            <strong>{evaluationResult.score}/100</strong>
+          </div>
+        )}
+
+        <div className="training-module-completion__result">
+          <span>Progreso del bloque</span>
+          <strong>100%</strong>
+        </div>
+
+        <button type="button" className="training-module-completion__continue" onClick={() => {
+          setCompletedTopic(null);
+          setEvaluationResult(null);
+          window.setTimeout(openActivitiesCenter, 0);
+        }}>
+          <span>{nextTopic ? `Continuar con ${nextTopic.title}` : "Revisar curso"}</span>
+          <ArrowRight size={16} aria-hidden="true" />
+        </button>
+      </section>
+    </div>,
+    document.body
+  );
+}

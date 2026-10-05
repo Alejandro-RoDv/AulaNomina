@@ -17,6 +17,7 @@ class CaseTaskProgress(Base):
     task_id = Column(Integer, ForeignKey("case_tasks.id", ondelete="CASCADE"), nullable=False, index=True)
     status = Column(String, default="pending", nullable=False, index=True)
     attempts = Column(Integer, default=0, nullable=False)
+    hints_used = Column(Integer, default=0, nullable=False)
     validation_result = Column(JSON, default=dict, nullable=False)
     student_notes = Column(Text, nullable=True)
     started_at = Column(DateTime, nullable=True)

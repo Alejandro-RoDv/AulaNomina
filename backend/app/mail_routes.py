@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
+from app.auth_dependencies import get_optional_principal
 from app.db import SessionLocal
 from app.models.document import Document
 from app.schemas.document import DocumentResponse
@@ -16,9 +17,15 @@ from app.schemas.mail import (
     MailboxResponse,
     MailboxStatsResponse,
 )
+from app.services.auth_service import AuthPrincipal
 from app.services.case_scenario_service import reset_assignment_progress
 from app.services.integrated_demo_case_service import ensure_integrated_demo_case
 from app.services.integrated_demo_process_seed import ensure_integrated_fie_communication
+from app.services.learner_scope_service import (
+    assert_mailbox_access,
+    assert_thread_access,
+    get_scoped_mailbox,
+)
 from app.services.mail_attachment_service import attachment_download, attachment_preview
 from app.services.mail_service import (
     create_thread,
@@ -72,19 +79,44 @@ def _prepare_demo_mailbox(db: Session, *, reset: bool = False):
     if view_state:
         restore_mailbox_view_state(db, view_state)
 
-    # Se ejecuta después de restaurar el estado para que la limpieza de duplicados
-    # formativos tenga prioridad sobre estados heredados de migraciones antiguas.
     ensure_activity_mail_2026(db, mailbox)
     return mailbox
 
 
+def _assert_attachment_access(
+    db: Session,
+    principal: AuthPrincipal | None,
+    attachment_id: int,
+):
+    attachment = get_attachment(db, attachment_id)
+    if not attachment:
+        raise HTTPException(status_code=404, detail="Adjunto no encontrado")
+    thread = attachment.message.thread if attachment.message else None
+    if thread:
+        assert_thread_access(db, principal, thread.id)
+    return attachment
+
+
 @router.get("/demo-mailbox", response_model=MailboxResponse)
-def read_demo_mailbox(db: Session = Depends(get_db)):
+def read_demo_mailbox(
+    db: Session = Depends(get_db),
+    principal: AuthPrincipal | None = Depends(get_optional_principal),
+):
+    if principal is not None and not principal.is_staff:
+        return get_scoped_mailbox(db, principal)
     return _prepare_demo_mailbox(db)
 
 
 @router.post("/demo-mailbox/reset", response_model=MailboxResponse)
-def reset_mailbox(db: Session = Depends(get_db)):
+def reset_mailbox(
+    db: Session = Depends(get_db),
+    principal: AuthPrincipal | None = Depends(get_optional_principal),
+):
+    if principal is not None and not principal.is_staff:
+        raise HTTPException(
+            status_code=403,
+            detail="El reset global del buzón no está disponible para alumnos; reinicia la actividad correspondiente",
+        )
     return _prepare_demo_mailbox(db, reset=True)
 
 
@@ -95,7 +127,9 @@ def read_mailbox_threads(
     status: str | None = Query(default=None),
     search: str | None = Query(default=None, max_length=120),
     db: Session = Depends(get_db),
+    principal: AuthPrincipal | None = Depends(get_optional_principal),
 ):
+    assert_mailbox_access(db, principal, mailbox_id)
     if not get_mailbox(db, mailbox_id):
         raise HTTPException(status_code=404, detail="Buzón no encontrado")
     return list_threads(db, mailbox_id, folder=folder, status=status, search=search)
@@ -106,7 +140,9 @@ def post_mailbox_thread(
     mailbox_id: int,
     payload: EmailThreadCreate,
     db: Session = Depends(get_db),
+    principal: AuthPrincipal | None = Depends(get_optional_principal),
 ):
+    assert_mailbox_access(db, principal, mailbox_id)
     mailbox = get_mailbox(db, mailbox_id)
     if not mailbox:
         raise HTTPException(status_code=404, detail="Buzón no encontrado")
@@ -114,14 +150,24 @@ def post_mailbox_thread(
 
 
 @router.get("/mailboxes/{mailbox_id}/stats", response_model=MailboxStatsResponse)
-def read_mailbox_stats(mailbox_id: int, db: Session = Depends(get_db)):
+def read_mailbox_stats(
+    mailbox_id: int,
+    db: Session = Depends(get_db),
+    principal: AuthPrincipal | None = Depends(get_optional_principal),
+):
+    assert_mailbox_access(db, principal, mailbox_id)
     if not get_mailbox(db, mailbox_id):
         raise HTTPException(status_code=404, detail="Buzón no encontrado")
     return mailbox_stats(db, mailbox_id)
 
 
 @router.get("/threads/{thread_id}", response_model=EmailThreadResponse)
-def read_thread(thread_id: int, db: Session = Depends(get_db)):
+def read_thread(
+    thread_id: int,
+    db: Session = Depends(get_db),
+    principal: AuthPrincipal | None = Depends(get_optional_principal),
+):
+    assert_thread_access(db, principal, thread_id)
     thread = get_thread(db, thread_id)
     if not thread:
         raise HTTPException(status_code=404, detail="Hilo de correo no encontrado")
@@ -129,7 +175,13 @@ def read_thread(thread_id: int, db: Session = Depends(get_db)):
 
 
 @router.patch("/threads/{thread_id}", response_model=EmailThreadResponse)
-def patch_thread(thread_id: int, payload: EmailThreadUpdate, db: Session = Depends(get_db)):
+def patch_thread(
+    thread_id: int,
+    payload: EmailThreadUpdate,
+    db: Session = Depends(get_db),
+    principal: AuthPrincipal | None = Depends(get_optional_principal),
+):
+    assert_thread_access(db, principal, thread_id)
     thread = get_thread(db, thread_id)
     if not thread:
         raise HTTPException(status_code=404, detail="Hilo de correo no encontrado")
@@ -137,7 +189,13 @@ def patch_thread(thread_id: int, payload: EmailThreadUpdate, db: Session = Depen
 
 
 @router.post("/threads/{thread_id}/messages", response_model=EmailThreadResponse)
-def post_thread_message(thread_id: int, payload: EmailMessageCreate, db: Session = Depends(get_db)):
+def post_thread_message(
+    thread_id: int,
+    payload: EmailMessageCreate,
+    db: Session = Depends(get_db),
+    principal: AuthPrincipal | None = Depends(get_optional_principal),
+):
+    assert_thread_access(db, principal, thread_id)
     thread = get_thread(db, thread_id)
     if not thread:
         raise HTTPException(status_code=404, detail="Hilo de correo no encontrado")
@@ -145,18 +203,22 @@ def post_thread_message(thread_id: int, payload: EmailMessageCreate, db: Session
 
 
 @router.get("/attachments/{attachment_id}/preview", response_model=EmailAttachmentPreviewResponse)
-def read_attachment_preview(attachment_id: int, db: Session = Depends(get_db)):
-    attachment = get_attachment(db, attachment_id)
-    if not attachment:
-        raise HTTPException(status_code=404, detail="Adjunto no encontrado")
+def read_attachment_preview(
+    attachment_id: int,
+    db: Session = Depends(get_db),
+    principal: AuthPrincipal | None = Depends(get_optional_principal),
+):
+    attachment = _assert_attachment_access(db, principal, attachment_id)
     return attachment_preview(attachment)
 
 
 @router.get("/attachments/{attachment_id}/candidate-documents", response_model=list[DocumentResponse])
-def read_attachment_candidate_documents(attachment_id: int, db: Session = Depends(get_db)):
-    attachment = get_attachment(db, attachment_id)
-    if not attachment:
-        raise HTTPException(status_code=404, detail="Adjunto no encontrado")
+def read_attachment_candidate_documents(
+    attachment_id: int,
+    db: Session = Depends(get_db),
+    principal: AuthPrincipal | None = Depends(get_optional_principal),
+):
+    attachment = _assert_attachment_access(db, principal, attachment_id)
     thread = attachment.message.thread if attachment.message else None
     if not thread or not thread.employee_id:
         return []
@@ -173,10 +235,9 @@ def link_attachment_to_document(
     attachment_id: int,
     document_id: int,
     db: Session = Depends(get_db),
+    principal: AuthPrincipal | None = Depends(get_optional_principal),
 ):
-    attachment = get_attachment(db, attachment_id)
-    if not attachment:
-        raise HTTPException(status_code=404, detail="Adjunto no encontrado")
+    attachment = _assert_attachment_access(db, principal, attachment_id)
     document = db.query(Document).filter(Document.id == document_id).first()
     if not document:
         raise HTTPException(status_code=404, detail="Documento ERP no encontrado")
@@ -194,10 +255,12 @@ def link_attachment_to_document(
 
 
 @router.get("/attachments/{attachment_id}/download")
-def download_attachment(attachment_id: int, db: Session = Depends(get_db)):
-    attachment = get_attachment(db, attachment_id)
-    if not attachment:
-        raise HTTPException(status_code=404, detail="Adjunto no encontrado")
+def download_attachment(
+    attachment_id: int,
+    db: Session = Depends(get_db),
+    principal: AuthPrincipal | None = Depends(get_optional_principal),
+):
+    attachment = _assert_attachment_access(db, principal, attachment_id)
     content, media_type = attachment_download(attachment)
     filename = quote(attachment.filename)
     return Response(

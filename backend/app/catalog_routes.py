@@ -1,5 +1,6 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
+from app.auth_dependencies import get_optional_principal
 from app.catalogs.contract_codes import CONTRACT_CODES
 from app.catalogs.contribution_groups import CONTRIBUTION_GROUPS
 from app.catalogs.red_catalogs import (
@@ -17,19 +18,34 @@ from app.case_scenario_routes import router as case_scenario_router
 from app.communication_file_routes import router as communication_file_router
 from app.communication_submission_routes import router as communication_submission_router
 from app.contract_lifecycle_routes import router as contract_lifecycle_router
+from app.core_workspace_routes import router as core_workspace_router
 from app.cra_routes import router as cra_router
 from app.environment_reset_routes import router as environment_reset_router
+from app.evaluation_routes import router as evaluation_router
 from app.fie_routes import router as fie_router
+from app.irpf_summary_routes import router as irpf_summary_router
+from app.legacy_demo_guard_routes import router as legacy_demo_guard_router
 from app.mail_routes import router as mail_router
 from app.model111_routes import router as model111_router
 from app.model190_routes import router as model190_router
+from app.payroll_salary_structure_routes import router as payroll_salary_structure_router
 from app.social_security_registration_routes import router as social_security_registration_router
 from app.social_security_settlement_routes import router as social_security_settlement_router
 from app.wage_garnishment_routes import router as wage_garnishment_router
+from app.workspace_routes import router as workspace_router
 
-router = APIRouter(tags=["catalogs"])
+router = APIRouter(tags=["catalogs"], dependencies=[Depends(get_optional_principal)])
+# Estas rutas se montan antes que las rutas históricas declaradas en main.py.
+# Así reutilizamos los mismos CRUD con el workspace ligado a la petición sin
+# duplicar la lógica de negocio en cada módulo del ERP.
+router.include_router(legacy_demo_guard_router)
+router.include_router(core_workspace_router)
+router.include_router(workspace_router)
+router.include_router(payroll_salary_structure_router)
+router.include_router(irpf_summary_router)
 router.include_router(affiliation_remittance_router)
 router.include_router(case_scenario_router)
+router.include_router(evaluation_router)
 router.include_router(communication_file_router)
 router.include_router(communication_submission_router)
 router.include_router(contract_lifecycle_router)

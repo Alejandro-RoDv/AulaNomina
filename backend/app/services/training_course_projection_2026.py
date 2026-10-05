@@ -1,14 +1,14 @@
-"""Proyección estricta del runtime sobre el Temario Maestro AulaNomina 2026.
+"""Proyección del runtime sobre el curso visible de AulaNomina 2026.
 
-El motor histórico sigue conservando casos y tareas demo útiles para otras pantallas,
-pero el Centro de Actividades no debe mezclarlos con las 60 prácticas del curso.
-Esta capa elimina tareas legacy de la vista formativa, normaliza la numeración y
-expone métricas de auditoría para detectar prácticas maestras sin runtime.
+Los casos, tareas y validadores internos siguen siendo granulares, pero el alumno
+no debe ver cada CaseTask como una actividad distinta. La vista formativa agrupa
+los subpasos técnicos en una única práctica, integra la teoría conceptual en la
+operación ERP y elimina ejercicios puramente teóricos que duplicaban contenido.
 """
-
 from __future__ import annotations
 
 from collections import defaultdict
+from copy import deepcopy
 from typing import Any
 
 from sqlalchemy.orm import Session
@@ -17,6 +17,13 @@ from app.services.training_activity_runtime_service import (
     build_activity_course as build_runtime_activity_course,
 )
 from app.training import list_training_activities_2026
+from app.training.student_course_2026 import (
+    HIDDEN_STANDALONE_ACTIVITY_CODES_2026,
+    STUDENT_ACTIVITY_CODES_2026,
+    STUDENT_ACTIVITY_ORDER_2026,
+    STUDENT_BLOCKS_2026,
+    student_activity_copy_2026,
+)
 
 
 MASTER_ACTIVITY_CATALOG_2026 = tuple(
@@ -28,21 +35,9 @@ MASTER_ACTIVITY_CODES_2026 = tuple(
 MASTER_ACTIVITY_ORDER_2026 = {
     code: index for index, code in enumerate(MASTER_ACTIVITY_CODES_2026, start=1)
 }
-MASTER_ACTIVITY_CODES_BY_BLOCK_2026: dict[str, tuple[str, ...]] = {
-    block_code: tuple(
-        activity["code"]
-        for activity in MASTER_ACTIVITY_CATALOG_2026
-        if activity["block_code"] == block_code
-    )
-    for block_code in {activity["block_code"] for activity in MASTER_ACTIVITY_CATALOG_2026}
-}
 
-# Estas prácticas registran primero la operación ERP y después pasan por una
-# comprobación pedagógica más estricta que el validador genérico por existencia.
 FORCE_EXPLICIT_REVIEW_CODES_2026 = frozenset({"A07", "A09", "A14", "A29", "C02"})
 
-# A09 reutiliza el caso profesional de sustitución previo y C02 promueve el
-# caso integral LAB-2026-001. Son las únicas fuentes no TRAIN-2026 canónicas.
 ALLOWED_LEGACY_RUNTIME_SOURCES_2026 = {
     ("A09", "ALT-2026-021"),
     ("C02", "LAB-2026-001"),
@@ -61,17 +56,7 @@ def _count_runtime_cases(db: Session, scenario_codes: set[str]) -> int:
 
 
 def _ensure_master_runtime_availability_2026(db: Session) -> None:
-    """Materializa únicamente los bloques runtime que falten en bases ya existentes.
-
-    Split 43 puede ejecutarse sobre una base demo creada durante una fase anterior.
-    En ese caso el catálogo maestro conoce A01-A54/C01-C06, pero algunos CaseStudy y
-    CaseAssignment todavía no existen. El resultado era un bloque con contador
-    (por ejemplo 0/6) pero sin filas al desplegarlo.
-
-    La reparación evita un reset global: los casos completos no se reseedean. Solo
-    se crean casos/asignaciones ausentes; los bootstraps que restauran datos base se
-    ejecutan únicamente cuando un bloque tardío no existía en absoluto.
-    """
+    """Materializa únicamente los bloques runtime que falten en bases existentes."""
     from app.training.document_runtime_bootstrap_2026 import bootstrap_document_training_2026
     from app.training.document_runtime_cases_2026 import (
         DOCUMENT_SCENARIO_CODES,
@@ -84,6 +69,7 @@ def _ensure_master_runtime_availability_2026(db: Session) -> None:
         seed_fiscal_runtime_cases_2026,
     )
     from app.training.foundation_runtime_cases_2026 import (
+        FOUNDATION_SCENARIO_CODES,
         seed_foundation_runtime_assignments_2026,
         seed_foundation_runtime_cases_2026,
     )
@@ -113,9 +99,12 @@ def _ensure_master_runtime_availability_2026(db: Session) -> None:
         seed_termination_runtime_cases_2026,
     )
 
-    # B01 se reseedea de forma idempotente para que cambios pedagógicos del
-    # esquema de respuesta lleguen también a bases creadas antes de la revisión.
-    seed_foundation_runtime_cases_2026(db)
+    # La capa visible aplica los nuevos textos sin tocar las tareas persistidas.
+    # Solo reparamos B01 si realmente faltan escenarios; leer el curso nunca debe
+    # reiniciar el progreso de asignaciones ya existentes.
+    foundation_count = _count_runtime_cases(db, FOUNDATION_SCENARIO_CODES)
+    if foundation_count < len(FOUNDATION_SCENARIO_CODES):
+        seed_foundation_runtime_cases_2026(db)
     seed_foundation_runtime_assignments_2026(db)
 
     incident_count = _count_runtime_cases(db, INCIDENT_SCENARIO_CODES)
@@ -148,9 +137,8 @@ def _ensure_master_runtime_availability_2026(db: Session) -> None:
     document_count = _count_runtime_cases(db, DOCUMENT_SCENARIO_CODES)
     if document_count == 0:
         bootstrap_document_training_2026(db)
-    else:
-        if document_count < len(DOCUMENT_SCENARIO_CODES):
-            seed_document_runtime_cases_2026(db)
+    elif document_count < len(DOCUMENT_SCENARIO_CODES):
+        seed_document_runtime_cases_2026(db)
         seed_document_runtime_assignments_2026(db)
 
     integrated_count = _count_runtime_cases(db, NEW_INTEGRATED_SCENARIOS)
@@ -178,13 +166,6 @@ def _is_master_runtime_candidate(activity: dict[str, Any]) -> bool:
 
 
 def _source_key(activity: dict[str, Any]) -> tuple[str, str]:
-    """Separa instancias duplicadas del mismo escenario por su asignación.
-
-    Bases creadas durante migraciones intermedias pueden conservar más de un
-    CaseStudy con el mismo scenario_code. Cada uno tiene una asignación distinta.
-    Si agrupamos solo por scenario_code, sus tareas se concatenan y A36.1/A36.2
-    aparecen dos veces. Una asignación representa una ejecución canónica completa.
-    """
     assignment_id = str(activity.get("assignment_id") or "").strip()
     if assignment_id:
         return ("assignment", assignment_id)
@@ -235,67 +216,103 @@ def _select_canonical_runtime_steps(
     return selected, suppressed_duplicate_steps
 
 
-def _normalise_activity_number(activity: dict[str, Any]) -> None:
-    code = str(activity.get("training_code") or "").strip().upper()
-    substep = activity.get("training_substep")
-    activity["display_number"] = f"{code}.{substep}" if substep else code
+def _step_module(activity: dict[str, Any]) -> str:
+    context = activity.get("context") or {}
+    return str(context.get("moduleCode") or activity.get("module") or "").strip().lower()
+
+
+def _student_steps(steps: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Quita subpasos puramente conceptuales si la práctica ya tiene operación ERP."""
+    operational = [
+        step for step in steps
+        if _step_module(step) not in {"", "general", "learning"}
+    ]
+    return operational or steps
+
+
+def _collapse_practice(code: str, steps: list[dict[str, Any]]) -> dict[str, Any]:
+    visible_steps = _student_steps(sorted(
+        steps,
+        key=lambda item: (int(item.get("training_substep") or 0), int(item.get("task_id") or 0)),
+    ))
+    current_step = next((step for step in visible_steps if not step.get("is_completed")), None)
+    current_step = current_step or visible_steps[-1]
+    practice = deepcopy(current_step)
+    completed_steps = sum(1 for step in visible_steps if step.get("is_completed"))
+    copy = student_activity_copy_2026(code)
+
+    practice.update(
+        {
+            "id": f"practice:{code}",
+            "runtime_step_id": current_step.get("id"),
+            "runtime_step_count": len(visible_steps),
+            "runtime_completed_steps": completed_steps,
+            "is_completed": completed_steps == len(visible_steps),
+            "title": copy.get("title") or practice.get("master_activity_title") or practice.get("title"),
+            "theory": copy.get("theory") or practice.get("objective") or "",
+            "instructions": copy.get("task") or practice.get("instructions") or practice.get("objective") or "",
+            "simple_course_view": True,
+            "training_substep": None,
+            "training_substep_total": None,
+        }
+    )
     if code in FORCE_EXPLICIT_REVIEW_CODES_2026:
-        activity["validation_interaction"] = "explicit_review"
+        practice["validation_interaction"] = "explicit_review"
+    return practice
 
 
-def _completed_master_codes(activities: list[dict[str, Any]]) -> set[str]:
+def _group_practices(selected: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
     by_code: dict[str, list[dict[str, Any]]] = defaultdict(list)
-    for activity in activities:
-        code = str(activity.get("training_code") or "").strip().upper()
-        if code:
-            by_code[code].append(activity)
+    for step in selected:
+        code = str(step.get("training_code") or "").strip().upper()
+        if code in STUDENT_ACTIVITY_ORDER_2026:
+            by_code[code].append(step)
     return {
-        code
+        code: _collapse_practice(code, steps)
         for code, steps in by_code.items()
-        if steps and all(step.get("is_completed") for step in steps)
+        if steps
     }
 
 
 def project_master_activity_course_2026(course: dict[str, Any]) -> dict[str, Any]:
-    """Elimina ruido legacy y recalcula la vista del curso con numeración maestra."""
+    """Construye el curso simple: una práctica visible por objetivo formativo."""
     all_runtime_steps = [
         activity
         for topic in course.get("topics", [])
         for activity in topic.get("activities", [])
     ]
     selected, suppressed_duplicate_steps = _select_canonical_runtime_steps(all_runtime_steps)
-    selected_ids = {activity.get("id") for activity in selected}
-    completed_codes = _completed_master_codes(selected)
+    practices = _group_practices(selected)
 
+    topics: list[dict[str, Any]] = []
     ordered_visible: list[dict[str, Any]] = []
-    for topic in course.get("topics", []):
-        visible = [
-            activity
-            for activity in topic.get("activities", [])
-            if activity.get("id") in selected_ids
-        ]
-        visible.sort(
-            key=lambda activity: (
-                MASTER_ACTIVITY_ORDER_2026.get(str(activity.get("training_code") or "").upper(), 9999),
-                int(activity.get("training_substep") or 0),
-                int(activity.get("task_id") or 0),
-            )
-        )
-        for activity in visible:
-            _normalise_activity_number(activity)
-            ordered_visible.append(activity)
+    for topic_order, block in enumerate(STUDENT_BLOCKS_2026, start=1):
+        items: list[dict[str, Any]] = []
+        for activity_position, code in enumerate(block["activity_codes"], start=1):
+            practice = practices.get(code)
+            if practice is None:
+                continue
+            practice["display_number"] = f"{topic_order}.{activity_position}"
+            practice["topic_key"] = block["code"].lower()
+            practice["topic_order"] = topic_order
+            practice["topic_title"] = block["title"]
+            practice["block_code"] = block["code"]
+            items.append(practice)
+            ordered_visible.append(practice)
 
-        block_code = str(topic.get("code") or "").strip().upper()
-        expected_codes = MASTER_ACTIVITY_CODES_BY_BLOCK_2026.get(block_code, ())
-        completed_practices = sum(1 for code in expected_codes if code in completed_codes)
-        total_practices = len(expected_codes)
-        topic["activities"] = visible
-        topic["completed"] = completed_practices
-        topic["total"] = total_practices
-        topic["progress_percentage"] = (
-            0
-            if total_practices == 0
-            else round((completed_practices / total_practices) * 100)
+        completed = sum(1 for item in items if item.get("is_completed"))
+        total = len(block["activity_codes"])
+        topics.append(
+            {
+                "key": block["code"].lower(),
+                "code": block["code"],
+                "order": topic_order,
+                "title": block["title"],
+                "completed": completed,
+                "total": total,
+                "progress_percentage": 0 if total == 0 else round((completed / total) * 100),
+                "activities": items,
+            }
         )
 
     for index, activity in enumerate(ordered_visible, start=1):
@@ -313,31 +330,34 @@ def project_master_activity_course_2026(course: dict[str, Any]) -> dict[str, Any
         for activity in ordered_visible
         if activity.get("training_code")
     }
-    represented_ordered = [code for code in MASTER_ACTIVITY_CODES_2026 if code in represented_codes]
-    missing_codes = [code for code in MASTER_ACTIVITY_CODES_2026 if code not in represented_codes]
-
-    completed_practices = len(completed_codes)
-    total_practices = len(MASTER_ACTIVITY_CODES_2026)
-    visible_runtime_steps = len(ordered_visible)
+    represented_ordered = [code for code in STUDENT_ACTIVITY_CODES_2026 if code in represented_codes]
+    missing_codes = [code for code in STUDENT_ACTIVITY_CODES_2026 if code not in represented_codes]
+    completed_practices = sum(1 for activity in ordered_visible if activity.get("is_completed"))
+    total_practices = len(STUDENT_ACTIVITY_CODES_2026)
     course_summary = course.setdefault("course", {})
+
+    course["topics"] = topics
     course_summary.update(
         {
             "completed": completed_practices,
             "total": total_practices,
             "pending": total_practices - completed_practices,
-            "progress_percentage": round((completed_practices / total_practices) * 100),
+            "progress_percentage": 0 if total_practices == 0 else round((completed_practices / total_practices) * 100),
             "current_activity_id": current.get("id") if current else None,
             "next_activity_id": next_activity.get("id") if next_activity else None,
-            "catalog_total_practices": total_practices,
-            "visible_runtime_steps": visible_runtime_steps,
-            "migrated_runtime_steps": visible_runtime_steps,
+            "catalog_total_practices": len(MASTER_ACTIVITY_CODES_2026),
+            "student_total_practices": total_practices,
+            "visible_runtime_steps": len(ordered_visible),
+            "underlying_runtime_steps": len(selected),
+            "migrated_runtime_steps": len(selected),
             "migrated_training_practices": len(represented_codes),
             "migrated_training_codes": represented_ordered,
             "missing_training_codes": missing_codes,
+            "hidden_standalone_training_codes": sorted(HIDDEN_STANDALONE_ACTIVITY_CODES_2026),
             "hidden_legacy_runtime_steps": len(all_runtime_steps) - len(selected),
             "suppressed_duplicate_runtime_steps": suppressed_duplicate_steps,
             "runtime_audit_status": "complete" if not missing_codes else "incomplete",
-            "migration_mode": "master-syllabus-only",
+            "migration_mode": "student-integrated-practices",
         }
     )
     return course

@@ -9,6 +9,7 @@ class Contract(Base):
     __tablename__ = "contracts"
 
     id = Column(Integer, primary_key=True, index=True)
+    workspace_id = Column(Integer, ForeignKey("training_workspaces.id", ondelete="CASCADE"), nullable=True, index=True)
     employee_id = Column(Integer, ForeignKey("employees.id"), nullable=False)
     company_id = Column(Integer, ForeignKey("companies.id"), nullable=True)
     center_id = Column(Integer, ForeignKey("work_centers.id"), nullable=True)

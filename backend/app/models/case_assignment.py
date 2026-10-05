@@ -13,6 +13,12 @@ class CaseAssignment(Base):
     case_study_id = Column(Integer, ForeignKey("case_studies.id"), nullable=False, index=True)
     student_id = Column(Integer, ForeignKey("students.id"), nullable=True, index=True)
     group_id = Column(Integer, ForeignKey("student_groups.id"), nullable=True, index=True)
+    workspace_id = Column(
+        Integer,
+        ForeignKey("training_workspaces.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
     assigned_by = Column(String, nullable=True)
     assigned_at = Column(DateTime, default=datetime.utcnow)
     due_date = Column(DateTime, nullable=True)
@@ -27,6 +33,7 @@ class CaseAssignment(Base):
     case_study = relationship("CaseStudy", back_populates="assignments")
     student = relationship("Student")
     group = relationship("StudentGroup")
+    workspace = relationship("TrainingWorkspace", back_populates="assignments")
     progress_entries = relationship(
         "CaseTaskProgress",
         back_populates="assignment",

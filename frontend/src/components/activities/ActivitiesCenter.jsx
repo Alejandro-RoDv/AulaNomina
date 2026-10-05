@@ -44,8 +44,8 @@ function flattenActivities(course) {
 function storedActivityId(course) {
   try {
     const context = JSON.parse(window.localStorage.getItem(ACTIVE_CASE_CONTEXT_KEY) || "null");
-    if (!context?.assignmentId || !context?.taskId) return null;
-    const id = `${context.assignmentId}:${context.taskId}`;
+    if (!context?.trainingCode) return null;
+    const id = `practice:${context.trainingCode}`;
     return findActivity(course, id) ? id : null;
   } catch {
     return null;
@@ -57,7 +57,7 @@ function persistActivityContext(activity) {
   try {
     window.localStorage.setItem(ACTIVE_CASE_CONTEXT_KEY, JSON.stringify(activity.context));
   } catch {
-    // El visor debe seguir funcionando aunque el almacenamiento del navegador esté bloqueado.
+    // El curso debe seguir funcionando aunque el navegador bloquee localStorage.
   }
   window.dispatchEvent(new CustomEvent("aulanomina-case-context", { detail: activity.context }));
 }
@@ -66,12 +66,6 @@ function ActivityStateIcon({ activity, selected }) {
   if (activity.is_completed) return <CheckCircle2 className="activity-center__state activity-center__state--done" aria-hidden="true" />;
   if (selected) return <span className="activity-center__current-dot" aria-hidden="true" />;
   return <Circle className="activity-center__state activity-center__state--pending" aria-hidden="true" />;
-}
-
-function ResultCriterionIcon({ status }) {
-  if (status === "passed") return <CheckCircle2 aria-hidden="true" />;
-  if (status === "failed") return <XCircle aria-hidden="true" />;
-  return <Circle aria-hidden="true" />;
 }
 
 function requiresExplicitReview(activity) {
@@ -92,7 +86,7 @@ function failedValidationMessages(activity) {
   return (activity?.validation_result?.checks || [])
     .filter((check) => check?.supported !== false && !check?.passed && check?.message)
     .map((check) => check.message)
-    .slice(0, 3);
+    .slice(0, 2);
 }
 
 function mailUrl(threadId) {
@@ -100,6 +94,21 @@ function mailUrl(threadId) {
   url.searchParams.set("mailThread", String(threadId));
   url.hash = "mail";
   return url.toString();
+}
+
+function cleanMailSubject(subject) {
+  return String(subject || "").replace(/^[A-Z]\d+\s*·\s*/i, "");
+}
+
+function visibleCaseData(items = []) {
+  const rename = {
+    "CCC principal correcto": "CCC que debe tener el centro",
+    "CCC esperado": "CCC que debes utilizar",
+  };
+  return items
+    .filter((item) => !["Referencia", "Código centro"].includes(item?.label))
+    .map((item) => ({ ...item, label: rename[item.label] || item.label }))
+    .slice(0, 6);
 }
 
 export default function ActivitiesCenter() {
@@ -124,7 +133,7 @@ export default function ActivitiesCenter() {
       });
       return next;
     } catch (requestError) {
-      setError(requestError.message || "No se han podido cargar las actividades.");
+      setError(requestError.message || "No se ha podido cargar el curso.");
       return null;
     } finally {
       setLoading(false);
@@ -158,17 +167,31 @@ export default function ActivitiesCenter() {
 
   const activities = useMemo(() => flattenActivities(course), [course]);
   const selectedActivity = useMemo(() => findActivity(course, selectedId), [course, selectedId]);
+  const currentCourseActivity = useMemo(
+    () => findActivity(course, course?.course?.current_activity_id) || selectedActivity,
+    [course, selectedActivity]
+  );
+  const currentTopic = useMemo(
+    () => (course?.topics || []).find((topic) => topic.key === currentCourseActivity?.topic_key) || null,
+    [course, currentCourseActivity]
+  );
   const selectedIndex = useMemo(
     () => activities.findIndex((activity) => activity.id === selectedId),
     [activities, selectedId]
   );
   const previousActivity = selectedIndex > 0 ? activities[selectedIndex - 1] : null;
   const nextActivity = selectedIndex >= 0 && selectedIndex < activities.length - 1 ? activities[selectedIndex + 1] : null;
-  const pending = course?.course?.pending;
   const topicCount = course?.topics?.length || 0;
+  const moduleProgress = currentTopic?.total > 0
+    ? `${currentTopic.completed || 0}/${currentTopic.total}`
+    : "—";
+  const moduleProgressLabel = currentTopic?.total > 0
+    ? `${currentTopic.completed || 0} de ${currentTopic.total} actividades completadas en el tema actual`
+    : "Progreso del tema actual no disponible";
   const failedMessages = failedValidationMessages(selectedActivity);
+  const caseData = visibleCaseData(selectedActivity?.case_data || []);
   const moduleActionLabel = selectedActivity?.context
-    && (!selectedActivity?.response_schema || selectedActivity.context.moduleCode !== "general")
+    && selectedActivity.context.moduleCode !== "general"
     ? getCaseActionLabel(selectedActivity.context.actionCode, selectedActivity.context.moduleCode)
     : null;
 
@@ -188,7 +211,7 @@ export default function ActivitiesCenter() {
         window.dispatchEvent(new Event("aulanomina-mail-stats-refresh"));
         await loadCourse({ preserveSelection: true });
       } catch {
-        // El botón de correo volverá a intentarlo al abrir el hilo.
+        // El alumno podrá volver a intentarlo al abrir el correo.
       }
     };
     unlock();
@@ -200,30 +223,11 @@ export default function ActivitiesCenter() {
     await loadCourse({ preserveSelection: true });
   };
 
-  const selectActivity = async (activity) => {
+  const selectActivity = (activity) => {
     if (!activity) return;
     setSelectedId(activity.id);
     setExpandedTopicKey(activity.topic_key);
     persistActivityContext(activity);
-
-    if (
-      activity.is_completed
-      || activity.requires_mail
-      || !activity.completion_condition?.automatic
-      || requiresExplicitReview(activity)
-    ) return;
-
-    try {
-      setCheckingId(activity.id);
-      await validateActivity(activity.assignment_id, activity.task_id);
-      await loadCourse({ preserveSelection: true });
-    } catch (requestError) {
-      if (requestError?.code !== "BLOCKING_STEP_PENDING" && requestError?.status !== 409) {
-        setError(requestError.message || "No se ha podido comprobar la actividad.");
-      }
-    } finally {
-      setCheckingId(null);
-    }
   };
 
   const openSelectedModule = () => {
@@ -242,22 +246,16 @@ export default function ActivitiesCenter() {
         window.dispatchEvent(new Event("aulanomina-mail-stats-refresh"));
       }
     } catch {
-      // El hilo puede seguir abriéndose directamente aunque el contador no se actualice.
+      // El hilo sigue siendo accesible aunque falle la actualización de estado.
     }
     window.open(mailUrl(threadId), "_blank", "noopener,noreferrer");
   };
 
   const validateSelectedExplicitly = async () => {
-    if (
-      !selectedActivity
-      || selectedActivity.is_completed
-      || !selectedActivity.completion_condition?.automatic
-      || !requiresExplicitReview(selectedActivity)
-    ) return;
-
+    if (!selectedActivity || selectedActivity.is_completed || !selectedActivity.completion_condition?.automatic) return;
     const responseSchema = selectedActivity.response_schema;
     if (responseSchema && !responseDraft?.decision) {
-      setError("Selecciona una respuesta antes de comprobar la actividad.");
+      setError("Selecciona una respuesta antes de comprobar.");
       return;
     }
 
@@ -277,7 +275,7 @@ export default function ActivitiesCenter() {
       await loadCourse({ preserveSelection: true });
     } catch (requestError) {
       if (requestError?.code !== "BLOCKING_STEP_PENDING" && requestError?.status !== 409) {
-        setError(requestError.message || "No se ha podido comprobar el resultado revisado.");
+        setError(requestError.message || "No se ha podido comprobar la actividad.");
       }
     } finally {
       setCheckingId(null);
@@ -293,7 +291,7 @@ export default function ActivitiesCenter() {
       await completeActivityManually(selectedActivity.assignment_id, selectedActivity.task_id);
       await loadCourse({ preserveSelection: true });
     } catch (requestError) {
-      setError(requestError.message || "No se ha podido confirmar la actividad.");
+      setError(requestError.message || "No se ha podido completar la actividad.");
     } finally {
       setCheckingId(null);
     }
@@ -306,7 +304,7 @@ export default function ActivitiesCenter() {
       <section className="activity-center" role="dialog" aria-modal="true" aria-labelledby="activities-title">
         <header className="activity-center__header">
           <div className="activity-center__course-heading">
-            <span className="activity-center__eyebrow">Formación integrada</span>
+            <span className="activity-center__eyebrow">Curso</span>
             <h2 id="activities-title">{course?.course?.title || "Curso práctico de gestión laboral"}</h2>
             <div className="activity-center__progress-line">
               <span>{course?.course?.completed || 0} de {course?.course?.total || 0} actividades completadas</span>
@@ -321,7 +319,7 @@ export default function ActivitiesCenter() {
               <RefreshCw size={16} className={loading ? "is-spinning" : ""} aria-hidden="true" />
               Actualizar
             </button>
-            <button type="button" className="activity-center__close" onClick={() => setOpen(false)} aria-label="Cerrar actividades">
+            <button type="button" className="activity-center__close" onClick={() => setOpen(false)} aria-label="Cerrar curso">
               <X size={19} aria-hidden="true" />
             </button>
           </div>
@@ -330,7 +328,7 @@ export default function ActivitiesCenter() {
         {error && <div className="activity-center__error" role="alert">{error}</div>}
 
         <div className="activity-center__workspace">
-          <aside className="activity-center__outline" aria-label="Temario y actividades">
+          <aside className="activity-center__outline" aria-label="Temas del curso">
             <div className="activity-center__outline-title">
               <span>Contenido</span>
               <small>{topicCount} temas · {course?.course?.total || 0} actividades</small>
@@ -350,7 +348,7 @@ export default function ActivitiesCenter() {
                     >
                       <span className="activity-center__topic-name">{topic.order}. {topic.title}</span>
                       <span className="activity-center__topic-summary">
-                        {topic.total > 0 ? `${topic.completed}/${topic.total} · ${topic.progress_percentage}%` : "Sin actividades"}
+                        {topic.total > 0 ? `${topic.completed}/${topic.total}` : "Sin actividades"}
                       </span>
                       <ChevronDown className="activity-center__topic-chevron" size={15} aria-hidden="true" />
                     </button>
@@ -385,23 +383,20 @@ export default function ActivitiesCenter() {
 
           <main className="activity-center__detail">
             {loading && !selectedActivity && (
-              <div className="activity-center__empty"><RefreshCw className="is-spinning" aria-hidden="true" /><p>Cargando actividades…</p></div>
+              <div className="activity-center__empty"><RefreshCw className="is-spinning" aria-hidden="true" /><p>Cargando curso…</p></div>
             )}
 
             {!loading && !selectedActivity && (
-              <div className="activity-center__empty"><BookOpen aria-hidden="true" /><h3>No hay actividades disponibles</h3><p>El curso aparecerá aquí cuando existan casos activos asignados.</p></div>
+              <div className="activity-center__empty"><BookOpen aria-hidden="true" /><h3>No hay actividades disponibles</h3></div>
             )}
 
             {selectedActivity && (
               <article className="activity-center__activity-detail">
                 <div className="activity-center__detail-heading">
                   <div>
-                    <span className="activity-center__unit">{selectedActivity.unit}</span>
+                    <span className="activity-center__unit">Tema {selectedActivity.topic_order} · {selectedActivity.topic_title}</span>
                     <h3>{selectedActivity.display_number} · {selectedActivity.title}</h3>
-                    <p className="activity-center__detail-meta">
-                      Tema {selectedActivity.topic_order} · {selectedActivity.topic_title}
-                      {selectedActivity.case_total_steps ? ` · Paso ${selectedActivity.case_step} de ${selectedActivity.case_total_steps}` : ""}
-                    </p>
+                    <p className="activity-center__detail-meta">Actividad {selectedActivity.course_order || selectedIndex + 1} de {activities.length}</p>
                   </div>
                   <span className={`activity-center__status${selectedActivity.is_completed ? " is-done" : ""}`}>
                     {selectedActivity.is_completed ? <Check size={14} aria-hidden="true" /> : null}
@@ -410,40 +405,43 @@ export default function ActivitiesCenter() {
                 </div>
 
                 <section className="activity-center__brief-card">
-                  <span className="activity-center__section-label">Encargo</span>
-                  <p className="activity-center__brief-text">{selectedActivity.situation}</p>
+                  <span className="activity-center__section-label">Idea clave</span>
+                  <p className="activity-center__brief-text">{selectedActivity.theory || selectedActivity.objective}</p>
+                </section>
 
-                  {selectedActivity.case_data?.length > 0 && (
+                {selectedActivity.mail_context ? (
+                  <section className="activity-center__task-block">
+                    <span className="activity-center__section-label">Información del caso</span>
+                    <button type="button" className="activity-center__mail-card" onClick={openSelectedMail}>
+                      <Mail size={18} aria-hidden="true" />
+                      <span className="activity-center__mail-card-copy">
+                        <strong>Lee el correo</strong>
+                        <span>{selectedActivity.mail_context.sender} · {cleanMailSubject(selectedActivity.mail_context.subject)}</span>
+                        {selectedActivity.mail_context.has_attachments && (
+                          <small>{selectedActivity.mail_context.attachment_count} adjunto{selectedActivity.mail_context.attachment_count === 1 ? "" : "s"}</small>
+                        )}
+                      </span>
+                      <span className="activity-center__mail-card-action">Abrir correo <ArrowRight size={14} aria-hidden="true" /></span>
+                    </button>
+                  </section>
+                ) : caseData.length > 0 ? (
+                  <section className="activity-center__brief-card">
+                    <span className="activity-center__section-label">Datos que necesitas</span>
                     <div className="activity-center__case-data">
-                      <span className="activity-center__case-data-title">Datos del caso</span>
                       <dl>
-                        {selectedActivity.case_data.map((item) => (
+                        {caseData.map((item) => (
                           <div key={`${item.label}-${item.value}`}>
                             <dt>{item.label}</dt>
-                            <dd title={item.value}>{item.value}</dd>
+                            <dd>{item.value}</dd>
                           </div>
                         ))}
                       </dl>
                     </div>
-                  )}
-
-                  {selectedActivity.mail_context && (
-                    <button type="button" className="activity-center__mail-card" onClick={openSelectedMail}>
-                      <Mail size={18} aria-hidden="true" />
-                      <span className="activity-center__mail-card-copy">
-                        <strong>Consulta el correo</strong>
-                        <span>{selectedActivity.mail_context.sender} · {selectedActivity.mail_context.subject}</span>
-                        {selectedActivity.mail_context.has_attachments && (
-                          <small>{selectedActivity.mail_context.attachment_count} adjunto{selectedActivity.mail_context.attachment_count === 1 ? "" : "s"} disponible{selectedActivity.mail_context.attachment_count === 1 ? "" : "s"}</small>
-                        )}
-                      </span>
-                      <span className="activity-center__mail-card-action">Abrir mensaje <ArrowRight size={14} aria-hidden="true" /></span>
-                    </button>
-                  )}
-                </section>
+                  </section>
+                ) : null}
 
                 <section className="activity-center__task-block">
-                  <span className="activity-center__section-label">Tu tarea</span>
+                  <span className="activity-center__section-label">Hazlo en AulaNomina</span>
                   <p>{selectedActivity.instructions}</p>
                   {moduleActionLabel && (
                     <button type="button" className="activity-center__quiet-button" onClick={openSelectedModule}>
@@ -462,111 +460,49 @@ export default function ActivitiesCenter() {
                   />
                 )}
 
-                <section className={`activity-center__result-card${selectedActivity.is_completed ? " is-completed" : ""}${failedMessages.length ? " has-errors" : ""}`}>
-                  <div className="activity-center__result-heading">
-                    <span className="activity-center__section-label">Resultado esperado</span>
-                    <span className={`activity-center__validation-mode${selectedActivity.is_completed ? " is-done" : ""}`}>
-                      {selectedActivity.is_completed
-                        ? "Completado"
-                        : selectedActivity.completion_condition?.automatic
-                          ? selectedActivity.response_schema ? "Tipo test" : requiresExplicitReview(selectedActivity) ? "Comprobación bajo demanda" : "Comprobación automática"
-                          : "Verificación manual"}
-                    </span>
+                {selectedActivity.is_completed && (
+                  <div className="activity-center__validation-feedback is-success">
+                    <CheckCircle2 size={16} aria-hidden="true" />
+                    <div><strong>Actividad completada</strong><span>Puedes continuar con la siguiente.</span></div>
                   </div>
+                )}
 
-                  <ul className="activity-center__expected-list">
-                    {(selectedActivity.result_criteria?.length
-                      ? selectedActivity.result_criteria
-                      : (selectedActivity.expected_items?.length ? selectedActivity.expected_items : [selectedActivity.objective]).map((label) => ({ label, status: selectedActivity.is_completed ? "passed" : "pending" }))
-                    ).map((criterion) => (
-                      <li key={criterion.label} className={`is-${criterion.status || "pending"}`}>
-                        <ResultCriterionIcon status={criterion.status} />
-                        <span>{criterion.label}</span>
-                      </li>
-                    ))}
-                  </ul>
-
-                  {selectedActivity.is_completed && (
-                    <div className="activity-center__validation-feedback is-success">
-                      <CheckCircle2 size={16} aria-hidden="true" />
-                      <div><strong>Actividad verificada</strong><span>Todos los criterios de este paso se han cumplido.</span></div>
+                {!selectedActivity.is_completed && failedMessages.length > 0 && (
+                  <div className="activity-center__validation-feedback is-error">
+                    <XCircle size={16} aria-hidden="true" />
+                    <div>
+                      <strong>Revisa la gestión</strong>
+                      {failedMessages.map((message) => <span key={message}>{message}</span>)}
                     </div>
-                  )}
-
-                  {!selectedActivity.is_completed && failedMessages.length > 0 && (
-                    <div className="activity-center__validation-feedback is-error">
-                      <XCircle size={16} aria-hidden="true" />
-                      <div>
-                        <strong>Hay criterios pendientes</strong>
-                        {failedMessages.map((message) => <span key={message}>{message}</span>)}
-                      </div>
-                    </div>
-                  )}
-
-                  {!selectedActivity.is_completed && selectedActivity.completion_condition?.automatic && failedMessages.length === 0 && (
-                    <small className="activity-center__result-note">
-                      {checkingId === selectedActivity.id
-                        ? "Comprobando el resultado actual…"
-                        : selectedActivity.response_schema
-                          ? "Selecciona una opción y comprueba el test. Si quieres, escribe tu razonamiento y compáralo con la respuesta orientativa; esa redacción no se puntúa."
-                          : requiresExplicitReview(selectedActivity)
-                            ? "Revisa los datos del módulo relacionado y pulsa «Comprobar resultado» cuando hayas terminado el análisis."
-                            : "AulaNomina comprobará el resultado automáticamente al realizar la operación correspondiente."}
-                    </small>
-                  )}
-                </section>
-
-                <section className="activity-center__help">
-                  <span className="activity-center__section-label">Ayuda</span>
-                  <details className="activity-center__help-item">
-                    <summary>
-                      <span>Conceptos relacionados</span>
-                      <ChevronDown size={16} aria-hidden="true" />
-                    </summary>
-                    <div className="activity-center__help-content">
-                      <strong>{selectedActivity.concepts?.title}</strong>
-                      <p>{selectedActivity.concepts?.body}</p>
-                    </div>
-                  </details>
-                  <details className="activity-center__help-item">
-                    <summary>
-                      <span>Pista</span>
-                      <ChevronDown size={16} aria-hidden="true" />
-                    </summary>
-                    <div className="activity-center__help-content">
-                      <p>{selectedActivity.hint}</p>
-                    </div>
-                  </details>
-                </section>
+                  </div>
+                )}
 
                 {!selectedActivity.is_completed && selectedActivity.completion_condition?.automatic && requiresExplicitReview(selectedActivity) && (
                   <section className="activity-center__manual-action">
                     <div>
-                      <strong>{selectedActivity.response_schema ? "¿Has elegido una respuesta?" : "¿Has revisado el resultado?"}</strong>
-                      <span>
-                        {selectedActivity.response_schema
-                          ? "La opción del test se corregirá automáticamente. Tu razonamiento escrito se guarda solo como autoevaluación."
-                          : "La comprobación se ejecutará ahora sobre los datos reales guardados en AulaNomina."}
-                      </span>
+                      <strong>Cuando termines, comprueba la actividad</strong>
+                      <span>AulaNomina revisará los datos que has guardado.</span>
                     </div>
                     <button type="button" className="activity-center__quiet-button" onClick={validateSelectedExplicitly} disabled={checkingId === selectedActivity.id}>
                       <Check size={15} aria-hidden="true" />
-                      {checkingId === selectedActivity.id
-                        ? "Comprobando…"
-                        : selectedActivity.response_schema ? "Comprobar respuesta" : "Comprobar resultado"}
+                      {checkingId === selectedActivity.id ? "Comprobando…" : "Comprobar"}
                     </button>
                   </section>
                 )}
 
+                {!selectedActivity.is_completed && selectedActivity.completion_condition?.automatic && !requiresExplicitReview(selectedActivity) && (
+                  <div className="activity-center__validation-feedback">
+                    <CheckCircle2 size={16} aria-hidden="true" />
+                    <div><strong>Se comprobará al guardar la gestión</strong><span>Vuelve al curso después de realizar la operación.</span></div>
+                  </div>
+                )}
+
                 {!selectedActivity.is_completed && !selectedActivity.completion_condition?.automatic && (
                   <section className="activity-center__manual-action">
-                    <div>
-                      <strong>¿Has terminado la actividad?</strong>
-                      <span>Esta actividad no dispone todavía de una comprobación automática fiable.</span>
-                    </div>
+                    <div><strong>¿Has terminado?</strong></div>
                     <button type="button" className="activity-center__quiet-button" onClick={completeSelectedManually} disabled={checkingId === selectedActivity.id}>
                       <Check size={15} aria-hidden="true" />
-                      {checkingId === selectedActivity.id ? "Confirmando…" : "Confirmar que he terminado"}
+                      {checkingId === selectedActivity.id ? "Guardando…" : "Marcar como completada"}
                     </button>
                   </section>
                 )}
@@ -577,7 +513,7 @@ export default function ActivitiesCenter() {
                     <span>Anterior</span>
                   </button>
                   <span className="activity-center__navigation-position">
-                    Actividad {selectedActivity.course_order || selectedIndex + 1} de {activities.length}
+                    {selectedActivity.course_order || selectedIndex + 1} / {activities.length}
                   </span>
                   <button
                     type="button"
@@ -585,7 +521,7 @@ export default function ActivitiesCenter() {
                     onClick={() => selectActivity(nextActivity)}
                     disabled={!nextActivity}
                   >
-                    <span>{selectedActivity.is_completed ? "Siguiente actividad" : "Siguiente"}</span>
+                    <span>Siguiente</span>
                     <ArrowRight size={15} aria-hidden="true" />
                   </button>
                 </nav>
@@ -602,9 +538,9 @@ export default function ActivitiesCenter() {
     <>
       <button type="button" className="activities-global-launcher" onClick={openCenter} aria-haspopup="dialog" aria-expanded={open}>
         <BookOpen size={16} aria-hidden="true" />
-        <span>Actividades</span>
-        <strong className="activities-global-launcher__counter" aria-label={`${pending ?? 0} actividades pendientes`}>
-          {pending ?? "—"}
+        <span>Curso</span>
+        <strong className="activities-global-launcher__counter" aria-label={moduleProgressLabel}>
+          {moduleProgress}
         </strong>
       </button>
       {overlay}

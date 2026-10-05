@@ -41,20 +41,11 @@ def test_pilot_task_definitions_keep_training_code_inside_trigger_condition():
 
 def test_payroll_sequence_covers_a14_to_a22_core_without_catalog_gaps():
     assert PAYROLL_CORE_ACTIVITY_CODES_2026 == (
-        "A14",
-        "A15",
-        "A16",
-        "A18",
-        "A19",
-        "A20",
-        "A21",
-        "A22",
+        "A14", "A15", "A16", "A18", "A19", "A20", "A21", "A22",
     )
     definitions = build_payroll_core_task_definitions_2026()
 
-    assert [item["trigger_condition"]["training_code"] for item in definitions] == list(
-        PAYROLL_CORE_ACTIVITY_CODES_2026
-    )
+    assert [item["trigger_condition"]["training_code"] for item in definitions] == list(PAYROLL_CORE_ACTIVITY_CODES_2026)
     assert definitions[0]["expected_action"] == "update_payroll_concept"
     assert definitions[0]["trigger_condition"]["validation_interaction"] == "operation"
     assert definitions[1]["expected_action"] == "review_extra_pay"
@@ -87,9 +78,7 @@ def test_demo_onboarding_case_is_backed_by_master_training_codes():
     assert len(case.tasks) == 3
     assert [task.trigger_condition["training_code"] for task in case.tasks] == ["A04", "A07", "A29"]
     assert [task.expected_action for task in case.tasks] == [
-        "create_employee",
-        "create_contract",
-        "prepare_affiliation",
+        "create_employee", "create_contract", "prepare_affiliation",
     ]
 
 
@@ -105,10 +94,7 @@ def test_demo_payroll_case_is_backed_by_master_training_codes():
 
 
 def test_demo_partial_payroll_case_uses_january_start_date_and_expected_days():
-    case = next(
-        item for item in _demo_cases()
-        if item.scenario_code == "TRAIN-2026-PAYROLL-PARTIAL-001"
-    )
+    case = next(item for item in _demo_cases() if item.scenario_code == "TRAIN-2026-PAYROLL-PARTIAL-001")
 
     assert case.initial_state["employee"] == "Javier Romero Sánchez"
     assert case.initial_state["payroll_period"] == "2026-01"
@@ -247,7 +233,7 @@ def test_partial_payroll_enrichment_exposes_start_date_and_expected_days():
     assert any(row["label"] == "Días esperados" and row["value"] == "23" for row in enriched["case_data"])
 
 
-def test_only_canonical_c02_source_survives_master_projection():
+def test_only_canonical_c02_source_survives_student_projection():
     legacy_it = {
         "id": "1:1",
         "assignment_id": 1,
@@ -259,6 +245,7 @@ def test_only_canonical_c02_source_survives_master_projection():
         "training_substep": 1,
         "course_order": 1,
         "is_completed": False,
+        "context": {"moduleCode": "incidents"},
     }
     canonical = {
         "id": "2:2",
@@ -271,6 +258,7 @@ def test_only_canonical_c02_source_survives_master_projection():
         "training_substep": 1,
         "course_order": 2,
         "is_completed": False,
+        "context": {"moduleCode": "incidents"},
     }
     course = {
         "course": {},
@@ -286,18 +274,16 @@ def test_only_canonical_c02_source_survives_master_projection():
     }
 
     projected = project_master_activity_course_2026(course)
-    visible = projected["topics"][0]["activities"]
+    visible = [item for topic in projected["topics"] for item in topic["activities"]]
 
     assert [item["scenario_code"] for item in visible] == ["LAB-2026-001"]
-    assert visible[0]["display_number"] == "C02.1"
+    assert visible[0]["id"] == "practice:C02"
+    assert visible[0]["display_number"] == "10.2"
     assert projected["course"]["hidden_legacy_runtime_steps"] == 1
 
 
 def test_a52_has_a_dedicated_explicit_runtime_instead_of_title_inference():
-    case = next(
-        item for item in build_document_runtime_cases_2026()
-        if item.scenario_code == "TRAIN-2026-DOC-A52"
-    )
+    case = next(item for item in build_document_runtime_cases_2026() if item.scenario_code == "TRAIN-2026-DOC-A52")
 
     assert case.initial_state["training_sequence"] == ["A52"]
     assert len(case.tasks) == 1

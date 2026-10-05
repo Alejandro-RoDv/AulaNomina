@@ -13,7 +13,7 @@ from app.models.mail import EmailAttachment, EmailMessage, EmailThread, Mailbox
 
 
 MAIL_CODES = {
-    "A08", "A10", "A11", "A12", "A13", "A14", "A15", "A17", "A21", "A22",
+    "A04", "A08", "A10", "A11", "A12", "A13", "A14", "A15", "A17", "A21", "A22",
     "A23", "A24", "A25", "A26", "A27", "A29", "A30", "A31", "A32", "A33", "A34", "A35",
     "A36", "A38", "A39", "A40", "A41", "A42", "A43", "A44", "A45",
     "A46", "A47", "A48", "A49", "A50", "A51", "A52", "A53", "A54",
@@ -21,14 +21,19 @@ MAIL_CODES = {
 ATTACHMENT_CODES = {"A23", "A24", "A25", "A29", "A31", "A36", "A38", "A39", "A46", "A49", "A51", "A52"}
 
 
+def _task_code(task) -> str | None:
+    value = (task.trigger_condition or {}).get("training_code")
+    return str(value).strip().upper() if value else None
+
+
 def _code(case: CaseStudy) -> str | None:
     sequence = (case.initial_state or {}).get("training_sequence") or []
     if sequence:
         return str(sequence[0]).upper()
     for task in sorted(case.tasks or [], key=lambda item: (item.task_order, item.id)):
-        value = (task.trigger_condition or {}).get("training_code")
+        value = _task_code(task)
         if value:
-            return str(value).upper()
+            return value
     return None
 
 
@@ -56,16 +61,49 @@ def _sender(code: str) -> tuple[str, str, str]:
     return "Administración de personal", "personal@aulanomina.demo", "document"
 
 
-def _body(case: CaseStudy) -> str:
-    lines = [
-        f"- {task.description or task.title}"
-        for task in sorted(case.tasks or [], key=lambda item: (item.task_order, item.id))
+def _tasks_for_code(case: CaseStudy, code: str):
+    tasks = sorted(case.tasks or [], key=lambda item: (item.task_order, item.id))
+    matching = [task for task in tasks if _task_code(task) == code]
+    return matching or tasks
+
+
+def _mail_facts(case: CaseStudy, code: str) -> list[str]:
+    state = case.initial_state or {}
+    if code != "A04":
+        return []
+
+    employee = state.get("employee_data") or {}
+    rows = [
+        ("Nombre", employee.get("first_name")),
+        ("Apellidos", employee.get("last_name")),
+        ("DNI/NIE", employee.get("dni")),
+        ("NAF", employee.get("naf")),
+        ("Fecha de nacimiento", employee.get("birth_date")),
+        ("Nacionalidad", employee.get("nationality")),
+        ("Email", employee.get("email")),
     ]
+    return [f"- {label}: {value}" for label, value in rows if value not in {None, ""}]
+
+
+def _body(case: CaseStudy, code: str) -> str:
+    tasks = _tasks_for_code(case, code)
+    lines = [f"- {task.description or task.title}" for task in tasks]
+    facts = _mail_facts(case, code)
+
+    if code == "A04":
+        return (
+            "Buenos días:\n\n"
+            "Tenemos una nueva incorporación. Antes de preparar su contrato necesitamos crear su expediente en AulaNomina.\n\n"
+            "Datos de la persona trabajadora:\n"
+            + "\n".join(facts)
+            + "\n\nDa de alta el trabajador con estos datos y deja el expediente preparado para continuar con la contratación."
+        )
+
     return (
         f"Buenos días:\n\nNecesitamos que gestiones el siguiente asunto en AulaNomina: {case.title}.\n\n"
-        f"{case.description or ''}\n\nIndicaciones del encargo:\n"
+        f"{case.description or ''}\n\nQué tienes que hacer:\n"
         + "\n".join(lines)
-        + "\n\nRevisa la información recibida y realiza las operaciones necesarias en el ERP antes de cerrar el caso."
+        + "\n\nRealiza la gestión en AulaNomina y revisa el resultado antes de darla por terminada."
     )
 
 
@@ -101,12 +139,6 @@ def _thread_rank(thread: EmailThread) -> tuple[int, int, int]:
 
 
 def _suppress_duplicate_threads(db: Session, mailbox: Mailbox) -> dict[str, EmailThread]:
-    """Conserva un único hilo generado por práctica y oculta copias históricas.
-
-    Split 43 puede convivir con CaseStudy duplicados procedentes de migraciones
-    intermedias. Esos duplicados no deben convertirse en varios correos A08, A23,
-    etc. Si una copia contiene una respuesta del alumno, se prefiere esa copia.
-    """
     grouped: dict[str, list[EmailThread]] = defaultdict(list)
     threads = (
         db.query(EmailThread)
@@ -140,6 +172,7 @@ def _ensure_initial_message(
     db: Session,
     thread: EmailThread,
     case: CaseStudy,
+    code: str,
     sender_name: str,
     sender_address: str,
     sent_at: datetime,
@@ -159,7 +192,7 @@ def _ensure_initial_message(
             sender_address=sender_address,
             recipient_name=thread.mailbox.display_name,
             recipient_address=thread.mailbox.address,
-            body_text=_body(case),
+            body_text=_body(case, code),
             sent_at=sent_at,
             read_at=None,
             direction="incoming",
@@ -170,7 +203,7 @@ def _ensure_initial_message(
     else:
         initial.sender_name = sender_name
         initial.sender_address = sender_address
-        initial.body_text = _body(case)
+        initial.body_text = _body(case, code)
     return initial
 
 
@@ -210,7 +243,7 @@ def ensure_activity_mail_2026(db: Session, mailbox: Mailbox) -> list[int]:
         if not assignment:
             continue
 
-        tasks = sorted(case.tasks or [], key=lambda item: (item.task_order, item.id))
+        tasks = _tasks_for_code(case, code)
         first_task = tasks[0] if tasks else None
         sender_name, sender_address, category = _sender(code)
         sent_at = datetime(2026, 9, 1, 8, 0)
@@ -257,7 +290,7 @@ def ensure_activity_mail_2026(db: Session, mailbox: Mailbox) -> list[int]:
             if thread.status == "resolved" and not any(message.direction == "outgoing" for message in thread.messages or []):
                 thread.status = "open"
 
-        initial = _ensure_initial_message(db, thread, case, sender_name, sender_address, sent_at)
+        initial = _ensure_initial_message(db, thread, case, code, sender_name, sender_address, sent_at)
         _ensure_training_attachment(db, code, case, initial)
         thread_ids.append(thread.id)
 
@@ -266,7 +299,7 @@ def ensure_activity_mail_2026(db: Session, mailbox: Mailbox) -> list[int]:
 
 
 def attach_activity_mail_context(db: Session, course: dict) -> dict:
-    """Convierte los hilos ligados al caso en parte explícita de cada actividad."""
+    """Liga los hilos al curso sin sustituir la explicación pedagógica."""
     activities = [item for topic in course.get("topics", []) for item in topic.get("activities", [])]
     assignment_ids = {item.get("assignment_id") for item in activities if item.get("assignment_id")}
     scenario_codes = {str(item.get("scenario_code") or "") for item in activities if item.get("scenario_code")}
@@ -322,13 +355,5 @@ def attach_activity_mail_context(db: Session, course: dict) -> dict:
             "attachment_count": len(attachments),
             "locked": thread.folder == "training_locked",
         }
-        activity["situation"] = "Has recibido una comunicación relacionada con este ejercicio. Consulta el correo antes de continuar."
-        activity["instructions"] = (
-            "Consulta el correo relacionado y sus adjuntos, realiza la gestión indicada en AulaNomina y responde por el mismo hilo cuando hayas terminado."
-            if role == "reply"
-            else "Consulta el correo relacionado y sus adjuntos. Con la información recibida, realiza en AulaNomina la gestión solicitada."
-            if role == "attachment"
-            else "Consulta el correo relacionado. Con la información recibida, realiza en AulaNomina la gestión solicitada."
-        )
         activity["case_data"] = []
     return course

@@ -4,6 +4,7 @@ import app.model190_schema_patch  # noqa: F401
 import app.contract_training_schema_patch  # noqa: F401
 
 from app.models.user import User
+from app.models.user_session import UserSession
 from app.models.communication_file import CommunicationFile, CommunicationFileEvent
 from app.models.communication_submission import CommunicationSubmission
 from app.models.affiliation_worker_state import AffiliationWorkerState
@@ -52,8 +53,10 @@ from app.models.case_study import CaseStudy, CaseTask
 from app.models.correction import Correction
 from app.models.student import Student
 from app.models.student_group import StudentGroup
+from app.models.training_workspace import TrainingWorkspace
 from app.models.case_assignment import CaseAssignment
 from app.models.case_progress import CaseTaskProgress
+from app.models.case_task_attempt import CaseTaskAttempt
 from app.models.mail import EmailAttachment, EmailMessage, EmailThread, Mailbox
 from app.models.agreement_extra_pay import AgreementExtraPay, AgreementExtraPayConcept
 from app.models.agreement_seniority import AgreementSeniorityRule

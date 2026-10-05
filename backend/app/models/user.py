@@ -1,5 +1,8 @@
-from sqlalchemy import Column, Integer, String, Boolean, DateTime
 from datetime import datetime
+
+from sqlalchemy import Boolean, Column, DateTime, Integer, String
+from sqlalchemy.orm import relationship
+
 from app.db import Base
 
 
@@ -12,3 +15,14 @@ class User(Base):
     role = Column(String, nullable=False, default="student")
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+    sessions = relationship(
+        "UserSession",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
+    student_profile = relationship(
+        "Student",
+        back_populates="user",
+        uselist=False,
+    )

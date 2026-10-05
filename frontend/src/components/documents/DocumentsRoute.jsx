@@ -197,5 +197,11 @@ const styles = {
   },
   title: { margin: 0, color: "#172033", fontSize: "30px", fontWeight: 900, letterSpacing: "-.025em" },
   subtitle: { margin: "6px 0 0", color: "#64748b", fontSize: "14px", fontWeight: 500 },
-  main: { padding: "28px 42px 48px 32px", boxSizing: "border-box", maxWidth: "1360px", width: "100%" },
+  main: {
+    padding: "28px 42px 48px 32px",
+    boxSizing: "border-box",
+    maxWidth: "1360px",
+    width: "100%",
+    marginInline: "auto",
+  },
 };

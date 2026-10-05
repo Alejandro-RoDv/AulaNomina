@@ -55,6 +55,7 @@ class CaseAssignmentUpdate(BaseModel):
 
 class CaseAssignmentResponse(CaseAssignmentBase):
     id: int
+    workspace_id: Optional[int] = None
     case_title: Optional[str] = None
     student_name: Optional[str] = None
     group_name: Optional[str] = None
