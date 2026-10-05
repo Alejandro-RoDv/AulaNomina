@@ -26,7 +26,7 @@ jobs:
           cache: pip
           cache-dependency-path: backend/requirements.txt
       - name: Install dependencies
-        run: pip install -r requirements.txt pytest
+        run: pip install -r requirements.txt pytest httpx
       - name: Compile backend
         run: python -m compileall app
       - name: Apply wage garnishment schema patch
