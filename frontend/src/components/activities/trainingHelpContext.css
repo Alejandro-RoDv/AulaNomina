@@ -1,0 +1,85 @@
+.training-help-context {
+  display: grid;
+  gap: 16px;
+  padding: 18px;
+  border: 1px solid #d8e0ea;
+  border-radius: 14px;
+  background: #f8fafc;
+}
+
+.training-help-context__heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.training-help-context__heading > div {
+  min-width: 0;
+}
+
+.training-help-context__heading > div > span {
+  display: block;
+  margin-bottom: 5px;
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 850;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.training-help-context__heading h3 {
+  margin: 0;
+  color: #172033;
+  font-size: 18px;
+  line-height: 1.3;
+}
+
+.training-help-context__heading p {
+  margin: 7px 0 0;
+  color: #526077;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.training-help-context__heading > svg {
+  flex: 0 0 auto;
+  color: #334155;
+}
+
+.training-help-context__actions {
+  padding-top: 14px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.training-help-context__actions strong {
+  display: block;
+  margin-bottom: 8px;
+  color: #344158;
+  font-size: 12px;
+}
+
+.training-help-context__actions ul {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.training-help-context__actions li {
+  padding: 9px 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 9px;
+  color: #475569;
+  background: #ffffff;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+@media (max-width: 720px) {
+  .training-help-context__actions ul {
+    grid-template-columns: 1fr;
+  }
+}
