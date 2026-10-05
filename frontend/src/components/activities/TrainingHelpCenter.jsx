@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   ArrowRight,
-  BookOpen,
   CheckCircle2,
   CircleHelp,
   MapPin,
@@ -15,137 +14,20 @@ import {
 
 import { resetTrainingWorkspace } from "../../services/activityApi.js";
 import { getStoredAuthUser, refreshAuthUser } from "../../services/authApi.js";
-import { readTutorialState, tutorialStatusLabel } from "./trainingTutorialState.js";
+import {
+  HELP_LOCATIONS,
+  helpLocationPath,
+  openHelpLocation,
+  readCurrentNavigationContext,
+  searchHelpLocations,
+} from "./trainingHelpRegistry.js";
+import {
+  hydrateTutorialState,
+  readTutorialState,
+  tutorialStatusLabel,
+} from "./trainingTutorialState.js";
 import "./trainingHelpCenter.css";
-
-const LOCATIONS = [
-  {
-    title: "Empresas y centros de trabajo",
-    path: "Empresa · Empresas / Centros",
-    description: "Datos de empresa, CCC y estructura de centros de trabajo.",
-    keywords: "empresa empresas centro centros ccc cif estructura",
-    page: "companies",
-  },
-  {
-    title: "Listado de trabajadores",
-    path: "Personas · Trabajadores",
-    description: "Buscar y abrir expedientes de personas trabajadoras.",
-    keywords: "trabajador trabajadores persona empleado expediente buscar dni naf",
-    page: "employees-list",
-  },
-  {
-    title: "Alta de trabajador",
-    path: "Personas · Nuevo trabajador",
-    description: "Crear un nuevo expediente laboral.",
-    keywords: "alta crear nuevo trabajador empleado persona expediente",
-    page: "employees",
-  },
-  {
-    title: "Contratos",
-    path: "Contratación · Contratos",
-    description: "Alta, revisión y modificación de relaciones contractuales.",
-    keywords: "contrato contratos contratación jornada antigüedad sustitución temporal indefinido",
-    page: "contracts",
-  },
-  {
-    title: "Convenios colectivos",
-    path: "Empresa · Convenios",
-    description: "Convenios, categorías, tablas salariales y parametrización.",
-    keywords: "convenio convenios colectivo categoria tabla salarial salarios",
-    page: "collective-agreements",
-  },
-  {
-    title: "Incidencias laborales",
-    path: "Gestión laboral · Incidencias",
-    description: "IT, ausencias, vacaciones y otras incidencias del trabajador.",
-    keywords: "incidencia incidencias it incapacidad temporal baja medica vacaciones ausencia recaida confirmacion",
-    page: "incidents",
-  },
-  {
-    title: "Histórico de nóminas",
-    path: "Nómina · Histórico",
-    description: "Consultar, calcular y revisar nóminas y periodos.",
-    keywords: "nomina nómina nominas nóminas calcular recalcular historico recibo salario liquido bruto",
-    page: "payroll-history",
-  },
-  {
-    title: "Conceptos salariales",
-    path: "Nómina · Conceptos permanentes",
-    description: "Conceptos salariales vinculados al contrato.",
-    keywords: "concepto conceptos salarial salariales complemento plus importe permanente",
-    page: "permanent-payroll-concepts",
-  },
-  {
-    title: "IRPF del trabajador",
-    path: "Fiscalidad · IRPF",
-    description: "Perfil fiscal, retención y regularización de IRPF.",
-    keywords: "irpf retencion retención modelo 145 fiscal fiscalidad regularizacion",
-    page: "irpf",
-  },
-  {
-    title: "Afiliación",
-    path: "Seguridad Social · Afiliación",
-    description: "Altas, bajas y variaciones de afiliación.",
-    keywords: "afiliacion afiliación alta baja variacion variación seguridad social red naf",
-    page: "affiliations",
-  },
-  {
-    title: "Ficheros de afiliación",
-    path: "Seguridad Social · Ficheros de afiliación",
-    description: "Preparar y revisar remesas de movimientos de afiliación.",
-    keywords: "afi fichero afiliacion altas bajas masivas remesa",
-    page: "affiliation-files",
-  },
-  {
-    title: "Comunicaciones FIE",
-    path: "Seguridad Social · Comunicaciones INSS (FIE)",
-    description: "Revisar y conciliar comunicaciones recibidas del INSS.",
-    keywords: "fie inss comunicación comunicacion baja médica medica incapacidad temporal",
-    hash: "#fie-inbox",
-  },
-  {
-    title: "Seguros Sociales",
-    path: "Seguridad Social · Seguros Sociales",
-    description: "Liquidaciones, bases, RLC/RNT y procesos de cotización.",
-    keywords: "seguros sociales cotizacion cotización rlc rnt liquidacion liquidación bases",
-    page: "social-security-dashboard",
-  },
-  {
-    title: "SILTRA",
-    path: "Seguridad Social · Ficheros / SILTRA",
-    description: "Simular envíos y consultar respuestas de ficheros de Seguridad Social.",
-    keywords: "siltra fichero ficheros envio envío respuesta seguridad social",
-    page: "social-security-files",
-  },
-  {
-    title: "Documentos",
-    path: "Documentación · Documentos",
-    description: "Expediente documental, pendientes y documentación laboral.",
-    keywords: "documento documentos documentación expediente adjunto certificado pendiente",
-    hash: "#documents",
-  },
-  {
-    title: "Correo",
-    path: "Correo formativo",
-    description: "Mensajes de los casos prácticos, adjuntos y respuestas.",
-    keywords: "correo email mail mensaje bandeja entrada responder adjunto",
-    hash: "#mail",
-  },
-  {
-    title: "Modelo 111",
-    path: "Fiscalidad · Modelo 111",
-    description: "Preparar y simular la presentación del Modelo 111.",
-    keywords: "modelo 111 aeat retenciones trimestral fiscalidad",
-    hash: "#model-111",
-  },
-  {
-    title: "Modelo 190",
-    path: "Fiscalidad · Modelo 190",
-    description: "Resumen anual y simulación de presentación del Modelo 190.",
-    keywords: "modelo 190 aeat retenciones anual fiscalidad",
-    hash: "#model-190",
-  },
-];
+import "./trainingHelpContext.css";
 
 const FAQ = [
   {
@@ -184,34 +66,17 @@ const FAQ = [
     question: "¿Puedo repetir el tutorial sin borrar mi curso?",
     answer: "Sí. Repetir o continuar el tutorial no modifica empresas, trabajadores, actividades, intentos ni progreso. Es únicamente una guía de uso de AulaNomina.",
   },
+  {
+    question: "¿El tutorial continúa en otro ordenador?",
+    answer: "Sí, cuando utilizas tu cuenta de alumno. AulaNomina guarda en tu workspace el paso del tutorial en el que te encuentras y lo recupera al iniciar sesión desde otro dispositivo.",
+  },
 ];
-
-function normalize(value) {
-  return String(value || "")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .trim();
-}
-
-function openLocation(location) {
-  if (location.page) {
-    if (window.location.hash) {
-      window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
-      window.dispatchEvent(new Event("aulanomina-route-change"));
-    }
-    window.dispatchEvent(new CustomEvent("aulanomina-open-page", { detail: { page: location.page } }));
-    return;
-  }
-  if (location.hash) {
-    window.location.hash = location.hash;
-  }
-}
 
 export default function TrainingHelpCenter() {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [tutorialState, setTutorialState] = useState(() => readTutorialState());
+  const [screenContext, setScreenContext] = useState(() => readCurrentNavigationContext());
   const [resetConfirm, setResetConfirm] = useState(false);
   const [resetting, setResetting] = useState(false);
   const [notice, setNotice] = useState("");
@@ -226,7 +91,13 @@ export default function TrainingHelpCenter() {
 
   useEffect(() => {
     if (!open) return undefined;
+    let cancelled = false;
     setTutorialState(readTutorialState());
+    setScreenContext(readCurrentNavigationContext());
+    hydrateTutorialState().then((state) => {
+      if (!cancelled) setTutorialState(state);
+    });
+
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     const handleEscape = (event) => {
@@ -235,20 +106,26 @@ export default function TrainingHelpCenter() {
         else setOpen(false);
       }
     };
+    const refreshContext = () => setScreenContext(readCurrentNavigationContext());
     window.addEventListener("keydown", handleEscape);
+    window.addEventListener("aulanomina-route-change", refreshContext);
+    window.addEventListener("hashchange", refreshContext);
+    window.addEventListener("aulanomina-contract-mode", refreshContext);
+    window.addEventListener("aulanomina-incidents-mode", refreshContext);
+    window.addEventListener("aulanomina-incident-category", refreshContext);
     return () => {
+      cancelled = true;
       document.body.style.overflow = previousOverflow;
       window.removeEventListener("keydown", handleEscape);
+      window.removeEventListener("aulanomina-route-change", refreshContext);
+      window.removeEventListener("hashchange", refreshContext);
+      window.removeEventListener("aulanomina-contract-mode", refreshContext);
+      window.removeEventListener("aulanomina-incidents-mode", refreshContext);
+      window.removeEventListener("aulanomina-incident-category", refreshContext);
     };
   }, [open, resetConfirm]);
 
-  const results = useMemo(() => {
-    const term = normalize(query);
-    if (!term) return LOCATIONS;
-    return LOCATIONS.filter((item) => normalize(
-      `${item.title} ${item.path} ${item.description} ${item.keywords}`
-    ).includes(term));
-  }, [query]);
+  const results = useMemo(() => searchHelpLocations(query, HELP_LOCATIONS), [query]);
 
   const launchTutorial = (mode) => {
     setOpen(false);
@@ -260,7 +137,7 @@ export default function TrainingHelpCenter() {
 
   const navigateTo = (location) => {
     setOpen(false);
-    window.setTimeout(() => openLocation(location), 0);
+    window.setTimeout(() => openHelpLocation(location), 0);
   };
 
   const handleReset = async () => {
@@ -276,7 +153,7 @@ export default function TrainingHelpCenter() {
         // El reset del backend ya se ha completado aunque no pueda limpiarse el almacenamiento local.
       }
       setResetConfirm(false);
-      setNotice("Entorno práctico restaurado al estado inicial. El historial de intentos se conserva.");
+      setNotice("Entorno práctico restaurado al estado inicial. El historial de intentos y el tutorial se conservan.");
       window.dispatchEvent(new Event("aulanomina-activities-refresh"));
     } catch (error) {
       setNotice(error.message || "No se ha podido restablecer el entorno práctico.");
@@ -284,6 +161,8 @@ export default function TrainingHelpCenter() {
       setResetting(false);
     }
   };
+
+  const currentLocation = screenContext.location;
 
   const overlay = open ? createPortal(
     <div className="training-help__backdrop" role="presentation" onMouseDown={(event) => {
@@ -304,12 +183,31 @@ export default function TrainingHelpCenter() {
         <div className="training-help__body">
           {notice && <div className="training-help__notice" role="status">{notice}</div>}
 
+          {currentLocation && (
+            <section className="training-help-context" aria-labelledby="training-help-context-title">
+              <div className="training-help-context__heading">
+                <div>
+                  <span>Ayuda sobre esta pantalla</span>
+                  <h3 id="training-help-context-title">{screenContext.path || helpLocationPath(currentLocation)}</h3>
+                  <p>{currentLocation.description}</p>
+                </div>
+                <CheckCircle2 size={22} aria-hidden="true" />
+              </div>
+              <div className="training-help-context__actions">
+                <strong>Acciones habituales</strong>
+                <ul>
+                  {(currentLocation.actions || []).slice(0, 3).map((action) => <li key={action}>{action}</li>)}
+                </ul>
+              </div>
+            </section>
+          )}
+
           <section className="training-help__tutorial-card">
             <div className="training-help__tutorial-icon"><PlayCircle size={24} aria-hidden="true" /></div>
             <div className="training-help__tutorial-copy">
               <span>Tutorial guiado</span>
               <strong>{tutorialStatusLabel(tutorialState)}</strong>
-              <p>Repasa la introducción y la familiarización inicial sin modificar el estado del curso.</p>
+              <p>Repasa la introducción y la familiarización inicial. Con tu cuenta de alumno, el punto del tutorial se sincroniza entre dispositivos.</p>
             </div>
             <div className="training-help__tutorial-actions">
               {!tutorialState.completed && (
@@ -348,11 +246,11 @@ export default function TrainingHelpCenter() {
 
             <div className="training-help__results" aria-live="polite">
               {results.length > 0 ? results.map((location) => (
-                <button type="button" key={location.title} className="training-help__result" onClick={() => navigateTo(location)}>
+                <button type="button" key={location.id} className="training-help__result" onClick={() => navigateTo(location)}>
                   <MapPin size={17} aria-hidden="true" />
                   <span>
                     <strong>{location.title}</strong>
-                    <small>{location.path}</small>
+                    <small>{helpLocationPath(location)}</small>
                     <p>{location.description}</p>
                   </span>
                   <ArrowRight size={16} aria-hidden="true" />
@@ -390,7 +288,7 @@ export default function TrainingHelpCenter() {
               <div>
                 <span>Entorno de prácticas</span>
                 <strong>Restablecer escenario</strong>
-                <p>Úsalo solo si necesitas volver a los datos iniciales del ERP. Los intentos y puntuaciones históricas no se eliminan.</p>
+                <p>Úsalo solo si necesitas volver a los datos iniciales del ERP. Los intentos, puntuaciones y estado del tutorial no se eliminan.</p>
               </div>
               {!resetConfirm ? (
                 <button type="button" onClick={() => setResetConfirm(true)}>
@@ -418,6 +316,7 @@ export default function TrainingHelpCenter() {
     <>
       <button type="button" className="training-help__launcher" onClick={() => {
         setTutorialState(readTutorialState());
+        setScreenContext(readCurrentNavigationContext());
         setNotice("");
         setResetConfirm(false);
         setOpen(true);
