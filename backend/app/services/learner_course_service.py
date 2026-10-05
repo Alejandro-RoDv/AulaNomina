@@ -4,7 +4,7 @@ from contextvars import ContextVar
 from typing import Any
 import unicodedata
 
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload, selectinload
 
 import app.services.activity_service as activity_service
 from app.models.case_assignment import CaseAssignment
@@ -14,14 +14,22 @@ from app.models.employee import Employee
 from app.models.work_center import WorkCenter
 from app.services.auth_service import AuthPrincipal
 from app.services.learner_scope_service import accessible_assignment_ids
-from app.services.training_course_projection_2026 import build_master_activity_course_2026
+from app.services.training_course_projection_2026 import (
+    build_master_activity_course_2026,
+    project_master_activity_course_2026,
+)
 
 
 _ASSIGNMENT_SCOPE: ContextVar[frozenset[int] | None] = ContextVar(
     "aulanomina_training_assignment_scope",
     default=None,
 )
+_ASSIGNMENT_CACHE: ContextVar[dict[int, CaseAssignment] | None] = ContextVar(
+    "aulanomina_training_assignment_cache",
+    default=None,
+)
 _ORIGINAL_SELECT_ASSIGNMENTS = activity_service._select_assignments
+_ORIGINAL_ENSURE_ASSIGNMENT_PROGRESS = activity_service.ensure_assignment_progress
 
 
 def _normalize(value: Any) -> str:
@@ -38,6 +46,11 @@ def _select_scoped_assignments(db: Session) -> list[CaseAssignment]:
 
     assignments = (
         db.query(CaseAssignment)
+        .options(
+            joinedload(CaseAssignment.case_study).selectinload(CaseStudy.tasks),
+            selectinload(CaseAssignment.progress_entries),
+            selectinload(CaseAssignment.email_threads),
+        )
         .join(CaseStudy, CaseAssignment.case_study_id == CaseStudy.id)
         .filter(
             CaseStudy.status == "active",
@@ -58,12 +71,39 @@ def _select_scoped_assignments(db: Session) -> list[CaseAssignment]:
         if (candidate_rank, assignment.id) < (current_rank, current.id):
             selected[assignment.case_study_id] = assignment
 
-    return [selected[key] for key in sorted(selected)]
+    result = [selected[key] for key in sorted(selected)]
+    cache = _ASSIGNMENT_CACHE.get()
+    if cache is not None:
+        cache.update({assignment.id: assignment for assignment in result})
+    return result
+
+
+def _ensure_scoped_assignment_progress(db: Session, assignment_id: int) -> CaseAssignment:
+    """Use already-loaded progress during course reads; repair only incomplete legacy rows."""
+    assignment_ids = _ASSIGNMENT_SCOPE.get()
+    cache = _ASSIGNMENT_CACHE.get()
+    if assignment_ids is None or cache is None or assignment_id not in assignment_ids:
+        return _ORIGINAL_ENSURE_ASSIGNMENT_PROGRESS(db, assignment_id)
+
+    assignment = cache.get(assignment_id)
+    if assignment is not None and assignment.case_study is not None:
+        task_ids = {task.id for task in assignment.case_study.tasks}
+        progress_ids = {entry.task_id for entry in assignment.progress_entries}
+        if task_ids.issubset(progress_ids):
+            return assignment
+
+    repaired = _ORIGINAL_ENSURE_ASSIGNMENT_PROGRESS(db, assignment_id)
+    cache[assignment_id] = repaired
+    return repaired
 
 
 if not getattr(activity_service._select_assignments, "_learner_scope_aware", False):
     _select_scoped_assignments._learner_scope_aware = True
     activity_service._select_assignments = _select_scoped_assignments
+
+if not getattr(activity_service.ensure_assignment_progress, "_learner_read_optimized", False):
+    _ensure_scoped_assignment_progress._learner_read_optimized = True
+    activity_service.ensure_assignment_progress = _ensure_scoped_assignment_progress
 
 
 def _recalculate_scoped_course(course: dict[str, Any]) -> dict[str, Any]:
@@ -116,6 +156,7 @@ def _case_value(activity: dict[str, Any], label: str) -> str | None:
 def _remap_workspace_contexts(db: Session, course: dict[str, Any], assignment_ids: set[int]) -> None:
     assignments = (
         db.query(CaseAssignment)
+        .options(joinedload(CaseAssignment.case_study))
         .filter(CaseAssignment.id.in_(sorted(assignment_ids)))
         .all()
         if assignment_ids
@@ -131,6 +172,7 @@ def _remap_workspace_contexts(db: Session, course: dict[str, Any], assignment_id
     centers = db.query(WorkCenter).all()
     employees = db.query(Employee).all()
     company_by_name = {_normalize(item.name): item for item in companies}
+    company_by_id = {item.id: item for item in companies}
     employee_by_name = {
         _normalize(f"{item.first_name} {item.last_name} {item.second_last_name or ''}"): item
         for item in employees
@@ -153,7 +195,7 @@ def _remap_workspace_contexts(db: Session, course: dict[str, Any], assignment_id
             )
             company = company_by_name.get(_normalize(company_name)) if company_name else None
             if company is None and context.get("companyId"):
-                company = next((item for item in companies if item.id == context.get("companyId")), None)
+                company = company_by_id.get(context.get("companyId"))
 
             center_name = (
                 state.get("center_name")
@@ -188,15 +230,18 @@ def build_learner_course(db: Session, principal: AuthPrincipal | None) -> dict[s
     if principal is None or principal.is_staff:
         return build_master_activity_course_2026(db)
 
-    # Group templates are materialized before the course is built. The ContextVar
-    # then makes the existing activity runtime select only this learner's direct
-    # assignments without introducing process-global mutable request state.
+    # Provisioning is handled when the learner/workspace is created. The normal
+    # course endpoint is a read path: it must not reseed every training block or
+    # recalculate/commit every assignment on each open.
     allowed = accessible_assignment_ids(db, principal) or set()
-    token = _ASSIGNMENT_SCOPE.set(frozenset(allowed))
+    scope_token = _ASSIGNMENT_SCOPE.set(frozenset(allowed))
+    cache_token = _ASSIGNMENT_CACHE.set({})
     try:
-        course = build_master_activity_course_2026(db)
+        runtime_course = activity_service.build_activity_course(db)
+        course = project_master_activity_course_2026(runtime_course)
     finally:
-        _ASSIGNMENT_SCOPE.reset(token)
+        _ASSIGNMENT_CACHE.reset(cache_token)
+        _ASSIGNMENT_SCOPE.reset(scope_token)
 
     _remap_workspace_contexts(db, course, allowed)
     course.setdefault("course", {})["scoped_student_id"] = principal.student_id
