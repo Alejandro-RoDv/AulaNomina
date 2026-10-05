@@ -148,9 +148,11 @@ def _ensure_master_runtime_availability_2026(db: Session) -> None:
     document_count = _count_runtime_cases(db, DOCUMENT_SCENARIO_CODES)
     if document_count == 0:
         bootstrap_document_training_2026(db)
-    else:
-        if document_count < len(DOCUMENT_SCENARIO_CODES):
-            seed_document_runtime_cases_2026(db)
+    elif document_count < len(DOCUMENT_SCENARIO_CODES):
+        # El seeder documental reinicializa el progreso de asignaciones existentes.
+        # Solo debe ejecutarse durante una reparación/migración real del bloque, no
+        # en cada lectura del Centro de Actividades.
+        seed_document_runtime_cases_2026(db)
         seed_document_runtime_assignments_2026(db)
 
     integrated_count = _count_runtime_cases(db, NEW_INTEGRATED_SCENARIOS)
