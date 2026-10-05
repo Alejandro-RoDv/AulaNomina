@@ -34,12 +34,24 @@ def add_missing_auth_columns() -> None:
                     text("CREATE UNIQUE INDEX IF NOT EXISTS uq_students_user_id ON students(user_id)")
                 )
 
-        if "training_workspaces" in table_names and engine.dialect.name == "postgresql":
-            # Las generaciones antiguas conservan datos para trazabilidad, pero
-            # liberan student_id al archivarse para que exista un nuevo entorno activo.
-            connection.execute(
-                text("ALTER TABLE training_workspaces ALTER COLUMN student_id DROP NOT NULL")
-            )
+        if "training_workspaces" in table_names:
+            workspace_columns = {
+                column["name"] for column in inspect(connection).get_columns("training_workspaces")
+            }
+            if "tutorial_state" not in workspace_columns:
+                connection.execute(
+                    text(
+                        "ALTER TABLE training_workspaces ADD COLUMN tutorial_state "
+                        "TEXT NOT NULL DEFAULT '{}'"
+                    )
+                )
+
+            if engine.dialect.name == "postgresql":
+                # Las generaciones antiguas conservan datos para trazabilidad, pero
+                # liberan student_id al archivarse para que exista un nuevo entorno activo.
+                connection.execute(
+                    text("ALTER TABLE training_workspaces ALTER COLUMN student_id DROP NOT NULL")
+                )
 
         if "case_assignments" in table_names and "training_workspaces" in table_names:
             columns = {column["name"] for column in inspect(connection).get_columns("case_assignments")}
