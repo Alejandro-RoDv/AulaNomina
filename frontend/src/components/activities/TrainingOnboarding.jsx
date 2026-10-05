@@ -3,9 +3,10 @@ import { createPortal } from "react-dom";
 import { ArrowLeft, ArrowRight, BookOpen, CheckCircle2, Mail, Monitor, RotateCcw, X } from "lucide-react";
 
 import {
+  hydrateTutorialState,
+  persistTutorialState,
   readTutorialState,
   restartTutorial,
-  writeTutorialState,
 } from "./trainingTutorialState.js";
 import "./trainingOnboarding.css";
 
@@ -85,12 +86,15 @@ function openActivitiesCenter() {
   if (launcher instanceof HTMLElement) launcher.click();
 }
 
+function visiblePhaseFor(state) {
+  if (state.completed || state.dismissed) return "hidden";
+  return state.phase === "hidden" ? "onboarding" : state.phase;
+}
+
 export default function TrainingOnboarding() {
   const initialState = useMemo(() => readTutorialState(), []);
   const [tutorialState, setTutorialState] = useState(initialState);
-  const [visiblePhase, setVisiblePhase] = useState(() => (
-    initialState.completed || initialState.dismissed ? "hidden" : initialState.phase
-  ));
+  const [visiblePhase, setVisiblePhase] = useState(() => visiblePhaseFor(initialState));
 
   const slideIndex = tutorialState.slideIndex;
   const familiarizationIndex = tutorialState.familiarizationIndex;
@@ -101,8 +105,21 @@ export default function TrainingOnboarding() {
   const isLastFamiliarizationStep = familiarizationIndex >= familiarizationSteps.length - 1;
 
   const persist = (patch) => {
-    setTutorialState((current) => writeTutorialState({ ...current, ...patch }));
+    setTutorialState((current) => persistTutorialState({ ...current, ...patch }));
   };
+
+  useEffect(() => {
+    let cancelled = false;
+    hydrateTutorialState().then((hydrated) => {
+      if (cancelled) return;
+      setTutorialState(hydrated);
+      setVisiblePhase(visiblePhaseFor(hydrated));
+      window.dispatchEvent(new Event("aulanomina-tutorial-state-changed"));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     const handleTutorialRequest = (event) => {
@@ -115,7 +132,9 @@ export default function TrainingOnboarding() {
       }
 
       const stored = readTutorialState();
-      const resumable = stored.completed ? restartTutorial() : writeTutorialState({ ...stored, dismissed: false });
+      const resumable = stored.completed
+        ? restartTutorial()
+        : persistTutorialState({ ...stored, dismissed: false });
       setTutorialState(resumable);
       setVisiblePhase(resumable.phase === "hidden" ? "onboarding" : resumable.phase);
     };
@@ -131,7 +150,7 @@ export default function TrainingOnboarding() {
   };
 
   const finishOnboarding = () => {
-    const next = writeTutorialState({
+    const next = persistTutorialState({
       ...tutorialState,
       phase: "familiarization",
       slideIndex: slides.length - 1,
@@ -145,7 +164,7 @@ export default function TrainingOnboarding() {
   };
 
   const finishFamiliarization = () => {
-    const next = writeTutorialState({
+    const next = persistTutorialState({
       ...tutorialState,
       phase: "hidden",
       familiarizationIndex: familiarizationSteps.length - 1,
