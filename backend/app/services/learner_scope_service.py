@@ -259,9 +259,53 @@ def materialize_group_assignments(db: Session, principal: AuthPrincipal) -> list
     return scoped
 
 
+def _existing_assignment_ids_if_complete(
+    db: Session,
+    principal: AuthPrincipal,
+) -> set[int] | None:
+    """Fast path for normal reads after the learner has already been provisioned."""
+    student = learner_student(db, principal)
+    if not student:
+        raise HTTPException(status_code=403, detail="La cuenta no dispone de perfil de alumno")
+    workspace_id = _workspace_id(principal)
+
+    rows = (
+        db.query(
+            CaseAssignment.id,
+            CaseAssignment.case_study_id,
+            CaseAssignment.workspace_id,
+        )
+        .filter(CaseAssignment.student_id == student.id)
+        .all()
+    )
+
+    if any(row.workspace_id != workspace_id for row in rows):
+        return None
+
+    direct_case_ids = {row.case_study_id for row in rows}
+    if student.group_id:
+        template_case_ids = {
+            row.case_study_id
+            for row in (
+                db.query(CaseAssignment.case_study_id)
+                .filter(CaseAssignment.group_id == student.group_id)
+                .all()
+            )
+        }
+        if not template_case_ids.issubset(direct_case_ids):
+            return None
+
+    return {row.id for row in rows}
+
+
 def accessible_assignment_ids(db: Session, principal: AuthPrincipal) -> set[int] | None:
     if principal.is_staff:
         return None
+
+    existing = _existing_assignment_ids_if_complete(db, principal)
+    if existing is not None:
+        return existing
+
     return {assignment.id for assignment in materialize_group_assignments(db, principal)}
 
 
