@@ -1,47 +1,7 @@
-/* Navegación fiscal compartida: Modelo 111 y Modelo 190 */
-
-/* Modelo 111: pestañas principales como selector segmentado, sin depender del color inline. */
-.model111-route main > div > nav {
-  display: grid !important;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 4px !important;
-  padding: 4px !important;
-  border: 1px solid #dbe3ee !important;
-  border-radius: 9px !important;
-  background: #eef2f7 !important;
-}
-
-.model111-route main > div > nav > button {
-  position: relative;
-  min-height: 42px;
-  padding: 9px 12px !important;
-  border: 1px solid transparent !important;
-  border-radius: 7px !important;
-  background: transparent !important;
-  color: #64748b !important;
-  box-shadow: none !important;
-  font-size: 12px;
-  font-weight: 800 !important;
-  text-align: center;
-}
-
-.model111-route main > div > nav > button:hover {
-  background: rgba(255, 255, 255, .62) !important;
-  color: #334155 !important;
-}
-
-/* tabActive lleva border-bottom inline; es el selector más estable mientras Model111Page use styles inline. */
-.model111-route main > div > nav > button[style*="border-bottom"] {
-  border-color: #b8cdfb !important;
-  background: #ffffff !important;
-  color: #2563eb !important;
-  box-shadow: 0 1px 3px rgba(15, 23, 42, .08) !important;
-}
-
-.model111-route main > div > nav > button[style*="border-bottom"]::after,
-.model111-route main > div > nav > button::after {
-  display: none !important;
-}
+/* Navegación fiscal compartida.
+   El Modelo 111 mantiene sus estilos en Model111Page.css para evitar
+   conflictos entre reglas de hover/activo. Este archivo conserva el
+   pulido de navegación del Modelo 190. */
 
 /* Modelo 190: las tres áreas principales se leen como navegación de primer nivel. */
 .m190-workspace__tabs {
@@ -136,16 +96,10 @@
 }
 
 @media (max-width: 760px) {
-  .model111-route main > div > nav,
   .m190-workspace__tabs {
     display: flex !important;
     overflow-x: auto;
     flex-wrap: nowrap !important;
-  }
-
-  .model111-route main > div > nav > button {
-    flex: 0 0 auto;
-    min-width: 132px;
   }
 
   .m190-workspace__tabs button {
