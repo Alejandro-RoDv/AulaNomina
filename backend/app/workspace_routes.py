@@ -48,6 +48,11 @@ def _decode_tutorial_state(workspace: TrainingWorkspace) -> TutorialState:
         return TutorialState()
 
 
+def _tutorial_state_initialized(workspace: TrainingWorkspace) -> bool:
+    raw = (workspace.tutorial_state or "").strip()
+    return raw not in {"", "{}", "null"}
+
+
 @router.get("/training-workspace/tutorial-state", response_model=TutorialStateResponse)
 def get_tutorial_state(
     db: Session = Depends(get_db),
@@ -55,7 +60,11 @@ def get_tutorial_state(
 ):
     workspace = _learner_workspace(db, principal)
     state = _decode_tutorial_state(workspace)
-    return TutorialStateResponse(workspace_id=workspace.id, **state.model_dump())
+    return TutorialStateResponse(
+        workspace_id=workspace.id,
+        initialized=_tutorial_state_initialized(workspace),
+        **state.model_dump(),
+    )
 
 
 @router.put("/training-workspace/tutorial-state", response_model=TutorialStateResponse)
@@ -68,7 +77,11 @@ def update_tutorial_state(
     workspace.tutorial_state = json.dumps(payload.model_dump(), ensure_ascii=False)
     db.commit()
     db.refresh(workspace)
-    return TutorialStateResponse(workspace_id=workspace.id, **payload.model_dump())
+    return TutorialStateResponse(
+        workspace_id=workspace.id,
+        initialized=True,
+        **payload.model_dump(),
+    )
 
 
 @router.post("/training-workspace/reset")
