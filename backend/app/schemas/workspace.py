@@ -13,3 +13,4 @@ class TutorialState(BaseModel):
 
 class TutorialStateResponse(TutorialState):
     workspace_id: int
+    initialized: bool = True
