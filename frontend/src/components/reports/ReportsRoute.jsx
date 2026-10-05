@@ -223,6 +223,7 @@ const styles = {
     boxSizing: "border-box",
     maxWidth: "1360px",
     width: "100%",
+    marginInline: "auto",
   },
   error: {
     border: "1px solid #f1c2c2",
