@@ -175,11 +175,11 @@ export default function DocumentsRoute() {
 const styles = {
   wrapper: {
     position: "fixed",
-    top: "56px",
+    top: "var(--an-topbar-offset, 56px)",
     left: "272px",
     right: 0,
     bottom: 0,
-    zIndex: 20,
+    zIndex: 200,
     backgroundColor: "#f8fafc",
     overflowY: "auto",
   },

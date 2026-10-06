@@ -80,11 +80,11 @@ export default function FieRoute() {
 const styles = {
   wrapper: {
     position: "fixed",
-    top: "56px",
+    top: "var(--an-topbar-offset, 56px)",
     left: "272px",
     right: 0,
     bottom: 0,
-    zIndex: 21,
+    zIndex: 200,
     backgroundColor: "#ffffff",
     overflowY: "auto",
   },

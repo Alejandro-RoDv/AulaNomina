@@ -72,3 +72,9 @@ Preparación mensual incorpora «Recalcular y generar», guarda los cambios pend
 La API acepta `recalculate_existing` de forma explícita; conserva la prevención de duplicados para otros clientes. Los cambios de conceptos devuelven la nómina a borrador. El recálculo mantiene los ajustes manuales de cotizaciones/bases/deducciones y las exclusiones, incrementa la versión de cálculo y conserva el ID. También permite actualizar conceptos guardados en pagas extra existentes y nóminas históricas cuyo contrato ya ha terminado.
 
 Validación: 119 pruebas Node más smoke de convenios, 15 pruebas backend (preparación, paga extra, puente de incidencias y prorrata), build y recorrido Chromium con API real SQLite: editar salario, generar, añadir concepto a nómina generada, volver a generar, excluir concepto, recalcular desde histórico, regenerar desde listado y entrar varias veces al histórico sin actualizar manualmente. Lint limpio en Histórico, tabla y preparación V4; persisten dos errores previos de efectos en la página de generación. No se ha probado despliegue PostgreSQL.
+
+### Selector de empresa en Seguridad Social, Fiscalidad y Documentación
+
+El selector compartido utiliza azul claro para el botón, el borde, el desplegable y la selección activa. La cabecera deja margen vertical y se adapta en móvil. CRA, FIE, Documentos, Informes y Trabajadores toman la altura real de la barra superior mediante ResizeObserver, evitando que sus paneles fijos recorten el selector. Los paneles conservan su cabecera propia y quedan debajo de la barra superior.
+
+Validación: compilación frontend y comprobación en navegador de Seguros sociales, Liquidaciones, Ficheros generados, CRA, Comunicaciones FIE, Fiscalidad, Documentación y selector móvil, incluidos apertura, selección activa y cierre con Escape.

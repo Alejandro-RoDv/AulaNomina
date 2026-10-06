@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Bell, Menu, RefreshCw, Settings, X } from "lucide-react";
 
 import CompanySelector from "./CompanySelector";
@@ -56,6 +56,21 @@ export default function Header({
   resetDemoMessage,
   resetDemoError,
 }) {
+  const topbarRef = useRef(null);
+  useEffect(() => {
+    const topbar = topbarRef.current;
+    if (!topbar) return;
+    const updateOffset = () => document.documentElement.style.setProperty(
+      "--an-topbar-offset", `${Math.ceil(topbar.getBoundingClientRect().height)}px`,
+    );
+    updateOffset();
+    const observer = new ResizeObserver(updateOffset);
+    observer.observe(topbar);
+    return () => {
+      observer.disconnect();
+      document.documentElement.style.removeProperty("--an-topbar-offset");
+    };
+  }, []);
   const [alertsOpen, setAlertsOpen] = useState(false);
   const [alertsLoading, setAlertsLoading] = useState(false);
   const [alertsError, setAlertsError] = useState("");
@@ -129,7 +144,7 @@ export default function Header({
 
   return (
     <header className="an-header">
-      <div className="an-header__topbar">
+      <div className="an-header__topbar" ref={topbarRef}>
         <div className="an-header__identity">
           <button
             type="button"
