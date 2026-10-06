@@ -1,7 +1,8 @@
+import { createEmployeeDemo } from "../../utils/demoFormData";
 import { useMemo, useState } from "react";
 
 import { fetchEmployeesByDocument } from "../../services/employeeApi";
-import { EDUCATION_LEVEL_OPTIONS } from "../../utils/employeePayloads";
+import { EDUCATION_LEVEL_OPTIONS, initialEmployeeForm } from "../../utils/employeePayloads";
 
 function Section({ title, children }) {
   return (
@@ -109,6 +110,15 @@ export default function EmployeeForm({
 
   return (
     <form onSubmit={handleSubmit} style={styles.form}>
+      <div className="an-demo-fill">
+        <button type="button" disabled={submitting || !form.company_id || !filteredCenters.length} onClick={() => {
+          const demo = createEmployeeDemo(form.company_id, workCenters, employees);
+          if (!demo) return;
+          Object.entries({ ...initialEmployeeForm, ...demo, employee_code: form.employee_code }).forEach(([name, value]) => onChange({ target: { name, value } }));
+          setDocumentMatches([]); setDocumentLookupError("");
+        }}>Rellenar datos de prueba</button>
+        <small>{!form.company_id ? "Selecciona una empresa." : !filteredCenters.length ? "Crea primero un centro en esta empresa." : "Genera otra persona ficticia sin guardar el alta."}</small>
+      </div>
       <div style={styles.infoBox}>
         <strong>Alta de trabajador</strong>
         <span>Este formulario crea una ficha personal vinculada a una empresa y centro. Duplicar un trabajador solo copia sus datos personales; no duplica contratos, nóminas ni incidencias.</span>

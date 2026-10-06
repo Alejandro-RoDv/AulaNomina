@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { subscribeSelectedCompany } from "../utils/companyContext";
+import { useEffect, useState } from "react";
 
 import { createIncident, deleteIncident, updateIncident } from "../services/incidentApi";
 import {
@@ -9,6 +10,9 @@ import {
 
 export function useIncidentsModule({ contracts, onDataChanged }) {
   const [incidentForm, setIncidentForm] = useState({ ...initialIncidentForm });
+  useEffect(() => subscribeSelectedCompany((companyId) => {
+    setIncidentForm((previous) => ({ ...previous, company_id: companyId, center_id: "", employee_id: "", contract_id: "" }));
+  }), []);
   const [incidentSubmitting, setIncidentSubmitting] = useState(false);
   const [incidentError, setIncidentError] = useState("");
   const [incidentSuccess, setIncidentSuccess] = useState("");

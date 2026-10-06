@@ -1,3 +1,4 @@
+import { useCompanySelection } from "../../hooks/useCompanySelection";
 import { useEffect, useMemo, useState } from "react";
 
 import ContractTable from "../ContractTable";
@@ -41,7 +42,7 @@ export default function ContractHistoryScope({
   onDeleteContract,
   submitting,
 }) {
-  const [companyId, setCompanyId] = useState("");
+  const [companyId, setCompanyId] = useCompanySelection();
   const [caseContext, setCaseContext] = useState(() => readCaseContext());
 
   useEffect(() => {
@@ -51,7 +52,7 @@ export default function ContractHistoryScope({
   }, []);
 
   useEffect(() => {
-    if (!caseContext || !companies.length) return;
+    if (companyId || !caseContext || !companies.length) return;
 
     const directCompany = caseContext.companyId
       ? companies.find((company) => String(company.id) === String(caseContext.companyId))

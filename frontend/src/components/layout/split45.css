@@ -1,0 +1,23 @@
+.an-company-selector { position: relative; min-width: 0; width: min(360px, 100%); }
+.an-company-selector__trigger { display: flex; align-items: center; gap: 10px; width: 100%; border: 1px solid #dedebc; border-radius: 8px; padding: 6px 10px; background: #fffef1; color: #222; cursor: pointer; text-align: left; }
+.an-company-selector__trigger > span { display: grid; min-width: 0; flex: 1; }
+.an-company-selector__trigger small { font-size: 10px; color: #666443; }
+.an-company-selector__trigger strong { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Portal above the legacy fixed route panels (z-index 5000). */
+.an-company-selector__dropdown { position: fixed; width: min(390px, calc(100vw - 32px)); max-height: calc(100dvh - 80px); overflow-y: auto; box-sizing: border-box; z-index: 6000; border: 1px solid #ddd; border-radius: 10px; padding: 10px; background: white; box-shadow: 0 12px 30px #11182726; }
+.an-company-selector__search { display: flex; align-items: center; gap: 8px; border: 1px solid #ccc; padding: 8px; border-radius: 6px; }
+.an-company-selector__search input { width: 100%; border: 0; background: transparent; min-width: 0; }
+.an-company-selector__options { max-height: 300px; overflow-y: auto; margin-top: 8px; }
+.an-company-selector__options button { display: grid; width: 100%; text-align: left; gap: 3px; padding: 10px; background: white; border: 0; border-radius: 5px; cursor: pointer; }
+.an-company-selector__options button:hover, .an-company-selector__options button[aria-pressed="true"] { background: #f8f3b5; }
+.an-company-selector__options small, .an-company-selector__options p { color: #686868; }
+.an-module-tabs { flex-wrap: wrap; gap: 6px; }
+.an-module-tabs .an-header__tab { white-space: nowrap; }
+.an-demo-fill { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; padding: 12px; background: #fffdef; border: 1px solid #e8e1ac; border-radius: 8px; margin-bottom: 14px; }
+.an-demo-fill button { border: 1px solid #bbb681; background: #f8f3b5; padding: 8px 12px; border-radius: 6px; font-weight: 700; cursor: pointer; }
+.an-demo-fill small { color: #625f46; }
+.an-demo-fill button:disabled { opacity: .5; cursor: not-allowed; }
+.an-session-summary { display: grid; gap: 3px; font-size: 12px; padding: 10px 0; }
+.an-sidebar__footer { flex-wrap: wrap; }
+@media (max-width: 900px) { .an-company-selector { width: 220px; } }
+@media (max-width: 600px) { .an-company-selector { width: 170px; } .an-module-tabs { padding: 10px 16px; } }

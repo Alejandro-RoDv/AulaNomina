@@ -1,3 +1,4 @@
+import ModuleNavigation from "../layout/ModuleNavigation";
 import { useEffect, useState } from "react";
 
 import DocumentsPage from "../../pages/DocumentsPage";
@@ -149,6 +150,7 @@ export default function DocumentsRoute() {
           <p style={styles.subtitle}>Gestión documental del expediente laboral simulado.</p>
         </div>
       </header>
+      <ModuleNavigation activePage="documents" groupId="documents" />
       <main style={styles.main}>
         <DocumentsPage
           loading={loading}

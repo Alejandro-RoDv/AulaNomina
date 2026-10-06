@@ -1,3 +1,4 @@
+import { getSelectedCompanyId, setSelectedCompanyId, subscribeSelectedCompany } from "../utils/companyContext";
 import { useEffect, useMemo, useState } from "react";
 
 import BulkContractPayrollConceptsPanel from "../components/contracts/BulkContractPayrollConceptsPanel";
@@ -33,7 +34,10 @@ function buildContractsWithDisplayCodes(contracts, employees) {
 }
 
 export default function PermanentPayrollConceptsPage({ contracts = [], employees = [], companies = [], workCenters = [] }) {
-  const [filters, setFilters] = useState({ company: "", center: "", status: "active", search: "" });
+  const [filters, setFilters] = useState({ company: getSelectedCompanyId(), center: "", status: "active", search: "" });
+  useEffect(() => subscribeSelectedCompany((companyId) => {
+    setFilters((previous) => ({ ...previous, company: companyId, center: "" }));
+  }), []);
   const [selectedContractId, setSelectedContractId] = useState("");
   const [bulkSelectedIds, setBulkSelectedIds] = useState([]);
   const [bulkOpen, setBulkOpen] = useState(false);
@@ -124,6 +128,7 @@ export default function PermanentPayrollConceptsPage({ contracts = [], employees
 
   function handleFilterChange(event) {
     const { name, value } = event.target;
+    if (name === "company") setSelectedCompanyId(value);
     setFilters((current) => {
       const next = { ...current, [name]: value };
       if (name === "company") next.center = "";
@@ -132,7 +137,7 @@ export default function PermanentPayrollConceptsPage({ contracts = [], employees
   }
 
   function clearFilters() {
-    setFilters({ company: "", center: "", status: "active", search: "" });
+    setFilters({ company: getSelectedCompanyId(), center: "", status: "active", search: "" });
   }
 
   function toggleBulk(contractId) {

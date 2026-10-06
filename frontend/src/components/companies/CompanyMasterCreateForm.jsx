@@ -1,3 +1,4 @@
+import { COMPANY_PRESETS, createCompanyDemo } from "../../utils/demoFormData";
 import { useMemo, useState } from "react";
 
 import {
@@ -73,72 +74,6 @@ const EMPTY_FORM = {
   work_calendar_name: "",
   bank_iban: "",
   fiscal_regime: "plan_general_contable",
-};
-
-const DEMOS = {
-  education: {
-    label: "Centro educativo privado",
-    data: {
-      name: "Colegio San Rafael Demo",
-      cif: "B14999001",
-      ccc_code: "14123456789",
-      address: "Avda. de la Enseñanza, 12",
-      city: "Córdoba",
-      province: "Córdoba",
-      registration_date: "2025-01-01",
-      main_collective_agreement: "Convenio de enseñanza privada sostenida con fondos públicos",
-      company_type: "privada",
-      cnae_2009_code: "8531",
-      cnae_2009_name: "Educación secundaria general",
-      cnae_2025_code: "8531",
-      cnae_2025_name: "Educación secundaria general",
-      professional_contingencies_mutual: "UMIVALE ACTIVA - (nº 003)",
-      common_it_mutual: "UMIVALE ACTIVA - (nº 003)",
-      work_calendar_name: "Calendario docente estándar",
-    },
-  },
-  nonprofit: {
-    label: "Fundación sin ánimo de lucro",
-    data: {
-      name: "Fundación Laboral Demo",
-      cif: "G14999003",
-      ccc_code: "14123456791",
-      address: "Plaza Social, 4",
-      city: "Córdoba",
-      province: "Córdoba",
-      registration_date: "2025-01-01",
-      main_collective_agreement: "Convenio de acción e intervención social",
-      company_type: "privada_sin_lucro",
-      cnae_2009_code: "8899",
-      cnae_2009_name: "Otros servicios sociales sin alojamiento",
-      cnae_2025_code: "8899",
-      cnae_2025_name: "Otros servicios sociales sin alojamiento",
-      professional_contingencies_mutual: "MUTUA DE ANDALUCÍA Y CEUTA - CESMA - (nº 115)",
-      common_it_mutual: "MUTUA DE ANDALUCÍA Y CEUTA - CESMA - (nº 115)",
-      work_calendar_name: "Calendario entidad social",
-    },
-  },
-  ett: {
-    label: "ETT",
-    data: {
-      name: "Sur Empleo Temporal Demo",
-      cif: "B14999004",
-      ccc_code: "14123456792",
-      address: "Polígono Industrial, nave 15",
-      city: "Córdoba",
-      province: "Córdoba",
-      registration_date: "2025-01-01",
-      main_collective_agreement: "Convenio estatal de empresas de trabajo temporal",
-      company_type: "ett",
-      cnae_2009_code: "7820",
-      cnae_2009_name: "Actividades de las empresas de trabajo temporal",
-      cnae_2025_code: "7820",
-      cnae_2025_name: "Actividades de las empresas de trabajo temporal",
-      professional_contingencies_mutual: "ASEPEYO - (nº 151)",
-      common_it_mutual: "ASEPEYO - (nº 151)",
-      work_calendar_name: "Calendario ETT administración",
-    },
-  },
 };
 
 function emptyToNull(value) {
@@ -218,7 +153,7 @@ function MutualSelect({ name, value, onChange }) {
   );
 }
 
-export default function CompanyMasterCreateForm({ collectiveAgreements = [], onCreated, onOpenPreferences }) {
+export default function CompanyMasterCreateForm({ collectiveAgreements = [], companies = [], onCreated, onOpenPreferences }) {
   const [form, setForm] = useState(EMPTY_FORM);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -237,7 +172,7 @@ export default function CompanyMasterCreateForm({ collectiveAgreements = [], onC
   };
 
   const loadDemo = (key) => {
-    setForm({ ...EMPTY_FORM, ...DEMOS[key].data });
+    setForm({ ...EMPTY_FORM, ...createCompanyDemo(key, companies, agreementOptions) });
     setError("");
     setCreatedCompany(null);
   };
@@ -250,7 +185,7 @@ export default function CompanyMasterCreateForm({ collectiveAgreements = [], onC
       const company = await createCompany(buildPayload(form));
       setCreatedCompany(company);
       setForm(EMPTY_FORM);
-      onCreated?.(company);
+      await onCreated?.(company);
     } catch (err) {
       setError(err.message || "Error al crear la empresa");
     } finally {
@@ -267,12 +202,13 @@ export default function CompanyMasterCreateForm({ collectiveAgreements = [], onC
         actions={<Badge tone="brand">Datos maestros</Badge>}
       >
         <FormPresetBar>
-          {Object.entries(DEMOS).map(([key, demo]) => (
-            <Button key={key} type="button" variant="secondary" size="sm" onClick={() => loadDemo(key)}>
+          {Object.entries(COMPANY_PRESETS).map(([key, demo]) => (
+            <Button key={key} type="button" variant="secondary" size="sm" disabled={submitting} onClick={() => loadDemo(key)}>
               {demo.label}
             </Button>
           ))}
         </FormPresetBar>
+        <small>Datos ficticios: cada pulsación propone otra empresa. Revisa los campos antes de guardar.</small>
       </FormSection>
 
       <FormSection

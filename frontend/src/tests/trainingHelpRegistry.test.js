@@ -28,7 +28,7 @@ test("contextual help resolves the active menu label", () => {
 
 test("tutorial navigation labels stay aligned with the real sidebar", () => {
   const sidebarSource = readFileSync(
-    new URL("../components/layout/Sidebar.jsx", import.meta.url),
+    new URL("../utils/moduleNavigation.js", import.meta.url),
     "utf8"
   );
 
@@ -37,7 +37,7 @@ test("tutorial navigation labels stay aligned with the real sidebar", () => {
     for (const label of location.navigationLabels || []) {
       assert.ok(
         sidebarSource.includes(label),
-        `El localizador usa «${label}», pero esa etiqueta ya no existe en Sidebar.jsx`
+        `El localizador usa «${label}», pero esa etiqueta ya no existe en moduleNavigation.js`
       );
     }
   }

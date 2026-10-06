@@ -1,3 +1,4 @@
+import { getSelectedCompanyId, setSelectedCompanyId, subscribeSelectedCompany } from "../../utils/companyContext";
 import { useEffect, useMemo, useState } from "react";
 
 import { fetchContracts } from "../../services/api";
@@ -319,7 +320,7 @@ export default function MonthlyPayrollPreparationV4({ companies = [], workCenter
   const [employees, setEmployees] = useState([]);
   const [concepts, setConcepts] = useState([]);
   const [scope, setScope] = useState({
-    company_id: "",
+    company_id: getSelectedCompanyId(),
     employee_id: "",
     contract_id: "",
     period_month: String(currentMonth),
@@ -425,8 +426,16 @@ export default function MonthlyPayrollPreparationV4({ companies = [], workCenter
     setReceiptPayrollId(null);
   };
 
+  useEffect(() => subscribeSelectedCompany((companyId) => {
+    setScope((previous) => ({ ...previous, company_id: companyId, employee_id: "", contract_id: "" }));
+    setPreparation(null); setLineEdits({}); setTouchedLineIds([]); setRestoreOverrideIds([]);
+    setDraftRows(initialBlankRows()); setCatalogTargetRowId(null); setMessage(""); setError("");
+    setPreviewOpen(false); setReceiptPayrollId(null); setLoading(false);
+  }), []);
+
   const handleScopeChange = (event) => {
     const { name, value } = event.target;
+    if (name === "company_id") setSelectedCompanyId(value);
     setError("");
     resetEditor();
     setScope((previous) => {

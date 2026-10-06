@@ -1,3 +1,4 @@
+import { getSelectedCompanyId, setSelectedCompanyId, subscribeSelectedCompany } from "../utils/companyContext";
 import { Fragment, useEffect, useMemo, useState } from "react";
 
 import PageCard from "../components/layout/PageCard";
@@ -208,11 +209,14 @@ function SettlementLinesTable({ settlement }) {
 export default function SocialSecuritySettlementsPage({ companies = [], initialSection = "settlements" }) {
   const [section, setSection] = useState(initialSection);
   const [form, setForm] = useState({
-    company_id: "",
+    company_id: getSelectedCompanyId(),
     ccc_id: "",
     period_month: DEFAULT_MONTH,
     period_year: DEFAULT_YEAR,
   });
+  useEffect(() => subscribeSelectedCompany((companyId) => {
+    setForm((previous) => ({ ...previous, company_id: companyId, ccc_id: "" }));
+  }), []);
   const [cccOptions, setCccOptions] = useState([]);
   const [settlements, setSettlements] = useState([]);
   const [selectedSettlement, setSelectedSettlement] = useState(null);
@@ -332,6 +336,7 @@ export default function SocialSecuritySettlementsPage({ companies = [], initialS
 
   const handleFormChange = (event) => {
     const { name, value } = event.target;
+    if (name === "company_id") setSelectedCompanyId(value);
     setForm((previous) => ({ ...previous, [name]: value }));
     setError("");
     setSuccess("");

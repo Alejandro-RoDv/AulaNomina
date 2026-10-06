@@ -1,3 +1,4 @@
+import { getSelectedCompanyId, setSelectedCompanyId, subscribeSelectedCompany } from "../utils/companyContext";
 import { useEffect, useMemo, useState } from "react";
 
 import PageCard from "../components/layout/PageCard";
@@ -122,7 +123,11 @@ export default function EmployeesPage({
   const [assignmentHistory, setAssignmentHistory] = useState([]);
   const [assignmentHistoryLoading, setAssignmentHistoryLoading] = useState(false);
   const [assignmentHistoryError, setAssignmentHistoryError] = useState("");
-  const [filters, setFilters] = useState({ id: "", name: "", dni: "", companyId: "", centerId: "", status: "" });
+  const [filters, setFilters] = useState({ id: "", name: "", dni: "", companyId: getSelectedCompanyId(), centerId: "", status: "" });
+  useEffect(() => subscribeSelectedCompany((companyId) => {
+    setFilters((previous) => ({ ...previous, companyId, centerId: "" }));
+    setRecordEmployeeId(""); setAssignmentHistory([]);
+  }), []);
 
   const hasSelectedCompany = Boolean(filters.companyId);
 
@@ -157,6 +162,7 @@ export default function EmployeesPage({
 
   const handleFilterChange = (event) => {
     const { name, value } = event.target;
+    if (name === "companyId") setSelectedCompanyId(value);
     setFilters((prev) => ({ ...prev, [name]: value, ...(name === "companyId" ? { centerId: "" } : {}) }));
     if (name === "companyId" || name === "centerId") {
       setRecordEmployeeId("");
@@ -165,7 +171,7 @@ export default function EmployeesPage({
   };
 
   const clearFilters = () => {
-    setFilters({ id: "", name: "", dni: "", companyId: "", centerId: "", status: "" });
+    setFilters({ id: "", name: "", dni: "", companyId: getSelectedCompanyId(), centerId: "", status: "" });
     setRecordEmployeeId("");
     if (typeof window !== "undefined") window.sessionStorage.removeItem("aulanomina:selectedEmployeeId");
   };

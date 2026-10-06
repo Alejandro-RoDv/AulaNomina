@@ -1,3 +1,4 @@
+import { createCenterDemo } from "../../utils/demoFormData";
 import { useEffect, useMemo, useState } from "react";
 
 import { createWorkCenter } from "../../services/workCenterApi";
@@ -61,13 +62,13 @@ export default function WorkCenterCreatePanel({
       setForm(EMPTY_FORM);
       return;
     }
-    setForm((current) => ({
-      ...current,
-      general_ccc: current.general_ccc || selectedCompany.ccc || "",
-      address: current.address || selectedCompany.address || "",
-      city: current.city || selectedCompany.city || "",
-      province: current.province || selectedCompany.province || "",
-      collective_agreement: current.collective_agreement || selectedCompany.main_collective_agreement || "",
+    setForm(() => ({
+      ...EMPTY_FORM,
+      general_ccc: selectedCompany.ccc || "",
+      address: selectedCompany.address || "",
+      city: selectedCompany.city || "",
+      province: selectedCompany.province || "",
+      collective_agreement: selectedCompany.main_collective_agreement || "",
     }));
   }, [selectedCompany]);
 
@@ -130,6 +131,12 @@ export default function WorkCenterCreatePanel({
 
   return (
     <form onSubmit={submit} className="work-center-create-form">
+      <div className="an-demo-fill">
+        <button type="button" disabled={submitting || !selectedCompany} onClick={() => {
+          setForm({ ...EMPTY_FORM, ...createCenterDemo(selectedCompany) }); setError(""); setSuccess("");
+        }}>Rellenar datos de prueba</button>
+        <small>{selectedCompany ? "Cada pulsación genera otro centro ficticio. Revisa y guarda cuando quieras." : "Selecciona una empresa para generar un centro."}</small>
+      </div>
       <div className="work-center-create-form__grid">
         <Field label="Empresa asociada" span="6">
           <select value={selectedCompanyId || ""} onChange={changeCompany} required>

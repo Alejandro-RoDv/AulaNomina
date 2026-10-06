@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { Bell, Menu, RefreshCw, Settings, X } from "lucide-react";
 
+import CompanySelector from "./CompanySelector";
+import ModuleNavigation from "./ModuleNavigation";
 import SiltraGlobalLauncher from "../siltra/SiltraGlobalLauncher";
 import { fetchContracts } from "../../services/api";
 import { fetchCompanies } from "../../services/companyApi";
@@ -28,27 +30,6 @@ const SOURCE_LABELS = {
   payroll: "Nóminas",
 };
 
-const workerTabs = [
-  { page: "employees", label: "Nuevo trabajador", titles: ["Nuevo trabajador"] },
-  { page: "employees-list", label: "Listado trabajadores", titles: ["Listado de trabajadores"] },
-  { page: "employee-record", label: "Expediente", titles: ["Expediente del trabajador"] },
-];
-
-const contractTabs = [
-  { mode: "new", label: "Nuevo contrato" },
-  { mode: "history", label: "Historial contratos" },
-  { mode: "print", label: "Impresión contratos" },
-];
-
-const contractTitles = new Set([
-  "Contratos",
-  "Nuevo contrato",
-  "Historial de contratos",
-  "Impresión de contratos",
-]);
-
-const overlayHashes = new Set(["#documents", "#alerts", "#reports"]);
-
 function getSeverityClass(severity) {
   if (["critical", "high", "medium", "low"].includes(severity)) return severity;
   return "low";
@@ -61,27 +42,10 @@ function formatDate(value) {
   return date.toLocaleDateString("es-ES");
 }
 
-function getStoredContractMode() {
-  if (typeof window === "undefined") return "new";
-  return window.sessionStorage.getItem("aulanomina:contractsMode") || "new";
-}
-
-function clearOverlayHash() {
-  if (typeof window === "undefined" || !overlayHashes.has(window.location.hash)) return;
-  window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
-  window.dispatchEvent(new Event("aulanomina-route-change"));
-}
-
-function openAppPage(page) {
-  clearOverlayHash();
-  window.dispatchEvent(new CustomEvent("aulanomina-open-page", { detail: { page } }));
-}
-
-function isWorkerTitle(title) {
-  return workerTabs.some((tab) => tab.titles.includes(title));
-}
-
 export default function Header({
+  activePage,
+  companies = [],
+  companiesLoading,
   title,
   subtitle,
   settingsOpen,
@@ -95,7 +59,6 @@ export default function Header({
   const [alertsOpen, setAlertsOpen] = useState(false);
   const [alertsLoading, setAlertsLoading] = useState(false);
   const [alertsError, setAlertsError] = useState("");
-  const [contractMode, setContractMode] = useState(getStoredContractMode);
   const [pageContext, setPageContext] = useState(null);
   const [alertData, setAlertData] = useState({
     documents: [],
@@ -113,8 +76,6 @@ export default function Header({
   const alerts = useMemo(() => groupAlertsForDisplay(generateAlerts(alertData)), [alertData]);
   const alertStats = useMemo(() => getAlertStats(alerts), [alerts]);
   const previewAlerts = alerts.slice(0, 5);
-  const showWorkerTabs = isWorkerTitle(effectiveTitle);
-  const showContractTabs = contractTitles.has(effectiveTitle) || effectiveEyebrow === "Contratación";
   const isPanel = effectiveTitle === "Dashboard";
   const displayTitle = isPanel ? "Panel" : effectiveTitle;
   const displaySubtitle = isPanel
@@ -145,14 +106,11 @@ export default function Header({
   useEffect(() => {
     loadHeaderAlerts();
     const handleRefresh = () => loadHeaderAlerts();
-    const handleContractMode = () => setContractMode(getStoredContractMode());
     const handleHeaderContext = (event) => setPageContext(event.detail || null);
     window.addEventListener("aulanomina-alerts-refresh", handleRefresh);
-    window.addEventListener("aulanomina-contract-mode", handleContractMode);
     window.addEventListener("aulanomina-header-context", handleHeaderContext);
     return () => {
       window.removeEventListener("aulanomina-alerts-refresh", handleRefresh);
-      window.removeEventListener("aulanomina-contract-mode", handleContractMode);
       window.removeEventListener("aulanomina-header-context", handleHeaderContext);
     };
   }, []);
@@ -161,15 +119,6 @@ export default function Header({
     setAlertsOpen(false);
     window.location.hash = "alerts";
     window.dispatchEvent(new Event("aulanomina-route-change"));
-  };
-
-  const changeContractTab = (mode) => {
-    window.sessionStorage.setItem("aulanomina:contractsMode", mode);
-    setContractMode(mode);
-    clearOverlayHash();
-    window.dispatchEvent(new Event("aulanomina-contract-mode"));
-    window.dispatchEvent(new Event("aulanomina-route-change"));
-    window.dispatchEvent(new CustomEvent("aulanomina-open-page", { detail: { page: "contracts" } }));
   };
 
   const alertTone = alertStats.critical > 0
@@ -190,10 +139,7 @@ export default function Header({
           >
             <Menu aria-hidden="true" />
           </button>
-          <div className="an-header__user">
-            <span className="an-header__context">Sesión activa</span>
-            <strong>Docente</strong>
-          </div>
+          <CompanySelector companies={companies} loading={companiesLoading} />
         </div>
 
         <div className="an-header__actions">
@@ -285,35 +231,7 @@ export default function Header({
         </div>
       </div>
 
-      {showWorkerTabs && (
-        <nav className="an-header__tabs" aria-label="Navegación trabajador">
-          {workerTabs.map((tab) => (
-            <button
-              key={tab.page}
-              type="button"
-              onClick={() => openAppPage(tab.page)}
-              className={`an-header__tab${tab.titles.includes(effectiveTitle) ? " is-active" : ""}`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </nav>
-      )}
-
-      {showContractTabs && (
-        <nav className="an-header__tabs" aria-label="Navegación contratos">
-          {contractTabs.map((tab) => (
-            <button
-              key={tab.mode}
-              type="button"
-              onClick={() => changeContractTab(tab.mode)}
-              className={`an-header__tab${contractMode === tab.mode ? " is-active" : ""}`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </nav>
-      )}
+      <ModuleNavigation activePage={activePage} />
 
       {settingsOpen && (
         <div className="an-header__modal-overlay" role="presentation">

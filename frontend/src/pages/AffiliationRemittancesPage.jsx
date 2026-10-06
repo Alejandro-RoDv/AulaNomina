@@ -1,3 +1,4 @@
+import { getSelectedCompanyId, setSelectedCompanyId, subscribeSelectedCompany } from "../utils/companyContext";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import PageCard from "../components/layout/PageCard";
@@ -30,7 +31,7 @@ function defaultFilters() {
     date_from: isoDate(new Date(today.getFullYear(), today.getMonth(), 1)),
     date_to: isoDate(today),
     movement_type: "",
-    company_id: "",
+    company_id: getSelectedCompanyId(),
     collective_agreement_id: "",
     employee_id: "",
   };
@@ -181,6 +182,11 @@ export default function AffiliationRemittancesPage({ initialSection = "movements
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
 
+  useEffect(() => subscribeSelectedCompany((companyId) => {
+    setFilters((previous) => ({ ...previous, company_id: companyId, employee_id: "" }));
+    setCandidates([]); setSelectedKeys(new Set()); setSelectedDraftId(""); setDraft(null); setSelectedFile(null);
+  }), []);
+
   const activeEmployees = useMemo(
     () => employees.filter((employee) => !filters.company_id || String(employee.company_id) === String(filters.company_id)),
     [employees, filters.company_id]
@@ -253,6 +259,7 @@ export default function AffiliationRemittancesPage({ initialSection = "movements
   }, [loadSelectedDraft, selectedDraftId]);
 
   const updateFilter = (field, value) => {
+    if (field === "company_id") setSelectedCompanyId(value);
     setFilters((previous) => ({
       ...previous,
       [field]: value,

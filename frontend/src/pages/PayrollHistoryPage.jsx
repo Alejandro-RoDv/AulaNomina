@@ -1,3 +1,4 @@
+import { useCompanySelection } from "../hooks/useCompanySelection";
 import { useEffect, useMemo, useState } from "react";
 
 import PayrollTable from "../components/payrolls/PayrollTable";
@@ -80,6 +81,7 @@ export default function PayrollHistoryPage({
   onDeletePayroll,
   payrollSubmitting,
 }) {
+  const [companyId] = useCompanySelection();
   const [localPayrolls, setLocalPayrolls] = useState(payrolls);
   const [refreshingPayrolls, setRefreshingPayrolls] = useState(false);
   const [refreshMessage, setRefreshMessage] = useState("");
@@ -147,6 +149,7 @@ export default function PayrollHistoryPage({
     const employeeFilter = normalizeText(filters.employee);
     const companyFilter = normalizeText(filters.company);
     return localPayrolls.filter((payroll) => {
+      if (companyId && String(payroll.company_id) !== companyId) return false;
       const matchesEmployee = !employeeFilter || normalizeText(getEmployeeSearchText(payroll)).includes(employeeFilter);
       const matchesCompany = !companyFilter || normalizeText(getCompanySearchText(payroll)).includes(companyFilter);
       const matchesYear = !filters.year || String(payroll.period_year) === String(filters.year);
@@ -154,7 +157,7 @@ export default function PayrollHistoryPage({
       const matchesStatus = !filters.status || String(payroll.status) === String(filters.status);
       return matchesEmployee && matchesCompany && matchesYear && matchesMonth && matchesStatus;
     });
-  }, [localPayrolls, filters, employees, companies, workCenters]);
+  }, [localPayrolls, companyId, filters, employees, companies, workCenters]);
 
   const totals = useMemo(() => {
     return filteredPayrolls.reduce((acc, payroll) => {

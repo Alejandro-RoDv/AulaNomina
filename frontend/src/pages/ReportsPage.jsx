@@ -1,3 +1,4 @@
+import { getSelectedCompanyId, setSelectedCompanyId as persistCompanyId, subscribeSelectedCompany } from "../utils/companyContext";
 import { useEffect, useMemo, useState } from "react";
 
 import PageCard from "../components/layout/PageCard";
@@ -273,15 +274,19 @@ function IncidentsTemplate({ employee, company, center, incidents }) {
 }
 
 export default function ReportsPage({ loading, employees, companies, workCenters, contracts, incidents, payrolls, documents = [] }) {
-  const [selectedEmployeeId, setSelectedEmployeeId] = useState(employees[0]?.id ? String(employees[0].id) : "");
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState("");
   const [selectedTemplate, setSelectedTemplate] = useState("employee-summary");
-  const [selectedCompanyId, setSelectedCompanyId] = useState("all");
+  const [selectedCompanyId, setSelectedCompanyId] = useState(() => getSelectedCompanyId() || "all");
   const [selectedCategory, setSelectedCategory] = useState("employee");
   const [selectedReportId, setSelectedReportId] = useState("employees-active");
   const [selectedYear, setSelectedYear] = useState("");
   const [selectedMonth, setSelectedMonth] = useState("");
   const [previewReport, setPreviewReport] = useState(null);
   const [exportMessage, setExportMessage] = useState("");
+
+  useEffect(() => subscribeSelectedCompany((companyId) => {
+    setSelectedCompanyId(companyId || "all"); setSelectedEmployeeId(""); setPreviewReport(null); setExportMessage("");
+  }), []);
 
   useEffect(() => {
     const storedPreset = window.sessionStorage.getItem("aulanomina:reportPreset");
@@ -291,7 +296,7 @@ export default function ReportsPage({ loading, employees, companies, workCenters
       const preset = JSON.parse(storedPreset);
       if (preset.category) setSelectedCategory(preset.category);
       if (preset.reportId) setSelectedReportId(preset.reportId);
-      if (preset.companyId) setSelectedCompanyId(String(preset.companyId));
+      if (preset.companyId) { persistCompanyId(preset.companyId === "all" ? "" : preset.companyId); setSelectedCompanyId(String(preset.companyId)); }
       if (preset.year) setSelectedYear(String(preset.year));
       if (preset.month) setSelectedMonth(String(preset.month).padStart(2, "0"));
       setPreviewReport(null);
@@ -302,16 +307,17 @@ export default function ReportsPage({ loading, employees, companies, workCenters
     }
   }, []);
 
-  const selectedEmployee = employees.find((employee) => String(employee.id) === String(selectedEmployeeId)) || employees[0];
-  const selectedContract = getActiveContract(contracts, selectedEmployee?.id);
-  const selectedCompany = getCompany(companies, selectedContract?.company_id || selectedEmployee?.company_id);
-  const selectedCenter = getCenter(workCenters, selectedContract?.center_id || selectedEmployee?.center_id);
 
   const companyScopedEmployees = useMemo(() => employees.filter((employee) => {
     if (selectedCompanyId === "all") return true;
     const contract = getActiveContract(contracts, employee.id);
     return Number(contract?.company_id || employee.company_id) === Number(selectedCompanyId);
   }), [employees, contracts, selectedCompanyId]);
+
+  const selectedEmployee = companyScopedEmployees.find((employee) => String(employee.id) === String(selectedEmployeeId)) || companyScopedEmployees[0];
+  const selectedContract = getActiveContract(contracts, selectedEmployee?.id);
+  const selectedCompany = getCompany(companies, selectedContract?.company_id || selectedEmployee?.company_id);
+  const selectedCenter = getCenter(workCenters, selectedContract?.center_id || selectedEmployee?.center_id);
 
   const companyScopedContracts = useMemo(() => contracts.filter((contract) => (
     selectedCompanyId === "all" || Number(contract.company_id) === Number(selectedCompanyId)
@@ -653,7 +659,7 @@ export default function ReportsPage({ loading, employees, companies, workCenters
             <div style={styles.filterGrid}>
               <div style={styles.controlGroup}>
                 <label style={styles.label}>Empresa</label>
-                <select value={selectedCompanyId} onChange={(event) => { setSelectedCompanyId(event.target.value); setExportMessage(""); setPreviewReport(null); }} style={styles.input}>
+                <select value={selectedCompanyId} onChange={(event) => { persistCompanyId(event.target.value === "all" ? "" : event.target.value); setSelectedCompanyId(event.target.value); setExportMessage(""); setPreviewReport(null); }} style={styles.input}>
                   <option value="all">Todas las empresas</option>
                   {companies.map((company) => <option key={company.id} value={company.id}>{company.name}</option>)}
                 </select>
@@ -743,8 +749,9 @@ export default function ReportsPage({ loading, employees, companies, workCenters
         <div className="reports-screen-only" style={styles.controls}>
           <div style={styles.controlGroup}>
             <label style={styles.label}>Trabajador</label>
-            <select value={selectedEmployeeId} onChange={(event) => setSelectedEmployeeId(event.target.value)} style={styles.input} disabled={loading || employees.length === 0}>
-              {employees.map((employee) => (
+            <select value={selectedEmployee?.id || ""} onChange={(event) => setSelectedEmployeeId(event.target.value)} style={styles.input} disabled={loading || companyScopedEmployees.length === 0}>
+              {!companyScopedEmployees.length && <option value="">Sin trabajadores en esta empresa</option>}
+              {companyScopedEmployees.map((employee) => (
                 <option key={employee.id} value={employee.id}>{getEmployeeName(employee)} · {employee.dni}</option>
               ))}
             </select>

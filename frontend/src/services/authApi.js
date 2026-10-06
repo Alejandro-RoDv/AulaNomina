@@ -1,3 +1,4 @@
+import { setSelectedCompanyId } from "../utils/companyContext.js";
 import { apiRequest } from "./httpClient.js";
 import {
   clearAuthSession,
@@ -21,6 +22,7 @@ export async function login(email, password) {
     },
     "No se ha podido iniciar sesión"
   );
+  setSelectedCompanyId("");
   storeAuthSession(response.access_token, response.user);
   window.dispatchEvent(new CustomEvent("aulanomina-auth-changed", { detail: response.user }));
   return response.user;
@@ -46,6 +48,7 @@ export async function logout() {
       await apiRequest("/auth/logout", { method: "POST" }, "No se ha podido cerrar la sesión");
     }
   } finally {
+    setSelectedCompanyId("");
     clearAuthSession();
     window.dispatchEvent(new Event("aulanomina-auth-changed"));
   }

@@ -1,3 +1,4 @@
+import { useCompanySelection } from "../hooks/useCompanySelection";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import PageCard from "../components/layout/PageCard";
@@ -57,16 +58,13 @@ function SummaryCard({ label, value, hint, accent = false }) {
 
 export default function SocialSecurityDashboardPage({ companies = [], onNavigate }) {
   const activeCompanies = useMemo(() => companies.filter((company) => company.is_active !== false), [companies]);
-  const [companyId, setCompanyId] = useState("");
+  const [companyId, setCompanyId] = useCompanySelection();
   const [settlements, setSettlements] = useState([]);
   const [communications, setCommunications] = useState([]);
   const [submissions, setSubmissions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    if (!companyId && activeCompanies.length > 0) setCompanyId(String(activeCompanies[0].id));
-  }, [activeCompanies, companyId]);
 
   const loadDashboard = useCallback(async () => {
     if (!companyId) {

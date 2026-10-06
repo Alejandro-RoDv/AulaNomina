@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { createContract, deleteContract, updateContract } from "../services/api";
-import { getSelectedCompanyId, setSelectedCompanyId } from "../utils/companyContext";
+import { getSelectedCompanyId, setSelectedCompanyId, subscribeSelectedCompany } from "../utils/companyContext";
 import {
   buildContractPayload,
   normalizeSocialSecurityPayload,
@@ -68,6 +68,9 @@ function cleanContractExtraForPersistence(contractExtra = {}) {
 
 export function useContractsModule({ onDataChanged }) {
   const [contractForm, setContractForm] = useState(contractFormWithContext);
+  useEffect(() => subscribeSelectedCompany((companyId) => {
+    setContractForm((previous) => previous.company_id === companyId ? previous : { ...previous, company_id: companyId, center_id: "", employee_id: "" });
+  }), []);
   const [contractSubmitting, setContractSubmitting] = useState(false);
   const [contractError, setContractError] = useState("");
   const [contractSuccess, setContractSuccess] = useState("");

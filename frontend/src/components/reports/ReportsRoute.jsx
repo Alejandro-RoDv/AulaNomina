@@ -1,3 +1,5 @@
+import { useCompanySelection } from "../../hooks/useCompanySelection";
+import ModuleNavigation from "../layout/ModuleNavigation";
 import { useEffect, useState } from "react";
 
 import Model190Workspace from "../model190/Model190Workspace";
@@ -22,6 +24,7 @@ function getRoute() {
 }
 
 export default function ReportsRoute() {
+  const [companyId] = useCompanySelection();
   const [route, setRoute] = useState(getRoute());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -121,9 +124,10 @@ export default function ReportsRoute() {
             <button type="button" style={styles.secondaryButton} onClick={() => { window.location.hash = ""; }}>Volver al panel</button>
           </div>
         </header>
+        <ModuleNavigation activePage="reports" groupId="tax-management" />
         <main style={styles.main}>
           {error ? <div style={styles.error}>{error}</div> : null}
-          {isModel190 ? <Model190Workspace companies={data.companies} /> : <Model111Page companies={data.companies} />}
+          {isModel190 ? <Model190Workspace key={companyId} companies={data.companies} /> : <Model111Page key={companyId} companies={data.companies} />}
         </main>
       </div>
     );
@@ -137,11 +141,8 @@ export default function ReportsRoute() {
           <h1 style={styles.title}>Informes</h1>
           <p style={styles.subtitle}>Documentos HTML imprimibles y listados exportables para Excel o LibreOffice.</p>
         </div>
-        <div style={styles.headerActions}>
-          <button type="button" style={styles.switchButton} onClick={() => { window.location.hash = "#model-190"; }}>Abrir Modelo 190</button>
-          <button type="button" style={styles.switchButton} onClick={() => { window.location.hash = "#model-111"; }}>Abrir Modelo 111</button>
-        </div>
       </header>
+      <ModuleNavigation activePage="reports" groupId="documents" />
       <main style={styles.main}>
         {error && <div style={styles.error}>{error}</div>}
         <ReportsPage loading={loading} {...data} />
