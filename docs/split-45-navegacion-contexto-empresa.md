@@ -42,3 +42,11 @@ La prueba de navegador utilizó una base SQLite aislada creada desde los modelos
 - Separación adicional de la barra de crear empresa respecto a IBAN y régimen fiscal.
 
 Validación de retoques: suite frontend completa (108 pruebas Node y smoke de convenios), compilación, pruebas de agregación sin cruces entre empresas y checksum IBAN, seed SQLite ejecutado dos veces sin duplicados, navegador con guardar/recargar/editar/eliminar plantilla y vista previa. No se validaron migraciones PostgreSQL ni sincronización entre navegadores.
+
+## Rework de Retribución
+
+Nuevo contrato usa ahora tres bloques: convenio/clasificación, salario base/pagas y complementos fijos. La referencia salarial muestra solo bases mensuales de la categoría elegida. El catálogo de complementos tiene búsqueda, selección explícita, origen e importe editable; evita duplicados y omite los conceptos de incidencias, atrasos, extras, indemnizaciones y salario base. Se mantienen conceptos manuales.
+
+Los importes de referencia son mensuales a jornada completa. El resumen aplica la jornada del contrato y muestra base, complementos, prorrata, mensualidad y anual. Prorratear redistribuye el anual en 12 mensualidades, sin reducirlo. El anual es una estimación con dos extras ordinarias; las reglas particulares de convenio se resuelven en nómina. Los ejemplos de contrato se ajustan a la nueva indicación explícita del salario de referencia.
+
+Verificado con tres pruebas adicionales de cálculo/filtro, suite frontend completa (114 pruebas Node más smoke de convenios), build, lint de los nuevos módulos y Chromium con complemento manual, eliminación, cambio de pagas y guardado del anual en un contrato parcial con alta SS. Persisten los errores anteriores de lint del formulario contenedor.
