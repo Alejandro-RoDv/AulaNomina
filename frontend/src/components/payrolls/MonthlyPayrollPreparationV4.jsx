@@ -1,10 +1,11 @@
 import { getSelectedCompanyId, setSelectedCompanyId, subscribeSelectedCompany } from "../../utils/companyContext";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { fetchContracts } from "../../services/api";
 import { fetchAllEmployees } from "../../services/employeeApi";
 import {
   createPayrollItem,
+  generatePayrolls,
   deletePayrollItem,
   ensurePayrollPreparation,
   fetchPayrollConcepts,
@@ -334,6 +335,7 @@ export default function MonthlyPayrollPreparationV4({ companies = [], workCenter
   const [catalogTargetRowId, setCatalogTargetRowId] = useState(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const reopeningPromise = useRef(null);
   const [reopening, setReopening] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
@@ -492,19 +494,25 @@ export default function MonthlyPayrollPreparationV4({ companies = [], workCenter
   const ensureEditable = async () => {
     if (!preparation) return null;
     if (!preparation.generated) return preparation;
+    if (reopeningPromise.current) return reopeningPromise.current;
     setReopening(true);
     setError("");
-    try {
-      const reopened = await reopenPayrollPreparation(preparation.payroll_id);
-      hydratePreparation(reopened);
-      setMessage("La nómina ha vuelto a borrador. Cuando termines los cambios tendrás que generarla de nuevo.");
-      return reopened;
-    } catch (err) {
-      setError(err.message || "No se pudo reabrir la nómina para editarla");
-      return null;
-    } finally {
-      setReopening(false);
-    }
+    const reopen = async () => {
+      try {
+        const reopened = await reopenPayrollPreparation(preparation.payroll_id);
+        setPreparation(reopened);
+        setMessage("La nómina ha vuelto a borrador. Cuando termines los cambios tendrás que generarla de nuevo.");
+        return reopened;
+      } catch (err) {
+        setError(err.message || "No se pudo reabrir la nómina para editarla");
+        return null;
+      } finally {
+        setReopening(false);
+        reopeningPromise.current = null;
+      }
+    };
+    reopeningPromise.current = reopen();
+    return reopeningPromise.current;
   };
 
   const markTouched = (line) => {
@@ -788,6 +796,34 @@ export default function MonthlyPayrollPreparationV4({ companies = [], workCenter
     setPreviewOpen(true);
   };
 
+  const handleGenerate = async () => {
+    if (!preparation || saving || reopening) return;
+    const saved = hasPendingChanges ? await persistPreparation({ announce: false }) : preparation;
+    if (!saved) return;
+    setSaving(true);
+    setError("");
+    try {
+      const result = await generatePayrolls({
+        period_month: Number(scope.period_month), period_year: Number(scope.period_year),
+        contract_ids: [Number(scope.contract_id)], recalculate_existing: true,
+      });
+      if (!result.generated_count) throw new Error(result.items?.[0]?.message || "No se ha podido recalcular la nómina.");
+      const updated = await ensurePayrollPreparation({ employee_id: Number(scope.employee_id), contract_id: Number(scope.contract_id), period_month: Number(scope.period_month), period_year: Number(scope.period_year) });
+      hydratePreparation(updated);
+      setMessage("Nómina recalculada y generada. El histórico ya muestra los importes actualizados.");
+      if (onPrepared) await onPrepared(updated);
+    } catch (err) { setError(err.message || "No se ha podido recalcular la nómina."); }
+    finally { setSaving(false); }
+  };
+
+  const removeLine = async (line) => {
+    const editable = await ensureEditable();
+    if (!editable) return;
+    markTouched(line);
+    setLineEdits((previous) => ({ ...previous, [line.id]: { quantity: "0", unit_price: "0", amount: "0" } }));
+    setMessage("Concepto excluido de esta nómina. Recalcula y genera para actualizar los importes.");
+  };
+
   const openHistory = () => {
     const params = new URLSearchParams();
     params.set("period", `${scope.period_year}-${String(scope.period_month).padStart(2, "0")}`);
@@ -932,6 +968,7 @@ export default function MonthlyPayrollPreparationV4({ companies = [], workCenter
                       </td>
                       <td className="cell-concept">
                         <strong>{line.name}</strong>
+                        {Number(edit.amount) === 0 && (isOverride || isTouched) && <small>Excluido de esta nómina</small>}
                         <small>{conceptFamily(line)}</small>
                       </td>
                       <td><input type="number" min="0" step="0.01" value={edit.quantity} onChange={(event) => handleExistingCell(line, "quantity", event.target.value)} disabled={reopening} /></td>
@@ -940,7 +977,8 @@ export default function MonthlyPayrollPreparationV4({ companies = [], workCenter
                       <td className="cell-action">
                         {changed && !isRestoring
                           ? <button type="button" title="Restablecer valor" onClick={() => restoreLine(line)} disabled={reopening}>↺</button>
-                          : <span>—</span>}
+                          : null}
+                        <button type="button" title="Quitar concepto de esta nómina" aria-label={`Quitar ${line.name}`} onClick={() => removeLine(line)} disabled={saving || reopening}>×</button>
                       </td>
                     </tr>
                   );
@@ -1004,7 +1042,8 @@ export default function MonthlyPayrollPreparationV4({ companies = [], workCenter
             <div className="payroll-sheet__action-buttons">
               {generated && <button type="button" className="payroll-s42__secondary" onClick={openHistory}>Abrir histórico</button>}
               <button type="button" className="payroll-s42__secondary" onClick={() => persistPreparation()} disabled={saving || reopening || !hasPendingChanges}>{saving ? "Guardando..." : "Guardar cambios"}</button>
-              <button type="button" className="payroll-s42__primary" onClick={handlePreview} disabled={saving || reopening}>{generated && !hasPendingChanges ? "Visualizar nómina" : "Previsualizar nómina"}</button>
+              <button type="button" className="payroll-s42__secondary" onClick={handlePreview} disabled={saving || reopening}>{generated && !hasPendingChanges ? "Visualizar nómina" : "Previsualizar nómina"}</button>
+              <button type="button" className="payroll-s42__primary" onClick={handleGenerate} disabled={saving || reopening}>{saving ? "Actualizando…" : "Recalcular y generar"}</button>
             </div>
           </footer>
         </section>

@@ -90,6 +90,7 @@ class PayrollPreparationStatusItem(BaseModel):
 
 
 class PayrollGenerationRequest(BaseModel):
+    recalculate_existing: bool = False
     period_month: int
     period_year: int
     company_ids: list[int] = Field(default_factory=list)

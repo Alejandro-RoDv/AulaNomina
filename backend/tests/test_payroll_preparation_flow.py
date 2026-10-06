@@ -206,6 +206,48 @@ class PayrollPreparationFlowTest(unittest.TestCase):
         self.assertEqual(payroll.employee_common_contingencies, Decimal("1.00"))
         self.assertGreater(payroll.net_salary, Decimal("0.00"))
 
+    def test_deduction_override_survives_repeated_generation(self):
+        request = PayrollGenerationRequest(period_month=8, period_year=2026, contract_ids=[self.contract.id], recalculate_existing=True)
+        first = generate_payrolls(self.db, request)
+        payroll_id = first["items"][0]["payroll_id"]
+        line = next(line for line in get_preparation(self.db, payroll_id)["lines"] if line["code"] == "SS_CONTINGENCIAS_COMUNES")
+        update_payroll_item(self.db, line["id"], PayrollItemUpdate(amount=1))
+        for _ in range(2):
+            generate_payrolls(self.db, request)
+            self.assertEqual(get_payroll(self.db, payroll_id).employee_common_contingencies, Decimal("1"))
+        matching = [line for line in get_preparation(self.db, payroll_id)["lines"] if line["code"] == "SS_CONTINGENCIAS_COMUNES"]
+        self.assertEqual(len(matching), 1)
+
+    def test_regeneration_updates_same_record_preserves_overrides_and_removals(self):
+        from app.models.payroll import Payroll
+        from app.models.payroll_salary_structure import PayrollItem
+        request = PayrollGenerationRequest(period_month=8, period_year=2026, contract_ids=[self.contract.id], recalculate_existing=True)
+        first = generate_payrolls(self.db, request)
+        payroll_id = first["items"][0]["payroll_id"]
+        base = next(line for line in get_preparation(self.db, payroll_id)["lines"] if line["code"] == "SALARIO_BASE")
+        update_payroll_item(self.db, base["id"], PayrollItemUpdate(amount=Decimal("2000"), notes=PREPARATION_OVERRIDE_MARKER))
+        self.assertEqual(get_payroll(self.db, payroll_id).status, "draft")
+        added = create_payroll_item(self.db, payroll_id, PayrollItemCreate(concept_id=self.diet.id, quantity=1, amount=60))
+        second = generate_payrolls(self.db, request)
+        self.assertEqual(second["items"][0]["payroll_id"], payroll_id)
+        self.assertEqual(get_payroll(self.db, payroll_id).gross_salary, Decimal("2160"))
+        update_payroll_item(self.db, base["id"], PayrollItemUpdate(amount=0, notes=PREPARATION_OVERRIDE_MARKER))
+        from app.crud.payroll_salary_structure import delete_payroll_item
+        delete_payroll_item(self.db, added.id)
+        self.contract.status = "ended"
+        self.employee.is_active = False
+        self.db.commit()
+        third = generate_payrolls(self.db, request)
+        self.assertEqual(third["generated_count"], 1)
+        self.assertEqual(third["items"][0]["payroll_id"], payroll_id)
+        self.assertEqual(get_payroll(self.db, payroll_id).gross_salary, Decimal("100"))
+        fourth = generate_payrolls(self.db, request)
+        self.assertEqual(fourth["generated_count"], 1)
+        self.assertEqual(get_payroll(self.db, payroll_id).gross_salary, Decimal("100"))
+        self.assertEqual(self.db.query(Payroll).count(), 1)
+        self.assertEqual(self.db.query(PayrollItem).filter(PayrollItem.id == base["id"]).one().amount, 0)
+
+
 
 if __name__ == "__main__":
     unittest.main()

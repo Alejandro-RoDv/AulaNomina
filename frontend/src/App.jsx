@@ -415,6 +415,7 @@ export default function App() {
     if (activePage === "payroll-simulation") {
       return (
         <PayrollSimulationPage
+          onGenerated={loadData}
           employees={employees.filter((employee) => employee.is_active)}
           contracts={contracts}
         />

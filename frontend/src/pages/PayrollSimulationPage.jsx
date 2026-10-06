@@ -55,11 +55,11 @@ function sourceLabel(value) {
 
 function preparationLabel(status) {
   if (!status) return { label: "Automática", tone: "automatic" };
-  if (status.generated) return { label: "Generada", tone: "generated" };
+  if (status.generated) return { label: "Generada · se puede recalcular", tone: "generated" };
   return { label: "Preparada", tone: "prepared" };
 }
 
-export default function PayrollSimulationPage({ employees = [], contracts = [] }) {
+export default function PayrollSimulationPage({ employees = [], contracts = [], onGenerated }) {
   const [period, setPeriod] = useState({
     period_month: String(currentMonth),
     period_year: String(currentYear),
@@ -143,9 +143,8 @@ export default function PayrollSimulationPage({ employees = [], contracts = [] }
 
   const eligibleContractIds = useMemo(
     () => activeContracts
-      .filter((contract) => !statusMap.get(String(contract.id))?.generated)
       .map((contract) => Number(contract.id)),
-    [activeContracts, statusMap]
+    [activeContracts]
   );
 
   useEffect(() => {
@@ -195,10 +194,12 @@ export default function PayrollSimulationPage({ employees = [], contracts = [] }
         period_month: Number(period.period_month),
         period_year: Number(period.period_year),
         contract_ids: selectedContracts,
+        recalculate_existing: true,
       });
       setResult(data);
       setSelectedContracts([]);
       await loadPreparationStatuses();
+      if (onGenerated) await onGenerated(data);
     } catch (err) {
       setError(err.message || "No se pudieron generar las nóminas");
     } finally {
@@ -290,7 +291,7 @@ export default function PayrollSimulationPage({ employees = [], contracts = [] }
                   const checked = selectedContracts.includes(Number(contract.id));
                   const status = statusMap.get(String(contract.id));
                   const statusInfo = preparationLabel(status);
-                  const disabled = Boolean(status?.generated);
+                  const disabled = submitting;
                   return (
                     <div className={`payroll-generation__worker${disabled ? " is-generated" : ""}`} key={contract.id}>
                       <label>
@@ -315,8 +316,8 @@ export default function PayrollSimulationPage({ employees = [], contracts = [] }
         <footer className="payroll-generation__actions">
           <span>
             {isExtraPeriod
-              ? "Generar crea la paga extraordinaria definitiva según las reglas del convenio y la incorpora al histórico."
-              : "Generar crea la versión definitiva del periodo y la incorpora al histórico."}
+              ? "Generar crea la paga extra o recalcula sus conceptos guardados si ya existe, sin duplicar el registro."
+              : "Generar recalcula las nóminas seleccionadas con los conceptos guardados y actualiza el mismo registro del histórico."}
           </span>
           <button type="button" className="payroll-s42__primary" onClick={handleGenerate} disabled={!selectedContracts.length || submitting}>
             {submitting ? "Generando..." : `Generar ${selectedContracts.length || ""} nómina${selectedContracts.length === 1 ? "" : "s"}`}

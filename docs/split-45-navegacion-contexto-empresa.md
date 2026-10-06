@@ -62,3 +62,13 @@ Verificado con tres pruebas adicionales de cálculo/filtro, suite frontend compl
 - Embargos dispone del conjunto completo de trabajadores/contratos para que su contexto de empresa sea independiente de la cabecera. Calculadora actualizada con bordes suaves, fondos claros y acciones azules; las fórmulas se conservan.
 
 Validación: 119 pruebas Node más smoke de convenios; 15 pruebas backend (histórico contractual, ciclo de incidencias y puente de nómina); build y lint de componentes/helpers nuevos. Navegador con API SQLite: tres pulsaciones de borrador crean un único contrato, vistas de contratación independientes, horas extra manuales guardadas, versión anterior consultable, empresa distinta en embargos y calculadora integrada. El entorno SQLite no tenía SMI sembrado: se verificó la presentación de la calculadora, y la aritmética con sus cinco pruebas existentes. No se ha probado PostgreSQL ni despliegue de producción; persiste el aviso previo de tamaño del bundle.
+
+## Recálculo de nóminas y carga del histórico
+
+El histórico consulta la API al abrirse y al cambiar de empresa, descarta respuestas antiguas y actualiza la lista tras editar, eliminar, regularizar o recalcular. La generación también actualiza los datos compartidos de la aplicación.
+
+Preparación mensual incorpora «Recalcular y generar», guarda los cambios pendientes y actualiza la nómina del mismo contrato/periodo. «Quitar» excluye el concepto con un ajuste a cero, conservando su valor original para restablecerlo. La reapertura conserva las filas nuevas y evita peticiones simultáneas de reapertura. El histórico ofrece «Recalcular» por nómina y el listado de generación permite seleccionar las ya generadas.
+
+La API acepta `recalculate_existing` de forma explícita; conserva la prevención de duplicados para otros clientes. Los cambios de conceptos devuelven la nómina a borrador. El recálculo mantiene los ajustes manuales de cotizaciones/bases/deducciones y las exclusiones, incrementa la versión de cálculo y conserva el ID. También permite actualizar conceptos guardados en pagas extra existentes y nóminas históricas cuyo contrato ya ha terminado.
+
+Validación: 119 pruebas Node más smoke de convenios, 15 pruebas backend (preparación, paga extra, puente de incidencias y prorrata), build y recorrido Chromium con API real SQLite: editar salario, generar, añadir concepto a nómina generada, volver a generar, excluir concepto, recalcular desde histórico, regenerar desde listado y entrar varias veces al histórico sin actualizar manualmente. Lint limpio en Histórico, tabla y preparación V4; persisten dos errores previos de efectos en la página de generación. No se ha probado despliegue PostgreSQL.
