@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { generatePayrolls } from "../services/payrollApi";
 import { fetchPayrollPreparationStatuses } from "../services/payrollPreparationApi";
@@ -59,12 +59,16 @@ function preparationLabel(status) {
   return { label: "Preparada", tone: "prepared" };
 }
 
-export default function PayrollSimulationPage({ employees = [], contracts = [], onGenerated }) {
+export default function PayrollSimulationPage({ companies = [], initialCompanyId = "", employees = [], contracts = [], onGenerated }) {
   const [period, setPeriod] = useState({
     period_month: String(currentMonth),
     period_year: String(currentYear),
   });
-  const [selectedContracts, setSelectedContracts] = useState([]);
+  const [scope, setScope] = useState("single");
+  const [singleCompanyId, setSingleCompanyId] = useState(String(initialCompanyId || ""));
+  const [companyIds, setCompanyIds] = useState([]);
+  const [excludedContracts, setExcludedContracts] = useState([]);
+  const statusRequest = useRef(0);
   const [preparationStatuses, setPreparationStatuses] = useState([]);
   const [statusLoading, setStatusLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -85,20 +89,24 @@ export default function PayrollSimulationPage({ employees = [], contracts = [], 
   }, []);
 
   const loadPreparationStatuses = useCallback(async () => {
+    const requestId = ++statusRequest.current;
     try {
       setStatusLoading(true);
       const data = await fetchPayrollPreparationStatuses(period.period_month, period.period_year);
+      if (requestId !== statusRequest.current) return;
       setPreparationStatuses(Array.isArray(data) ? data : []);
     } catch (err) {
+      if (requestId !== statusRequest.current) return;
       setError(err.message || "No se pudo cargar el estado del periodo");
       setPreparationStatuses([]);
     } finally {
-      setStatusLoading(false);
+      if (requestId === statusRequest.current) setStatusLoading(false);
     }
   }, [period.period_month, period.period_year]);
 
   useEffect(() => {
-    loadPreparationStatuses();
+    const timer = setTimeout(loadPreparationStatuses, 0);
+    return () => { clearTimeout(timer); statusRequest.current += 1; };
   }, [loadPreparationStatuses]);
 
   const statusMap = useMemo(
@@ -111,9 +119,20 @@ export default function PayrollSimulationPage({ employees = [], contracts = [], 
     [employees]
   );
 
+  const availableCompanies = useMemo(() => companies
+    .filter((company) => company.is_active !== false && company.status !== "baja_definitiva")
+    .slice().sort((a, b) => a.name.localeCompare(b.name, "es")), [companies]);
+  const availableCompanyIds = useMemo(() => availableCompanies.map((company) => String(company.id)), [availableCompanies]);
+  const effectiveCompanyId = availableCompanyIds.includes(singleCompanyId) ? singleCompanyId : (availableCompanyIds[0] || "");
+  const scopeCompanyIds = useMemo(() => scope === "all" ? availableCompanyIds
+    : scope === "single" ? [effectiveCompanyId].filter(Boolean)
+      : companyIds.filter((id) => availableCompanyIds.includes(id)),
+  [scope, availableCompanyIds, effectiveCompanyId, companyIds]);
+  const companyMap = useMemo(() => new Map(companies.map((company) => [String(company.id), company])), [companies]);
+
   const activeContracts = useMemo(
-    () => contracts.filter((contract) => contract.status === "active" && employeeMap.get(String(contract.employee_id))?.is_active),
-    [contracts, employeeMap]
+    () => contracts.filter((contract) => contract.status === "active" && employeeMap.get(String(contract.employee_id))?.is_active && scopeCompanyIds.includes(String(contract.company_id))),
+    [contracts, employeeMap, scopeCompanyIds]
   );
 
   const groupedContracts = useMemo(() => {
@@ -123,7 +142,7 @@ export default function PayrollSimulationPage({ employees = [], contracts = [], 
       if (!groups.has(key)) {
         groups.set(key, {
           company_id: contract.company_id,
-          company_name: contract.company_name || `Empresa ${contract.company_id}`,
+          company_name: companyMap.get(key)?.name || contract.company_name || `Empresa ${contract.company_id}`,
           contracts: [],
         });
       }
@@ -139,7 +158,7 @@ export default function PayrollSimulationPage({ employees = [], contracts = [], 
         }),
       }))
       .sort((a, b) => a.company_name.localeCompare(b.company_name, "es"));
-  }, [activeContracts, employeeMap]);
+  }, [activeContracts, employeeMap, companyMap]);
 
   const eligibleContractIds = useMemo(
     () => activeContracts
@@ -147,45 +166,46 @@ export default function PayrollSimulationPage({ employees = [], contracts = [], 
     [activeContracts]
   );
 
-  useEffect(() => {
-    setSelectedContracts((previous) => previous.filter((id) => eligibleContractIds.includes(id)));
-  }, [eligibleContractIds]);
+  const selectedContracts = useMemo(() => {
+    const excluded = new Set(excludedContracts);
+    return eligibleContractIds.filter((id) => !excluded.has(id));
+  }, [eligibleContractIds, excludedContracts]);
+  const selectedContractSet = useMemo(() => new Set(selectedContracts), [selectedContracts]);
+  const selectedCompanyCount = new Set(activeContracts.filter((contract) => selectedContractSet.has(Number(contract.id))).map((contract) => contract.company_id)).size;
 
+  const clearSelectionChanges = () => { setExcludedContracts([]); setResult(null); setError(""); };
+  const changeScope = (value) => { setScope(value); clearSelectionChanges(); };
+  const toggleScopeCompany = (id) => {
+    setCompanyIds((previous) => previous.includes(id) ? previous.filter((value) => value !== id) : [...previous, id]);
+    clearSelectionChanges();
+  };
   const toggleContract = (contractId) => {
-    const numericId = Number(contractId);
-    if (!eligibleContractIds.includes(numericId)) return;
-    setSelectedContracts((previous) => previous.includes(numericId)
-      ? previous.filter((id) => id !== numericId)
-      : [...previous, numericId]);
+    const id = Number(contractId);
+    setExcludedContracts((previous) => previous.includes(id) ? previous.filter((value) => value !== id) : [...previous, id]);
     setResult(null);
   };
-
   const toggleCompany = (group) => {
-    const ids = group.contracts
-      .map((contract) => Number(contract.id))
-      .filter((id) => eligibleContractIds.includes(id));
-    const allSelected = ids.length > 0 && ids.every((id) => selectedContracts.includes(id));
-    setSelectedContracts((previous) => allSelected
-      ? previous.filter((id) => !ids.includes(id))
-      : Array.from(new Set([...previous, ...ids])));
+    const ids = group.contracts.map((contract) => Number(contract.id));
+    const allSelected = ids.every((id) => selectedContractSet.has(id));
+    setExcludedContracts((previous) => allSelected ? Array.from(new Set([...previous, ...ids])) : previous.filter((id) => !ids.includes(id)));
     setResult(null);
   };
-
   const toggleAll = () => {
-    const allSelected = eligibleContractIds.length > 0 && eligibleContractIds.every((id) => selectedContracts.includes(id));
-    setSelectedContracts(allSelected ? [] : eligibleContractIds);
+    setExcludedContracts(selectedContracts.length === eligibleContractIds.length ? eligibleContractIds : []);
     setResult(null);
   };
 
   const handlePeriodChange = (field, value) => {
     setPeriod((previous) => ({ ...previous, [field]: value }));
-    setSelectedContracts([]);
+    setExcludedContracts([]);
     setResult(null);
     setError("");
   };
 
   const handleGenerate = async () => {
-    if (!selectedContracts.length) return;
+    if (!selectedContracts.length || submitting) return;
+    const year = Number(period.period_year);
+    if (!Number.isInteger(year) || year < 2000 || year > 2100) { setError("Introduce un año entre 2000 y 2100."); return; }
     setError("");
     setResult(null);
     try {
@@ -193,11 +213,11 @@ export default function PayrollSimulationPage({ employees = [], contracts = [], 
       const data = await generatePayrolls({
         period_month: Number(period.period_month),
         period_year: Number(period.period_year),
+        company_ids: scopeCompanyIds.map(Number),
         contract_ids: selectedContracts,
         recalculate_existing: true,
       });
       setResult(data);
-      setSelectedContracts([]);
       await loadPreparationStatuses();
       if (onGenerated) await onGenerated(data);
     } catch (err) {
@@ -206,6 +226,19 @@ export default function PayrollSimulationPage({ employees = [], contracts = [], 
       setSubmitting(false);
     }
   };
+
+  const resultCompanies = useMemo(() => {
+    const groups = new Map();
+    for (const item of result?.items || []) {
+      const key = String(item.company_id);
+      if (!groups.has(key)) groups.set(key, { id: key, name: item.company_name || companyMap.get(key)?.name || `Empresa ${key}`, generated: 0, skipped: 0, existing: 0 });
+      const group = groups.get(key);
+      if (item.status === "skipped") group.skipped += 1;
+      else if (item.source === "existing") group.existing += 1;
+      else group.generated += 1;
+    }
+    return Array.from(groups.values());
+  }, [result, companyMap]);
 
   const openHistory = () => {
     const params = new URLSearchParams();
@@ -227,14 +260,36 @@ export default function PayrollSimulationPage({ employees = [], contracts = [], 
                 : "Las preparaciones guardadas conservan sus últimos conceptos. El resto se calcula automáticamente desde contrato, permanentes e incidencias."}
             </p>
           </div>
-          <button type="button" className="payroll-s42__secondary" onClick={toggleAll} disabled={!eligibleContractIds.length}>
-            {eligibleContractIds.length && eligibleContractIds.every((id) => selectedContracts.includes(id)) ? "Deseleccionar todas" : "Seleccionar todas"}
+          <button type="button" className="payroll-s42__secondary" onClick={toggleAll} disabled={submitting || !eligibleContractIds.length}>
+            {eligibleContractIds.length && eligibleContractIds.every((id) => selectedContractSet.has(id)) ? "Deseleccionar todas" : "Seleccionar todas"}
           </button>
         </div>
+        <fieldset className="payroll-generation__company-scope" disabled={submitting}>
+          <legend>Empresas para la generación</legend>
+          <div className="payroll-generation__scope-options">
+            {[["single", "Una empresa"], ["group", "Un grupo de empresas"], ["all", "Todas las empresas"]].map(([value, label]) => (
+              <label key={value}><input type="radio" name="generation-scope" value={value} checked={scope === value} onChange={() => changeScope(value)} />{label}</label>
+            ))}
+          </div>
+          {scope === "single" && <label className="payroll-generation__single-company"><span>Empresa</span>
+            <select value={effectiveCompanyId} onChange={(event) => { setSingleCompanyId(event.target.value); clearSelectionChanges(); }}>
+              {!availableCompanies.length && <option value="">Sin empresas disponibles</option>}
+              {availableCompanies.map((company) => <option key={company.id} value={company.id}>{company.name}</option>)}
+            </select>
+          </label>}
+          {scope === "group" && <div className="payroll-generation__company-choices">
+            {availableCompanies.map((company) => <label key={company.id}>
+              <input type="checkbox" checked={companyIds.includes(String(company.id))} onChange={() => toggleScopeCompany(String(company.id))} />
+              <span>{company.name}<small>{company.cif}</small></span>
+            </label>)}
+          </div>}
+          <p>{scopeCompanyIds.length} empresa{scopeCompanyIds.length === 1 ? "" : "s"} en el ámbito de generación. Puedes ajustar los trabajadores antes de generar.</p>
+          <p>La selección de este apartado es independiente de la empresa de trabajo de la cabecera.</p>
+        </fieldset>
         <div className="payroll-generation__period-grid">
           <label>
             <span>Periodo</span>
-            <select value={period.period_month} onChange={(event) => handlePeriodChange("period_month", event.target.value)}>
+            <select disabled={submitting} value={period.period_month} onChange={(event) => handlePeriodChange("period_month", event.target.value)}>
               <optgroup label="Nóminas mensuales">
                 {MONTHS.map((name, index) => {
                   const month = index + 1;
@@ -248,7 +303,7 @@ export default function PayrollSimulationPage({ employees = [], contracts = [], 
           </label>
           <label>
             <span>Año</span>
-            <input type="number" value={period.period_year} onChange={(event) => handlePeriodChange("period_year", event.target.value)} />
+            <input type="number" min="2000" max="2100" disabled={submitting} value={period.period_year} onChange={(event) => handlePeriodChange("period_year", event.target.value)} />
           </label>
         </div>
       </section>
@@ -259,7 +314,7 @@ export default function PayrollSimulationPage({ employees = [], contracts = [], 
         <header className="payroll-generation__workspace-header">
           <div>
             <span>PLANTILLA ACTIVA</span>
-            <h2>{selectedContracts.length} seleccionadas · {eligibleContractIds.length} disponibles</h2>
+            <h2>{selectedContracts.length} nómina{selectedContracts.length === 1 ? " seleccionada" : "s seleccionadas"} · {selectedCompanyCount} empresa{selectedCompanyCount === 1 ? "" : "s"}</h2>
             <p>
               {statusLoading
                 ? "Comprobando el estado del periodo..."
@@ -274,13 +329,13 @@ export default function PayrollSimulationPage({ employees = [], contracts = [], 
           const ids = group.contracts
             .map((contract) => Number(contract.id))
             .filter((id) => eligibleContractIds.includes(id));
-          const selectedCount = ids.filter((id) => selectedContracts.includes(id)).length;
+          const selectedCount = ids.filter((id) => selectedContractSet.has(id)).length;
           const allSelected = ids.length > 0 && selectedCount === ids.length;
           return (
             <section className="payroll-generation__company" key={group.company_id || group.company_name}>
               <div className="payroll-generation__company-header">
                 <label>
-                  <input type="checkbox" checked={allSelected} disabled={!ids.length} onChange={() => toggleCompany(group)} />
+                  <input type="checkbox" checked={allSelected} disabled={submitting || !ids.length} onChange={() => toggleCompany(group)} />
                   <strong>{group.company_name}</strong>
                 </label>
                 <small>{selectedCount} de {ids.length} disponibles seleccionadas</small>
@@ -288,7 +343,7 @@ export default function PayrollSimulationPage({ employees = [], contracts = [], 
               <div className="payroll-generation__workers">
                 {group.contracts.map((contract) => {
                   const employee = employeeMap.get(String(contract.employee_id));
-                  const checked = selectedContracts.includes(Number(contract.id));
+                  const checked = selectedContractSet.has(Number(contract.id));
                   const status = statusMap.get(String(contract.id));
                   const statusInfo = preparationLabel(status);
                   const disabled = submitting;
@@ -311,7 +366,7 @@ export default function PayrollSimulationPage({ employees = [], contracts = [], 
           );
         })}
 
-        {groupedContracts.length === 0 && <div className="payroll-prep__message">No hay contratos activos disponibles para generar nóminas.</div>}
+        {groupedContracts.length === 0 && <div className="payroll-prep__message">No hay contratos activos disponibles en las empresas seleccionadas.</div>}
 
         <footer className="payroll-generation__actions">
           <span>
@@ -340,10 +395,13 @@ export default function PayrollSimulationPage({ employees = [], contracts = [], 
             <div><span>Ya existentes</span><strong>{result.existing_count}</strong></div>
             <div><span>Omitidas</span><strong>{result.skipped_count}</strong></div>
           </div>
+          <div className="payroll-generation__company-results">
+            {resultCompanies.map((company) => <div key={company.id}><strong>{company.name}</strong><span>{company.generated} generadas · {company.existing} existentes · {company.skipped} omitidas</span></div>)}
+          </div>
           <div>
             {(result.items || []).map((item, index) => (
               <div className="payroll-generation__result-row" key={`${item.contract_id}-${index}`}>
-                <strong>{item.employee_name || `Trabajador ${item.employee_id}`}</strong>
+                <strong>{item.employee_name || `Trabajador ${item.employee_id}`}<small className="payroll-generation__result-company">{item.company_name || companyMap.get(String(item.company_id))?.name}</small></strong>
                 <span>{item.contract_code || "-"}</span>
                 <span>{sourceLabel(item.source)}</span>
                 <span>{item.message || (item.status === "calculated" ? "Generada correctamente" : item.status)}</span>

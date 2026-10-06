@@ -78,3 +78,9 @@ Validación: 119 pruebas Node más smoke de convenios, 15 pruebas backend (prepa
 El selector compartido utiliza azul claro para el botón, el borde, el desplegable y la selección activa. La cabecera deja margen vertical y se adapta en móvil. CRA, FIE, Documentos, Informes y Trabajadores toman la altura real de la barra superior mediante ResizeObserver, evitando que sus paneles fijos recorten el selector. Los paneles conservan su cabecera propia y quedan debajo de la barra superior.
 
 Validación: compilación frontend y comprobación en navegador de Seguros sociales, Liquidaciones, Ficheros generados, CRA, Comunicaciones FIE, Fiscalidad, Documentación y selector móvil, incluidos apertura, selección activa y cierre con Escape.
+
+### Generación masiva por empresas
+
+Generar nóminas permite elegir una empresa, un grupo de empresas marcado mediante casillas o todas las empresas activas. Recibe los contratos y trabajadores completos en lugar de los filtrados por la empresa global. La empresa de la cabecera sirve como selección inicial; los cambios en el ámbito de generación son independientes. Se seleccionan los contratos activos y se pueden excluir trabajadores antes de generar. El envío incluye company_ids y contract_ids explícitos, y mantiene recalculate_existing para actualizar el mismo registro sin duplicarlo. El resultado muestra resumen por empresa y empresa de cada trabajador, con los motivos de omisión. Los controles se bloquean durante el envío. Se conserva la selección para poder repetir la generación.
+
+Validación: build, lint de PayrollSimulationPage, 13 pruebas test:split45 y navegador con tres empresas activas y una inactiva: generación de una empresa distinta de la global, grupo de dos empresas, todas las activas, exclusión de trabajadores y recálculo conservando los mismos IDs.
