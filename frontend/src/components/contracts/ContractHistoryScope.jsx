@@ -33,6 +33,7 @@ function readCaseContext() {
 }
 
 export default function ContractHistoryScope({
+  mode = "history",
   loading,
   contracts,
   employees,
@@ -129,19 +130,19 @@ export default function ContractHistoryScope({
             <span>{scopedContracts.length} contratos encontrados</span>
           </div>
 
-          <ContractLifecycleWorkspace
+          {mode === "lifecycle" && <ContractLifecycleWorkspace
             contracts={scopedContracts}
             employees={scopedEmployees}
             onUpdateContract={onUpdateContract}
             submitting={submitting}
-          />
+          />}
 
-          <EmploymentTerminationWorkspace
+          {mode === "termination" && <EmploymentTerminationWorkspace
             contracts={scopedContracts}
             employees={scopedEmployees}
-          />
+          />}
 
-          <section className="contract-history-workspace" aria-label={`Historial de contratos de ${selectedCompany?.name || "la empresa"}`}>
+          {mode === "history" && <section className="contract-history-workspace" aria-label={`Historial de contratos de ${selectedCompany?.name || "la empresa"}`}>
             <ContractTable
               loading={loading}
               contracts={scopedContracts}
@@ -152,7 +153,7 @@ export default function ContractHistoryScope({
               onDeleteContract={onDeleteContract}
               submitting={submitting}
             />
-          </section>
+          </section>}
         </>
       )}
     </div>

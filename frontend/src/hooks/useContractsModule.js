@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { createContract, deleteContract, updateContract } from "../services/api";
 import { getSelectedCompanyId, setSelectedCompanyId, subscribeSelectedCompany } from "../utils/companyContext";
@@ -67,8 +67,11 @@ function cleanContractExtraForPersistence(contractExtra = {}) {
 }
 
 export function useContractsModule({ onDataChanged }) {
+  const savingRef = useRef(false);
+  const savedDraftRef = useRef(false);
   const [contractForm, setContractForm] = useState(contractFormWithContext);
   useEffect(() => subscribeSelectedCompany((companyId) => {
+    savedDraftRef.current = false;
     setContractForm((previous) => previous.company_id === companyId ? previous : { ...previous, company_id: companyId, center_id: "", employee_id: "" });
   }), []);
   const [contractSubmitting, setContractSubmitting] = useState(false);
@@ -77,13 +80,19 @@ export function useContractsModule({ onDataChanged }) {
 
   const handleContractChange = (event) => {
     const { name, value } = event.target;
+    savedDraftRef.current = false;
     if (name === "company_id") setSelectedCompanyId(value);
     setContractForm((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleContractSubmit = async (event, advancedPayload = {}) => {
     event.preventDefault();
+    if (savingRef.current) return;
     setContractError("");
+    if (savedDraftRef.current && !contractForm.employee_id && !contractForm.contract_type && !contractForm.start_date) {
+      setContractSuccess("Borrador ya guardado");
+      return;
+    }
     setContractSuccess("");
 
     const contractExtra = advancedPayload.contractExtra || {};
@@ -102,18 +111,21 @@ export function useContractsModule({ onDataChanged }) {
     }
 
     try {
+      savingRef.current = true;
       setContractSubmitting(true);
       await createContract(
         buildContractPayload(contractForm, cleanContractExtra),
         normalizeSocialSecurityPayload(socialSecurityPayload),
         salaryLines
       );
-      setContractSuccess("Contrato, alta SS y estructura retributiva creados correctamente");
+      savedDraftRef.current = cleanContractExtra.status === "draft";
+      setContractSuccess(savedDraftRef.current ? "Borrador guardado correctamente" : "Contrato, alta SS y estructura retributiva creados correctamente");
       setContractForm(contractFormWithContext());
       await onDataChanged();
     } catch (err) {
       setContractError(err.message || "Error al crear contrato");
     } finally {
+      savingRef.current = false;
       setContractSubmitting(false);
     }
   };

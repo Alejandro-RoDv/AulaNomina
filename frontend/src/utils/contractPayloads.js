@@ -96,7 +96,12 @@ export function validateContractWorkflow(form, contractExtra = {}, socialSecurit
   const reductionStart = contractExtra.legal_workday_reduction_start;
   const reductionEnd = contractExtra.legal_workday_reduction_end;
 
-  if (status === "draft") return [];
+  if (status === "draft") {
+    if (!form.employee_id) errors.push("Selecciona un trabajador para guardar el borrador.");
+    if (!form.contract_type) errors.push("Selecciona el tipo de contrato.");
+    if (!form.start_date) errors.push("Indica la fecha de inicio del contrato.");
+    return errors;
+  }
 
   if (form.end_date && form.start_date && form.end_date < form.start_date) {
     errors.push("La fecha fin del contrato no puede ser anterior a la fecha de inicio.");

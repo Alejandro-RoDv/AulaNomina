@@ -15,12 +15,12 @@ import "./employmentTerminationWorkspace.css";
 const ACTIVE_CASE_CONTEXT_KEY = "aulanomina:active-case-context";
 
 const REASONS = [
-  { value: "voluntary_resignation", label: "Baja voluntaria" },
-  { value: "temporary_expiry", label: "Fin de contrato temporal" },
-  { value: "disciplinary_dismissal", label: "Despido disciplinario" },
-  { value: "objective_dismissal", label: "Despido objetivo" },
-  { value: "unfair_dismissal", label: "Despido improcedente" },
-  { value: "other", label: "Otra causa" },
+  { value: "voluntary_resignation", label: "51 · Baja voluntaria" },
+  { value: "temporary_expiry", label: "93 · Fin de contrato temporal" },
+  { value: "disciplinary_dismissal", label: "53 · Despido disciplinario" },
+  { value: "objective_dismissal", label: "91 · Despido objetivo" },
+  { value: "unfair_dismissal", label: "54 · Despido improcedente" },
+  { value: "other", label: "99 · Otra causa" },
 ];
 
 const ACTION_REASON = {

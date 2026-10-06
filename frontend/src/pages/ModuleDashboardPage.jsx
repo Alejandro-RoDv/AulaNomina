@@ -206,6 +206,8 @@ function buildContractDashboard({ companies, employees, contracts }) {
     actions: [
       ["Nuevo contrato", () => goToContractSection("new")],
       ["Historial contratos", () => goToContractSection("history")],
+      ["Datos y gestión", () => goToContractSection("lifecycle")],
+      ["Bajas y finiquitos", () => goToContractSection("termination")],
       ["Impresión contratos", () => goToContractSection("print")],
     ],
   };

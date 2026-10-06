@@ -1,3 +1,5 @@
+import { overtimeValues } from "./overtime.js";
+
 export const initialIncidentForm = {
   employee_id: "",
   contract_id: "",
@@ -27,9 +29,15 @@ export const initialIncidentForm = {
   vacation_day_type: "calendar",
   pay_in_payroll: false,
   payroll_label: "",
-  overtime_type: "",
+  overtime_type: "ordinary",
+  overtime_unit: "hours",
+  overtime_quantity: "",
+  overtime_day_hours: "8",
+  overtime_amount_mode: "automatic",
+  overtime_amount: "",
+  overtime_contract: null,
   hour_value: "",
-  inclusion_destination: "pending",
+  inclusion_destination: "payroll",
   cont_aux: "",
   movement_field: "",
   previous_value: "",
@@ -76,6 +84,13 @@ function buildDetails(form) {
 }
 
 export function buildIncidentPayload(form) {
+  const simpleOvertime = form.incident_type === "HORAS_EXTRA" && form.overtime_quantity !== "" && form.overtime_quantity != null;
+  const overtime = simpleOvertime ? overtimeValues(form, form.overtime_contract || {}) : null;
+  const details = buildDetails(form);
+  if (overtime) Object.assign(details, { hour_value: overtime.rate, amount_mode: form.overtime_amount_mode, entered_quantity: Number(form.overtime_quantity), entered_unit: form.overtime_unit, day_hours: Number(form.overtime_day_hours), requested_amount: overtime.total });
+  if (["IT", "RECAIDA", "NACIMIENTO_CUIDADO", "RIESGO_EMBARAZO", "RIESGO_LACTANCIA", "CUIDADO_MENOR"].includes(form.incident_type)) {
+    details.benefit_type = ({ IT: "temporary_disability", RECAIDA: "temporary_disability", NACIMIENTO_CUIDADO: "birth_care", RIESGO_EMBARAZO: "pregnancy_risk", RIESGO_LACTANCIA: "lactation_risk", CUIDADO_MENOR: "child_care" })[form.incident_type];
+  }
   return {
     employee_id: Number(form.employee_id),
     contract_id: Number(form.contract_id),
@@ -86,16 +101,16 @@ export function buildIncidentPayload(form) {
     end_date: form.end_date || null,
     description: form.description || null,
     status: form.status,
-    unit_type: emptyToNull(form.unit_type),
-    hours: form.hours === "" ? null : Number(form.hours),
-    days: form.days === "" ? null : Number(form.days),
+    unit_type: overtime ? "hours" : emptyToNull(form.unit_type),
+    hours: overtime ? overtime.hours : form.hours === "" ? null : Number(form.hours),
+    days: overtime ? null : form.days === "" ? null : Number(form.days),
     paid: nullableBoolean(form.paid),
     payroll_effect: form.payroll_effect || "pending",
-    generated_amount: form.generated_amount === "" ? null : Number(form.generated_amount),
+    generated_amount: null,
     overlap_override: Boolean(form.overlap_override),
     overlap_reason: form.overlap_reason || null,
     origin: form.origin || "manual",
-    details: buildDetails(form),
+    details,
   };
 }
 

@@ -525,6 +525,9 @@ export default function App() {
     if (activePage === "incidents") {
       return (
         <IncidentsPage
+          onDataChanged={loadData}
+          garnishmentData={{ employees: allEmployees, contracts: allContracts, payrolls: allPayrolls }}
+          payrolls={payrolls}
           loading={loading}
           incidents={incidents}
           employees={employees.filter((employee) => employee.is_active)}

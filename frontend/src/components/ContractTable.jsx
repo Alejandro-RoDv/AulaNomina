@@ -6,15 +6,6 @@ import { getSortLabel, nextSortConfig, sortRows } from "../utils/tableSorting";
 import { formatPaySchedule, PAY_SCHEDULE_OPTIONS } from "./ContractForm";
 import ContractSalarySummaryPanel from "./ContractSalarySummaryPanel";
 
-const TERMINATION_REASONS = [
-  { value: "fin_contrato_temporal", label: "Fin de contrato temporal" },
-  { value: "baja_voluntaria", label: "Baja voluntaria" },
-  { value: "despido", label: "Despido" },
-  { value: "no_supera_periodo_prueba", label: "No supera periodo de prueba" },
-  { value: "fin_sustitucion", label: "Fin de sustitución" },
-  { value: "otras_causas", label: "Otras causas" },
-];
-
 const DEFAULT_CATALOGS = {
   contracts: [],
   contribution_groups: [],
@@ -223,7 +214,7 @@ function toSocialSecurityForm(contract) {
 function toTerminationForm(contract) {
   return {
     end_date: contract.end_date || "",
-    reason: "fin_contrato_temporal",
+    reason: "93",
     severance_ready: false,
     settlement_ready: false,
     observations: "",
@@ -480,8 +471,8 @@ export default function ContractTable({ loading, contracts, employees, companies
     try {
       await onUpdateContract(
         contractToTerminate.id,
-        { ...toEditForm(contractToTerminate), end_date: terminationForm.end_date, status: "ended" },
-        toSocialSecurityForm(contractToTerminate)
+        { ...toEditForm(contractToTerminate), end_date: terminationForm.end_date, status: "ended", termination_reason: terminationForm.reason },
+        { ...toSocialSecurityForm(contractToTerminate), situation_code: terminationForm.reason, situation_description: catalogs.situations.find((item) => String(item.code) === terminationForm.reason)?.description || "Baja" }
       );
       closeTerminationModal();
       closeEditModal();
@@ -731,7 +722,7 @@ export default function ContractTable({ loading, contracts, employees, companies
             <div style={styles.modalHeader}><div><h3 style={styles.modalTitle}>Tramitar baja</h3><p style={styles.modalSubtitle}>Contrato {getContractCode(contractToTerminate)} · {getEmployeeName(contractToTerminate)}</p></div><button type="button" onClick={closeTerminationModal} style={styles.closeButton}>×</button></div>
             <div style={styles.terminationSummary}><div><span>Inicio</span><strong>{formatDate(contractToTerminate.start_date)}</strong></div><div><span>Fecha fin actual</span><strong>{formatDate(contractToTerminate.end_date)}</strong></div><div><span>Estado actual</span><strong>{formatStatus(contractToTerminate.status)}</strong></div></div>
             <div style={styles.form}>
-              <div style={styles.formRow}><Field label="Fecha fin / fecha de baja" help="Debe coincidir con la fecha fin indicada en el contrato si ya existe."><input type="date" name="end_date" value={terminationForm.end_date} onChange={handleTerminationChange} style={styles.input} required /></Field><Field label="Motivo de la baja"><select name="reason" value={terminationForm.reason} onChange={handleTerminationChange} style={styles.input}>{TERMINATION_REASONS.map((reason) => <option key={reason.value} value={reason.value}>{reason.label}</option>)}</select></Field></div>
+              <div style={styles.formRow}><Field label="Fecha fin / fecha de baja" help="Debe coincidir con la fecha fin indicada en el contrato si ya existe."><input type="date" name="end_date" value={terminationForm.end_date} onChange={handleTerminationChange} style={styles.input} required /></Field><Field label="Motivo de la baja"><select name="reason" value={terminationForm.reason} onChange={handleTerminationChange} style={styles.input}>{catalogs.situations.filter((reason) => String(reason.code) !== "1").map((reason) => <option key={reason.code} value={reason.code}>{reason.code} · {reason.description}</option>)}</select></Field></div>
               <div style={styles.checkRow}><label style={styles.checkboxLabel}><input type="checkbox" name="settlement_ready" checked={terminationForm.settlement_ready} onChange={handleTerminationChange} />Finiquito preparado</label><label style={styles.checkboxLabel}><input type="checkbox" name="severance_ready" checked={terminationForm.severance_ready} onChange={handleTerminationChange} />Indemnización revisada si procede</label></div>
               <div style={styles.formGroupFull}><label>Observaciones internas</label><textarea name="observations" value={terminationForm.observations} onChange={handleTerminationChange} rows="3" placeholder="Ej. pendiente carta de baja, documentación de finiquito o revisión docente del caso." style={styles.textarea} /></div>
             </div>

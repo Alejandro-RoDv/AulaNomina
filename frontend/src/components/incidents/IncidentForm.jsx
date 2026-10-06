@@ -1,3 +1,5 @@
+import { overtimeValues } from "../../utils/overtime";
+
 const INCIDENT_TYPES = [
   { value: "IT", label: "Incapacidad temporal" },
   { value: "RECAIDA", label: "Recaída" },
@@ -12,7 +14,6 @@ const INCIDENT_TYPES = [
   { value: "SUSPENSION", label: "Suspensión" },
   { value: "SANCION", label: "Sanción" },
   { value: "HORAS_EXTRA", label: "Horas extraordinarias" },
-  { value: "MOVIMIENTO", label: "Cambio del trabajador" },
 ];
 
 const STATUS_OPTIONS = [
@@ -31,7 +32,7 @@ const ABSENCE_TYPES = new Set(["AUSENCIA", "PERMISO_RETRIBUIDO", "PERMISO_NO_RET
 function latestContract(contracts, employeeId) {
   return contracts
     .filter((contract) => String(contract.employee_id) === String(employeeId))
-    .sort((a, b) => String(b.start_date || "").localeCompare(String(a.start_date || "")))[0];
+    .sort((a, b) => Number(b.status === "active") - Number(a.status === "active") || String(b.start_date || "").localeCompare(String(a.start_date || "")) || b.id - a.id)[0];
 }
 
 function Field({ label, title, children, wide = false }) {
@@ -63,6 +64,7 @@ export default function IncidentForm({
   error,
   success,
   submitting,
+  hideTypePicker = false,
 }) {
   const employeeContracts = contracts.filter((contract) => String(contract.employee_id) === String(form.employee_id));
   const selectedEmployee = employees.find((employee) => String(employee.id) === String(form.employee_id));
@@ -83,7 +85,7 @@ export default function IncidentForm({
   const isAbsence = ABSENCE_TYPES.has(form.incident_type);
   const isVacation = form.incident_type === "VACACIONES";
   const isOvertime = form.incident_type === "HORAS_EXTRA";
-  const isMovement = form.incident_type === "MOVIMIENTO";
+  const overtime = overtimeValues(form, selectedContract || {});
   const disabled = submitting || !selectedContract;
 
   return (
@@ -91,7 +93,7 @@ export default function IncidentForm({
       <section style={styles.section}>
         <div style={styles.sectionTitle}>Trabajador y vida laboral</div>
         <div style={styles.grid}>
-          <Field label="Trabajador" wide>
+          <Field label="Trabajador">
             <select name="employee_id" value={form.employee_id} onChange={handleEmployeeChange} required style={styles.input}>
               <option value="">Selecciona trabajador</option>
               {employees.map((employee) => (
@@ -101,7 +103,7 @@ export default function IncidentForm({
               ))}
             </select>
           </Field>
-          <Field label="Vida laboral / contrato" wide>
+          <Field label="Contrato">
             <select name="contract_id" value={form.contract_id} onChange={onChange} required style={styles.input} disabled={!form.employee_id}>
               <option value="">Selecciona vida laboral</option>
               {employeeContracts.map((contract) => (
@@ -111,17 +113,7 @@ export default function IncidentForm({
               ))}
             </select>
           </Field>
-          <Field label="Tipo de incidencia">
-            <select name="incident_type" value={form.incident_type} onChange={onChange} required style={styles.input}>
-              <option value="">Selecciona tipo</option>
-              {INCIDENT_TYPES.map((type) => <option key={type.value} value={type.value}>{type.label}</option>)}
-            </select>
-          </Field>
-          <Field label="Estado">
-            <select name="status" value={form.status} onChange={onChange} style={styles.input}>
-              {STATUS_OPTIONS.map((status) => <option key={status.value} value={status.value}>{status.label}</option>)}
-            </select>
-          </Field>
+          {!hideTypePicker && <Field label="Tipo de incidencia"><select name="incident_type" value={form.incident_type} onChange={onChange} required style={styles.input}><option value="">Selecciona tipo</option>{INCIDENT_TYPES.map((type) => <option key={type.value} value={type.value}>{type.label}</option>)}</select></Field>}
         </div>
 
         {selectedContract && (
@@ -139,23 +131,11 @@ export default function IncidentForm({
       </section>
 
       <section style={styles.section}>
-        <div style={styles.sectionTitle}>Periodo y efecto</div>
+        <div style={styles.sectionTitle}>Fechas</div>
         <div style={styles.grid}>
-          <Field label="Fecha inicial"><input type="date" name="start_date" value={form.start_date} onChange={onChange} required style={styles.input} /></Field>
-          <Field label="Fecha final"><input type="date" name="end_date" value={form.end_date} onChange={onChange} style={styles.input} /></Field>
-          <Field label="Unidad">
-            <select name="unit_type" value={form.unit_type} onChange={onChange} style={styles.input}>
-              <option value="days">Días</option><option value="hours">Horas</option><option value="period">Periodo</option><option value="informative">Informativa</option>
-            </select>
-          </Field>
-          <Field label="Efecto en nómina">
-            <select name="payroll_effect" value={form.payroll_effect} onChange={onChange} style={styles.input}>
-              <option value="pending">Pendiente de determinar</option><option value="deduction">Genera deducción</option><option value="earning">Genera devengo</option><option value="informative">Solo informativa</option><option value="none">Sin efecto económico</option>
-            </select>
-          </Field>
-          {form.unit_type === "hours" || isOvertime ? <Field label="Horas"><input type="number" min="0" max="24" step="0.01" name="hours" value={form.hours} onChange={onChange} style={styles.input} required={isOvertime} /></Field> : null}
-          {form.unit_type === "days" ? <Field label="Días"><input type="number" min="0" step="0.01" name="days" value={form.days} onChange={onChange} style={styles.input} /></Field> : null}
-          <Field label="Importe generado"><input type="number" min="0" step="0.01" name="generated_amount" value={form.generated_amount} onChange={onChange} style={styles.input} placeholder="Se completa al procesar" /></Field>
+          <Field label={isMedical ? "Fecha de baja / inicio" : "Fecha inicial"}><input type="date" name="start_date" value={form.start_date} onChange={onChange} required style={styles.input} /></Field>
+          <Field label={isMedical ? "Último día de baja (opcional)" : "Fecha final (opcional)"}><input type="date" name="end_date" value={form.end_date} min={form.start_date || undefined} onChange={onChange} style={styles.input} /></Field>
+          {isAbsence && <><Field label="Unidad"><select name="unit_type" value={form.unit_type} onChange={onChange} style={styles.input}><option value="days">Días</option><option value="hours">Horas</option></select></Field><Field label="Cantidad"><input type="number" min="0.01" step="0.01" name={form.unit_type === "hours" ? "hours" : "days"} value={form.unit_type === "hours" ? form.hours : form.days} onChange={onChange} style={styles.input} /></Field></>}
         </div>
       </section>
 
@@ -163,19 +143,13 @@ export default function IncidentForm({
         <section style={styles.section}>
           <div style={styles.sectionTitle}>Incapacidad y prestaciones</div>
           <div style={styles.grid}>
-            <Field label="Tipo de prestación"><select name="benefit_type" value={form.benefit_type} onChange={onChange} style={styles.input}><option value="">Seleccionar</option><option value="temporary_disability">Incapacidad temporal</option><option value="birth_care">Nacimiento y cuidado</option><option value="pregnancy_risk">Riesgo embarazo</option><option value="lactation_risk">Riesgo lactancia</option><option value="child_care">Cuidado de menor</option><option value="other">Otra</option></select></Field>
-            <Field label="Tipo de proceso"><select name="process_type" value={form.process_type} onChange={onChange} style={styles.input}><option value="">Seleccionar</option><option value="common_disease">Enfermedad común</option><option value="non_work_accident">Accidente no laboral</option><option value="work_accident">Accidente de trabajo</option><option value="occupational_disease">Enfermedad profesional</option><option value="relapse">Recaída</option><option value="other">Otro</option></select></Field>
-            <Field label="Causa / motivo"><input name="cause_code" value={form.cause_code} onChange={onChange} style={styles.input} /></Field>
-            <Field label="Fecha de alta"><input type="date" name="discharge_date" value={form.discharge_date} onChange={onChange} style={styles.input} /></Field>
-            <Field label="D. Baja" title="TODO funcional: significado exacto pendiente"><input name="d_baja_aux" value={form.d_baja_aux} onChange={onChange} style={styles.input} /></Field>
-            <Field label="Fecha de sustitución" title="TODO funcional: regla exacta pendiente"><input type="date" name="replacement_date" value={form.replacement_date} onChange={onChange} style={styles.input} /></Field>
+            {["IT", "RECAIDA"].includes(form.incident_type) && <Field label="Contingencia"><select name="process_type" value={form.process_type} onChange={onChange} required style={styles.input}><option value="">Selecciona contingencia</option><option value="common_disease">Enfermedad común</option><option value="non_work_accident">Accidente no laboral</option><option value="work_accident">Accidente de trabajo</option><option value="occupational_disease">Enfermedad profesional</option></select></Field>}
             {form.incident_type === "RECAIDA" && <Field label="Proceso anterior relacionado"><input name="relapse_process_reference" value={form.relapse_process_reference} onChange={onChange} style={styles.input} /></Field>}
           </div>
           <div style={styles.checkRow}>
             <Checkbox name="direct_payment" checked={form.direct_payment} onChange={onChange}>Pago directo</Checkbox>
-            <Checkbox name="natural_days" checked={form.natural_days} onChange={onChange}>Pago por día natural</Checkbox>
           </div>
-          <div style={styles.sensitiveNotice}>El diagnóstico y demás datos sanitarios no se solicitan en este formulario general. Deben incorporarse únicamente mediante una vista protegida por permisos específicos.</div>
+
         </section>
       )}
 
@@ -200,47 +174,20 @@ export default function IncidentForm({
         </section>
       )}
 
-      {isOvertime && (
-        <section style={styles.section}>
-          <div style={styles.sectionTitle}>Horas extraordinarias</div>
-          <div style={styles.grid}>
-            <Field label="Tipo configurable"><input name="overtime_type" value={form.overtime_type} onChange={onChange} style={styles.input} placeholder="Tipo 1, Tipo 2…" /></Field>
-            <Field label="Valor hora"><input type="number" min="0" step="0.0001" name="hour_value" value={form.hour_value} onChange={onChange} style={styles.input} /></Field>
-            <Field label="Destino"><select name="inclusion_destination" value={form.inclusion_destination} onChange={onChange} style={styles.input}><option value="pending">No incluir todavía</option><option value="payroll">Incluir en nómina</option><option value="receipt">Incluir en recibo</option></select></Field>
-            <Field label="Cont." title="TODO funcional: significado exacto pendiente"><input name="cont_aux" value={form.cont_aux} onChange={onChange} style={styles.input} /></Field>
-          </div>
-        </section>
-      )}
-
-      {isMovement && (
-        <section style={styles.section}>
-          <div style={styles.sectionTitle}>Cambio del trabajador</div>
-          <div style={styles.grid}>
-            <Field label="Cambio de"><input name="movement_field" value={form.movement_field} onChange={onChange} style={styles.input} placeholder="Categoría, jornada, centro…" /></Field>
-            <Field label="Valor anterior"><input name="previous_value" value={form.previous_value} onChange={onChange} style={styles.input} /></Field>
-            <Field label="Nuevo valor"><input name="new_value" value={form.new_value} onChange={onChange} style={styles.input} /></Field>
-            <Field label="Fecha de efectos"><input type="date" name="effective_date" value={form.effective_date} onChange={onChange} style={styles.input} /></Field>
-            <Field label="Inc. Nómina" title="TODO funcional: significado exacto pendiente"><input name="payroll_incidence_aux" value={form.payroll_incidence_aux} onChange={onChange} style={styles.input} /></Field>
-          </div>
-        </section>
-      )}
-
-      <section style={styles.section}>
-        <div style={styles.sectionTitle}>Trazabilidad y campos auxiliares</div>
+      {isOvertime && <section style={styles.section}>
+        <div style={styles.sectionTitle}>Cantidad y pago de horas extra</div>
         <div style={styles.grid}>
-          <Field label="Origen"><select name="origin" value={form.origin} onChange={onChange} style={styles.input}><option value="manual">Manual</option><option value="case_study">Caso práctico</option><option value="import">Importación simulada</option><option value="payroll">Motor de nómina</option></select></Field>
-          <Field label="C" title="TODO funcional: indicador C pendiente"><input name="indicator_c" value={form.indicator_c} onChange={onChange} style={styles.input} /></Field>
-          <Field label="H" title="TODO funcional: indicador H pendiente"><input name="indicator_h" value={form.indicator_h} onChange={onChange} style={styles.input} /></Field>
-          <Field label="G. P." title="TODO funcional: significado pendiente"><input name="gp_aux" value={form.gp_aux} onChange={onChange} style={styles.input} /></Field>
-          <Field label="Cálculo auxiliar" title="TODO funcional: segunda columna Cálculo"><input name="aux_calculation" value={form.aux_calculation} onChange={onChange} style={styles.input} /></Field>
-          <Field label="IND" title="TODO funcional: indicador interno configurable"><input name="internal_indicator" value={form.internal_indicator} onChange={onChange} style={styles.input} /></Field>
+          <Field label="Cantidad"><input aria-label="Cantidad de horas extra" type="number" min="0.01" step="0.01" name="overtime_quantity" value={form.overtime_quantity ?? ""} onChange={onChange} required style={styles.input} /></Field>
+          <Field label="Unidad"><select aria-label="Unidad de horas extra" name="overtime_unit" value={form.overtime_unit || "hours"} onChange={onChange} style={styles.input}><option value="hours">Horas</option><option value="days">Días</option></select></Field>
+          {form.overtime_unit === "days" && <Field label="Horas por día"><input type="number" min="0.01" max="24" step="0.01" name="overtime_day_hours" value={form.overtime_day_hours || "8"} onChange={onChange} required style={styles.input} /></Field>}
+          <Field label="Cálculo del importe"><select name="overtime_amount_mode" value={form.overtime_amount_mode || "automatic"} onChange={onChange} style={styles.input}><option value="automatic">Automático según contrato</option><option value="manual">Importe total manual</option></select></Field>
+          {form.overtime_amount_mode === "manual" && <Field label="Importe total (€)"><input aria-label="Importe total de horas extra" type="number" min="0.01" step="0.01" name="overtime_amount" value={form.overtime_amount ?? ""} onChange={onChange} required style={styles.input} /></Field>}
+          <Field label="Compensación"><select name="inclusion_destination" value={form.inclusion_destination || "payroll"} onChange={onChange} style={styles.input}><option value="payroll">Pago en nómina</option><option value="rest">Descanso</option></select></Field>
         </div>
-        <Field label="Observaciones" wide><textarea name="description" value={form.description} onChange={onChange} rows="3" style={styles.textarea} /></Field>
-        <div style={styles.overrideBox}>
-          <Checkbox name="overlap_override" checked={form.overlap_override} onChange={onChange}>Autorizar solapamiento tras revisión</Checkbox>
-          {form.overlap_override && <textarea name="overlap_reason" value={form.overlap_reason} onChange={onChange} rows="2" style={styles.textarea} placeholder="Motivo obligatorio y criterio aplicado" required />}
-        </div>
-      </section>
+        <div style={styles.contractSummary}><strong>{overtime.hours.toLocaleString("es-ES")} horas · {form.inclusion_destination === "rest" ? "Compensadas con descanso" : `${overtime.total.toLocaleString("es-ES", { style: "currency", currency: "EUR" })} estimados`}</strong><span>{form.overtime_amount_mode === "manual" ? "El importe se revisará al calcular la nómina según el valor mínimo de la hora ordinaria." : "Referencia: salario base del contrato y jornada mensual. El importe definitivo se calcula en nómina."}</span></div>
+      </section>}
+
+      <section style={styles.section}><Field label="Observaciones" wide><textarea name="description" value={form.description} onChange={onChange} rows="3" style={styles.textarea} placeholder="Añade cualquier aclaración sobre esta incidencia" /></Field></section>
 
       {selectedEmployee && !selectedContract && <div style={styles.warning}>El trabajador no tiene una vida laboral seleccionable. No se puede registrar la incidencia.</div>}
       {error && <div style={styles.error}>{error}</div>}
@@ -258,7 +205,7 @@ const styles = {
   sectionTitle: { fontSize: "14px", fontWeight: 900, color: "#111827", marginBottom: "12px" },
   grid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: "12px" },
   formGroup: { minWidth: 0, display: "flex", flexDirection: "column", gap: "5px" },
-  formGroupWide: { minWidth: 0, display: "flex", flexDirection: "column", gap: "5px", gridColumn: "span 2" },
+  formGroupWide: { minWidth: 0, display: "flex", flexDirection: "column", gap: "5px", gridColumn: "1 / -1" },
   label: { fontSize: "12px", fontWeight: 800, color: "#374151" },
   input: { width: "100%", boxSizing: "border-box", minHeight: "38px", padding: "8px 10px", border: "1px solid #d1d5db", borderRadius: "7px", fontSize: "13px", background: "#fff" },
   textarea: { width: "100%", boxSizing: "border-box", padding: "9px 10px", border: "1px solid #d1d5db", borderRadius: "7px", fontSize: "13px", resize: "vertical", fontFamily: "inherit" },

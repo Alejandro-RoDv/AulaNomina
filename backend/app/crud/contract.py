@@ -1,3 +1,7 @@
+from datetime import date
+from fastapi.encoders import jsonable_encoder
+from app.models.contract_lifecycle_event import ContractLifecycleEvent
+
 from sqlalchemy.orm import Session, joinedload
 from fastapi import HTTPException
 
@@ -282,6 +286,7 @@ def update_contract(db: Session, contract_id: int, contract_data: ContractUpdate
     update_data = contract_data.model_dump(exclude_unset=True)
     update_data.pop("employee_id", None)
 
+    previous_state = jsonable_encoder({field: getattr(db_contract, field, None) for field in CONTRACT_CREATE_FIELDS})
     merged = {field: getattr(db_contract, field, None) for field in CONTRACT_CREATE_FIELDS if field != "employee_id"}
     merged.update(update_data)
     pseudo = type("ContractData", (), merged)()
@@ -302,6 +307,16 @@ def update_contract(db: Session, contract_id: int, contract_data: ContractUpdate
             setattr(db_contract, key, value)
 
     db_contract.status = new_status
+    new_state = jsonable_encoder({field: getattr(db_contract, field, None) for field in CONTRACT_CREATE_FIELDS})
+    if previous_state != new_state:
+        db.add(ContractLifecycleEvent(
+            contract_id=contract_id,
+            event_type="contract_edit",
+            effective_date=date.today(),
+            reason="Modificación desde editar contrato",
+            previous_state=previous_state,
+            new_state=new_state,
+        ))
     db.commit()
     db.refresh(db_contract)
     return get_contract(db, db_contract.id)

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 
+import ContractVariationHistory from "../components/contracts/ContractVariationHistory";
 import CategoryIncidentForm from "../components/incidents/CategoryIncidentForm";
 import IncidentDashboard from "../components/incidents/IncidentDashboard";
 import IncidentHistoryPanel from "../components/incidents/IncidentHistoryPanel";
@@ -42,8 +43,8 @@ const CATEGORY_HEADERS = {
     subtitle: "Registro de horas extra y su tratamiento económico",
   },
   movement: {
-    title: "Cambios del trabajador",
-    subtitle: "Cambios de categoría, jornada, centro y otras condiciones laborales",
+    title: "Histórico de variaciones",
+    subtitle: "Versiones anteriores y cambios guardados al editar los contratos",
   },
   payroll: {
     title: "Control de nómina",
@@ -117,6 +118,7 @@ export default function IncidentsPage({
   companies,
   workCenters,
   payrolls = [],
+  garnishmentData = null,
   incidentForm,
   onIncidentChange,
   onIncidentSubmit,
@@ -225,9 +227,9 @@ export default function IncidentsPage({
   if (activeMode === "embargo") {
     return <WageGarnishmentManagementPage
       companies={companies}
-      employees={employees}
-      contracts={contracts}
-      payrolls={payrolls}
+      employees={garnishmentData?.employees || employees}
+      contracts={garnishmentData?.contracts || contracts}
+      payrolls={garnishmentData?.payrolls || payrolls}
     />;
   }
 
@@ -252,6 +254,8 @@ export default function IncidentsPage({
         onUpdateIncident={onUpdateIncident}
         incidentSubmitting={incidentSubmitting}
       />}
+
+      {activeTab.kind === "variations" && <ContractVariationHistory contracts={contracts} employees={employees} />}
 
       {activeTab.kind === "form" && <PageCard className="incident-form-card" title={activeTab.title} subtitle={activeTab.subtitle}>
         <CategoryIncidentForm
