@@ -32,3 +32,13 @@ La prueba de navegador utilizó una base SQLite aislada creada desde los modelos
 4. Crear una segunda empresa con centro y trabajador. Cambiar de empresa en la cabecera con un formulario abierto y comprobar que se eliminan trabajador/contrato/centro incompatibles.
 5. Abrir los módulos desde el lateral y recorrer sus submódulos desde la barra superior. Comprobar indicadores para una empresa y para «Todas las empresas».
 6. Abrir Documentación → Informes, comprobar los accesos fiscales retirados y cambiar de empresa: tanto los listados como el trabajador del documento HTML deben seguir el nuevo ámbito.
+
+## Retoques posteriores
+
+- Selector de empresa más visible con acento de marca y foco azul, siguiendo los tokens del diseño.
+- Plantillas de informes con columnas de empresa, trabajador, contrato, nóminas, incidencias y documentación; guardar, cargar, editar, eliminar, previsualizar y exportar CSV. Una fila por trabajador; nóminas/incidencias agregadas del periodo filtrado y contrato activo o más reciente. Persistencia local por usuario en el navegador actual; no sincroniza entre equipos.
+- Dos ejemplos estatales adicionales: Consultoría/TI y Contact Center. Se cargan desde «Cargar demo» en Convenios; contienen enlace BOE y clasificación/tablas salariales ficticias claramente identificadas. El seed no sobrescribe estos ejemplos si ya existen.
+- Servicios antes que educación; mutuas variables, IBAN con checksum, representante, pólizas, web, formación y contacto ampliados.
+- Separación adicional de la barra de crear empresa respecto a IBAN y régimen fiscal.
+
+Validación de retoques: suite frontend completa (108 pruebas Node y smoke de convenios), compilación, pruebas de agregación sin cruces entre empresas y checksum IBAN, seed SQLite ejecutado dos veces sin duplicados, navegador con guardar/recargar/editar/eliminar plantilla y vista previa. No se validaron migraciones PostgreSQL ni sincronización entre navegadores.

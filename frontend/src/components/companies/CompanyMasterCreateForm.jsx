@@ -465,7 +465,7 @@ export default function CompanyMasterCreateForm({ collectiveAgreements = [], com
         </Alert>
       )}
 
-      <FormActions note="Los campos marcados como obligatorios deben completarse antes de guardar." sticky>
+      <FormActions style={{ marginTop: "28px" }} note="Los campos marcados como obligatorios deben completarse antes de guardar." sticky>
         <Button type="submit" loading={submitting}>
           Crear empresa
         </Button>

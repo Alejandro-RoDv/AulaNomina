@@ -466,5 +466,31 @@ def seed_demo_collective_agreements(db: Session):
     for name, fields in leave_rules:
         get_or_create_leave_rule(db, agreement, name, notes="Regla ficticia para práctica formativa.", **fields)
 
+    seed_state_sector_examples(db)
     db.commit()
     return agreement
+
+
+def seed_state_sector_examples(db: Session):
+    """National sector references with explicitly fictional practice salary tables."""
+    examples = [
+        ("SIM-TI-2026", "Consultoría y tecnologías de la información · ejemplo didáctico", "Consultoría y TI", "https://www.boe.es/buscar/doc.php?id=BOE-A-2025-7766", [("CONS", "Consultor"), ("DEV", "Desarrollador"), ("SUP", "Técnico de soporte")]),
+        ("SIM-CC-2026", "Contact Center · ejemplo didáctico", "Contact Center", "https://www.boe.es/buscar/doc.php?id=BOE-A-2023-13741", [("OPER", "Teleoperador"), ("COORD", "Coordinador"), ("ADM", "Auxiliar administrativo")]),
+    ]
+    for code, name, sector, source, categories in examples:
+        if db.query(CollectiveAgreement).filter(CollectiveAgreement.agreement_code == code).first():
+            continue
+        example = CollectiveAgreement(
+            agreement_code=code, name=name, sector=sector, territorial_scope="Estatal",
+            functional_scope=f"Ejemplo formativo del sector {sector}.", personal_scope="Personal del caso práctico.",
+            effective_from=date(2026, 1, 1), effective_to=date(2026, 12, 31), status="active", is_active=True,
+            source_url=source, notes="Referencia sectorial estatal real. Clasificación y salarios simplificados y ficticios para docencia; consultar el BOE para el texto y las tablas oficiales.",
+        )
+        db.add(example)
+        db.flush()
+        group = get_or_create_group(db, example, "DEMO", name="Grupo didáctico", description="Clasificación simplificada para prácticas", display_order=1)
+        table = get_or_create_salary_table(db, example)
+        for order, (category_code, category_name) in enumerate(categories, 1):
+            category = get_or_create_category(db, example, category_code, name=category_name, professional_group_id=group.id, display_order=order)
+            salary = Decimal("1400") + Decimal(order * 150)
+            get_or_create_salary_row(db, table, category, base_salary=salary, total_amount=salary, notes="Importe ficticio para docencia; no es la tabla oficial del convenio.")

@@ -1,3 +1,4 @@
+import CustomReportBuilder from "../components/CustomReportBuilder";
 import { getSelectedCompanyId, setSelectedCompanyId as persistCompanyId, subscribeSelectedCompany } from "../utils/companyContext";
 import { useEffect, useMemo, useState } from "react";
 
@@ -744,6 +745,8 @@ export default function ReportsPage({ loading, employees, companies, workCenters
           )}
         </PageCard>
       </div>
+
+      <CustomReportBuilder data={{ employees: companyScopedEmployees, companies, workCenters: companyScopedCenters, contracts: companyScopedContracts, payrolls: companyScopedPayrolls, incidents: companyScopedIncidents, documents: companyScopedDocuments }} />
 
       <PageCard title="Documentos HTML" subtitle="Motor inicial de plantillas: datos ERP + plantilla = documento profesional imprimible.">
         <div className="reports-screen-only" style={styles.controls}>
