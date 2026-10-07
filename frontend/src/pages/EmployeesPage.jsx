@@ -1,3 +1,5 @@
+import { getEmployeeVisibleCode, matchesEmployeeCode } from "../utils/visibleCodes";
+import { getSelectedCompanyId, setSelectedCompanyId, subscribeSelectedCompany } from "../utils/companyContext";
 import { useEffect, useMemo, useState } from "react";
 
 import PageCard from "../components/layout/PageCard";
@@ -122,7 +124,11 @@ export default function EmployeesPage({
   const [assignmentHistory, setAssignmentHistory] = useState([]);
   const [assignmentHistoryLoading, setAssignmentHistoryLoading] = useState(false);
   const [assignmentHistoryError, setAssignmentHistoryError] = useState("");
-  const [filters, setFilters] = useState({ id: "", name: "", dni: "", companyId: "", centerId: "", status: "" });
+  const [filters, setFilters] = useState({ id: "", name: "", dni: "", companyId: getSelectedCompanyId(), centerId: "", status: "" });
+  useEffect(() => subscribeSelectedCompany((companyId) => {
+    setFilters((previous) => ({ ...previous, companyId, centerId: "" }));
+    setRecordEmployeeId(""); setAssignmentHistory([]);
+  }), []);
 
   const hasSelectedCompany = Boolean(filters.companyId);
 
@@ -157,6 +163,7 @@ export default function EmployeesPage({
 
   const handleFilterChange = (event) => {
     const { name, value } = event.target;
+    if (name === "companyId") setSelectedCompanyId(value);
     setFilters((prev) => ({ ...prev, [name]: value, ...(name === "companyId" ? { centerId: "" } : {}) }));
     if (name === "companyId" || name === "centerId") {
       setRecordEmployeeId("");
@@ -165,7 +172,7 @@ export default function EmployeesPage({
   };
 
   const clearFilters = () => {
-    setFilters({ id: "", name: "", dni: "", companyId: "", centerId: "", status: "" });
+    setFilters({ id: "", name: "", dni: "", companyId: getSelectedCompanyId(), centerId: "", status: "" });
     setRecordEmployeeId("");
     if (typeof window !== "undefined") window.sessionStorage.removeItem("aulanomina:selectedEmployeeId");
   };
@@ -180,7 +187,6 @@ export default function EmployeesPage({
     const dniFilter = normalizeText(filters.dni);
 
     return employees.filter((employee) => {
-      const employeeId = normalizeText(employee.employee_code || employee.id);
       const fullName = normalizeText(`${employee.first_name} ${employee.last_name} ${employee.second_last_name || ""}`);
       const dni = normalizeText(employee.dni);
       const companyId = getEmployeeCompanyId(employee, contracts);
@@ -190,7 +196,7 @@ export default function EmployeesPage({
       return (
         String(companyId || "") === String(filters.companyId) &&
         (!filters.centerId || String(centerId || "") === String(filters.centerId)) &&
-        (!idFilter || employeeId.includes(idFilter) || String(employee.id).includes(idFilter)) &&
+        matchesEmployeeCode(employee, idFilter, employees, contracts) &&
         (!nameFilter || fullName.includes(nameFilter)) &&
         (!dniFilter || dni.includes(dniFilter)) &&
         (!filters.status || status === filters.status)
@@ -239,7 +245,7 @@ export default function EmployeesPage({
 
           {hasSelectedCompany && (
             <div style={styles.filtersSecondary}>
-              <div style={styles.filterGroupCode}><label>Código trabajador</label><input name="id" value={filters.id} onChange={handleFilterChange} style={styles.input} /></div>
+              <div style={styles.filterGroupCode}><label>Código trabajador</label><input aria-label="Código trabajador" placeholder="Ej.: 1.1" name="id" value={filters.id} onChange={handleFilterChange} style={styles.input} /></div>
               <div style={styles.filterGroupName}><label>Nombre y apellidos</label><input name="name" value={filters.name} onChange={handleFilterChange} style={styles.input} /></div>
               <div style={styles.filterGroupDni}><label>Documento</label><input name="dni" value={filters.dni} onChange={handleFilterChange} style={styles.input} /></div>
               <div style={styles.filterGroupStatus}><label>Estado</label><select name="status" value={filters.status} onChange={handleFilterChange} style={styles.input}><option value="">Todos</option><option value="active">Activo</option><option value="inactive">Inactivo</option></select></div>
@@ -249,7 +255,7 @@ export default function EmployeesPage({
           {!hasSelectedCompany ? (
             <div style={styles.emptyCompanyState}><strong>Empresa obligatoria.</strong><p>No se muestra ningún trabajador hasta seleccionar una empresa. Esto evita listados masivos y mantiene el módulo gestionable.</p></div>
           ) : (
-            <EmployeeTable loading={loading} employees={filteredEmployees} companies={companies} workCenters={workCenters} contracts={contracts} incidents={incidents} payrolls={payrolls} onUpdateEmployee={onUpdateEmployee} onDeleteEmployee={onDeleteEmployee} onOpenRecord={onOpenRecord} onDuplicateEmployee={onDuplicateEmployee} submitting={employeeSubmitting} />
+            <EmployeeTable loading={loading} employees={filteredEmployees} codeEmployees={employees} companies={companies} workCenters={workCenters} contracts={contracts} incidents={incidents} payrolls={payrolls} onUpdateEmployee={onUpdateEmployee} onDeleteEmployee={onDeleteEmployee} onOpenRecord={onOpenRecord} onDuplicateEmployee={onDuplicateEmployee} submitting={employeeSubmitting} />
           )}
         </PageCard>
       </div>
@@ -309,7 +315,7 @@ export default function EmployeesPage({
                     <div style={styles.recordPanelWide}>
                       <h3 style={styles.panelTitle}>Datos personales y contacto</h3>
                       <div style={styles.detailGridFour}>
-                        <DataBox label="Código" value={selectedRecordEmployee.employee_code} />
+                        <DataBox label="Código" value={getEmployeeVisibleCode(selectedRecordEmployee, employees, contracts)} />
                         <DataBox label="Tipo documento" value={selectedRecordEmployee.document_type} />
                         <DataBox label="Documento" value={selectedRecordEmployee.dni} />
                         <DataBox label="NAF" value={selectedRecordEmployee.naf} />

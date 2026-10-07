@@ -221,3 +221,6 @@
     bottom: 12px;
   }
 }
+
+/* Keep account controls away from the global company and course selectors. */
+.auth-session-badge { top: auto; right: 16px; bottom: 12px; }

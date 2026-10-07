@@ -207,7 +207,8 @@ def apply_contract_workday_percentage(amount: Decimal, contract: Contract, conce
 
 
 def create_payroll_item(db: Session, payroll_id: int, item: PayrollItemCreate):
-    ensure_payroll_exists(db, payroll_id)
+    payroll = ensure_payroll_exists(db, payroll_id)
+    payroll.status = "draft"
     ensure_active_concept(db, item.concept_id)
 
     quantity = money(item.quantity)
@@ -280,7 +281,10 @@ def update_payroll_item(db: Session, item_id: int, item: PayrollItemUpdate):
     if not db_item:
         return None
 
+    ensure_payroll_exists(db, db_item.payroll_id).status = "draft"
     update_data = item.model_dump(exclude_unset=True)
+    if "notes" not in update_data and any(key in update_data for key in {"quantity", "unit_price", "amount"}):
+        update_data["notes"] = f"{db_item.notes or ''}\n[PREPARATION_OVERRIDE] Edición de concepto".strip()
     if "concept_id" in update_data:
         ensure_active_concept(db, update_data["concept_id"])
 
@@ -301,6 +305,7 @@ def delete_payroll_item(db: Session, item_id: int):
     db_item = get_payroll_item(db, item_id)
     if not db_item:
         return None
+    ensure_payroll_exists(db, db_item.payroll_id).status = "draft"
     db.delete(db_item)
     db.commit()
     return db_item

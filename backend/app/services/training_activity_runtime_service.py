@@ -207,6 +207,10 @@ def _training_case_data(task: CaseTask, code: str, current_rows: list[dict[str, 
         if isinstance(fact, dict):
             _append_case_row(rows, fact.get("label"), fact.get("value"))
 
+    if code == "A04":
+        for label, field in [("Nombre", "first_name"), ("Primer apellido", "last_name"), ("Segundo apellido", "second_last_name"), ("DNI/NIE", "dni"), ("NAF", "naf"), ("Fecha de nacimiento", "birth_date"), ("Nacionalidad", "nationality"), ("Email", "email"), ("Teléfono móvil", "mobile_phone"), ("Domicilio", "domicile"), ("Localidad", "city"), ("Provincia", "province"), ("Código postal", "postal_code")]:
+            _append_case_row(rows, label, employee_data.get(field))
+
     if code == "A07":
         _append_case_row(rows, "Fecha de inicio", state.get("start_date"))
         _append_case_row(rows, "Jornada", contract_data.get("working_day"))

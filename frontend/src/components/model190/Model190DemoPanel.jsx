@@ -1,3 +1,4 @@
+import { useCompanySelection } from "../../hooks/useCompanySelection";
 import { useEffect, useMemo, useState } from "react";
 
 import {
@@ -11,8 +12,6 @@ import {
   model190DemoCompletion,
   model190DemoStageMeta,
 } from "../../utils/model190Demo";
-
-const DEMO_COMPANY_NIF = "B19000026";
 
 function money(value) {
   return new Intl.NumberFormat("es-ES", {
@@ -32,19 +31,12 @@ export default function Model190DemoPanel({ companies = [] }) {
     () => companies.filter((company) => company.is_active),
     [companies]
   );
-  const existingDemo = useMemo(
-    () => activeCompanies.find((company) => company.cif === DEMO_COMPANY_NIF),
-    [activeCompanies]
-  );
-  const [companyId, setCompanyId] = useState("");
+  const [companyId, setCompanyId] = useCompanySelection();
   const [status, setStatus] = useState(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
 
-  useEffect(() => {
-    if (!companyId && existingDemo) setCompanyId(String(existingDemo.id));
-  }, [companyId, existingDemo]);
 
   useEffect(() => {
     let active = true;

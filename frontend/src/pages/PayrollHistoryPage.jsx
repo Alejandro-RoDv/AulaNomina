@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCompanySelection } from "../hooks/useCompanySelection";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import PayrollTable from "../components/payrolls/PayrollTable";
 import { fetchPayrolls } from "../services/payrollApi";
@@ -80,14 +81,14 @@ export default function PayrollHistoryPage({
   onDeletePayroll,
   payrollSubmitting,
 }) {
-  const [localPayrolls, setLocalPayrolls] = useState(payrolls);
-  const [refreshingPayrolls, setRefreshingPayrolls] = useState(false);
+  const [companyId] = useCompanySelection();
+  const [fetchedPayrolls, setLocalPayrolls] = useState(null);
+  const localPayrolls = fetchedPayrolls ?? payrolls;
+  const refreshId = useRef(0);
+  const [refreshingPayrolls, setRefreshingPayrolls] = useState(true);
   const [refreshMessage, setRefreshMessage] = useState("");
   const [filters, setFilters] = useState(getInitialFilters);
 
-  useEffect(() => {
-    setLocalPayrolls(payrolls);
-  }, [payrolls]);
 
   useEffect(() => {
     const applyCaseContext = (event) => {
@@ -99,25 +100,25 @@ export default function PayrollHistoryPage({
     return () => window.removeEventListener("aulanomina-case-context", applyCaseContext);
   }, []);
 
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get("period") || params.get("employee") || params.get("company")) {
-      refreshPayrollList();
-    }
-  }, []);
-
-  async function refreshPayrollList() {
+  const refreshPayrollList = useCallback(async (announce = false) => {
+    const requestId = ++refreshId.current;
     try {
       setRefreshingPayrolls(true);
       const data = await fetchPayrolls();
+      if (requestId !== refreshId.current) return;
       setLocalPayrolls(data);
-      setRefreshMessage("Histórico de nóminas actualizado.");
+      setRefreshMessage(announce ? "Histórico de nóminas actualizado." : "");
     } catch {
-      setRefreshMessage("No se pudo refrescar el histórico automáticamente.");
+      if (requestId === refreshId.current) setRefreshMessage("No se pudo cargar el histórico. Pulsa Actualizar para reintentarlo.");
     } finally {
-      setRefreshingPayrolls(false);
+      if (requestId === refreshId.current) setRefreshingPayrolls(false);
     }
-  }
+  }, []);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => refreshPayrollList(), 0);
+    return () => { window.clearTimeout(timer); refreshId.current += 1; };
+  }, [companyId, refreshPayrollList]);
 
   function handleFilterChange(event) {
     const { name, value } = event.target;
@@ -128,16 +129,16 @@ export default function PayrollHistoryPage({
     setFilters({ employee: "", company: "", year: "", month: "", status: "" });
   }
 
-  function getEmployeeSearchText(payroll) {
+  const getEmployeeSearchText = useCallback((payroll) => {
     const employee = employees.find((item) => Number(item.id) === Number(payroll.employee_id));
     return `${payroll.employee_name || ""} ${employee?.first_name || ""} ${employee?.last_name || ""} ${employee?.dni || ""} ${employee?.employee_code || ""} ${payroll.employee_id || ""}`;
-  }
+  }, [employees]);
 
-  function getCompanySearchText(payroll) {
+  const getCompanySearchText = useCallback((payroll) => {
     const company = companies.find((item) => Number(item.id) === Number(payroll.company_id));
     const center = workCenters.find((item) => Number(item.id) === Number(payroll.center_id));
     return `${payroll.company_name || ""} ${company?.name || ""} ${company?.cif || ""} ${company?.ccc || ""} ${center?.name || ""}`;
-  }
+  }, [companies, workCenters]);
 
   const availableYears = useMemo(() => {
     return [...new Set(localPayrolls.map((payroll) => payroll.period_year).filter(Boolean))].sort((a, b) => b - a);
@@ -147,6 +148,7 @@ export default function PayrollHistoryPage({
     const employeeFilter = normalizeText(filters.employee);
     const companyFilter = normalizeText(filters.company);
     return localPayrolls.filter((payroll) => {
+      if (companyId && String(payroll.company_id) !== companyId) return false;
       const matchesEmployee = !employeeFilter || normalizeText(getEmployeeSearchText(payroll)).includes(employeeFilter);
       const matchesCompany = !companyFilter || normalizeText(getCompanySearchText(payroll)).includes(companyFilter);
       const matchesYear = !filters.year || String(payroll.period_year) === String(filters.year);
@@ -154,7 +156,7 @@ export default function PayrollHistoryPage({
       const matchesStatus = !filters.status || String(payroll.status) === String(filters.status);
       return matchesEmployee && matchesCompany && matchesYear && matchesMonth && matchesStatus;
     });
-  }, [localPayrolls, filters, employees, companies, workCenters]);
+  }, [localPayrolls, companyId, filters, getEmployeeSearchText, getCompanySearchText]);
 
   const totals = useMemo(() => {
     return filteredPayrolls.reduce((acc, payroll) => {
@@ -177,7 +179,7 @@ export default function PayrollHistoryPage({
         <div className="payroll-s42__filters-header">
           <h2>Filtros</h2>
           <div className="payroll-s42__filters-actions">
-            <button type="button" onClick={refreshPayrollList} className="payroll-s42__primary">
+            <button type="button" onClick={() => refreshPayrollList(true)} disabled={refreshingPayrolls} className="payroll-s42__primary">
               {refreshingPayrolls ? "Actualizando..." : "Actualizar"}
             </button>
             <button type="button" onClick={clearFilters} className="payroll-s42__secondary">Limpiar filtros</button>
@@ -226,8 +228,9 @@ export default function PayrollHistoryPage({
         payrolls={filteredPayrolls}
         contracts={contracts}
         employees={employees}
-        onUpdatePayroll={onUpdatePayroll}
-        onDeletePayroll={onDeletePayroll}
+        onUpdatePayroll={async (...args) => { await onUpdatePayroll(...args); await refreshPayrollList(); }}
+        onDeletePayroll={async (...args) => { await onDeletePayroll(...args); await refreshPayrollList(); }}
+        onPayrollsChanged={() => refreshPayrollList()}
         submitting={payrollSubmitting}
       />
     </div>

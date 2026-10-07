@@ -73,6 +73,7 @@ function editableContract(contract, patch = {}) {
 }
 
 function eventLabel(type) {
+  if (type === "contract_edit") return "Edición del contrato";
   if (type === "workday_change") return "Variación de jornada";
   if (type === "extension") return "Prórroga";
   if (type === "transformation") return "Transformación";

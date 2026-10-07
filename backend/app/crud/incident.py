@@ -261,6 +261,14 @@ def update_incident(db: Session, incident_id: int, data: IncidentUpdate):
     new_end = update_data.get("end_date", db_incident.end_date)
     new_type = update_data.get("incident_type", db_incident.incident_type)
     new_details = update_data.get("details", db_incident.details)
+    new_hours = update_data.get("hours", db_incident.hours)
+    if new_type == "HORAS_EXTRA":
+        if new_hours is None or new_hours <= 0:
+            raise HTTPException(status_code=400, detail="Las horas extraordinarias requieren una cantidad mayor que cero")
+        if new_end and (new_start.year, new_start.month) != (new_end.year, new_end.month):
+            raise HTTPException(status_code=400, detail="Registra las horas extra por separado para cada mes de nómina")
+    elif new_hours is not None and new_hours > 24:
+        raise HTTPException(status_code=400, detail="Las horas de una ausencia no pueden superar 24; utiliza días para periodos más largos")
     validate_incident_period(db_incident.contract, new_start, new_end, new_details)
 
     overlap_override = update_data.get("overlap_override", db_incident.overlap_override)

@@ -132,6 +132,7 @@ function DetailBox({ label, value, wide = false }) {
 export default function EmployeeTable({
   loading,
   employees,
+  codeEmployees = employees,
   companies = [],
   workCenters = [],
   contracts = [],
@@ -157,7 +158,7 @@ export default function EmployeeTable({
     return workCenters.filter((center) => !editForm.company_id || String(center.company_id) === String(editForm.company_id));
   }, [workCenters, editForm.company_id]);
 
-  const getEmployeeCode = (employee) => getEmployeeVisibleCode(employee, employees, contracts);
+  const getEmployeeCode = (employee) => getEmployeeVisibleCode(employee, codeEmployees, contracts);
 
   const getActiveContract = (employeeId) => {
     return contracts.find((contract) => Number(contract.employee_id) === Number(employeeId) && contract.status === "active")
@@ -356,7 +357,7 @@ export default function EmployeeTable({
             {!editMode ? (
               <div style={styles.detailsWrapper}>
                 <div style={styles.detailsGrid}>
-                  <DetailBox label="Código" value={selectedEmployee.employee_code} />
+                  <DetailBox label="Código" value={getEmployeeCode(selectedEmployee)} />
                   <DetailBox label="Tipo documento" value={selectedEmployee.document_type} />
                   <DetailBox label="Documento" value={selectedEmployee.dni} />
                   <DetailBox label="NAF" value={selectedEmployee.naf} />

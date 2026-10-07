@@ -1,3 +1,4 @@
+import { useCompanySelection } from "../../hooks/useCompanySelection";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { fetchModel190Preview, fetchModel190Reconciliation } from "../../services/model190Service";
@@ -64,7 +65,7 @@ export default function Model190AnnualPanel({ companies = [] }) {
     () => companies.filter((company) => company.is_active),
     [companies]
   );
-  const [companyId, setCompanyId] = useState("");
+  const [companyId, setCompanyId] = useCompanySelection();
   const [year, setYear] = useState(new Date().getFullYear());
   const [section, setSection] = useState("summary");
   const [selectedQuarter, setSelectedQuarter] = useState("1T");
@@ -75,9 +76,6 @@ export default function Model190AnnualPanel({ companies = [] }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    if (!companyId && activeCompanies.length) setCompanyId(String(activeCompanies[0].id));
-  }, [activeCompanies, companyId]);
 
   const load = useCallback(async () => {
     if (!companyId) return;

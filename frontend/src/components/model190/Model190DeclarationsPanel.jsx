@@ -1,3 +1,4 @@
+import { useCompanySelection } from "../../hooks/useCompanySelection";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import Model190AeatModal from "./Model190AeatModal";
@@ -39,7 +40,7 @@ function openFile(declarationId, format) {
 
 export default function Model190DeclarationsPanel({ companies = [] }) {
   const activeCompanies = useMemo(() => companies.filter((company) => company.is_active), [companies]);
-  const [companyId, setCompanyId] = useState("");
+  const [companyId, setCompanyId] = useCompanySelection();
   const [year, setYear] = useState(new Date().getFullYear());
   const [declarationType, setDeclarationType] = useState("ordinary");
   const [originalId, setOriginalId] = useState("");
@@ -50,9 +51,6 @@ export default function Model190DeclarationsPanel({ companies = [] }) {
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
 
-  useEffect(() => {
-    if (!companyId && activeCompanies.length) setCompanyId(String(activeCompanies[0].id));
-  }, [activeCompanies, companyId]);
 
   const load = useCallback(async () => {
     if (!companyId) return;

@@ -1,9 +1,14 @@
 from __future__ import annotations
 
+from datetime import datetime
+from decimal import Decimal
+
 from fastapi import HTTPException
 from sqlalchemy import or_
 from sqlalchemy.orm import Session, joinedload
 
+from app.crud.payroll_salary_structure import get_payroll_items
+from app.services.payroll_amounts import money
 from app.models.agreement_extra_pay import AgreementExtraPay
 from app.models.contract import Contract
 from app.models.payroll import Payroll
@@ -94,8 +99,10 @@ def generate_special_payrolls(db: Session, request: PayrollGenerationRequest) ->
             joinedload(Contract.work_center),
             joinedload(Contract.salary_table_row),
         )
-        .filter(Contract.status == "active")
     )
+
+    if not (request.recalculate_existing and request.contract_ids):
+        query = query.filter(Contract.status == "active")
 
     if request.company_ids:
         query = query.filter(Contract.company_id.in_(request.company_ids))
@@ -115,12 +122,17 @@ def generate_special_payrolls(db: Session, request: PayrollGenerationRequest) ->
     for contract in contracts:
         base = _base_item(contract)
         employee = contract.employee
+        existing = _existing_payroll(db, contract.id, request.period_month, request.period_year)
+        if existing and request.recalculate_existing:
+            recalculate_saved_extra_payroll(db, existing)
+            generated_count += 1
+            items.append({**base, "payroll_id": existing.id, "status": existing.status, "source": "extra_pay", "message": "Paga extraordinaria recalculada"})
+            continue
         if not employee or not employee.is_active:
             skipped_count += 1
             items.append({**base, "status": "skipped", "source": "extra_pay", "message": "Trabajador inactivo"})
             continue
 
-        existing = _existing_payroll(db, contract.id, request.period_month, request.period_year)
         if existing:
             existing_count += 1
             items.append({
@@ -132,6 +144,10 @@ def generate_special_payrolls(db: Session, request: PayrollGenerationRequest) ->
             })
             continue
 
+        if contract.status != "active":
+            skipped_count += 1
+            items.append({**base, "status": "skipped", "source": "extra_pay", "message": "El contrato no está activo y no existe una paga para recalcular"})
+            continue
         extra_pay = _resolve_extra_pay(db, contract, request.period_month)
         if not extra_pay:
             skipped_count += 1
@@ -177,3 +193,38 @@ def generate_special_payrolls(db: Session, request: PayrollGenerationRequest) ->
         "skipped_count": skipped_count,
         "items": items,
     }
+
+
+def recalculate_saved_extra_payroll(db: Session, payroll: Payroll) -> None:
+    """Recalculate the saved extra-payment lines without creating another payroll."""
+    items = get_payroll_items(db, payroll.id)
+    gross = Decimal("0")
+    taxable = Decimal("0")
+    deductions = Decimal("0")
+    for item in items:
+        concept = item.concept
+        if not concept:
+            continue
+        amount = money(item.amount)
+        component = concept.category == "PAGA_EXTRA" and concept.concept_type == "BASE_INFORMATIVA"
+        if component or (concept.concept_type == "DEVENGO" and concept.affects_gross):
+            gross += amount
+            if component or concept.is_taxable:
+                taxable += amount
+        elif concept.concept_type == "DEDUCCION" and concept.affects_net and concept.code.upper() != "IRPF":
+            deductions += amount
+    payroll.base_salary = money(gross)
+    payroll.worked_base_salary = money(gross)
+    payroll.gross_salary = money(gross)
+    payroll.irpf_base = money(taxable)
+    irpf_lines = [item for item in items if item.concept and item.concept.code.upper() == "IRPF"]
+    payroll.irpf = money(sum((item.amount for item in irpf_lines), Decimal("0"))) if irpf_lines else money(taxable * Decimal(str(payroll.irpf_percentage or 0)) / Decimal("100"))
+    payroll.total_deductions = money(payroll.irpf + deductions)
+    payroll.net_salary = money(gross - payroll.total_deductions)
+    payroll.company_total_cost = money(gross)
+    payroll.status = "calculated"
+    payroll.calculation_version = int(payroll.calculation_version or 0) + 1
+    payroll.last_calculated_at = datetime.utcnow()
+    payroll.calculation_fingerprint = None
+    db.commit()
+    db.refresh(payroll)

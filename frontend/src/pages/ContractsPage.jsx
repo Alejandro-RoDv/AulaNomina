@@ -26,6 +26,9 @@ function getHeaderContext(mode) {
       subtitle: "Alta y configuración de la relación contractual del trabajador",
     };
   }
+  if (mode === "lifecycle" || mode === "termination") {
+    return { eyebrow: "Contratación", title: mode === "lifecycle" ? "Datos y gestión del contrato" : "Bajas y finiquitos", subtitle: mode === "lifecycle" ? "Datos específicos y seguimiento contractual" : "Extinción del contrato y liquidación final" };
+  }
   if (mode === "print") {
     return {
       eyebrow: "Contratación",
@@ -104,7 +107,7 @@ export default function ContractsPage({
   const appliedContextRef = useRef("");
   const activeContextRef = useRef(readInitialCaseContext());
   const currentMode = mode || contractMode;
-  const isHistory = currentMode === "history";
+  const isHistory = ["history", "lifecycle", "termination"].includes(currentMode);
   const isPrint = currentMode === "print";
 
   useEffect(() => {
@@ -127,8 +130,11 @@ export default function ContractsPage({
       activeContextRef.current = context;
 
       if (!isCreationAction(context.actionCode)) {
-        window.sessionStorage.setItem("aulanomina:contractsMode", "history");
-        setContractMode("history");
+        const targetMode = ["review_workday_variation", "review_contract_extension_decision"].includes(context.actionCode)
+          ? "lifecycle"
+          : /termination|expiry|dismissal|indemnity|settlement|integrated_c06_affiliation/.test(context.actionCode || "") ? "termination" : "history";
+        window.sessionStorage.setItem("aulanomina:contractsMode", targetMode);
+        setContractMode(targetMode);
         window.dispatchEvent(new Event("aulanomina-contract-mode"));
         return;
       }
@@ -179,7 +185,7 @@ export default function ContractsPage({
 
   return (
     <div className="contract-page-split42">
-      {!isHistory && !isPrint && (
+      {currentMode === "new" && (
         <div className="contract-new-workspace">
           <PageCard>
             <ContractForm
@@ -201,6 +207,7 @@ export default function ContractsPage({
 
       {isHistory && (
         <ContractHistoryScope
+          mode={currentMode}
           loading={loading}
           contracts={contracts}
           employees={employees}

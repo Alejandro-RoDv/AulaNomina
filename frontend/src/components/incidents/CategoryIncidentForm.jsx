@@ -10,6 +10,6 @@ export default function CategoryIncidentForm({ category, form, onChange, ...prop
         {availableTypes.map((type) => <option key={type.value} value={type.value}>{type.label}</option>)}
       </select>
     </section>}
-    <IncidentForm form={form} onChange={onChange} {...props} />
+    <IncidentForm hideTypePicker form={form} onChange={onChange} {...props} />
   </div>;
 }

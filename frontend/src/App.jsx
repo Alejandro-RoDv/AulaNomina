@@ -1,5 +1,8 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
+import { useCompanySelection } from "./hooks/useCompanySelection";
+import { scopeCompanyData } from "./utils/companyScope";
+import { setSelectedCompanyId } from "./utils/companyContext";
 import Sidebar from "./components/layout/Sidebar";
 import Header from "./components/layout/Header";
 import AlertsRoute from "./components/alerts/AlertsRoute";
@@ -55,6 +58,7 @@ const employeePages = new Set(["employees", "employees-list", "employee-record"]
 export default function App() {
   const [activePage, setActivePage] = useState("dashboard");
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [selectedCompanyId] = useCompanySelection();
 
   const {
     employeeForm,
@@ -90,13 +94,13 @@ export default function App() {
   }, []);
 
   const {
-    contracts,
-    employees,
+    contracts: allContracts,
+    employees: allEmployees,
     companies,
-    workCenters,
-    incidents,
-    payrolls,
-    documents,
+    workCenters: allWorkCenters,
+    incidents: allIncidents,
+    payrolls: allPayrolls,
+    documents: allDocuments,
     collectiveAgreements,
     loading,
     loadData,
@@ -109,6 +113,17 @@ export default function App() {
     onLoadError: handleGlobalLoadError,
     onNextEmployeeCode: setNextEmployeeCode,
   });
+
+  const { contracts, employees, workCenters, incidents, payrolls, documents } = useMemo(() => scopeCompanyData({
+    contracts: allContracts, employees: allEmployees, workCenters: allWorkCenters,
+    incidents: allIncidents, payrolls: allPayrolls, documents: allDocuments,
+  }, selectedCompanyId), [allContracts, allEmployees, allWorkCenters, allIncidents, allPayrolls, allDocuments, selectedCompanyId]);
+
+  useEffect(() => {
+    if (!loading && selectedCompanyId && !companies.some((company) => String(company.id) === selectedCompanyId && company.is_active !== false && company.status !== "baja_definitiva")) {
+      setSelectedCompanyId("");
+    }
+  }, [companies, loading, selectedCompanyId]);
 
   const {
     contractForm,
@@ -169,6 +184,10 @@ export default function App() {
 
   function getTitle() {
     if (activePage === "dashboard") return "Dashboard";
+    if (activePage === "payroll-dashboard") return "Nómina";
+    if (activePage === "labor-dashboard") return "Gestión laboral";
+    if (activePage === "documents-dashboard") return "Documentación";
+    if (activePage === "tax-dashboard") return "Fiscalidad";
     if (activePage === "companies-dashboard") return "Empresas / Centros";
     if (activePage === "workers-dashboard") return "Trabajador";
     if (activePage === "contracts-dashboard") return "Contratos";
@@ -271,7 +290,11 @@ export default function App() {
     return (
       <ModuleDashboardPage
         type={type}
-        companies={companies}
+        incidents={incidents}
+        payrolls={payrolls}
+        documents={documents}
+        loading={loading}
+        companies={companies.filter((company) => !selectedCompanyId || String(company.id) === selectedCompanyId)}
         workCenters={workCenters}
         employees={employees}
         contracts={contracts}
@@ -285,7 +308,7 @@ export default function App() {
     if (activePage === "dashboard") {
       return (
         <Dashboard
-          companies={companies}
+          companies={companies.filter((company) => !selectedCompanyId || String(company.id) === selectedCompanyId)}
           workCenters={workCenters}
           employees={employees}
           contracts={contracts}
@@ -297,6 +320,10 @@ export default function App() {
     }
 
     if (activePage === "companies-dashboard") return renderModuleDashboard("companies");
+    if (activePage === "payroll-dashboard") return renderModuleDashboard("payroll");
+    if (activePage === "labor-dashboard") return renderModuleDashboard("labor");
+    if (activePage === "documents-dashboard") return renderModuleDashboard("documents");
+    if (activePage === "tax-dashboard") return renderModuleDashboard("tax");
     if (activePage === "workers-dashboard") return renderModuleDashboard("workers");
     if (activePage === "contracts-dashboard") return renderModuleDashboard("contracts");
 
@@ -388,8 +415,11 @@ export default function App() {
     if (activePage === "payroll-simulation") {
       return (
         <PayrollSimulationPage
-          employees={employees.filter((employee) => employee.is_active)}
-          contracts={contracts}
+          onGenerated={loadData}
+          companies={companies}
+          initialCompanyId={selectedCompanyId}
+          employees={allEmployees}
+          contracts={allContracts}
         />
       );
     }
@@ -498,6 +528,9 @@ export default function App() {
     if (activePage === "incidents") {
       return (
         <IncidentsPage
+          onDataChanged={loadData}
+          garnishmentData={{ employees: allEmployees, contracts: allContracts, payrolls: allPayrolls }}
+          payrolls={payrolls}
           loading={loading}
           incidents={incidents}
           employees={employees.filter((employee) => employee.is_active)}
@@ -524,6 +557,9 @@ export default function App() {
       <Sidebar activePage={activePage} setActivePage={setActivePage} />
       <div style={styles.mainWrapper}>
         <Header
+          activePage={activePage}
+          companies={companies}
+          companiesLoading={loading}
           title={getTitle()}
           subtitle={getSubtitle()}
           settingsOpen={settingsOpen}

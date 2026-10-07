@@ -1,3 +1,4 @@
+import { generatePayrolls } from "../../services/payrollApi";
 import { Fragment, useState } from "react";
 import { PAYROLL_STATUS_OPTIONS, formatCurrency } from "./PayrollForm";
 import PayrollDetailsModal from "./PayrollDetailsModal";
@@ -56,6 +57,8 @@ export default function PayrollTable({
   const [isEditing, setIsEditing] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [editError, setEditError] = useState("");
+  const [recalculatingId, setRecalculatingId] = useState(null);
+  const [recalculationMessage, setRecalculationMessage] = useState("");
   const [deleteError, setDeleteError] = useState("");
 
   const getPayrollCode = (payroll) => getPayrollVisibleCode(payroll, contracts, employees);
@@ -149,12 +152,27 @@ export default function PayrollTable({
     }
   };
 
+  const recalculate = async (payroll) => {
+    if (recalculatingId) return;
+    setRecalculatingId(payroll.id);
+    setRecalculationMessage("");
+    try {
+      const result = await generatePayrolls({ period_month: payroll.period_month, period_year: payroll.period_year, contract_ids: [payroll.contract_id], recalculate_existing: true });
+      if (!result.generated_count) throw new Error(result.items?.[0]?.message || "No se ha podido recalcular la nómina.");
+      setExpandedPayrollId(null);
+      if (onPayrollsChanged) await onPayrollsChanged();
+      setRecalculationMessage("Nómina recalculada y actualizada correctamente.");
+    } catch (err) { setRecalculationMessage(err.message || "No se ha podido recalcular la nómina."); }
+    finally { setRecalculatingId(null); }
+  };
+
   if (loading) {
     return <p>Cargando...</p>;
   }
 
   return (
     <>
+      {recalculationMessage && <p role="status">{recalculationMessage}</p>}
       <div style={styles.tableWrapper}>
         <table style={styles.table}>
           <thead>
@@ -198,6 +216,7 @@ export default function PayrollTable({
                       <button type="button" onClick={() => openDetailsModal(payroll)} style={styles.detailsButton}>
                         Detalles
                       </button>
+                      <button type="button" onClick={() => recalculate(payroll)} disabled={Boolean(recalculatingId) || payroll.status === "cancelled"} style={styles.detailsButton}>{recalculatingId === payroll.id ? "Recalculando…" : "Recalcular"}</button>
                       <button type="button" onClick={() => toggleBreakdown(payroll)} style={isExpanded ? styles.breakdownButtonActive : styles.breakdownButton}>
                         {isExpanded ? "Ocultar" : "Conceptos"}
                       </button>

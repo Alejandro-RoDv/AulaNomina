@@ -1,3 +1,4 @@
+import { useCompanySelection } from "../hooks/useCompanySelection";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   createProfessional,
@@ -204,7 +205,7 @@ function EmptySummary({ busy, companyId, onLoadDemo }) {
 
 export default function Model111Page({ companies = [] }) {
   const activeCompanies = useMemo(() => companies.filter((company) => company.is_active), [companies]);
-  const [companyId, setCompanyId] = useState("");
+  const [companyId, setCompanyId] = useCompanySelection();
   const [year, setYear] = useState(new Date().getFullYear());
   const [period, setPeriod] = useState("2T");
   const [preview, setPreview] = useState(null);
@@ -221,9 +222,6 @@ export default function Model111Page({ companies = [] }) {
   const [invoiceForm, setInvoiceForm] = useState({ professional_id: "", invoice_number: "", invoice_date: "", payment_date: "", tax_base: "", withholding_rate: "15", status: "paid" });
   const [adjustmentForm, setAdjustmentForm] = useState({ category: "work", adjustment_type: "arrears", source_date: "", recipient_nif: "", recipient_name: "", base_amount: "", withholding_amount: "", notes: "" });
 
-  useEffect(() => {
-    if (!companyId && activeCompanies.length) setCompanyId(String(activeCompanies[0].id));
-  }, [activeCompanies, companyId]);
 
   const load = useCallback(async (targetYear = year, targetPeriod = period) => {
     if (!companyId) return;

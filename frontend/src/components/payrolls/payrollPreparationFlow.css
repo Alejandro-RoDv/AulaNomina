@@ -556,3 +556,18 @@
     flex-direction: column;
   }
 }
+
+/* Multi-company generation scope */
+.payroll-generation__company-scope { margin: 18px 0; padding: 16px; border: 1px solid #bfdbfe; border-radius: 8px; background: #eff6ff; min-width: 0; }
+.payroll-generation__company-scope legend { padding: 0 6px; font-size: 13px; font-weight: 700; color: #1e40af; }
+.payroll-generation__scope-options { display: flex; flex-wrap: wrap; gap: 12px 24px; margin-bottom: 14px; }
+.payroll-generation__scope-options label, .payroll-generation__company-choices label { display: flex; flex-direction: row; align-items: center; gap: 8px; cursor: pointer; }
+.payroll-generation__scope-options input[type="radio"] { width: 16px; height: 16px; min-height: 0; accent-color: #2563eb; }
+.payroll-generation__single-company { max-width: 480px; }
+.payroll-generation__company-choices { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(230px, 100%), 1fr)); gap: 8px; }
+.payroll-generation__company-choices label { padding: 10px; background: white; border: 1px solid #dbe3ed; border-radius: 6px; }
+.payroll-generation__company-choices small { display: block; color: #667085; font-size: 11px; }
+.payroll-generation__company-scope p { margin: 12px 0 0; font-size: 12px; color: #475569; }
+.payroll-generation__company-results > div { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; padding: 12px 16px; border-bottom: 1px solid #dbe3ed; font-size: 12px; }
+.payroll-generation__company-results span { color: #475569; }
+.payroll-generation__result-company { display: block; margin-top: 4px; color: #667085; font-weight: 400; }

@@ -93,7 +93,7 @@ def _resolved_code_amount(items: list[PayrollItem], code: str, fallback: Decimal
 def _line_payload(item: PayrollItem, effective_amounts: dict[str, Decimal] | None = None) -> dict:
     concept = item.concept
     code = str(concept.code if concept else f"ITEM_{item.id}").upper()
-    quantity = money(item.quantity or Decimal("1.00"))
+    quantity = money(item.quantity if item.quantity is not None else Decimal("1.00"))
     amount = money(item.amount)
     if effective_amounts and code in effective_amounts:
         amount = money(effective_amounts[code])
@@ -431,15 +431,18 @@ def _sync_generated_system_items(db: Session, payroll: Payroll) -> None:
         PayrollItem.source_key.like(f"{prefix}%"),
     ).all()
     for item in existing:
-        if item.concept and item.concept.concept_type != "DEVENGO":
+        if item.concept and item.concept.concept_type != "DEVENGO" and not _is_manual_override(item):
             db.delete(item)
     db.flush()
 
+    override_codes = {item.concept.code.upper() for item in _preparation_items(db, payroll.id) if item.concept and _is_manual_override(item)}
     for line in build_concept_lines_from_payroll(payroll):
         if line.get("concept_type") == "DEVENGO":
             continue
         concept = ensure_engine_concept(db, line)
         code = str(line["code"]).upper()[:120]
+        if code in override_codes:
+            continue
         amount = money(line.get("amount"))
         db.add(PayrollItem(
             payroll_id=payroll.id,
@@ -518,7 +521,9 @@ def generate_payrolls(db: Session, request: PayrollGenerationRequest) -> dict:
         joinedload(Contract.employee),
         joinedload(Contract.company),
         joinedload(Contract.work_center),
-    ).filter(Contract.status == "active")
+    )
+    if not (request.recalculate_existing and request.contract_ids):
+        query = query.filter(Contract.status == "active")
 
     if request.company_ids:
         query = query.filter(Contract.company_id.in_(request.company_ids))
@@ -545,19 +550,24 @@ def generate_payrolls(db: Session, request: PayrollGenerationRequest) -> dict:
             "company_id": contract.company_id,
             "company_name": contract.company.name if contract.company else None,
         }
-        if not employee or not employee.is_active:
+        existing = _find_period_payroll(db, contract.id, request.period_month, request.period_year)
+        recalculating = bool(existing and request.recalculate_existing)
+        if not employee or (not employee.is_active and not recalculating):
             skipped_count += 1
             items.append({**base_item, "status": "skipped", "source": "automatic", "message": "Trabajador inactivo"})
             continue
 
-        skip_reason = payroll_crud.get_contract_period_skip_reason(contract, request.period_month, request.period_year)
+        skip_reason = None if recalculating else payroll_crud.get_contract_period_skip_reason(contract, request.period_month, request.period_year)
         if skip_reason:
             skipped_count += 1
             items.append({**base_item, "status": "skipped", "source": "automatic", "message": skip_reason})
             continue
 
-        existing = _find_period_payroll(db, contract.id, request.period_month, request.period_year)
-        if existing and existing.status != "draft":
+        if not existing and contract.status != "active":
+            skipped_count += 1
+            items.append({**base_item, "status": "skipped", "source": "automatic", "message": "El contrato no está activo y no existe una nómina para recalcular"})
+            continue
+        if existing and existing.status != "draft" and not request.recalculate_existing:
             existing_count += 1
             items.append({
                 **base_item,
@@ -568,6 +578,8 @@ def generate_payrolls(db: Session, request: PayrollGenerationRequest) -> dict:
             })
             continue
 
+        if existing and request.recalculate_existing:
+            existing.status = "draft"
         source = "prepared" if existing and existing.status == "draft" else "automatic"
         if existing is None:
             preparation = ensure_preparation(

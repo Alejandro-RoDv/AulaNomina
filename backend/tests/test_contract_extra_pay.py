@@ -259,6 +259,25 @@ class ContractExtraPayTest(unittest.TestCase):
                 ContractExtraPayPayrollCreateRequest(period_year=2026),
             )
 
+    def test_saved_extra_pay_can_be_recalculated_without_duplicates(self):
+        from app.services.payroll_special_generation_service import generate_special_payrolls
+        from app.schemas.payroll_preparation import PayrollGenerationRequest
+        from app.crud.payroll_salary_structure import update_payroll_item, delete_payroll_item
+        from app.schemas.payroll_salary_structure import PayrollItemUpdate
+        created = create_contract_extra_payroll(self.db, self.extra.id, self.contract.id, ContractExtraPayPayrollCreateRequest(period_year=2026, irpf_mode="manual", irpf_percentage=10, status="pending"))
+        payroll = self.db.get(Payroll, created["payroll_id"])
+        lines = self.db.query(PayrollItem).filter(PayrollItem.payroll_id == payroll.id).all()
+        update_payroll_item(self.db, lines[0].id, PayrollItemUpdate(amount=500))
+        delete_payroll_item(self.db, lines[1].id)
+        request = PayrollGenerationRequest(period_month=13, period_year=2026, contract_ids=[self.contract.id], recalculate_existing=True)
+        for _ in range(2):
+            result = generate_special_payrolls(self.db, request)
+            self.assertEqual(result["items"][0]["payroll_id"], payroll.id)
+            self.assertEqual(payroll.gross_salary, Decimal("500"))
+            self.assertEqual(payroll.irpf, Decimal("50"))
+            self.assertEqual(payroll.net_salary, Decimal("450"))
+        self.assertEqual(self.db.query(Payroll).count(), 1)
+
 
 if __name__ == "__main__":
     unittest.main()

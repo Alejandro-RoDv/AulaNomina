@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import {
   createEmployee,
@@ -6,7 +6,7 @@ import {
   fetchNextEmployeeCode,
   updateEmployee,
 } from "../services/employeeApi";
-import { getSelectedCompanyId, setSelectedCompanyId } from "../utils/companyContext";
+import { getSelectedCompanyId, setSelectedCompanyId, subscribeSelectedCompany } from "../utils/companyContext";
 import { buildEmployeePayload, initialEmployeeForm } from "../utils/employeePayloads";
 
 function employeeFormWithContext() {
@@ -53,6 +53,9 @@ function buildDuplicatedEmployeeForm(employee) {
 
 export function useEmployeesModule({ onDataChanged }) {
   const [employeeForm, setEmployeeForm] = useState(employeeFormWithContext);
+  useEffect(() => subscribeSelectedCompany((companyId) => {
+    setEmployeeForm((previous) => previous.company_id === companyId ? previous : { ...previous, company_id: companyId, center_id: "" });
+  }), []);
   const [employeeSubmitting, setEmployeeSubmitting] = useState(false);
   const [employeeError, setEmployeeError] = useState("");
   const [employeeSuccess, setEmployeeSuccess] = useState("");

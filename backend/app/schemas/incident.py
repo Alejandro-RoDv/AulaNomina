@@ -115,8 +115,8 @@ class IncidentBase(BaseModel):
     @field_validator("hours")
     @classmethod
     def validate_hours(cls, value: Decimal | None):
-        if value is not None and (value < 0 or value > 24):
-            raise ValueError("Las horas deben estar entre 0 y 24")
+        if value is not None and value < 0:
+            raise ValueError("Las horas no pueden ser negativas")
         return value
 
     @field_validator("days", "generated_amount")
@@ -132,8 +132,13 @@ class IncidentBase(BaseModel):
             raise ValueError("La fecha final no puede ser anterior a la inicial")
         if self.overlap_override and not (self.overlap_reason or "").strip():
             raise ValueError("Debe indicar el motivo para autorizar un solapamiento")
-        if self.incident_type == "HORAS_EXTRA" and self.hours is None:
-            raise ValueError("Las horas extraordinarias requieren número de horas")
+        if self.incident_type == "HORAS_EXTRA":
+            if self.hours is None or self.hours <= 0:
+                raise ValueError("Las horas extraordinarias requieren una cantidad mayor que cero")
+            if self.end_date and (self.start_date.year, self.start_date.month) != (self.end_date.year, self.end_date.month):
+                raise ValueError("Registra las horas extra por separado para cada mes de nómina")
+        elif self.hours is not None and self.hours > 24:
+            raise ValueError("Las horas de una ausencia no pueden superar 24; utiliza días para periodos más largos")
         return self
 
 
@@ -191,8 +196,8 @@ class IncidentUpdate(BaseModel):
     @field_validator("hours")
     @classmethod
     def validate_hours(cls, value: Decimal | None):
-        if value is not None and (value < 0 or value > 24):
-            raise ValueError("Las horas deben estar entre 0 y 24")
+        if value is not None and value < 0:
+            raise ValueError("Las horas no pueden ser negativas")
         return value
 
     @field_validator("days", "generated_amount")

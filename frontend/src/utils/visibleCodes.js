@@ -87,3 +87,11 @@ export function getPayrollVisibleCode(payroll, contracts = [], employees = []) {
     ? getContractVisibleCode(contract, employees, contracts)
     : `${payroll.company_id || "?"}.${payroll.employee_id || "?"}.${payroll.contract_id || "?"}`;
 }
+
+// Search the same company.sequence code shown in the list, retaining legacy codes/IDs.
+export function matchesEmployeeCode(employee, query, employees = [], contracts = []) {
+  const filter = String(query || "").trim().toLowerCase();
+  if (!filter) return true;
+  const codes = [getEmployeeVisibleCode(employee, employees, contracts), employee?.employee_code, employee?.id];
+  return codes.some(code => code != null && String(code).toLowerCase().includes(filter));
+}

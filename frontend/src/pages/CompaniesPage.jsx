@@ -7,7 +7,7 @@ import WorkCenterCreatePanel from "../components/workCenters/WorkCenterCreatePan
 import WorkCenterTable from "../components/workCenters/WorkCenterTable";
 import { Button } from "../components/ui";
 import "../components/companies/companySplit42Refinements.css";
-import { getSelectedCompanyId, setSelectedCompanyId as persistSelectedCompanyId } from "../utils/companyContext";
+import { getSelectedCompanyId, subscribeSelectedCompany, setSelectedCompanyId as persistSelectedCompanyId } from "../utils/companyContext";
 import { openReportPreset } from "../utils/reportShortcuts";
 
 const HASHES = {
@@ -204,12 +204,13 @@ export default function CompaniesPage(props) {
     requestRoute(HASHES.centers);
   };
 
-  const handleCompanyCreated = (company) => {
+  const handleCompanyCreated = async (company) => {
     if (!company?.id) {
       requestRoute(HASHES.list);
       return;
     }
     setOptimisticCompany(company);
+    await onDataChanged?.();
     selectCompany(company.id);
     commitRoute(`#company-detail/${company.id}/general`);
   };
@@ -218,6 +219,19 @@ export default function CompaniesPage(props) {
     selectCompany(companyId);
     await onDataChanged?.();
   };
+
+  useEffect(() => subscribeSelectedCompany((companyId) => {
+    const current = routeRef.current;
+    if (current.view === "detail" && current.companyId !== companyId) {
+      if (detailDirty && !window.confirm("Hay cambios sin guardar en la ficha de empresa. ¿Cambiar de empresa y descartarlos?")) {
+        persistSelectedCompanyId(current.companyId);
+        return;
+      }
+      setDetailDirty(false);
+      commitRoute(companyId ? `#company-detail/${companyId}/general` : HASHES.list);
+    }
+    setSelectedCompanyId(companyId);
+  }), [detailDirty]);
 
   const changeDetailTab = (tab) => {
     setDetailDirty(false);
@@ -269,6 +283,7 @@ export default function CompaniesPage(props) {
           </div>
 
           <CompanyMasterCreateForm
+            companies={availableCompanies}
             collectiveAgreements={collectiveAgreements}
             onCreated={handleCompanyCreated}
             onOpenPreferences={openCompany}

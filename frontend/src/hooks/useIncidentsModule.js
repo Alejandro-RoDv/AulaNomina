@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { subscribeSelectedCompany } from "../utils/companyContext";
+import { useEffect, useState } from "react";
 
 import { createIncident, deleteIncident, updateIncident } from "../services/incidentApi";
 import {
@@ -9,6 +10,9 @@ import {
 
 export function useIncidentsModule({ contracts, onDataChanged }) {
   const [incidentForm, setIncidentForm] = useState({ ...initialIncidentForm });
+  useEffect(() => subscribeSelectedCompany((companyId) => {
+    setIncidentForm((previous) => ({ ...previous, company_id: companyId, center_id: "", employee_id: "", contract_id: "" }));
+  }), []);
   const [incidentSubmitting, setIncidentSubmitting] = useState(false);
   const [incidentError, setIncidentError] = useState("");
   const [incidentSuccess, setIncidentSuccess] = useState("");
@@ -32,6 +36,9 @@ export function useIncidentsModule({ contracts, onDataChanged }) {
         };
       }
 
+      if (name === "incident_type" && nextValue !== prev.incident_type) {
+        return { ...initialIncidentForm, employee_id: prev.employee_id, contract_id: prev.contract_id, company_id: prev.company_id, center_id: prev.center_id, incident_type: nextValue };
+      }
       return { ...prev, [name]: nextValue };
     });
   };
@@ -43,12 +50,16 @@ export function useIncidentsModule({ contracts, onDataChanged }) {
 
     try {
       setIncidentSubmitting(true);
-      await createIncident(buildIncidentPayload(incidentForm));
+      const payload = buildIncidentPayload({ ...incidentForm, overtime_contract: contracts.find((contract) => String(contract.id) === String(incidentForm.contract_id)) });
+      if (payload.incident_type === "HORAS_EXTRA" && payload.details.inclusion_destination === "payroll" && !(Number(payload.details.hour_value) > 0)) {
+        throw new Error("El contrato no tiene un valor de hora calculable. Indica un importe manual o revisa su salario y jornada.");
+      }
+      await createIncident(payload);
       setIncidentSuccess("Incidencia creada correctamente");
-      setIncidentForm({ ...initialIncidentForm });
+      setIncidentForm({ ...initialIncidentForm, incident_type: incidentForm.incident_type, unit_type: incidentForm.unit_type, payroll_effect: incidentForm.payroll_effect });
       await onDataChanged();
     } catch (err) {
-      setIncidentError(err.message || "Error al crear incidencia");
+      setIncidentError((err.message || "Error al crear incidencia").replace("Revise el conflicto o autorícelo indicando un motivo.", "Revisa las fechas y las incidencias existentes en el historial."));
     } finally {
       setIncidentSubmitting(false);
     }

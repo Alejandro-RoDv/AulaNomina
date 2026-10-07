@@ -1,0 +1,19 @@
+.custom-report-builder { display: grid; gap: 18px; color: #374151; }
+.custom-report-controls { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 16px; }
+.custom-report-controls label { display: grid; gap: 7px; font-weight: 700; }
+.custom-report-controls input, .custom-report-controls select { padding: 10px; border: 1px solid #ccc; border-radius: 7px; background: #fff; min-width: 0; }
+.custom-report-groups { display: grid; grid-template-columns: repeat(auto-fit,minmax(170px,1fr)); gap: 14px; }
+.custom-report-groups fieldset { border: 1px solid #d1d5db; border-radius: 8px; padding: 14px; }
+.custom-report-groups legend { font-weight: 800; }
+.custom-report-groups label { display: flex; align-items: center; gap: 8px; margin: 9px 0; font-size: 13px; }
+.custom-report-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.custom-report-actions button { padding: 10px 14px; background: var(--an-color-neutral-0); color: var(--an-color-neutral-800); border: 1px solid var(--an-color-neutral-300); border-radius: 6px; font-weight: 700; cursor: pointer; }
+.custom-report-actions button:disabled { opacity: .5; cursor: default; }
+.custom-report-preview { overflow-x: auto; }
+.custom-report-preview table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.custom-report-preview th { background: #f8f3b5; text-align: left; }
+.custom-report-preview th, .custom-report-preview td { padding: 10px; border-bottom: 1px solid #ddd; white-space: nowrap; }
+@media(max-width:600px) { .custom-report-controls { grid-template-columns: 1fr; } }
+
+.custom-report-actions button:first-child, .custom-report-actions button:last-child { background: var(--an-color-primary-600); border-color: var(--an-color-primary-600); color: white; }
+.custom-report-actions button:focus-visible { outline: 3px solid var(--an-color-primary-300); outline-offset: 2px; }

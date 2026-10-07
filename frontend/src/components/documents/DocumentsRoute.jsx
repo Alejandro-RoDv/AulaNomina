@@ -1,3 +1,4 @@
+import ModuleNavigation from "../layout/ModuleNavigation";
 import { useEffect, useState } from "react";
 
 import DocumentsPage from "../../pages/DocumentsPage";
@@ -149,6 +150,7 @@ export default function DocumentsRoute() {
           <p style={styles.subtitle}>Gestión documental del expediente laboral simulado.</p>
         </div>
       </header>
+      <ModuleNavigation activePage="documents" groupId="documents" />
       <main style={styles.main}>
         <DocumentsPage
           loading={loading}
@@ -173,11 +175,11 @@ export default function DocumentsRoute() {
 const styles = {
   wrapper: {
     position: "fixed",
-    top: "56px",
+    top: "var(--an-topbar-offset, 56px)",
     left: "272px",
     right: 0,
     bottom: 0,
-    zIndex: 20,
+    zIndex: 200,
     backgroundColor: "#f8fafc",
     overflowY: "auto",
   },

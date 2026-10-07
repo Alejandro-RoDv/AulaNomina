@@ -12,10 +12,6 @@ function getEmployeeCompanyId(employee, contracts) {
   return activeContract?.company_id || employee.company_id;
 }
 
-function getCompanyName(companies, companyId) {
-  return companies.find((company) => String(company.id) === String(companyId))?.name || "Sin empresa";
-}
-
 function goToPage(page) {
   window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
   window.dispatchEvent(new Event("aulanomina-route-change"));
@@ -23,7 +19,7 @@ function goToPage(page) {
 }
 
 function goToCompanySection(section) {
-  const hash = section === "centers" ? "#company-centers" : section === "list" ? "#company-list" : "#company-companies";
+  const hash = section === "centers" ? "#company-centers" : section === "list" ? "#company-list" : "#company-new";
   window.location.hash = hash;
   window.sessionStorage.setItem("aulanomina:companiesMode", section === "centers" ? "centers" : section === "list" ? "list" : "new");
   window.dispatchEvent(new Event("aulanomina-route-change"));
@@ -79,7 +75,7 @@ function TopCompaniesList({ title, rows }) {
         <div style={styles.rankedList}>
           {rows.slice(0, 6).map((row) => (
             <div key={row.name} style={styles.rankedRow}>
-              <span>{row.name}</span>
+              <div style={{ flex: 1 }}><span>{row.name}</span><div aria-hidden="true" style={{ height: 5, marginTop: 6, borderRadius: 4, background: "#e5e7eb" }}><div style={{ height: "100%", borderRadius: 4, background: "#d4bc25", width: `${percent(row.value, Math.max(...rows.map((item) => item.value)))}%` }} /></div></div>
               <strong>{row.value}</strong>
             </div>
           ))}
@@ -91,7 +87,6 @@ function TopCompaniesList({ title, rows }) {
 
 function buildCompanyDashboard({ companies, workCenters, employees, contracts }) {
   const activeCompanies = companies.filter((company) => company.is_active !== false);
-  const inactiveCompanies = companies.filter((company) => company.is_active === false);
   const activeCenters = workCenters.filter((center) => center.is_active !== false);
   const companiesWithCenters = companies.filter((company) => workCenters.some((center) => String(center.company_id) === String(company.id)));
 
@@ -174,11 +169,11 @@ function buildWorkerDashboard({ companies, workCenters, employees, contracts }) 
 }
 
 function buildContractDashboard({ companies, employees, contracts }) {
-  const activeContracts = contracts.filter((contract) => contract.status === "active" || (!contract.end_date && contract.status !== "closed"));
-  const endedContracts = contracts.filter((contract) => contract.end_date || contract.status === "closed" || contract.status === "expired");
-  const indefiniteContracts = contracts.filter((contract) => String(contract.contract_code || "").startsWith("1") || String(contract.contract_code || "").startsWith("2"));
+  const activeContracts = contracts.filter((contract) => contract.status === "active");
+  const endedContracts = contracts.filter((contract) => ["ended", "closed", "expired", "terminated"].includes(contract.status));
+  const indefiniteContracts = contracts.filter((contract) => ["1", "2", "3"].includes(String(contract.contract_code || "")[0]));
   const temporaryContracts = contracts.filter((contract) => String(contract.contract_code || "").startsWith("4") || String(contract.contract_code || "").startsWith("5"));
-  const partTimeContracts = contracts.filter((contract) => contract.working_day_type === "part_time" || Number(contract.partiality_coefficient) > 0);
+  const partTimeContracts = contracts.filter((contract) => contract.working_day_type === "part_time" || (Number(contract.partiality_coefficient) > 0 && Number(contract.partiality_coefficient) < 100));
 
   const contractsByCompany = companies.map((company) => ({
     name: company.name,
@@ -195,8 +190,8 @@ function buildContractDashboard({ companies, employees, contracts }) {
     subtitle: "Resumen contractual antes de crear contratos, revisar histórico o preparar impresión.",
     metrics: [
       ["Contratos", safeCount(contracts), `${activeContracts.length} activos`],
-      ["Finalizados", endedContracts.length, "Con fecha de fin o cerrados"],
-      ["Indefinidos", indefiniteContracts.length, "Códigos 100-299"],
+      ["Finalizados", endedContracts.length, "Finalizados o cerrados"],
+      ["Indefinidos", indefiniteContracts.length, "Incluye fijos discontinuos"],
       ["Temporales", temporaryContracts.length, "Códigos 400-599"],
     ],
     donuts: [
@@ -211,19 +206,63 @@ function buildContractDashboard({ companies, employees, contracts }) {
     actions: [
       ["Nuevo contrato", () => goToContractSection("new")],
       ["Historial contratos", () => goToContractSection("history")],
+      ["Datos y gestión", () => goToContractSection("lifecycle")],
+      ["Bajas y finiquitos", () => goToContractSection("termination")],
       ["Impresión contratos", () => goToContractSection("print")],
     ],
+  };
+}
+
+function goToHash(hash) {
+  window.location.hash = hash;
+  window.dispatchEvent(new Event("aulanomina-route-change"));
+}
+
+function operationalDashboard(type, { companies, employees, contracts, incidents, payrolls, documents }) {
+  const activeContracts = contracts.filter((item) => item.status === "active");
+  const totalGross = payrolls.reduce((sum, item) => sum + Number(item.gross_salary || item.total_accrued || 0), 0);
+  const pendingDocuments = documents.filter((item) => item.status === "pending");
+  const receivedDocuments = documents.filter((item) => item.status === "received");
+  const currentIncidents = incidents.filter((item) => !item.end_date || item.end_date >= new Date().toISOString().slice(0, 10));
+  const byCompany = (items) => companies.map((company) => ({ name: company.name, value: items.filter((item) => String(item.company_id) === String(company.id)).length }));
+  const byMonth = new Map();
+  payrolls.forEach((item) => {
+    const key = `${item.period_year || item.year || "—"}-${String(item.period_month || item.month || "—").padStart(2, "0")}`;
+    byMonth.set(key, (byMonth.get(key) || 0) + 1);
+  });
+  if (type === "labor") return {
+    title: "Gestión laboral", subtitle: "Incidencias registradas y seguimiento de la plantilla de la empresa de trabajo.",
+    metrics: [["Incidencias", incidents.length], ["Vigentes por fecha", currentIncidents.length], ["Trabajadores", employees.length], ["Contratos activos", activeContracts.length]],
+    donuts: [["Incidencias vigentes", currentIncidents.length, incidents.length, "Seguimiento", "Sin fecha de fin o con fin pendiente."], ["Contratos activos", activeContracts.length, contracts.length, "Plantilla", "Relaciones laborales activas."]],
+    lists: [["Incidencias por empresa", byCompany(incidents)]],
+    actions: [["Abrir incidencias", () => { window.sessionStorage.setItem("aulanomina:incidentsMode", "list"); window.sessionStorage.setItem("aulanomina:incidentCategory", "all"); window.dispatchEvent(new Event("aulanomina-incident-category")); goToPage("incidents"); }]],
+  };
+  if (type === "documents") return {
+    title: "Documentación", subtitle: "Estado de los documentos y acceso a los informes del entorno de trabajo.",
+    metrics: [["Documentos", documents.length], ["Pendientes", pendingDocuments.length], ["Recibidos", receivedDocuments.length], ["Caducados", documents.filter((item) => item.status === "expired").length]],
+    donuts: [["Documentos recibidos", receivedDocuments.length, documents.length, "Expedientes", "Documentación marcada como recibida."], ["Pendientes", pendingDocuments.length, documents.length, "Por completar", "Documentos que requieren seguimiento."]],
+    lists: [["Documentos por empresa", byCompany(documents)]], actions: [["Documentos", () => goToHash("#documents")], ["Informes", () => goToHash("#reports")]],
+  };
+  return {
+    title: type === "tax" ? "Fiscalidad" : "Nómina",
+    subtitle: type === "tax" ? "Resumen de nóminas disponibles para el trabajo fiscal y acceso a IRPF y modelos." : "Preparación, generación y consulta de nóminas de la empresa de trabajo.",
+    metrics: [["Nóminas", payrolls.length], ["Contratos activos", activeContracts.length], ["Trabajadores", employees.length], ["Bruto acumulado", totalGross.toLocaleString("es-ES", { style: "currency", currency: "EUR" })]],
+    donuts: [["Contratos activos", activeContracts.length, contracts.length, "Contratación", "Contratos disponibles para preparar nóminas."], ["Trabajadores con nómina", employees.filter((employee) => payrolls.some((item) => String(item.employee_id) === String(employee.id))).length, employees.length, "Cobertura", "Trabajadores con al menos una nómina registrada."]],
+    lists: [["Nóminas por empresa", byCompany(payrolls)], ["Nóminas por periodo", [...byMonth].sort(([a], [b]) => b.localeCompare(a)).map(([name, value]) => ({ name, value }))]],
+    actions: type === "tax" ? [["IRPF", () => goToPage("irpf")], ["Modelo 111", () => goToHash("#model-111")], ["Modelo 190", () => goToHash("#model-190")]] : [["Preparación mensual", () => goToPage("payroll-monthly-preparation")], ["Generar nóminas", () => goToPage("payroll-simulation")], ["Histórico", () => goToPage("payroll-history")]],
   };
 }
 
 function getDashboardData(type, props) {
   if (type === "companies") return buildCompanyDashboard(props);
   if (type === "workers") return buildWorkerDashboard(props);
-  return buildContractDashboard(props);
+  if (type === "contracts") return buildContractDashboard(props);
+  return operationalDashboard(type, props);
 }
 
-export default function ModuleDashboardPage({ type, companies = [], workCenters = [], employees = [], contracts = [] }) {
-  const dashboard = getDashboardData(type, { companies, workCenters, employees, contracts });
+export default function ModuleDashboardPage({ type, companies = [], workCenters = [], employees = [], contracts = [], incidents = [], payrolls = [], documents = [], loading = false }) {
+  const dashboard = getDashboardData(type, { companies, workCenters, employees, contracts, incidents, payrolls, documents });
+  if (loading) return <p role="status">Cargando resumen…</p>;
 
   return (
     <div style={styles.wrapper}>
@@ -260,16 +299,16 @@ const styles = {
   actions: { display: "flex", gap: "8px", flexWrap: "wrap" },
   actionButton: { backgroundColor: "#111827", color: "#ffffff", border: "1px solid #111827", borderRadius: "8px", padding: "10px 13px", cursor: "pointer", fontWeight: 900 },
   actionButtonSecondary: { backgroundColor: "#ffffff", color: "#111827", border: "1px solid #d1d5db", borderRadius: "8px", padding: "10px 13px", cursor: "pointer", fontWeight: 900 },
-  metricsGrid: { display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: "12px" },
+  metricsGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: "12px" },
   metricCard: { border: "1px solid #e5e7eb", borderRadius: "12px", padding: "14px", backgroundColor: "#f9fafb", display: "flex", flexDirection: "column", gap: "5px" },
-  donutsGrid: { display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: "14px" },
+  donutsGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "14px" },
   donutCard: { border: "1px solid #e5e7eb", borderRadius: "12px", padding: "16px", backgroundColor: "#ffffff", display: "grid", gridTemplateColumns: "120px 1fr", gap: "16px", alignItems: "center" },
   donut: { width: "112px", height: "112px", borderRadius: "999px", display: "flex", alignItems: "center", justifyContent: "center" },
   donutInner: { width: "76px", height: "76px", borderRadius: "999px", backgroundColor: "#ffffff", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", border: "1px solid #e5e7eb" },
   cardTitle: { margin: 0, color: "#111827", fontSize: "15px", fontWeight: 950 },
   cardLabel: { margin: "6px 0 0", color: "#111827", fontSize: "13px", fontWeight: 900 },
   cardHelp: { margin: "6px 0 0", color: "#6b7280", fontSize: "12px", lineHeight: 1.45, fontWeight: 700 },
-  listsGrid: { display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "14px" },
+  listsGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: "14px" },
   listCard: { border: "1px solid #e5e7eb", borderRadius: "12px", padding: "16px", backgroundColor: "#ffffff" },
   sectionTitle: { margin: "0 0 12px", color: "#111827", fontSize: "16px", fontWeight: 950 },
   rankedList: { display: "flex", flexDirection: "column", gap: "8px" },

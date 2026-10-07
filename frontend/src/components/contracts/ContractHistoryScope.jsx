@@ -1,3 +1,4 @@
+import { useCompanySelection } from "../../hooks/useCompanySelection";
 import { useEffect, useMemo, useState } from "react";
 
 import ContractTable from "../ContractTable";
@@ -32,6 +33,7 @@ function readCaseContext() {
 }
 
 export default function ContractHistoryScope({
+  mode = "history",
   loading,
   contracts,
   employees,
@@ -41,7 +43,7 @@ export default function ContractHistoryScope({
   onDeleteContract,
   submitting,
 }) {
-  const [companyId, setCompanyId] = useState("");
+  const [companyId, setCompanyId] = useCompanySelection();
   const [caseContext, setCaseContext] = useState(() => readCaseContext());
 
   useEffect(() => {
@@ -51,7 +53,7 @@ export default function ContractHistoryScope({
   }, []);
 
   useEffect(() => {
-    if (!caseContext || !companies.length) return;
+    if (companyId || !caseContext || !companies.length) return;
 
     const directCompany = caseContext.companyId
       ? companies.find((company) => String(company.id) === String(caseContext.companyId))
@@ -128,19 +130,19 @@ export default function ContractHistoryScope({
             <span>{scopedContracts.length} contratos encontrados</span>
           </div>
 
-          <ContractLifecycleWorkspace
+          {mode === "lifecycle" && <ContractLifecycleWorkspace
             contracts={scopedContracts}
             employees={scopedEmployees}
             onUpdateContract={onUpdateContract}
             submitting={submitting}
-          />
+          />}
 
-          <EmploymentTerminationWorkspace
+          {mode === "termination" && <EmploymentTerminationWorkspace
             contracts={scopedContracts}
             employees={scopedEmployees}
-          />
+          />}
 
-          <section className="contract-history-workspace" aria-label={`Historial de contratos de ${selectedCompany?.name || "la empresa"}`}>
+          {mode === "history" && <section className="contract-history-workspace" aria-label={`Historial de contratos de ${selectedCompany?.name || "la empresa"}`}>
             <ContractTable
               loading={loading}
               contracts={scopedContracts}
@@ -151,7 +153,7 @@ export default function ContractHistoryScope({
               onDeleteContract={onDeleteContract}
               submitting={submitting}
             />
-          </section>
+          </section>}
         </>
       )}
     </div>

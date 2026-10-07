@@ -1,3 +1,4 @@
+import { useCompanySelection } from "../hooks/useCompanySelection";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import {
@@ -264,7 +265,7 @@ function ResolutionPanel({ communication, busy, onResolve }) {
 
 export default function FieInboxPage({ companies = [], employees = [] }) {
   const activeCompanies = useMemo(() => companies.filter((company) => company.is_active !== false), [companies]);
-  const [companyId, setCompanyId] = useState("");
+  const [companyId, setCompanyId] = useCompanySelection();
   const [filters, setFilters] = useState(EMPTY_FILTERS);
   const [communications, setCommunications] = useState([]);
   const [selectedId, setSelectedId] = useState("");
@@ -281,13 +282,8 @@ export default function FieInboxPage({ companies = [], employees = [] }) {
   const [notice, setNotice] = useState("");
 
   useEffect(() => {
-    if (!companyId && activeCompanies.length > 0) {
-      const nextCompanyId = String(activeCompanies[0].id);
-      setCompanyId(nextCompanyId);
-      const firstEmployee = employees.find((employee) => String(employee.company_id) === nextCompanyId);
-      setSimulation(defaultSimulation(nextCompanyId, firstEmployee ? String(firstEmployee.id) : ""));
-    }
-  }, [activeCompanies, companyId, employees]);
+    setSimulation(defaultSimulation(companyId)); setSelectedId(""); setCommunications([]); setQueryResult(null);
+  }, [companyId]);
 
   useEffect(() => {
     if (!companyId) {

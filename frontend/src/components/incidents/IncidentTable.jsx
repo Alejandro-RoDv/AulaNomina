@@ -264,10 +264,10 @@ export default function IncidentTable({ loading, incidents, contracts = [], empl
                 <label>Estado<select name="status" value={editForm.status} onChange={change} disabled={!editing}>{STATUS_OPTIONS.map((status) => <option key={status.value} value={status.value}>{status.label}</option>)}</select></label>
                 <label>Fecha inicial<input type="date" name="start_date" value={editForm.start_date} onChange={change} disabled={!editing} /></label>
                 <label>Fecha final<input type="date" name="end_date" value={editForm.end_date} onChange={change} disabled={!editing} /></label>
-                <label>Horas<input type="number" min="0" max="24" step="0.01" name="hours" value={editForm.hours} onChange={change} disabled={!editing} /></label>
+                <label>Horas<input type="number" min="0" max={editForm.incident_type === "HORAS_EXTRA" ? undefined : "24"} step="0.01" name="hours" value={editForm.hours} onChange={change} disabled={!editing} /></label>
                 <label>Días<input type="number" min="0" step="0.01" name="days" value={editForm.days} onChange={change} disabled={!editing} /></label>
                 <label>Efecto<select name="payroll_effect" value={editForm.payroll_effect} onChange={change} disabled={!editing}><option value="pending">Pendiente</option><option value="deduction">Deducción</option><option value="earning">Devengo</option><option value="informative">Informativa</option><option value="none">Sin efecto</option></select></label>
-                <label>Importe<input type="number" min="0" step="0.01" name="generated_amount" value={editForm.generated_amount} onChange={change} disabled={!editing} /></label>
+                <label>Importe procesado (€)<input type="number" value={editForm.generated_amount} readOnly disabled /></label>
               </div>
               <label style={styles.fullLabel}>Observaciones<textarea name="description" value={editForm.description} onChange={change} disabled={!editing} rows="3" /></label>
               {editing && <label style={styles.fullLabel}>Motivo del cambio<textarea name="change_reason" value={editForm.change_reason} onChange={change} rows="2" placeholder="Obligatorio cuando afecta a una nómina ya procesada" /></label>}

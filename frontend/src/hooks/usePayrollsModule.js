@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { subscribeSelectedCompany } from "../utils/companyContext";
+import { useEffect, useState } from "react";
 
 import { createPayroll, deletePayroll, updatePayroll } from "../services/payrollApi";
 import {
@@ -9,6 +10,9 @@ import {
 
 export function usePayrollsModule({ contracts, onDataChanged }) {
   const [payrollForm, setPayrollForm] = useState(initialPayrollForm);
+  useEffect(() => subscribeSelectedCompany((companyId) => {
+    setPayrollForm((previous) => ({ ...previous, company_id: companyId, center_id: "", employee_id: "", contract_id: "" }));
+  }), []);
   const [payrollSubmitting, setPayrollSubmitting] = useState(false);
   const [payrollError, setPayrollError] = useState("");
   const [payrollSuccess, setPayrollSuccess] = useState("");

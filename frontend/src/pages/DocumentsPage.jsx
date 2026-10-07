@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+import { getSelectedCompanyId, setSelectedCompanyId, subscribeSelectedCompany } from "../utils/companyContext";
+import { useEffect, useMemo, useState } from "react";
 
 import DocumentForm from "../components/documents/DocumentForm";
 import DocumentTable from "../components/documents/DocumentTable";
@@ -64,7 +65,7 @@ export default function DocumentsPage({
   documentSuccess,
 }) {
   const [filters, setFilters] = useState(initialFilters);
-  const [employeeFilters, setEmployeeFilters] = useState(initialEmployeeFilters);
+  const [employeeFilters, setEmployeeFilters] = useState(() => ({ ...initialEmployeeFilters, company_id: getSelectedCompanyId() }));
   const [localDocuments, setLocalDocuments] = useState(null);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -73,6 +74,11 @@ export default function DocumentsPage({
   const [checklistLoading, setChecklistLoading] = useState(false);
   const [documentActionMessage, setDocumentActionMessage] = useState("");
   const [documentActionError, setDocumentActionError] = useState("");
+
+  useEffect(() => subscribeSelectedCompany((companyId) => {
+    setEmployeeFilters({ ...initialEmployeeFilters, company_id: companyId });
+    setSelectedEmployeeId(null); setShowCreateForm(false); setLocalDocuments(null);
+  }), []);
 
   const visibleDocuments = localDocuments || documents;
   const selectedEmployee = employees.find((employee) => Number(employee.id) === Number(selectedEmployeeId));
@@ -179,6 +185,7 @@ export default function DocumentsPage({
 
   const handleEmployeeFilterChange = (event) => {
     const { name, value } = event.target;
+    if (name === "company_id") setSelectedCompanyId(value);
     setEmployeeFilters((prev) => ({
       ...prev,
       [name]: value,
@@ -188,7 +195,7 @@ export default function DocumentsPage({
   };
 
   const clearAllFilters = () => {
-    setEmployeeFilters(initialEmployeeFilters);
+    setEmployeeFilters({ ...initialEmployeeFilters, company_id: getSelectedCompanyId() });
     setFilters(initialFilters);
     setSelectedEmployeeId(null);
   };

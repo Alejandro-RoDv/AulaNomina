@@ -16,7 +16,7 @@ from app.training.integrated_runtime_cases_2026 import INTEGRATED_SCENARIO_CODES
 MAIL_CASES = {
     "C01": {
         "legacy_reference": None,
-        "subject": "Nueva incorporación: Clara Benítez · 15/09/2026",
+        "subject": "Nueva incorporación: Clara Benítez Mora · 15/09/2026",
         "preview": "Dirección confirma la incorporación y remite la información necesaria para tramitar el expediente completo.",
         "priority": "high",
         "category": "contract",
@@ -55,7 +55,7 @@ MAIL_CASES = {
     },
     "C03": {
         "legacy_reference": "NOM-2026-014",
-        "subject": "Reclamación de antigüedad: nómina de Ana Martín",
+        "subject": "Reclamación de antigüedad: nómina de Ana Martín García",
         "preview": "Ana solicita revisar por qué el complemento de antigüedad no aparece correctamente en julio.",
         "priority": "high",
         "category": "payroll",
@@ -63,7 +63,7 @@ MAIL_CASES = {
         "sender_address": "administracion@empresa-demo.es",
         "sent_at": datetime(2026, 8, 5, 8, 12),
         "body": (
-            "Buenos días:\n\nAna Martín reclama que su nómina de julio no refleja el complemento de antigüedad que, según su expediente, "
+            "Buenos días:\n\nAna Martín García reclama que su nómina de julio no refleja el complemento de antigüedad que, según su expediente, "
             "produce efectos desde el 1 de julio de 2026.\n\n"
             "Necesitamos que investigues el origen de la diferencia, corrijas lo que proceda y regularices la nómina. "
             "Cuando el resultado esté documentado, responde por este mismo hilo explicando el cierre de la reclamación."
@@ -73,7 +73,7 @@ MAIL_CASES = {
     },
     "C06": {
         "legacy_reference": None,
-        "subject": "Cierre laboral de Lucía Prieto · efectos 31/12/2026",
+        "subject": "Cierre laboral de Lucía Prieto Solís · efectos 31/12/2026",
         "preview": "Dirección comunica una extinción objetiva y solicita coordinar baja, liquidación y cierre documental.",
         "priority": "urgent",
         "category": "contract",
