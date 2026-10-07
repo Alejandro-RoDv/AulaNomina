@@ -182,3 +182,27 @@ test("resolveCaseTarget usa el módulo cuando la acción no está catalogada", (
   assert.equal(target.page, "contracts");
   assert.equal(getCaseActionLabel("accion_desconocida", "contracts"), "Abrir contratos");
 });
+
+test("los módulos fiscales, CRA y SILTRA abren su superficie específica", () => {
+  for (const [moduleCode, actionCode, hash, page] of [
+    ["model111", "review_model_111_preview", "#model-111", null],
+    ["model190", "review_model_190_preview", "#model-190", null],
+    ["cra", "review_cra_file", "#cra-files", null],
+    ["siltra", "review_siltra_rejection", "", "social-security-files"],
+  ]) {
+    const url = new URL(buildCaseModuleUrl({ moduleCode, actionCode, assignmentId: 10, taskId: 20 }, "http://localhost:5173/?mailThread=999#mail"));
+    assert.equal(url.hash, hash);
+    assert.equal(url.searchParams.get("page"), page);
+    assert.equal(url.searchParams.get("caseAssignmentId"), "10");
+    assert.equal(url.searchParams.get("mailThread"), null);
+  }
+});
+
+test("responder desde una actividad abre su hilo sin heredar el de otra", () => {
+  for (const actionCode of ["reply_mail", "review_integrated_c03_reply", "review_integrated_c06_close"]) {
+    const url = new URL(buildCaseModuleUrl({ actionCode, moduleCode: "mail", mailThreadId: 42, assignmentId: 3, taskId: 7 }, "http://localhost:5173/?mailThread=999#mail"));
+    assert.equal(url.hash, "#mail");
+    assert.equal(url.searchParams.get("mailThread"), "42");
+    assert.equal(url.searchParams.get("caseTaskId"), "7");
+  }
+});

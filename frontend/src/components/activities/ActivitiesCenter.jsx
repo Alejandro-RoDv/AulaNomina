@@ -233,21 +233,15 @@ export default function ActivitiesCenter() {
   const openSelectedModule = () => {
     if (!selectedActivity?.context) return;
     persistActivityContext(selectedActivity);
-    openCaseModule(selectedActivity.context);
+    openCaseModule({ ...selectedActivity.context, mailThreadId: selectedActivity.mail_context?.thread_id });
   };
 
-  const openSelectedMail = async () => {
+  const openSelectedMail = () => {
     const threadId = selectedActivity?.mail_context?.thread_id;
     if (!threadId) return;
     persistActivityContext(selectedActivity);
-    try {
-      if (selectedActivity?.mail_context?.locked) {
-        await updateMailThread(threadId, { folder: "inbox" });
-        window.dispatchEvent(new Event("aulanomina-mail-stats-refresh"));
-      }
-    } catch {
-      // El hilo sigue siendo accesible aunque falle la actualización de estado.
-    }
+    // Abrir durante el clic evita el bloqueo de ventanas tras una petición async.
+    // MailRoute prepara el hilo antes de mostrarlo.
     window.open(mailUrl(threadId), "_blank", "noopener,noreferrer");
   };
 
