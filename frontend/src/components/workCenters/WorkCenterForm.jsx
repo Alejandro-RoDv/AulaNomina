@@ -1,3 +1,5 @@
+import CccFields from "../common/CccFields";
+
 export default function WorkCenterForm({
   form,
   companies,
@@ -59,28 +61,14 @@ export default function WorkCenterForm({
 
       <div style={styles.formRow}>
         <div style={styles.formGroup}>
-          <label>CCC general</label>
-          <input
-            name="general_ccc"
-            value={form.general_ccc}
-            onChange={onChange}
-            placeholder={selectedCompany?.ccc || "CCC de la empresa madre"}
-            style={styles.input}
-          />
+          <CccFields value={selectedCompany?.ccc || ""} onChange={() => {}} label="CCC de la empresa (sincronizado)" readOnly inputStyle={styles.input} idPrefix="center-form-company-ccc" />
           <small style={styles.helpText}>
-            Normalmente coincide con la CCC de la empresa madre.
+            Se copia de la empresa y no necesita introducirse de nuevo.
           </small>
         </div>
 
         <div style={styles.formGroup}>
-          <label>CCC principal del centro</label>
-          <input
-            name="main_ccc"
-            value={form.main_ccc}
-            onChange={onChange}
-            placeholder="CCC propia del centro"
-            style={styles.input}
-          />
+          <CccFields value={form.main_ccc} onChange={(value) => onChange({ target: { name: "main_ccc", value } })} label="CCC propio del centro" inputStyle={styles.input} idPrefix="center-form-main-ccc" />
         </div>
       </div>
 

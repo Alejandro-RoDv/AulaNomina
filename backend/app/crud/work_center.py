@@ -1,11 +1,17 @@
 from sqlalchemy.orm import Session
 
 from app.models.work_center import WorkCenter
+from app.models.company import Company
 from app.schemas.work_center import WorkCenterCreate, WorkCenterUpdate
+from app.services.ccc_service import canonical_ccc
 
 
 def create_work_center(db: Session, work_center: WorkCenterCreate):
-    db_work_center = WorkCenter(**work_center.model_dump())
+    data = work_center.model_dump()
+    company = db.query(Company).filter(Company.id == data["company_id"]).first()
+    data["general_ccc"] = canonical_ccc(company.ccc) if company else None
+    data["main_ccc"] = canonical_ccc(data.get("main_ccc"))
+    db_work_center = WorkCenter(**data)
     db.add(db_work_center)
     db.commit()
     db.refresh(db_work_center)
@@ -57,6 +63,12 @@ def update_work_center(
         return None
 
     update_data = work_center_data.model_dump(exclude_unset=True)
+
+    company_id = update_data.get("company_id", db_work_center.company_id)
+    company = db.query(Company).filter(Company.id == company_id).first()
+    update_data["general_ccc"] = canonical_ccc(company.ccc) if company else None
+    if "main_ccc" in update_data:
+        update_data["main_ccc"] = canonical_ccc(update_data["main_ccc"])
 
     for key, value in update_data.items():
         setattr(db_work_center, key, value)

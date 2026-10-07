@@ -2,6 +2,7 @@ import { createCenterDemo } from "../../utils/demoFormData";
 import { useEffect, useMemo, useState } from "react";
 
 import { createWorkCenter } from "../../services/workCenterApi";
+import CccFields from "../common/CccFields";
 import "./workCenterSplit42.css";
 
 const EMPTY_FORM = {
@@ -161,13 +162,14 @@ export default function WorkCenterCreatePanel({
           <small>Por defecto se propone el convenio principal de la empresa.</small>
         </Field>
 
-        <Field label="CCC de empresa" span="3">
-          <input name="general_ccc" value={form.general_ccc} onChange={change} />
-        </Field>
+        <div style={{ gridColumn: "span 6" }}>
+          <CccFields value={selectedCompany?.ccc || ""} onChange={() => {}} label="CCC de la empresa (sincronizado)" readOnly idPrefix="new-center-company-ccc" />
+          <small>Se actualiza automáticamente cuando cambia el CCC de la empresa.</small>
+        </div>
 
-        <Field label="CCC del centro" span="3">
-          <input name="main_ccc" value={form.main_ccc} onChange={change} />
-        </Field>
+        <div style={{ gridColumn: "span 6" }}>
+          <CccFields value={form.main_ccc} onChange={(value) => setForm((current) => ({ ...current, main_ccc: value }))} label="CCC propio del centro" idPrefix="new-center-main-ccc" />
+        </div>
 
         <div className="work-center-create-form__divider" aria-hidden="true" />
 

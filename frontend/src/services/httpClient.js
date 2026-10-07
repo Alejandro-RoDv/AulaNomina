@@ -14,9 +14,21 @@ export class ApiRequestError extends Error {
   }
 }
 
+export function readableValidationMessage(message, item = {}) {
+  const text = String(message || "").replace(/^Value error,\s*/i, "").trim();
+  if (/Input should be a valid date or datetime, input is too short/i.test(text)) {
+    return "La fecha no es válida o está incompleta.";
+  }
+  if (/^Field required$/i.test(text)) {
+    const field = Array.isArray(item.loc) ? item.loc.at(-1) : null;
+    return field ? `Falta el campo obligatorio «${field}».` : "Falta un campo obligatorio.";
+  }
+  return text || "Los datos enviados no son válidos.";
+}
+
 function messageFromDetail(detail, fallbackMessage, status) {
   if (Array.isArray(detail)) {
-    return detail.map((item) => item.msg || JSON.stringify(item)).join(" | ");
+    return detail.map((item) => readableValidationMessage(item.msg || JSON.stringify(item), item)).join(" | ");
   }
   if (detail && typeof detail === "object") {
     return detail.message || fallbackMessage || `Error de API (${status})`;

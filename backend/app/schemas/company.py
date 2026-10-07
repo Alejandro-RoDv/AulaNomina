@@ -1,6 +1,8 @@
 from datetime import date, datetime
 
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
+
+from app.services.ccc_service import ccc_parts, compose_ccc
 
 
 class CompanyBase(BaseModel):
@@ -57,13 +59,24 @@ class CompanyBase(BaseModel):
     sector_bonuses: str | None = None
     grouped_withholding_company: str | None = None
 
+    @model_validator(mode="after")
+    def populate_ccc_fields(self):
+        stored_regime, stored_code = ccc_parts(self.ccc)
+        self.ccc_regime = self.ccc_regime or stored_regime
+        self.ccc_code = self.ccc_code or stored_code
+        return self
+
     @property
     def main_ccc(self) -> str | None:
         return self.ccc
 
 
 class CompanyCreate(CompanyBase):
-    pass
+    @model_validator(mode="after")
+    def require_complete_ccc_when_started(self):
+        if self.ccc or self.ccc_regime or self.ccc_code:
+            self.ccc = compose_ccc(self.ccc_regime, self.ccc_code)
+        return self
 
 
 class CompanyUpdate(BaseModel):
@@ -120,7 +133,6 @@ class CompanyUpdate(BaseModel):
     sector_bonuses: str | None = None
     grouped_withholding_company: str | None = None
     is_active: bool | None = None
-
 
 class CompanyResponse(CompanyBase):
     id: int

@@ -2,6 +2,8 @@ from datetime import datetime
 
 from pydantic import BaseModel, field_validator
 
+from app.services.ccc_service import canonical_ccc
+
 
 class WorkCenterBase(BaseModel):
     company_id: int
@@ -33,6 +35,11 @@ class WorkCenterBase(BaseModel):
         if not value or not value.strip():
             raise ValueError("name no puede estar vacio")
         return value.strip()
+
+    @field_validator("main_ccc")
+    @classmethod
+    def validate_ccc(cls, value):
+        return canonical_ccc(value)
 
 
 class WorkCenterCreate(WorkCenterBase):
@@ -73,6 +80,11 @@ class WorkCenterUpdate(BaseModel):
         if not value.strip():
             raise ValueError("name no puede estar vacio")
         return value.strip()
+
+    @field_validator("main_ccc")
+    @classmethod
+    def validate_ccc(cls, value):
+        return canonical_ccc(value)
 
 
 class WorkCenterResponse(WorkCenterBase):

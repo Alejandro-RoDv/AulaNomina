@@ -29,11 +29,11 @@ COURSE_VERSION = "2026.1-phase-a"
 
 FOUNDATION_COMPANY_CIF = "B14990001"
 FOUNDATION_COMPANY_NAME = "Aula Gestión Sur, S.L."
-FOUNDATION_COMPANY_CCC = "14149990001"
+FOUNDATION_COMPANY_CCC = "0111/14149990001"
 FOUNDATION_CENTER_CODE = "F.01"
 FOUNDATION_CENTER_NAME = "Centro Administración Córdoba"
-FOUNDATION_CENTER_BASELINE_CCC = "14149990099"
-FOUNDATION_CENTER_EXPECTED_CCC = "14149990011"
+FOUNDATION_CENTER_BASELINE_CCC = "0111/14149990099"
+FOUNDATION_CENTER_EXPECTED_CCC = "0111/14149990011"
 FOUNDATION_AGREEMENT_CODE = "SIM-ADM-2026"
 
 A03_EMPLOYEE_DNI = "30999001R"
@@ -234,7 +234,7 @@ def build_foundation_runtime_cases_2026() -> list[CaseStudyCreate]:
             tasks=[
                 _task(
                     title="Corregir la estructura empresa-centro",
-                    description=f"Revisa {FOUNDATION_COMPANY_NAME}. El centro {FOUNDATION_CENTER_NAME} está adscrito a la empresa, pero su CCC principal debe quedar como {FOUNDATION_CENTER_EXPECTED_CCC}.",
+                    description=f"Revisa {FOUNDATION_COMPANY_NAME}. El centro {FOUNDATION_CENTER_NAME} está adscrito a la empresa, pero su CCC propio debe quedar con régimen 0111 y código 14149990011.",
                     module="companies",
                     expected_result="Empresa y centro coherentes, activos y con CCC principal correcto",
                     expected_action="review_company_structure",
@@ -243,10 +243,12 @@ def build_foundation_runtime_cases_2026() -> list[CaseStudyCreate]:
                     case_facts=[
                         {"label": "Empresa", "value": FOUNDATION_COMPANY_NAME},
                         {"label": "CIF", "value": FOUNDATION_COMPANY_CIF},
-                        {"label": "CCC empresa", "value": FOUNDATION_COMPANY_CCC},
+                        {"label": "CCC empresa · Régimen", "value": "0111"},
+                        {"label": "CCC empresa · Código de cuenta", "value": "14149990001"},
                         {"label": "Centro", "value": FOUNDATION_CENTER_NAME},
                         {"label": "Código centro", "value": FOUNDATION_CENTER_CODE},
-                        {"label": "CCC principal correcto", "value": FOUNDATION_CENTER_EXPECTED_CCC},
+                        {"label": "CCC centro · Régimen", "value": "0111"},
+                        {"label": "CCC centro · Código de cuenta", "value": "14149990011"},
                     ],
                 )
             ],

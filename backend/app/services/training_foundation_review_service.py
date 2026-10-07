@@ -15,6 +15,7 @@ from app.models.contract import Contract
 from app.models.employee import Employee
 from app.models.work_center import WorkCenter
 from app.schemas.case_scenario import CaseTaskProgressUpdate
+from app.services.ccc_service import same_ccc
 from app.services.case_scenario_service import (
     CaseScenarioError,
     ensure_assignment_progress,
@@ -109,41 +110,71 @@ def _review_decision(task, progress) -> dict[str, Any]:
 def _review_a02(db: Session) -> dict[str, Any]:
     company = db.query(Company).filter(Company.cif == FOUNDATION_COMPANY_CIF).first()
     center = db.query(WorkCenter).filter(WorkCenter.center_code == FOUNDATION_CENTER_CODE).first()
-    company_ok = bool(
-        company
-        and company.name == FOUNDATION_COMPANY_NAME
-        and company.ccc == FOUNDATION_COMPANY_CCC
-        and _normalize(company.city) == "cordoba"
-        and company.is_active
-    )
-    center_ok = bool(
-        center
-        and company
-        and center.company_id == company.id
-        and center.name == FOUNDATION_CENTER_NAME
-        and center.general_ccc == FOUNDATION_COMPANY_CCC
-        and center.main_ccc == FOUNDATION_CENTER_EXPECTED_CCC
-        and center.is_active
-    )
+    company_name_ok = bool(company and company.name == FOUNDATION_COMPANY_NAME)
+    company_ccc_ok = bool(company and same_ccc(company.ccc, FOUNDATION_COMPANY_CCC))
+    company_city_ok = bool(company and _normalize(company.city) == "cordoba")
+    company_active_ok = bool(company and company.is_active)
+    company_ok = company_name_ok and company_ccc_ok and company_city_ok and company_active_ok
+    center_company_ok = bool(center and company and center.company_id == company.id)
+    center_name_ok = bool(center and center.name == FOUNDATION_CENTER_NAME)
+    center_general_ccc_ok = bool(center and company and same_ccc(center.general_ccc, company.ccc))
+    center_main_ccc_ok = bool(center and same_ccc(center.main_ccc, FOUNDATION_CENTER_EXPECTED_CCC))
+    center_active_ok = bool(center and center.is_active)
+    center_ok = center_company_ok and center_name_ok and center_general_ccc_ok and center_main_ccc_ok and center_active_ok
     passed = company_ok and center_ok
+    issues = []
+    if not company:
+        issues.append(f"No se encuentra la empresa con CIF {FOUNDATION_COMPANY_CIF}.")
+    else:
+        if not company_name_ok:
+            issues.append(f"El nombre de la empresa debe ser «{FOUNDATION_COMPANY_NAME}».")
+        if not company_ccc_ok:
+            issues.append(f"El CCC de la empresa debe tener régimen 0111 y código 14149990001; ahora figura {company.ccc or 'vacío'}.")
+        if not company_city_ok:
+            issues.append("La ciudad de la empresa debe ser Córdoba.")
+        if not company_active_ok:
+            issues.append("La empresa debe estar activa.")
+    if not center:
+        issues.append(f"No se encuentra el centro con código {FOUNDATION_CENTER_CODE}.")
+    else:
+        if not center_company_ok:
+            issues.append("El centro no está asociado a la empresa del supuesto.")
+        if not center_name_ok:
+            issues.append(f"El nombre del centro debe ser «{FOUNDATION_CENTER_NAME}».")
+        if not center_general_ccc_ok:
+            issues.append("El CCC de empresa del centro no coincide con el CCC actual de la empresa.")
+        if not center_main_ccc_ok:
+            issues.append(f"El CCC propio del centro debe tener régimen 0111 y código 14149990011; ahora figura {center.main_ccc or 'vacío'}.")
+        if not center_active_ok:
+            issues.append("El centro debe estar activo.")
     return _check(
         passed,
         (
             "La empresa está identificada y el centro queda adscrito con los CCC del supuesto."
             if passed
-            else "Revisa la empresa, la adscripción del centro y especialmente su CCC principal antes de continuar."
+            else "Corrige los datos indicados y vuelve a validar la actividad."
         ),
         {
             "company_id": company.id if company else None,
             "company_name": company.name if company else None,
             "company_ccc": company.ccc if company else None,
+            "company_name_ok": company_name_ok,
+            "company_ccc_ok": company_ccc_ok,
+            "company_city_ok": company_city_ok,
+            "company_active_ok": company_active_ok,
             "company_ok": company_ok,
             "center_id": center.id if center else None,
             "center_company_id": center.company_id if center else None,
             "center_general_ccc": center.general_ccc if center else None,
             "center_main_ccc": center.main_ccc if center else None,
             "expected_center_main_ccc": FOUNDATION_CENTER_EXPECTED_CCC,
+            "center_company_ok": center_company_ok,
+            "center_name_ok": center_name_ok,
+            "center_general_ccc_ok": center_general_ccc_ok,
+            "center_main_ccc_ok": center_main_ccc_ok,
+            "center_active_ok": center_active_ok,
             "center_ok": center_ok,
+            "issues": issues,
         },
         rule_type="training_a02_company_structure",
     )

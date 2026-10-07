@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 
 import { createCompany } from "../../services/companyApi";
 import { createWorkCenter } from "../../services/workCenterApi";
+import CccFields from "../common/CccFields";
 
 const initialCompany = {
   name: "",
@@ -162,9 +163,8 @@ export default function CompanyCenterForm({ companies, onReloadData }) {
               <label>CIF</label>
               <input name="cif" value={company.cif} onChange={handleCompanyChange} required style={styles.input} />
             </div>
-            <div style={styles.formGroupSmall}>
-              <label>CCC empresa</label>
-              <input name="ccc" value={company.ccc} onChange={handleCompanyChange} required style={styles.input} />
+            <div style={styles.formGroup}>
+              <CccFields value={company.ccc} onChange={(value) => handleCompanyChange({ target: { name: "ccc", value } })} label="CCC empresa" required inputStyle={styles.input} idPrefix="combined-company-ccc" />
             </div>
           </div>
 
@@ -222,12 +222,10 @@ export default function CompanyCenterForm({ companies, onReloadData }) {
 
         <div style={styles.formRow}>
           <div style={styles.formGroup}>
-            <label>CCC empresa</label>
-            <input name="general_ccc" value={center.general_ccc} onChange={handleCenterChange} placeholder="Se copia de la empresa" style={styles.input} />
+            <CccFields value={(mode === "existing" ? selectedCompany?.ccc : company.ccc) || ""} onChange={() => {}} label="CCC de la empresa (sincronizado)" readOnly inputStyle={styles.input} idPrefix="combined-center-company-ccc" />
           </div>
           <div style={styles.formGroup}>
-            <label>CCC centro</label>
-            <input name="main_ccc" value={center.main_ccc} onChange={handleCenterChange} placeholder="CCC propia del centro" style={styles.input} />
+            <CccFields value={center.main_ccc} onChange={(value) => handleCenterChange({ target: { name: "main_ccc", value } })} label="CCC propio del centro" inputStyle={styles.input} idPrefix="combined-center-main-ccc" />
           </div>
         </div>
 

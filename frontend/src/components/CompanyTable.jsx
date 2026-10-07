@@ -2,6 +2,8 @@ import { useMemo, useState } from "react";
 
 import { createCompany } from "../services/companyApi";
 import { getSortLabel, nextSortConfig, sortRows } from "../utils/tableSorting";
+import { splitCcc } from "../utils/ccc.js";
+import CccFields from "./common/CccFields";
 
 const MUTUALS = [
   "UMIVALE ACTIVA - (nº 003)",
@@ -46,11 +48,12 @@ function formatStatus(status) {
 }
 
 function toEditForm(company) {
+  const parsedCcc = splitCcc(company.ccc, "");
   return {
     name: company.name || "",
     cif: company.cif || "",
-    ccc_regime: company.ccc_regime || "",
-    ccc_code: company.ccc_code || "",
+    ccc_regime: company.ccc_regime || parsedCcc.regime,
+    ccc_code: company.ccc_code || parsedCcc.code,
     address: company.address || "",
     city: company.city || "",
     province: company.province || "",
@@ -326,7 +329,7 @@ export default function CompanyTable({
                 <h4 style={styles.blockTitle}>Identificación y estado</h4>
                 <div style={styles.formRow}>{input("name", "Nombre", { required: true })}{input("cif", "CIF", { required: true })}<label style={styles.formGroup}><span>Estado</span><select name="status" value={editForm.status} onChange={handleEditChange} style={styles.input}><option value="alta">Alta</option><option value="baja_temporal">Baja temporal</option><option value="baja_definitiva">Baja definitiva</option></select></label></div>
                 <div style={styles.formRow}>{input("registration_date", "Fecha de alta", { type: "date" })}{input("deregistration_date", "Fecha de baja", { type: "date" })}{input("main_collective_agreement", "Convenio principal")}</div>
-                <div style={styles.formRow}>{input("ccc_regime", "CCC régimen")}{input("ccc_code", "CCC código")}<label style={styles.formGroup}><span>Tipo de empresa</span><select name="company_type" value={editForm.company_type} onChange={handleEditChange} style={styles.input}><option value="privada">Privada</option><option value="publica">Pública</option><option value="privada_sin_lucro">Privada sin lucro</option><option value="corporaciones">Corporaciones</option><option value="ett">ETT</option><option value="sociedad_laboral_privada">Sociedad laboral privada</option></select></label></div>
+                <div style={styles.formRow}><CccFields value={`${editForm.ccc_regime}/${editForm.ccc_code}`} onChange={(value) => { const parsed = splitCcc(value, ""); setEditForm((current) => ({ ...current, ccc_regime: parsed.regime, ccc_code: parsed.code })); }} label="CCC de la empresa" required inputStyle={styles.input} idPrefix="edit-company-ccc" /><label style={styles.formGroup}><span>Tipo de empresa</span><select name="company_type" value={editForm.company_type} onChange={handleEditChange} style={styles.input}><option value="privada">Privada</option><option value="publica">Pública</option><option value="privada_sin_lucro">Privada sin lucro</option><option value="corporaciones">Corporaciones</option><option value="ett">ETT</option><option value="sociedad_laboral_privada">Sociedad laboral privada</option></select></label></div>
                 <div style={styles.checkboxRow}><label><input type="checkbox" name="is_cooperative" checked={editForm.is_cooperative} onChange={handleEditChange} /> Sociedad cooperativa</label><label><input type="checkbox" name="special_work_income_withholding" checked={editForm.special_work_income_withholding} onChange={handleEditChange} /> Cálculo especial de retenciones</label><label><input type="checkbox" name="is_active" checked={editForm.is_active} onChange={handleEditChange} /> Activa</label></div>
               </section>
 
@@ -377,7 +380,7 @@ export default function CompanyTable({
             <div style={styles.modalHeader}><div><h3 style={styles.modalTitle}>Duplicar empresa</h3><p style={styles.modalSubtitle}>Origen: {companyToDuplicate.name}</p></div><button type="button" onClick={() => setCompanyToDuplicate(null)} style={styles.closeButton}>×</button></div>
             <form onSubmit={handleDuplicateSubmit} style={styles.form}>
               <div style={styles.formRow}><label style={styles.formGroup}><span>Nuevo nombre</span><input name="name" value={duplicateForm.name} onChange={(event) => setDuplicateForm((current) => ({ ...current, name: event.target.value }))} required style={styles.input} /></label><label style={styles.formGroup}><span>Nuevo CIF</span><input name="cif" value={duplicateForm.cif} onChange={(event) => setDuplicateForm((current) => ({ ...current, cif: event.target.value }))} required style={styles.input} /></label></div>
-              <div style={styles.formRow}><label style={styles.formGroup}><span>CCC régimen</span><input name="ccc_regime" value={duplicateForm.ccc_regime} onChange={(event) => setDuplicateForm((current) => ({ ...current, ccc_regime: event.target.value }))} style={styles.input} /></label><label style={styles.formGroup}><span>CCC código</span><input name="ccc_code" value={duplicateForm.ccc_code} onChange={(event) => setDuplicateForm((current) => ({ ...current, ccc_code: event.target.value }))} style={styles.input} /></label></div>
+              <div style={styles.formRow}><CccFields value={`${duplicateForm.ccc_regime}/${duplicateForm.ccc_code}`} onChange={(value) => { const parsed = splitCcc(value, ""); setDuplicateForm((current) => ({ ...current, ccc_regime: parsed.regime, ccc_code: parsed.code })); }} label="CCC de la nueva empresa" required inputStyle={styles.input} idPrefix="duplicate-company-ccc" /></div>
               {duplicateError && <div style={styles.error}>{duplicateError}</div>}
               <div style={styles.modalActions}><button type="button" onClick={() => setCompanyToDuplicate(null)} style={styles.cancelButton}>Cancelar</button><button type="submit" style={styles.saveButton}>Crear duplicado</button></div>
             </form>
