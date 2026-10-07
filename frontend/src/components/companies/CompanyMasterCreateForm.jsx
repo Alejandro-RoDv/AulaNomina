@@ -130,7 +130,7 @@ function buildPayload(form) {
   };
 }
 
-function TextInput({ name, form, onChange, type = "text", required = false }) {
+function TextInput({ name, form, onChange, type = "text", required = false, ...inputProps }) {
   return (
     <Input
       name={name}
@@ -138,6 +138,7 @@ function TextInput({ name, form, onChange, type = "text", required = false }) {
       onChange={onChange}
       type={type}
       required={required}
+      {...inputProps}
     />
   );
 }
@@ -246,10 +247,10 @@ export default function CompanyMasterCreateForm({ collectiveAgreements = [], com
             </Select>
           </Field>
           <Field label="CCC régimen" hint="Régimen general habitual: 0111.">
-            <TextInput name="ccc_regime" form={form} onChange={handleChange} />
+            <TextInput name="ccc_regime" form={form} onChange={handleChange} required inputMode="numeric" pattern="[0-9]{4}" maxLength={4} placeholder="0111" />
           </Field>
           <Field label="CCC código">
-            <TextInput name="ccc_code" form={form} onChange={handleChange} />
+            <TextInput name="ccc_code" form={form} onChange={handleChange} required inputMode="numeric" pattern="[0-9]{11}" maxLength={11} placeholder="14149990011" />
           </Field>
           <Field
             label="Convenio principal"

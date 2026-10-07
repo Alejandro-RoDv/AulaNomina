@@ -1,3 +1,5 @@
+import CccFields from "./common/CccFields";
+
 export default function CompanyForm({ form, onChange, onSubmit, error, success, submitting }) {
   return (
     <form onSubmit={onSubmit} style={styles.form}>
@@ -15,15 +17,7 @@ export default function CompanyForm({ form, onChange, onSubmit, error, success, 
 
       <div style={styles.formRow}>
         <div style={styles.formGroup}>
-          <label>CCC</label>
-          <input
-            name="ccc"
-            value={form.ccc}
-            onChange={onChange}
-            required
-            placeholder="Ej. 01111234567"
-            style={styles.input}
-          />
+          <CccFields value={form.ccc} onChange={(value) => onChange({ target: { name: "ccc", value } })} label="CCC empresa" required inputStyle={styles.input} idPrefix="legacy-company-ccc" />
         </div>
 
         <div style={styles.formGroup}>

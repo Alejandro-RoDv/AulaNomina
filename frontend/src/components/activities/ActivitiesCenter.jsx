@@ -84,9 +84,14 @@ function hasValidationAttempt(activity) {
 function failedValidationMessages(activity) {
   if (!hasValidationAttempt(activity) || activity?.is_completed) return [];
   return (activity?.validation_result?.checks || [])
-    .filter((check) => check?.supported !== false && !check?.passed && check?.message)
-    .map((check) => check.message)
-    .slice(0, 2);
+    .filter((check) => check?.supported !== false && !check?.passed)
+    .flatMap((check) => (
+      Array.isArray(check?.issues) && check.issues.length > 0
+        ? check.issues
+        : (check?.message ? [check.message] : [])
+    ))
+    .filter((message, index, messages) => messages.indexOf(message) === index)
+    .slice(0, 8);
 }
 
 function mailUrl(threadId) {

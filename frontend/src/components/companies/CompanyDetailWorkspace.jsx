@@ -2,15 +2,18 @@ import { useEffect, useMemo, useState } from "react";
 
 import CompanyBankingPanel from "../companyBanking/CompanyBankingPanel";
 import CompanyPreferencesPanel from "../companyPreferences/CompanyPreferencesPanel";
+import CccFields from "../common/CccFields";
 import WorkCenterTable from "../workCenters/WorkCenterTable";
 import EmbeddedCompanyPanel from "./EmbeddedCompanyPanel";
 import "./companyWorkspace.css";
+import { splitCcc } from "../../utils/ccc.js";
 
 function emptyToNull(value) {
   return value === "" ? null : value;
 }
 
 function toForm(company) {
+  const parsedCcc = splitCcc(company.ccc, "");
   return {
     name: company.name || "",
     cif: company.cif || "",
@@ -18,8 +21,8 @@ function toForm(company) {
     registration_date: company.registration_date || "",
     deregistration_date: company.deregistration_date || "",
     company_type: company.company_type || "privada",
-    ccc_regime: company.ccc_regime || "",
-    ccc_code: company.ccc_code || "",
+    ccc_regime: company.ccc_regime || parsedCcc.regime,
+    ccc_code: company.ccc_code || parsedCcc.code,
     main_collective_agreement: company.main_collective_agreement || "",
     is_cooperative: !!company.is_cooperative,
     special_work_income_withholding: !!company.special_work_income_withholding,
@@ -239,8 +242,7 @@ export default function CompanyDetailWorkspace({
               <Field label="Fecha de alta" name="registration_date" value={form.registration_date} onChange={change} type="date" />
               <Field label="Fecha de baja" name="deregistration_date" value={form.deregistration_date} onChange={change} type="date" />
               <Field label="Tipo de empresa" name="company_type" value={form.company_type} onChange={change}><select name="company_type" value={form.company_type} onChange={change}><option value="privada">Privada</option><option value="publica">Pública</option><option value="privada_sin_lucro">Privada sin lucro</option><option value="corporaciones">Corporaciones</option><option value="ett">ETT</option><option value="sociedad_laboral_privada">Sociedad laboral privada</option></select></Field>
-              <Field label="CCC régimen" name="ccc_regime" value={form.ccc_regime} onChange={change} />
-              <Field label="CCC código" name="ccc_code" value={form.ccc_code} onChange={change} />
+              <div className="company-detail-field company-detail-field-wide"><CccFields value={`${form.ccc_regime}/${form.ccc_code}`} onChange={(value) => { const parsed = splitCcc(value, ""); setForm((current) => ({ ...current, ccc_regime: parsed.regime, ccc_code: parsed.code })); }} label="CCC de la empresa" required idPrefix="company-detail-ccc" /></div>
               <Field label="Convenio principal" name="main_collective_agreement" value={form.main_collective_agreement} onChange={change} wide />
             </div>
             <div className="company-detail-checks"><label><input type="checkbox" name="is_cooperative" checked={form.is_cooperative} onChange={change} /> Sociedad cooperativa</label><label><input type="checkbox" name="special_work_income_withholding" checked={form.special_work_income_withholding} onChange={change} /> Cálculo especial de retenciones</label><label><input type="checkbox" name="is_active" checked={form.is_active} onChange={change} /> Empresa activa</label></div>

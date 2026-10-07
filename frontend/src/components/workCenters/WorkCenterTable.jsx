@@ -1,4 +1,6 @@
 import { useState } from "react";
+import CccFields from "../common/CccFields";
+import { formatCcc } from "../../utils/ccc.js";
 
 function toEditForm(center) {
   return {
@@ -105,8 +107,8 @@ export default function WorkCenterTable({
                 <td style={styles.td}>{center.name}</td>
                 <td style={styles.td}>{center.company_name || getCompanyName(center.company_id)}</td>
                 <td style={styles.td}>{center.collective_agreement || "-"}</td>
-                <td style={styles.td}>{center.general_ccc || "-"}</td>
-                <td style={styles.td}>{center.main_ccc || "-"}</td>
+                <td style={styles.td}>{formatCcc(center.general_ccc)}</td>
+                <td style={styles.td}>{formatCcc(center.main_ccc)}</td>
                 <td style={styles.td}>{center.phone || center.mobile || "-"}</td>
                 <td style={styles.td}>{center.email || "-"}</td>
                 <td style={styles.td}>{center.city || "-"}</td>
@@ -163,12 +165,10 @@ export default function WorkCenterTable({
                   <input name="collective_agreement" value={editForm.collective_agreement} onChange={handleEditChange} style={styles.input} />
                 </div>
                 <div style={styles.formGroup}>
-                  <label>CCC general</label>
-                  <input name="general_ccc" value={editForm.general_ccc} onChange={handleEditChange} style={styles.input} />
+                  <CccFields value={companies.find((company) => String(company.id) === String(editForm.company_id))?.ccc || ""} onChange={() => {}} label="CCC de la empresa (sincronizado)" readOnly inputStyle={styles.input} idPrefix="edit-center-company-ccc" />
                 </div>
                 <div style={styles.formGroup}>
-                  <label>CCC principal del centro</label>
-                  <input name="main_ccc" value={editForm.main_ccc} onChange={handleEditChange} style={styles.input} />
+                  <CccFields value={editForm.main_ccc} onChange={(value) => setEditForm((current) => ({ ...current, main_ccc: value }))} label="CCC propio del centro" inputStyle={styles.input} idPrefix="edit-center-main-ccc" />
                 </div>
               </div>
 

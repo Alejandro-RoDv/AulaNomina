@@ -15,6 +15,8 @@ from sqlalchemy.orm import Session
 
 from app.models.case_study import CaseTask
 from app.services.activity_service import build_activity_course as build_legacy_activity_course
+from app.services.ccc_service import ccc_parts
+from app.services.training_validation_feedback import enrich_validation_result
 from app.training import COURSE_BLUEPRINT_2026, get_training_activity_2026, list_training_activities_2026
 from app.training.runtime_bindings_2026 import get_runtime_binding_2026
 
@@ -167,6 +169,12 @@ def _append_case_row(rows: list[dict[str, str]], label: str, value: Any) -> None
     rows.append({"label": label, "value": str(value)})
 
 
+def _append_ccc_rows(rows: list[dict[str, str]], value: Any, *, prefix: str = "CCC") -> None:
+    regime, code = ccc_parts(value)
+    _append_case_row(rows, f"{prefix} · Régimen", regime)
+    _append_case_row(rows, f"{prefix} · Código de cuenta", code)
+
+
 def _public_response_schema(task: CaseTask) -> dict[str, Any] | None:
     schema = (task.trigger_condition or {}).get("response_schema")
     if not isinstance(schema, dict):
@@ -302,14 +310,14 @@ def _training_case_data(task: CaseTask, code: str, current_rows: list[dict[str, 
         _append_case_row(rows, "Trabajador", state.get("employee"))
         _append_case_row(rows, "Empresa", state.get("company_name"))
         _append_case_row(rows, "Centro", state.get("center_name"))
-        _append_case_row(rows, "CCC esperado", affiliation_data.get("expected_ccc"))
+        _append_ccc_rows(rows, affiliation_data.get("expected_ccc"), prefix="CCC esperado")
         _append_case_row(rows, "Fecha de referencia", affiliation_data.get("reference_date"))
 
     if code == "A30":
         _append_case_row(rows, "Trabajador", state.get("employee"))
         _append_case_row(rows, "Movimiento", affiliation_data.get("movement_type"))
         _append_case_row(rows, "Fecha de efectos", affiliation_data.get("effective_date"))
-        _append_case_row(rows, "CCC", affiliation_data.get("expected_ccc"))
+        _append_ccc_rows(rows, affiliation_data.get("expected_ccc"))
 
     if code in {"A31", "A32"}:
         _append_case_row(rows, "Trabajador", state.get("employee"))
@@ -323,19 +331,19 @@ def _training_case_data(task: CaseTask, code: str, current_rows: list[dict[str, 
     if code == "A33":
         _append_case_row(rows, "Empresa", state.get("company_name"))
         _append_case_row(rows, "Periodo", cra_data.get("period"))
-        _append_case_row(rows, "CCC", cra_data.get("ccc"))
+        _append_ccc_rows(rows, cra_data.get("ccc"))
         _append_case_row(rows, "Contenido", "Trabajadores TRB y conceptos CRE")
 
     if code == "A34":
         _append_case_row(rows, "Empresa", state.get("company_name"))
         _append_case_row(rows, "Periodo", settlement_data.get("period"))
-        _append_case_row(rows, "CCC", settlement_data.get("ccc"))
+        _append_ccc_rows(rows, settlement_data.get("ccc"))
         _append_case_row(rows, "Revisión", "RNT nominal + RLC total")
 
     if code == "A35":
         _append_case_row(rows, "Empresa", state.get("company_name"))
         _append_case_row(rows, "Periodo", siltra_data.get("period"))
-        _append_case_row(rows, "CCC", siltra_data.get("ccc"))
+        _append_ccc_rows(rows, siltra_data.get("ccc"))
         _append_case_row(rows, "Fichero", siltra_data.get("source_file_type"))
         _append_case_row(rows, "Primer escenario", siltra_data.get("first_scenario"))
 
@@ -637,6 +645,7 @@ def build_activity_course(db: Session) -> dict[str, Any]:
         for index, activity in enumerate(topic.get("activities", [])):
             task = tasks.get(activity.get("task_id"))
             enriched = _enrich_activity(activity, task) if task else activity
+            enriched["validation_result"] = enrich_validation_result(enriched.get("validation_result"))
             topic["activities"][index] = enriched
             if enriched.get("runtime_migrated"):
                 migrated += 1
