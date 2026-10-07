@@ -114,7 +114,7 @@
 .simple-mail__conversation-item > header div { display: flex; flex-direction: column; gap: 2px; }
 .simple-mail__conversation-item > header strong { color: #334155; font-size: 11px; }
 .simple-mail__conversation-item > header span, .simple-mail__conversation-item > header time { color: #8b97a7; font-size: 9px; }
-.simple-mail__conversation-item p { margin: 0 0 12px; color: #344256; font-size: 13px; line-height: 1.7; }
+.simple-mail__conversation-item p { white-space: pre-line; overflow-wrap: anywhere; margin: 0 0 12px; color: #344256; font-size: 13px; line-height: 1.7; }
 .simple-mail__conversation-item p:last-child { margin-bottom: 0; }
 .simple-mail__attachments { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 12px; }
 .simple-mail__attachments button { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 0 9px; border: 1px solid #dbe3ef; border-radius: 7px; background: #fff; color: #526174; font: inherit; font-size: 10px; cursor: pointer; }

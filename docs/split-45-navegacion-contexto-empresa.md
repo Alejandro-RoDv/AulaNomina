@@ -84,3 +84,17 @@ Validación: compilación frontend y comprobación en navegador de Seguros socia
 Generar nóminas permite elegir una empresa, un grupo de empresas marcado mediante casillas o todas las empresas activas. Recibe los contratos y trabajadores completos en lugar de los filtrados por la empresa global. La empresa de la cabecera sirve como selección inicial; los cambios en el ámbito de generación son independientes. Se seleccionan los contratos activos y se pueden excluir trabajadores antes de generar. El envío incluye company_ids y contract_ids explícitos, y mantiene recalculate_existing para actualizar el mismo registro sin duplicarlo. El resultado muestra resumen por empresa y empresa de cada trabajador, con los motivos de omisión. Los controles se bloquean durante el envío. Se conserva la selección para poder repetir la generación.
 
 Validación: build, lint de PayrollSimulationPage, 13 pruebas test:split45 y navegador con tres empresas activas y una inactiva: generación de una empresa distinta de la global, grupo de dos empresas, todas las activas, exclusión de trabajadores y recálculo conservando los mismos IDs.
+
+### Desplegables de la navegación lateral
+
+Todos los grupos navegan a su resumen al abrirse y se repliegan al pulsarlos de nuevo, sin una segunda navegación que los reabra. En la primera apertura se expanden todos los submenús del grupo. Los submenús funcionan de forma independiente y sus preferencias se conservan en localStorage; las preferencias antiguas de un único submenú se convierten a listas. Abrir un enlace revela su submenú sin cerrar los hermanos. El texto y la flecha de cada submenú permiten abrirlo y cerrarlo. En móvil, expandir grupos y submenús mantiene el panel de navegación abierto.
+
+Validación: build, lint de Sidebar y utilidades, 17 pruebas test:split45, y navegador con apertura/cierre de los ocho grupos, primera expansión de todos los submenús, alternancia independiente de Afiliación/Cotización/Comunicaciones, persistencia tras recarga y controles móviles.
+
+### Datos ficticios y claridad de los casos
+
+El caso de alta A04 utiliza Daniel Ortega Vidal, con los dos apellidos separados y datos completos ficticios (identificadores con control, contacto y domicilio). El correo y los datos de la actividad utilizan la misma ficha. Los casos y correos relacionados identifican a Ana Martín García, Laura Sánchez Romero, Clara Benítez Mora, Lucía Prieto Solís y Javier Romero Sánchez por su nombre completo. Los correos conservan los saltos de línea y separan los datos de referencia de las instrucciones; las respuestas y borradores del alumno se conservan.
+
+Los generadores de empresas, centros y personas usan nombres neutros y 18 localidades de distintas zonas de España. Ciudad/provincia/código postal y prefijos telefónicos y de cotización son coherentes; representantes y contactos incluyen dos apellidos. No se modifican empresas o trabajadores creados por el usuario.
+
+Validación: 18 pruebas Node de split45, tres pruebas backend específicas, 20 comprobaciones del correo y del runtime formativo existente, build y lint del generador; navegador con el correo de alta A04 y campos legibles en líneas separadas.

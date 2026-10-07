@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createCompanyDemo, createCenterDemo, createEmployeeDemo, createContractDemo, eligibleDemoEmployees, COMPANY_PRESETS } from "../utils/demoFormData.js";
+import { createCompanyDemo, createCenterDemo, createEmployeeDemo, createContractDemo, eligibleDemoEmployees, COMPANY_PRESETS, DEMO_LOCATIONS } from "../utils/demoFormData.js";
 import { scopeCompanyData } from "../utils/companyScope.js";
 import { validateContractWorkflow } from "../utils/contractPayloads.js";
 
@@ -82,4 +82,30 @@ test("company context notifies once per actual change and supports clearing", as
     assert.equal(getSelectedCompanyId(), "");
     unsubscribe(); setSelectedCompanyId(3); assert.equal(changes.length, 3);
   } finally { globalThis.window = originalWindow; }
+});
+
+
+test("random examples use nationwide locations and neutral company and center names", () => {
+  const cities = new Set();
+  for (let i = 0; i < 50; i++) {
+    const company = createCompanyDemo("services");
+    const location = DEMO_LOCATIONS.find((item) => item.city === company.city);
+    assert.equal(company.province, location.province);
+    assert.equal(company.ccc_code.slice(0, 2), location.postal_code.slice(0, 2));
+    assert.ok(company.company_phone.startsWith(location.phone));
+    assert.ok(company.company_contact_person.split(" ").length >= 3);
+    const center = createCenterDemo({ ...company, ccc: "original-company-ccc" });
+    assert.equal(center.general_ccc, "original-company-ccc");
+    assert.ok(DEMO_LOCATIONS.some((item) => item.city === center.city && item.province === center.province));
+    const employee = createEmployeeDemo("1", [{ id: 1, company_id: 1 }]);
+    const home = DEMO_LOCATIONS.find((item) => item.city === employee.city);
+    assert.equal(employee.postal_code, home.postal_code);
+    assert.equal(employee.province, home.province);
+    assert.notEqual(employee.last_name, employee.second_last_name);
+    assert.equal(employee.naf.slice(0, 2), home.postal_code.slice(0, 2));
+    cities.add(company.city);
+    for (const text of [company.name, center.name]) assert.doesNotMatch(text, /Córdoba|Guadalquivir|Azahara|Campiña|del Sur|Sierra Morena/i);
+  }
+  assert.ok(cities.size > 5);
+  for (const preset of Object.values(COMPANY_PRESETS)) for (const name of preset.names) assert.doesNotMatch(name, /Córdoba|Guadalquivir|Azahara|Campiña|Sur|Sierra Morena/i);
 });

@@ -6,11 +6,15 @@ import {
 } from "lucide-react";
 
 import { getStoredAuthUser } from "../../services/authApi";
+import { openGroupParents } from "../../utils/sidebarExpansion.js";
 import logo from "../../assets/aulanomina-logo.svg";
 import "./layout.css";
 import "./navigation.css";
 
 import { groups, panelItem, getItemKey, getInitialActiveKey, getStoredExpandedParents, storeExpandedParents, getStoredActiveGroup, storeActiveGroup, applyItemNavigation, isActionItem, groupContainsActiveItem, findGroupIdForPage, findParentKeyForPage } from "../../utils/moduleNavigation";
+
+const parentKeysForGroup = (groupId) => groups.find((group) => group.id === groupId)?.items
+  .filter((item) => item.children?.length).map(getItemKey) || [];
 
 export default function Sidebar({ activePage, setActivePage }) {
   const initialNavKey = getInitialActiveKey(activePage);
@@ -21,8 +25,8 @@ export default function Sidebar({ activePage, setActivePage }) {
   const [expandedGroupId, setExpandedGroupId] = useState(initialGroupId || getStoredActiveGroup);
   const [expandedParents, setExpandedParents] = useState(() => {
     const stored = getStoredExpandedParents();
-    if (!initialGroupId || !initialParentKey) return stored;
-    return { ...stored, [initialGroupId]: initialParentKey };
+    if (!initialGroupId) return stored;
+    return openGroupParents(stored, initialGroupId, parentKeysForGroup(initialGroupId), initialParentKey);
   });
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -36,13 +40,11 @@ export default function Sidebar({ activePage, setActivePage }) {
       setExpandedGroupId(nextGroupId);
       storeActiveGroup(nextGroupId);
       const nextParentKey = findParentKeyForPage(nextGroupId, activePage, nextActiveKey);
-      if (nextParentKey) {
-        setExpandedParents((previous) => {
-          const next = { ...previous, [nextGroupId]: nextParentKey };
-          storeExpandedParents(next);
-          return next;
-        });
-      }
+      setExpandedParents((previous) => {
+        const next = openGroupParents(previous, nextGroupId, parentKeysForGroup(nextGroupId), nextParentKey);
+        storeExpandedParents(next);
+        return next;
+      });
     };
 
     syncActiveNavigation();
@@ -84,21 +86,29 @@ export default function Sidebar({ activePage, setActivePage }) {
     const nextGroupId = expandedGroupId === groupId ? null : groupId;
     setExpandedGroupId(nextGroupId);
     storeActiveGroup(nextGroupId);
+    if (!nextGroupId) return;
+    setExpandedParents((previous) => {
+      const next = openGroupParents(previous, groupId, parentKeysForGroup(groupId));
+      storeExpandedParents(next);
+      return next;
+    });
     const group = groups.find((item) => item.id === groupId);
-    if (groupId !== "organization" && group?.dashboard) handleNavClick({ id: group.dashboard, enabled: true }, groupId);
+    if (group?.dashboard) handleNavClick({ id: group.dashboard, enabled: true }, groupId, null, true);
   };
 
   const toggleParent = (groupId, parentKey) => {
     setExpandedGroupId(groupId);
     storeActiveGroup(groupId);
     setExpandedParents((previous) => {
-      const next = { ...previous, [groupId]: previous[groupId] === parentKey ? null : parentKey };
+      const current = openGroupParents(previous, groupId, parentKeysForGroup(groupId));
+      const keys = current[groupId];
+      const next = { ...current, [groupId]: keys.includes(parentKey) ? keys.filter((key) => key !== parentKey) : [...keys, parentKey] };
       storeExpandedParents(next);
       return next;
     });
   };
 
-  const handleNavClick = (item, groupId = null, parentKey = null) => {
+  const handleNavClick = (item, groupId = null, parentKey = null, keepSidebarOpen = false) => {
     if (!item.enabled) return;
     applyItemNavigation(item);
 
@@ -110,7 +120,7 @@ export default function Sidebar({ activePage, setActivePage }) {
     const itemKey = getItemKey(item);
     setActiveNavKey(itemKey);
     setActivePage(item.id);
-    setMobileOpen(false);
+    if (!keepSidebarOpen) setMobileOpen(false);
 
     const resolvedGroupId = groupId || findGroupIdForPage(item.id, itemKey);
     if (!resolvedGroupId) return;
@@ -120,7 +130,7 @@ export default function Sidebar({ activePage, setActivePage }) {
 
     if (parentKey) {
       setExpandedParents((previous) => {
-        const next = { ...previous, [resolvedGroupId]: parentKey };
+        const next = openGroupParents(previous, resolvedGroupId, parentKeysForGroup(resolvedGroupId), parentKey);
         storeExpandedParents(next);
         return next;
       });
@@ -187,7 +197,7 @@ export default function Sidebar({ activePage, setActivePage }) {
                       const itemKey = getItemKey(item);
                       const hasChildren = Boolean(item.children?.length);
                       const parentActive = isParentActive(item);
-                      const parentExpanded = expandedParents[group.id] === itemKey;
+                      const parentExpanded = expandedParents[group.id]?.includes(itemKey) || false;
 
                       return (
                         <div key={`${item.id}-${item.label}`} className="an-sidebar__item-block">
@@ -198,8 +208,9 @@ export default function Sidebar({ activePage, setActivePage }) {
                                 disabled={!item.enabled}
                                 onClick={() => {
                                   toggleParent(group.id, itemKey);
-                                  if (item.dashboard) handleNavClick({ id: item.dashboard, enabled: true }, group.id, itemKey);
+                                  if (!parentExpanded && item.dashboard) handleNavClick({ id: item.dashboard, enabled: true }, group.id, itemKey, true);
                                 }}
+                                aria-expanded={parentExpanded}
                                 className="an-sidebar__item an-sidebar__item--with-toggle"
                               >
                                 {item.label}

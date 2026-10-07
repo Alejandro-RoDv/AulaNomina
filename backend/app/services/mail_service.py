@@ -5,6 +5,7 @@ from io import BytesIO
 from pathlib import Path
 from xml.sax.saxutils import escape
 import zipfile
+import re
 
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session, selectinload
@@ -46,8 +47,8 @@ DEMO_ATTACHMENT_CONTENT = {
     ),
     "tax_detail": (
         "Factura;Profesional;Base;Retención\n"
-        "F-2026-041;Consultoría Sur SL;1200.00;180.00\n"
-        "F-2026-052;Laura Pérez;850.00;127.50\n"
+        "F-2026-041;Consultoría Nexo SL;1200.00;180.00\n"
+        "F-2026-052;Laura Pérez Navarro;850.00;127.50\n"
         "TOTAL;;;307.50"
     ),
     "certificate": (
@@ -102,7 +103,7 @@ OPERATIONAL_RESPONSE_TEMPLATES = {
 
 DEMO_THREADS = [
     {
-        "subject": "Revisión de antigüedad en la nómina de Ana Martín",
+        "subject": "Revisión de antigüedad en la nómina de Ana Martín García",
         "preview": "La trabajadora indica que su nómina de julio no incluye el complemento de antigüedad.",
         "folder": "inbox",
         "status": "open",
@@ -114,7 +115,7 @@ DEMO_THREADS = [
         "sender_name": "María López · Administración",
         "sender_address": "administracion@empresa-demo.es",
         "body_text": (
-            "Buenos días:\n\nLa trabajadora Ana Martín nos comunica que su nómina de julio no incluye "
+            "Buenos días:\n\nLa trabajadora Ana Martín García nos comunica que su nómina de julio no incluye "
             "el complemento de antigüedad que le corresponde desde el 1 de julio de 2026.\n\n"
             "Revisa su expediente, comprueba la fecha de antigüedad, regulariza el concepto y recalcula "
             "la nómina. El caso no debe cerrarse hasta que la diferencia quede correctamente reflejada."
@@ -158,7 +159,7 @@ DEMO_THREADS = [
     },
     {
         "subject": "Alta de sustitución por incapacidad temporal",
-        "preview": "Necesitamos tramitar la incorporación de Laura Sánchez como sustituta durante la ausencia.",
+        "preview": "Necesitamos tramitar la incorporación de Laura Sánchez Romero como sustituta durante la ausencia.",
         "folder": "inbox",
         "status": "open",
         "priority": "normal",
@@ -169,8 +170,8 @@ DEMO_THREADS = [
         "sender_name": "Dirección del centro Norte",
         "sender_address": "direccion.norte@empresa-demo.es",
         "body_text": (
-            "Buenas tardes:\n\nNecesitamos tramitar la incorporación de Laura Sánchez como sustituta durante "
-            "la ausencia de Ana Martín.\n\nLos datos necesarios se encuentran en el documento adjunto. "
+            "Buenas tardes:\n\nNecesitamos tramitar la incorporación de Laura Sánchez Romero como sustituta durante "
+            "la ausencia de Ana Martín García.\n\nLos datos necesarios se encuentran en el documento adjunto. "
             "La fecha de alta prevista es el 06/08/2026 y la jornada debe coincidir con la persona sustituida."
         ),
         "attachments": [("Datos_sustituta_Laura_Sanchez.pdf", "application/pdf", "employee_data")],
@@ -394,6 +395,16 @@ def _link_existing_demo_threads(db: Session, mailbox: Mailbox) -> None:
             thread.case_task_id = case_task_id
         assignment = db.query(CaseAssignment).filter(CaseAssignment.id == case_assignment_id).first() if case_assignment_id else None
         thread.status = _assignment_thread_status(assignment, thread.status)
+        # Update only the seeded exercise copy; student replies and drafts remain untouched.
+        if thread.case_reference in {"NOM-2026-014", "ALT-2026-021", "IT-2026-008"}:
+            def full_names(text):
+                text = re.sub(r"Ana Martín(?! García)", "Ana Martín García", text or "")
+                return re.sub(r"Laura Sánchez(?! Romero)", "Laura Sánchez Romero", text)
+            thread.subject = full_names(thread.subject)
+            thread.preview = full_names(thread.preview)
+            for message in thread.messages:
+                if message.direction == "incoming" and message.message_type == "initial":
+                    message.body_text = full_names(message.body_text)
 
 
 def _create_demo_threads(db: Session, mailbox: Mailbox) -> None:

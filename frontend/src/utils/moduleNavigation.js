@@ -1,5 +1,7 @@
 import { Building2, Calculator, FileCheck2, Landmark, UsersRound } from "lucide-react";
 
+import { normalizeExpandedParents } from "./sidebarExpansion.js";
+
 const ACTIVE_GROUP_STORAGE_KEY = "aulanomina:sidebarActiveGroup";
 const EXPANDED_PARENTS_STORAGE_KEY = "aulanomina:sidebarExpandedParents";
 const panelItem = { id: "dashboard", label: "Inicio", enabled: true };
@@ -237,7 +239,7 @@ function getInitialActiveKey(activePage) {
 function getStoredExpandedParents() {
   if (typeof window === "undefined") return {};
   try {
-    return JSON.parse(window.localStorage.getItem(EXPANDED_PARENTS_STORAGE_KEY) || "{}");
+    return normalizeExpandedParents(JSON.parse(window.localStorage.getItem(EXPANDED_PARENTS_STORAGE_KEY) || "{}"));
   } catch {
     return {};
   }

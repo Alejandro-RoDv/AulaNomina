@@ -866,3 +866,5 @@
     padding-inline: 22px;
   }
 }
+
+.mail-conversation-item__body p { white-space: pre-line; overflow-wrap: anywhere; }

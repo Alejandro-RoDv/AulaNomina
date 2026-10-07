@@ -352,7 +352,7 @@ def _ensure_thread(
         "case_task_id": first_task.id if first_task else None,
         "related_entity_type": "employee",
         "related_entity_id": employee.id if employee else None,
-        "subject": "Baja médica de Javier Romero: sustitución y tramitación completa",
+        "subject": "Baja médica de Javier Romero Sánchez: sustitución y tramitación completa",
         "preview": (
             "Se ha recibido la baja de Javier. Debemos conciliar el FIE, cubrir la ausencia y cerrar las comunicaciones."
         ),
@@ -394,7 +394,7 @@ def _ensure_thread(
     )
     body_text = (
         "Buenos días:\n\n"
-        "Javier Romero ha iniciado una incapacidad temporal por enfermedad común con efectos del 6 de mayo. "
+        "Javier Romero Sánchez ha iniciado una incapacidad temporal por enfermedad común con efectos del 6 de mayo. "
         "La comunicación FIE y el parte médico se encuentran adjuntos.\n\n"
         "El centro necesita mantener la cobertura del puesto. Los datos de Marta Ruiz Córdoba, propuesta para "
         "la sustitución, también se incluyen en la documentación. Comprueba la situación de Javier, concilia "

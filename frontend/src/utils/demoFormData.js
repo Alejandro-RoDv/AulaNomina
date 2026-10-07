@@ -10,17 +10,44 @@ export function pickDifferent(items, key) {
   return item;
 }
 export const COMPANY_PRESETS = {
-  services: { label: "Empresa de servicios", names: ["Servicios Azahara SL", "Gestión Mediterránea SL", "Consultoría Albor SL", "Soluciones Guadalquivir SL", "Oficinas del Sur SL"], cnae: "8211", activity: "Servicios administrativos combinados" },
-  education: { label: "Centro educativo privado", names: ["Colegio San Rafael", "CEI La Milagrosa", "Colegio Los Olivos", "Centro Educativo Albor", "Academia Sierra Morena"], cnae: "8531", activity: "Educación secundaria general" },
-  commerce: { label: "Comercio", names: ["Comercial Los Patios SL", "Suministros La Vega SL", "Mercado Sierra Sur SL", "Distribuciones Albor SL", "Comercial El Puente SL"], cnae: "4719", activity: "Otro comercio al por menor en establecimientos no especializados" },
-  ett: { label: "ETT", names: ["Sur Empleo Temporal ETT", "Talento Mediterráneo ETT", "Empleo La Campiña ETT", "Personal Albor ETT", "Trabaja Córdoba ETT"], cnae: "7820", activity: "Actividades de las empresas de trabajo temporal" },
+  services: { label: "Empresa de servicios", names: ["Servicios Horizonte SL", "Gestión Integral Atlas SL", "Consultoría Nexo SL", "Soluciones Prisma SL", "Oficinas Nova SL"], cnae: "8211", activity: "Servicios administrativos combinados" },
+  education: { label: "Centro educativo privado", names: ["Colegio Horizonte", "Escuela Infantil Arcoíris", "Colegio Alameda", "Centro Educativo Nova", "Academia Ágora"], cnae: "8531", activity: "Educación secundaria general" },
+  commerce: { label: "Comercio", names: ["Comercial Prisma SL", "Suministros Atlas SL", "Mercado Central SL", "Distribuciones Nexo SL", "Comercial Horizonte SL"], cnae: "4719", activity: "Otro comercio al por menor en establecimientos no especializados" },
+  ett: { label: "ETT", names: ["Empleo Integral ETT", "Talento Global ETT", "Selección Horizonte ETT", "Personal Nova ETT", "Conecta Empleo ETT"], cnae: "7820", activity: "Actividades de las empresas de trabajo temporal" },
 };
-const surnames = ["García", "López", "Romero", "Moreno", "Serrano", "Ruiz", "Navarro", "Molina"];
-const people = ["Ana", "Miguel", "Lucía", "Javier", "Elena", "Pablo", "Carmen", "Manuel"];
-const streets = ["Calle del Olivo", "Avenida de la Sierra", "Calle del Laurel", "Plaza de la Encina", "Calle del Río"];
+const surnames = ["García", "López", "Martín", "Fernández", "Serrano", "Ruiz", "Navarro", "Molina", "Ortega", "Vidal", "Alonso", "Iglesias", "Sánchez", "Castro", "Domínguez", "Herrera", "Rubio", "Torres", "Medina", "Gil"];
+const people = ["Ana", "Miguel", "Lucía", "Javier", "Elena", "Pablo", "Carmen", "Daniel", "Marta", "Adrián", "Natalia", "Sergio", "Beatriz", "Álvaro", "Irene", "Marcos", "Claudia", "Hugo", "Nuria", "Raquel"];
+const streets = ["Calle Mayor", "Avenida de Europa", "Calle de la Estación", "Plaza del Mercado", "Calle del Parque", "Avenida de la Constitución", "Calle de la Biblioteca", "Paseo de los Jardines"];
+export const DEMO_LOCATIONS = [
+  { city: "Madrid", province: "Madrid", postal_code: "28013", phone: "915" },
+  { city: "Barcelona", province: "Barcelona", postal_code: "08002", phone: "933" },
+  { city: "Valencia", province: "Valencia", postal_code: "46002", phone: "963" },
+  { city: "Zaragoza", province: "Zaragoza", postal_code: "50001", phone: "976" },
+  { city: "Bilbao", province: "Bizkaia", postal_code: "48001", phone: "944" },
+  { city: "Vigo", province: "Pontevedra", postal_code: "36201", phone: "986" },
+  { city: "Valladolid", province: "Valladolid", postal_code: "47001", phone: "983" },
+  { city: "Oviedo", province: "Asturias", postal_code: "33001", phone: "985" },
+  { city: "Santander", province: "Cantabria", postal_code: "39001", phone: "942" },
+  { city: "Pamplona", province: "Navarra", postal_code: "31001", phone: "948" },
+  { city: "Salamanca", province: "Salamanca", postal_code: "37001", phone: "923" },
+  { city: "Alicante", province: "Alicante", postal_code: "03001", phone: "965" },
+  { city: "Logroño", province: "La Rioja", postal_code: "26001", phone: "941" },
+  { city: "Toledo", province: "Toledo", postal_code: "45001", phone: "925" },
+  { city: "Cáceres", province: "Cáceres", postal_code: "10001", phone: "927" },
+  { city: "Palma", province: "Illes Balears", postal_code: "07001", phone: "971" },
+  { city: "Las Palmas de Gran Canaria", province: "Las Palmas", postal_code: "35001", phone: "928" },
+  { city: "Málaga", province: "Málaga", postal_code: "29001", phone: "952" },
+];
+function person(key) {
+  const first_name = pickDifferent(people, `${key}-first`);
+  const last_name = pickDifferent(surnames, `${key}-last`);
+  const second_last_name = pickDifferent(surnames.filter((name) => name !== last_name), `${key}-second`);
+  return { first_name, last_name, second_last_name };
+}
+function fullName(key) { return Object.values(person(key)).join(" "); }
 export const localDate = (date = new Date()) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 export function demoDni() {
-  const digits = `3${nextNumber()}`;
+  const digits = `${pickDifferent(["1", "2", "3", "4", "5", "6", "7", "8"], "dni-prefix")}${nextNumber()}`;
   return digits + "TRWAGMYFPDXBNJZSQVHLCKE"[Number(digits) % 23];
 }
 export function demoCif() {
@@ -31,8 +58,8 @@ export function demoCif() {
   }, 0);
   return `B${digits}${(10 - sum % 10) % 10}`;
 }
-export function demoCcc() {
-  const digits = `14${nextNumber()}`;
+export function demoCcc(provinceCode = pickDifferent(DEMO_LOCATIONS, "ccc-province").postal_code.slice(0, 2)) {
+  const digits = `${provinceCode}${nextNumber()}`;
   return digits + String(Number(digits) % 97).padStart(2, "0");
 }
 const mutuals = ["ASEPEYO - (nº 151)", "FREMAP - (nº 061)", "IBERMUTUA - (nº 274)", "EGARSAT - (nº 276)", "MC MUTUAL - (nº 001)"];
@@ -53,15 +80,16 @@ export function createCompanyDemo(kind, existing = [], agreements = []) {
   const name = pickDifferent(preset.names, kind);
   const agreement = agreements.find((item) => item.is_active !== false && (kind === "education" ? /enseñanza|educación/i : kind === "ett" ? /trabajo temporal/i : kind === "commerce" ? /comercio/i : /oficinas|despachos/i).test(item.name));
   const mutual = pickDifferent(mutuals, "company-mutual");
+  const location = pickDifferent(DEMO_LOCATIONS, "company-location");
   return {
-    name, cif, ccc_regime: "0111", ccc_code: demoCcc(), address: address(), city: "Córdoba", province: "Córdoba",
-    company_phone: `957${nextNumber().slice(-6)}`, company_email: `empresa.${cif.toLowerCase()}@example.test`,
-    company_contact_person: `${pickDifferent(people, "contact")} ${pickDifferent(surnames, "contact-surname")}`,
+    name, cif, ccc_regime: "0111", ccc_code: demoCcc(location.postal_code.slice(0, 2)), address: address(), city: location.city, province: location.province,
+    company_phone: `${location.phone}${nextNumber().slice(-6)}`, company_email: `empresa.${cif.toLowerCase()}@example.test`,
+    company_contact_person: fullName("contact"),
     registration_date: localDate(), company_type: kind === "ett" ? "ett" : "privada", main_collective_agreement: agreement?.name || "",
     cnae_2009_code: preset.cnae, cnae_2009_name: preset.activity,
     professional_contingencies_mutual: mutual, common_it_mutual: mutual, work_calendar_name: pickDifferent(["Calendario general", "Jornada intensiva de verano", "Calendario de turnos"], "calendar"),
     bank_iban: demoIban(), company_website: `https://empresa-${cif.toLowerCase()}.example.test`,
-    legal_representative_name: `${pickDifferent(people, "representative")} ${pickDifferent(surnames, "representative-surname")}`,
+    legal_representative_name: fullName("representative"),
     legal_representative_dni: demoDni(), legal_representative_position: pickDifferent(["Administrador", "Gerente", "Apoderado"], "representative-position"),
     professional_contingencies_policy: `POL-${nextNumber()}`, common_it_policy: `IT-${nextNumber()}`,
     professional_contingencies_effective_date: localDate(), common_it_effective_date: localDate(),
@@ -69,23 +97,26 @@ export function createCompanyDemo(kind, existing = [], agreements = []) {
 }
 export function createCenterDemo(company) {
   if (!company) return null;
+  const location = pickDifferent(DEMO_LOCATIONS, "center-location");
   return {
-    name: `${pickDifferent(["Sede Centro", "Centro Norte", "Centro Sur", "Delegación La Sierra", "Oficina El Parque"], "center")} · ${nextNumber().slice(-4)}`,
-    general_ccc: company.ccc || "", main_ccc: demoCcc(), address: address(), city: company.city || "Córdoba", province: company.province || "Córdoba",
-    collective_agreement: company.main_collective_agreement || "", mobile: `6${nextNumber().padStart(8, "0")}`, fax: `957${nextNumber().slice(-6)}`, website: `https://centro-${nextNumber()}.example.test`, phone: `957${nextNumber().slice(-6)}`, email: `centro.${nextNumber()}@example.test`,
+    name: `${pickDifferent(["Sede Principal", "Centro Empresarial", "Delegación Comercial", "Oficina de Gestión", "Centro de Servicios"], "center")} · ${nextNumber().slice(-4)}`,
+    general_ccc: company.ccc || "", main_ccc: demoCcc(location.postal_code.slice(0, 2)), address: address(), city: location.city, province: location.province,
+    collective_agreement: company.main_collective_agreement || "", mobile: `6${nextNumber().padStart(8, "0")}`, fax: `${location.phone}${nextNumber().slice(-6)}`, website: `https://centro-${nextNumber()}.example.test`, phone: `${location.phone}${nextNumber().slice(-6)}`, email: `centro.${nextNumber()}@example.test`,
   };
 }
 export function createEmployeeDemo(companyId, centers, existing = []) {
   const available = centers.filter((center) => center.is_active !== false && String(center.company_id) === String(companyId));
   if (!companyId || !available.length) return null;
-  const nafBase = `14${nextNumber().padStart(8, "0")}`;
+  const location = pickDifferent(DEMO_LOCATIONS, "employee-location");
+  const profile = person("employee");
+  const nafBase = `${location.postal_code.slice(0, 2)}${String(10000000 + Number(nextNumber()))}`;
   const dni = unique(demoDni, existing.map((employee) => employee.dni));
   return {
     company_id: String(companyId), center_id: String(pickDifferent(available, "employee-center").id), document_type: "DNI", dni,
-    naf: nafBase + String(Number(nafBase) % 97).padStart(2, "0"), first_name: pickDifferent(people, "first-name"), last_name: pickDifferent(surnames, "last-name"), second_last_name: pickDifferent(surnames, "second-name"),
-    birth_date: `${1980 + Math.floor(Math.random() * 20)}-${String(1 + Math.floor(Math.random() * 12)).padStart(2, "0")}-${String(1 + Math.floor(Math.random() * 28)).padStart(2, "0")}`, nationality: "Española", domicile: address(), city: "Córdoba", province: "Córdoba", postal_code: "14001",
+    naf: nafBase + String(Number(nafBase) % 97).padStart(2, "0"), ...profile,
+    birth_date: `${1980 + Math.floor(Math.random() * 20)}-${String(1 + Math.floor(Math.random() * 12)).padStart(2, "0")}-${String(1 + Math.floor(Math.random() * 28)).padStart(2, "0")}`, nationality: "Española", domicile: address(), city: location.city, province: location.province, postal_code: location.postal_code,
     mobile_phone: `6${nextNumber().padStart(8, "0")}`, email: `persona.${dni.toLowerCase()}@example.test`, education_level: pickDifferent(["Formación Profesional Grado Superior", "Bachiller, BUP y equivalente", "Estudios univ. oficiales de grado y de máster"], "education-level"),
-    birth_place: pickDifferent(["Córdoba", "Montilla", "Sevilla", "Málaga"], "birth-place"),
+    birth_place: pickDifferent(DEMO_LOCATIONS, "birth-place").city,
     academic_title: pickDifferent(["Administración y Finanzas", "Gestión Administrativa", "Administración de Empresas"], "title"),
     main_profession: pickDifferent(["Administrativo", "Técnico de gestión", "Atención al cliente"], "profession"),
     languages: pickDifferent(["Español; inglés B1", "Español; inglés B2", "Español; francés B1"], "languages"),

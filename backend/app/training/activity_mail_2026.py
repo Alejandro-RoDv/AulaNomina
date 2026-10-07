@@ -70,17 +70,36 @@ def _tasks_for_code(case: CaseStudy, code: str):
 def _mail_facts(case: CaseStudy, code: str) -> list[str]:
     state = case.initial_state or {}
     if code != "A04":
-        return []
+        rows = [("Persona trabajadora", state.get("employee")), ("Persona sustituta", state.get("substitute")),
+                ("Persona sustituida", state.get("replaced_employee")), ("Empresa", state.get("company_name")),
+                ("Centro de trabajo", state.get("center_name")), ("Periodo", state.get("payroll_period"))]
+        for task in _tasks_for_code(case, code):
+            for fact in (task.trigger_condition or {}).get("case_facts") or []:
+                if isinstance(fact, dict):
+                    rows.append((fact.get("label"), fact.get("value")))
+        facts = []
+        for label, value in rows:
+            if label and value is not None and value != "" and not isinstance(value, (dict, list)):
+                row = f"- {label}: {value}"
+                if row not in facts:
+                    facts.append(row)
+        return facts
 
     employee = state.get("employee_data") or {}
     rows = [
         ("Nombre", employee.get("first_name")),
-        ("Apellidos", employee.get("last_name")),
+        ("Primer apellido", employee.get("last_name")),
+        ("Segundo apellido", employee.get("second_last_name")),
         ("DNI/NIE", employee.get("dni")),
         ("NAF", employee.get("naf")),
         ("Fecha de nacimiento", employee.get("birth_date")),
         ("Nacionalidad", employee.get("nationality")),
         ("Email", employee.get("email")),
+        ("Teléfono móvil", employee.get("mobile_phone")),
+        ("Domicilio", employee.get("domicile")),
+        ("Localidad", employee.get("city")),
+        ("Provincia", employee.get("province")),
+        ("Código postal", employee.get("postal_code")),
     ]
     return [f"- {label}: {value}" for label, value in rows if value not in {None, ""}]
 
@@ -101,7 +120,9 @@ def _body(case: CaseStudy, code: str) -> str:
 
     return (
         f"Buenos días:\n\nNecesitamos que gestiones el siguiente asunto en AulaNomina: {case.title}.\n\n"
-        f"{case.description or ''}\n\nQué tienes que hacer:\n"
+        f"{case.description or ''}\n\n"
+        + (("Datos de referencia:\n" + "\n".join(facts) + "\n\n") if facts else "")
+        + "Qué tienes que hacer:\n"
         + "\n".join(lines)
         + "\n\nRealiza la gestión en AulaNomina y revisa el resultado antes de darla por terminada."
     )
