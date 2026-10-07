@@ -13,8 +13,8 @@ from typing import Any
 STUDENT_BLOCKS_2026: tuple[dict[str, Any], ...] = (
     {
         "code": "B01",
-        "title": "Primeros pasos: trabajador, empresa y convenio",
-        "activity_codes": ("A04", "A02", "A03", "A05"),
+        "title": "Primeros pasos: empresa, trabajador y convenio",
+        "activity_codes": ("A02", "A04", "A03", "A05"),
     },
     {
         "code": "B02",
@@ -88,17 +88,17 @@ STUDENT_ACTIVITY_COPY_2026: dict[str, dict[str, str]] = {
             "Un trabajador por cuenta ajena presta servicios voluntarios y retribuidos dentro de la organización de una empresa. "
             "La empresa dirige el trabajo y asume el riesgo de la actividad. En AulaNomina esa relación empieza creando su expediente laboral."
         ),
-        "task": "Lee el correo de incorporación y crea el trabajador con los datos recibidos.",
+        "task": "Con la empresa y el centro ya preparados, lee el correo de incorporación y crea el trabajador con los datos recibidos.",
     },
     "A02": {
         "title": "Empresa y centro de trabajo",
         "theory": "La empresa es el empleador y el centro de trabajo identifica dónde se presta el servicio. Ambos datos sirven de base para contratos, afiliación, nóminas y cotización.",
-        "task": "Revisa la empresa y su centro de trabajo y deja sus datos coherentes.",
+        "task": "Prepara la empresa y su centro de trabajo: revisa los datos del caso y corrige el CCC principal del centro antes de dar de alta trabajadores.",
     },
     "A03": {
         "title": "Convenio colectivo",
         "theory": "El convenio colectivo fija reglas laborales aplicables al puesto, como clasificación profesional, jornada y retribución. Por eso debe quedar vinculado al contrato correcto.",
-        "task": "Abre el contrato indicado y asigna el convenio que corresponde.",
+        "task": "Abre el contrato de ejemplo ya preparado en el caso y asigna el convenio que corresponde.",
     },
     "A05": {
         "title": "Revisar un expediente laboral",

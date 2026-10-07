@@ -3,7 +3,8 @@ from app.services.training_course_projection_2026 import (
     MASTER_ACTIVITY_CODES_2026,
     project_master_activity_course_2026,
 )
-from app.training.student_course_2026 import STUDENT_ACTIVITY_CODES_2026
+from app.training.activity_specs_2026 import ACTIVITY_SPECS_2026
+from app.training.student_course_2026 import STUDENT_ACTIVITY_CODES_2026, STUDENT_ACTIVITY_ORDER_2026
 
 
 def _activity(
@@ -60,11 +61,11 @@ def test_master_catalog_remains_60_but_student_course_has_58_integrated_practice
     assert len(STUDENT_ACTIVITY_CODES_2026) == 58
     assert "A01" not in STUDENT_ACTIVITY_CODES_2026
     assert "A06" not in STUDENT_ACTIVITY_CODES_2026
-    assert STUDENT_ACTIVITY_CODES_2026[:4] == ("A04", "A02", "A03", "A05")
+    assert STUDENT_ACTIVITY_CODES_2026[:4] == ("A02", "A04", "A03", "A05")
     assert STUDENT_ACTIVITY_CODES_2026[-6:] == ("C01", "C02", "C03", "C04", "C05", "C06")
 
 
-def test_first_student_activity_is_worker_by_employee_with_light_theory_and_erp_task():
+def test_worker_activity_follows_company_preparation_with_light_theory_and_erp_task():
     projected = project_master_activity_course_2026(
         _course(
             _activity("1:1", "A04", scenario="TRAIN-2026-001", module="employees"),
@@ -78,10 +79,44 @@ def test_first_student_activity_is_worker_by_employee_with_light_theory_and_erp_
     assert len(visible) == 1
     activity = visible[0]
     assert activity["id"] == "practice:A04"
-    assert activity["display_number"] == "1.1"
+    assert activity["display_number"] == "1.2"
     assert activity["title"] == "Trabajador por cuenta ajena"
     assert "cuenta ajena" in activity["theory"].lower()
-    assert activity["instructions"] == "Lee el correo de incorporación y crea el trabajador con los datos recibidos."
+    assert activity["instructions"] == "Con la empresa y el centro ya preparados, lee el correo de incorporación y crea el trabajador con los datos recibidos."
+
+
+def test_all_visible_prerequisites_precede_the_activity_including_hidden_concept_dependencies():
+    def visible_prerequisites(code):
+        for prerequisite in ACTIVITY_SPECS_2026[code]["prerequisites"]:
+            if prerequisite in STUDENT_ACTIVITY_ORDER_2026:
+                yield prerequisite
+            else:
+                yield from visible_prerequisites(prerequisite)
+
+    for code, position in STUDENT_ACTIVITY_ORDER_2026.items():
+        for prerequisite in visible_prerequisites(code):
+            assert STUDENT_ACTIVITY_ORDER_2026[prerequisite] < position, (code, prerequisite)
+
+
+def test_company_is_first_and_reordering_preserves_completed_worker_progress():
+    # Persisted runtime order can still be the old worker-first order.
+    activities = [
+        _activity("1:1", "A04", module="employees", completed=True),
+        _activity("2:2", "A02", module="companies"),
+        _activity("3:3", "A03", module="contracts"),
+        _activity("4:4", "A05", module="employees"),
+    ]
+    projected = project_master_activity_course_2026(_course(*activities, block_code="B01"))
+    visible = _visible(projected)
+    assert [item["training_code"] for item in visible] == ["A02", "A04", "A03", "A05"]
+    assert [item["display_number"] for item in visible] == ["1.1", "1.2", "1.3", "1.4"]
+    assert visible[0]["module"] == "companies"
+    assert visible[0]["is_current"] is True
+    assert visible[1]["is_completed"] is True
+    assert visible[1]["task_id"] == 1
+    assert projected["course"]["current_activity_id"] == "practice:A02"
+    assert projected["course"]["next_activity_id"] == "practice:A03"
+    assert projected["course"]["completed"] == 1
 
 
 def test_projection_hides_unmigrated_legacy_and_standalone_conceptual_practices():
