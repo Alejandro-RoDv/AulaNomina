@@ -27,12 +27,12 @@ function leaveMailRoute() {
 }
 
 export default function MailRoute() {
-  const [active, setActive] = useState(isMailRoute());
-  const [targetReady, setTargetReady] = useState(false);
-  const threadId = requestedThreadId();
+  const [route, setRoute] = useState(() => ({ active: isMailRoute(), threadId: requestedThreadId() }));
+  const [preparedTarget, setPreparedTarget] = useState(null);
+  const { active, threadId } = route;
 
   useEffect(() => {
-    const handleRouteChange = () => setActive(isMailRoute());
+    const handleRouteChange = () => setRoute({ active: isMailRoute(), threadId: requestedThreadId() });
     window.addEventListener("hashchange", handleRouteChange);
     window.addEventListener("aulanomina-route-change", handleRouteChange);
     return () => {
@@ -43,26 +43,29 @@ export default function MailRoute() {
 
   useEffect(() => {
     if (!active || !threadId) {
-      setTargetReady(true);
       return undefined;
     }
     let cancelled = false;
-    setTargetReady(false);
     const focusThread = async () => {
+      let error = "";
       try {
         await fetchMailThread(threadId);
         await updateMailThread(threadId, { folder: "inbox", is_read: true });
       } catch {
-        // Si el hilo ya no existe, el buzón general sigue siendo utilizable.
+        error = "No se ha podido abrir el correo de esta actividad. Vuelve al curso e inténtalo de nuevo.";
       } finally {
-        if (!cancelled) setTargetReady(true);
+        if (!cancelled) setPreparedTarget({ threadId, error });
       }
     };
     focusThread();
     return () => { cancelled = true; };
   }, [active, threadId]);
 
-  if (!active || !targetReady) return null;
+  if (!active || (threadId && preparedTarget?.threadId !== threadId)) return null;
 
-  return <SimpleMailWorkspace onClose={leaveMailRoute} />;
+  if (preparedTarget?.error && threadId) {
+    return <div className="simple-mail simple-mail--loading" role="alert"><p>{preparedTarget.error}</p><button type="button" onClick={leaveMailRoute}>Volver al curso</button></div>;
+  }
+
+  return <SimpleMailWorkspace key={threadId || "inbox"} onClose={leaveMailRoute} initialThreadId={threadId} />;
 }

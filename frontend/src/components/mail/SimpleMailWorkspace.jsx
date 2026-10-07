@@ -155,6 +155,9 @@ export default function SimpleMailWorkspace({ onClose, initialThreadId = null })
             // El hilo sigue abierto aunque no se haya podido persistir el leído.
           }
         }
+      } else if (requestedId) {
+        setSelectedId(null);
+        setError("El correo de esta actividad no está disponible en la bandeja. Vuelve al curso e inténtalo de nuevo.");
       } else {
         setSelectedId((current) => {
           const wanted = preferredId || current;

@@ -84,8 +84,11 @@ const MODULE_TARGETS = {
   fie: ACTION_TARGETS.fie,
   documents: ACTION_TARGETS.documents,
   tax: ACTION_TARGETS.model111,
+  model111: ACTION_TARGETS.model111,
+  model190: ACTION_TARGETS.model190,
+  siltra: ACTION_TARGETS.siltra,
   irpf: { label: "Abrir IRPF", page: "irpf" },
-  cra: { label: "Abrir Seguros Sociales", page: "social-security-dashboard" },
+  cra: { label: "Abrir ficheros CRA", hash: "#cra-files" },
   "social-security": { label: "Abrir Seguros Sociales", page: "social-security-dashboard" },
   social_security: { label: "Abrir Seguros Sociales", page: "social-security-dashboard" },
   terminations: ACTION_TARGETS.contracts,
@@ -119,6 +122,7 @@ export function buildCaseModuleUrl(context, currentUrl = "http://127.0.0.1:5173/
   if (context.startDate) url.searchParams.set("startDate", context.startDate);
   if (context.relatedEntityType) url.searchParams.set("entityType", context.relatedEntityType);
   if (context.relatedEntityId) url.searchParams.set("entityId", String(context.relatedEntityId));
+  if (target.hash === "#mail" && context.mailThreadId) url.searchParams.set("mailThread", String(context.mailThreadId));
   if (target.incidentCategory) url.searchParams.set("incidentCategory", target.incidentCategory);
 
   if (context.actionCode === "review_company_structure" && context.companyId) {
