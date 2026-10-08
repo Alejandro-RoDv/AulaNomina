@@ -8,7 +8,7 @@ import json
 from sqlalchemy.orm import Session
 
 from app.models.case_assignment import CaseAssignment
-from app.models.case_study import CaseStudy
+from app.models.case_study import CaseStudy, CaseTask
 from app.models.mail import EmailAttachment, EmailMessage, EmailThread, Mailbox
 from app.training.foundation_runtime_cases_2026 import (
     FOUNDATION_CENTER_ADDRESS,
@@ -491,6 +491,98 @@ def deliver_a02_mail_on_open(db: Session, mailbox: Mailbox, assignment_id: int) 
             content_text=content,
             size_bytes=len(content.encode("utf-8")),
         ))
+    db.commit()
+    return thread
+
+
+def deliver_activity_mail_on_open(
+    db: Session, mailbox: Mailbox, assignment_id: int, task_id: int
+) -> EmailThread:
+    """Prepara el correo de una actividad solo al abrirla; reutiliza los existentes."""
+    assignment = (
+        db.query(CaseAssignment)
+        .filter(CaseAssignment.id == assignment_id)
+        .with_for_update()
+        .first()
+    )
+    if assignment is None or assignment.case_study is None:
+        raise ValueError("Asignación formativa no encontrada")
+    task = (
+        db.query(CaseTask)
+        .filter(CaseTask.id == task_id, CaseTask.case_study_id == assignment.case_study_id)
+        .first()
+    )
+    if task is None:
+        raise ValueError("La actividad no pertenece al supuesto asignado")
+    code = _task_code(task) or _code(assignment.case_study)
+    if not code:
+        raise ValueError("La actividad no tiene un código formativo")
+
+    # A02 utiliza sus dos fichas documentales específicas.
+    if code == "A02":
+        return deliver_a02_mail_on_open(db, mailbox, assignment_id)
+
+    thread = next(
+        (
+            item for item in db.query(EmailThread)
+            .filter(
+                EmailThread.mailbox_id == mailbox.id,
+                EmailThread.case_assignment_id == assignment.id,
+            )
+            .order_by(EmailThread.id.asc())
+            .all()
+            if str(item.subject or "").upper().startswith(f"{code} ·")
+            and item.related_entity_type != "training_duplicate"
+        ),
+        None,
+    )
+    if thread is not None:
+        if thread.folder == "training_locked":
+            thread.folder = "inbox"
+            thread.updated_at = datetime.utcnow()
+            db.commit()
+        return thread
+
+    case = assignment.case_study
+    sender_name, sender_address, category = _sender(code)
+    sent_at = datetime.utcnow()
+    thread = EmailThread(
+        mailbox_id=mailbox.id,
+        company_id=case.company_id,
+        case_study_id=case.id,
+        case_assignment_id=assignment.id,
+        case_task_id=task.id,
+        related_entity_type="case_study",
+        related_entity_id=case.id,
+        subject=f"{code} · {case.title}",
+        preview=str(task.description or case.description or case.title)[:220],
+        folder="inbox",
+        status="open",
+        priority="normal",
+        category=category,
+        case_reference=case.scenario_code,
+        is_read=False,
+        expected_actions=[item.title for item in _tasks_for_code(case, code)],
+        context_actions=[str(task.module or "")],
+        created_at=sent_at,
+        updated_at=sent_at,
+    )
+    db.add(thread)
+    db.flush()
+    message = EmailMessage(
+        thread_id=thread.id,
+        sender_name=sender_name,
+        sender_address=sender_address,
+        recipient_name=mailbox.display_name,
+        recipient_address=mailbox.address,
+        body_text=_body(case, code),
+        sent_at=sent_at,
+        direction="incoming",
+        message_type="initial",
+    )
+    db.add(message)
+    db.flush()
+    _ensure_training_attachment(db, code, case, message)
     db.commit()
     return thread
 
