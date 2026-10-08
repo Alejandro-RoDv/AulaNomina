@@ -25,12 +25,18 @@ from app.training.foundation_runtime_cases_2026 import (
     A03_EMPLOYEE_DNI,
     A05_EMPLOYEE_DNI,
     FOUNDATION_AGREEMENT_CODE,
+    FOUNDATION_CENTER_ADDRESS,
     FOUNDATION_CENTER_CODE,
+    FOUNDATION_CENTER_EMAIL,
     FOUNDATION_CENTER_EXPECTED_CCC,
     FOUNDATION_CENTER_NAME,
+    FOUNDATION_CENTER_PHONE,
+    FOUNDATION_COMPANY_ADDRESS,
     FOUNDATION_COMPANY_CCC,
     FOUNDATION_COMPANY_CIF,
+    FOUNDATION_COMPANY_EMAIL,
     FOUNDATION_COMPANY_NAME,
+    FOUNDATION_COMPANY_PHONE,
     FOUNDATION_DECISION_RULES,
     FOUNDATION_SCENARIO_CODES,
 )
@@ -124,14 +130,23 @@ def _review_a02(db: Session) -> dict[str, Any]:
     company_name_ok = bool(company and company.name == FOUNDATION_COMPANY_NAME)
     company_ccc_ok = bool(company and same_ccc(company.ccc, FOUNDATION_COMPANY_CCC))
     company_city_ok = bool(company and _normalize(company.city) == "cordoba")
+    company_address_ok = bool(company and _normalize(company.address) == _normalize(FOUNDATION_COMPANY_ADDRESS))
+    company_email_ok = bool(company and _normalize(company.company_email) == _normalize(FOUNDATION_COMPANY_EMAIL))
+    company_phone_ok = bool(company and "".join(filter(str.isdigit, company.company_phone or "")) == FOUNDATION_COMPANY_PHONE)
     company_active_ok = bool(company and company.is_active)
-    company_ok = company_name_ok and company_ccc_ok and company_city_ok and company_active_ok
+    company_ok = all((company_name_ok, company_ccc_ok, company_city_ok, company_address_ok,
+                      company_email_ok, company_phone_ok, company_active_ok))
     center_company_ok = bool(center and company and center.company_id == company.id)
     center_name_ok = bool(center and center.name == FOUNDATION_CENTER_NAME)
     center_general_ccc_ok = bool(center and company and same_ccc(center.general_ccc, company.ccc))
     center_main_ccc_ok = bool(center and same_ccc(center.main_ccc, FOUNDATION_CENTER_EXPECTED_CCC))
+    center_address_ok = bool(center and _normalize(center.address) == _normalize(FOUNDATION_CENTER_ADDRESS))
+    center_city_ok = bool(center and _normalize(center.city) == "cordoba")
+    center_email_ok = bool(center and _normalize(center.email) == _normalize(FOUNDATION_CENTER_EMAIL))
+    center_phone_ok = bool(center and "".join(filter(str.isdigit, center.phone or "")) == FOUNDATION_CENTER_PHONE)
     center_active_ok = bool(center and center.is_active)
-    center_ok = center_company_ok and center_name_ok and center_general_ccc_ok and center_main_ccc_ok and center_active_ok
+    center_ok = all((center_company_ok, center_name_ok, center_general_ccc_ok, center_main_ccc_ok,
+                     center_address_ok, center_city_ok, center_email_ok, center_phone_ok, center_active_ok))
     passed = company_ok and center_ok
     issues = []
     if not company:
@@ -143,10 +158,16 @@ def _review_a02(db: Session) -> dict[str, Any]:
             issues.append(f"El CCC de la empresa debe tener régimen 0111 y código 14149990001; ahora figura {company.ccc or 'vacío'}.")
         if not company_city_ok:
             issues.append("La ciudad de la empresa debe ser Córdoba.")
+        if not company_address_ok:
+            issues.append("Revisa el domicilio social de la empresa indicado en la ficha recibida.")
+        if not company_email_ok:
+            issues.append("Revisa el correo de contacto de la empresa indicado en la ficha recibida.")
+        if not company_phone_ok:
+            issues.append("Revisa el teléfono de la empresa indicado en la ficha recibida.")
         if not company_active_ok:
             issues.append("La empresa debe estar activa.")
     if not center:
-        issues.append(f"No se encuentra el centro con código {FOUNDATION_CENTER_CODE}.")
+        issues.append(f"No se encuentra el centro «{FOUNDATION_CENTER_NAME}» vinculado a la empresa del supuesto.")
     else:
         if not center_company_ok:
             issues.append("El centro no está asociado a la empresa del supuesto.")
@@ -156,6 +177,14 @@ def _review_a02(db: Session) -> dict[str, Any]:
             issues.append("El CCC de empresa del centro no coincide con el CCC actual de la empresa.")
         if not center_main_ccc_ok:
             issues.append(f"El CCC propio del centro debe tener régimen 0111 y código 14149990011; ahora figura {center.main_ccc or 'vacío'}.")
+        if not center_address_ok:
+            issues.append("Revisa el domicilio del centro de trabajo indicado en la ficha recibida.")
+        if not center_city_ok:
+            issues.append("La localidad del centro de trabajo debe ser Córdoba.")
+        if not center_email_ok:
+            issues.append("Revisa el correo electrónico del centro indicado en la ficha recibida.")
+        if not center_phone_ok:
+            issues.append("Revisa el teléfono del centro indicado en la ficha recibida.")
         if not center_active_ok:
             issues.append("El centro debe estar activo.")
     return _check(
@@ -172,6 +201,9 @@ def _review_a02(db: Session) -> dict[str, Any]:
             "company_name_ok": company_name_ok,
             "company_ccc_ok": company_ccc_ok,
             "company_city_ok": company_city_ok,
+            "company_address_ok": company_address_ok,
+            "company_email_ok": company_email_ok,
+            "company_phone_ok": company_phone_ok,
             "company_active_ok": company_active_ok,
             "company_ok": company_ok,
             "center_id": center.id if center else None,
@@ -183,6 +215,10 @@ def _review_a02(db: Session) -> dict[str, Any]:
             "center_name_ok": center_name_ok,
             "center_general_ccc_ok": center_general_ccc_ok,
             "center_main_ccc_ok": center_main_ccc_ok,
+            "center_address_ok": center_address_ok,
+            "center_city_ok": center_city_ok,
+            "center_email_ok": center_email_ok,
+            "center_phone_ok": center_phone_ok,
             "center_active_ok": center_active_ok,
             "center_ok": center_ok,
             "issues": issues,
