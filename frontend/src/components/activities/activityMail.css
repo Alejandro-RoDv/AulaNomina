@@ -70,3 +70,46 @@
     grid-column: 2;
   }
 }
+
+/* Acceso directo al mensaje asociado a la actividad, sin ocupar una tarjeta entera. */
+.activity-center__task-block .activity-center__mail-summary {
+  margin: 8px 0 12px;
+  max-width: 100%;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.activity-center__mail-direct-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 8px 12px;
+  border: 1px solid #b8d1fa;
+  border-radius: 8px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.activity-center__mail-direct-button:hover:not(:disabled) {
+  border-color: #93b4f3;
+  background: #dbeafe;
+}
+
+.activity-center__mail-direct-button:focus-visible {
+  outline: 3px solid rgba(37, 99, 235, 0.25);
+  outline-offset: 2px;
+}
+
+.activity-center__mail-direct-button:disabled {
+  cursor: wait;
+  opacity: 0.72;
+}
