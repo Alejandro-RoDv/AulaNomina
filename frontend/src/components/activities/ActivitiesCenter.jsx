@@ -93,7 +93,7 @@ function failedValidationMessages(activity) {
         : (check?.message ? [check.message] : [])
     ))
     .filter((message, index, messages) => messages.indexOf(message) === index)
-    .map((message) => /No se encuentra el centro con código F\\.01/i.test(message)
+    .map((message) => String(message).includes("No se encuentra el centro con código F.01")
       ? "Este resultado es anterior a los cambios en la actividad. Vuelve a comprobar la gestión."
       : message)
     .slice(0, 8);
