@@ -506,9 +506,9 @@ def _activity_briefing_body(db: Session, case: CaseStudy, task: CaseTask, code: 
     for row in rows:
         label = str(row.get("label") or "").strip()
         value = row.get("value")
-        if not label or label in {"Referencia", "Código centro"} or value in {None, ""}:
+        if not label or label in {"Referencia", "Código centro"}:
             continue
-        if isinstance(value, (dict, list, tuple)):
+        if value is None or value == "" or isinstance(value, (dict, list, tuple)):
             continue
         text = f"- {label}: {value}"
         if text not in body:
