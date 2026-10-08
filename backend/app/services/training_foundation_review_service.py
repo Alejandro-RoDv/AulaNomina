@@ -155,7 +155,7 @@ def _review_a02(db: Session) -> dict[str, Any]:
         if not company_name_ok:
             issues.append(f"El nombre de la empresa debe ser «{FOUNDATION_COMPANY_NAME}».")
         if not company_ccc_ok:
-            issues.append(f"El CCC de la empresa debe tener régimen 0111 y código 14149990001; ahora figura {company.ccc or 'vacío'}.")
+            issues.append(f"El CCC de la empresa debe ser {FOUNDATION_COMPANY_CCC}; ahora figura {company.ccc or 'vacío'}.")
         if not company_city_ok:
             issues.append("La ciudad de la empresa debe ser Córdoba.")
         if not company_address_ok:
@@ -176,7 +176,7 @@ def _review_a02(db: Session) -> dict[str, Any]:
         if not center_general_ccc_ok:
             issues.append("El CCC de empresa del centro no coincide con el CCC actual de la empresa.")
         if not center_main_ccc_ok:
-            issues.append(f"El CCC propio del centro debe tener régimen 0111 y código 14149990011; ahora figura {center.main_ccc or 'vacío'}.")
+            issues.append(f"El CCC propio del centro debe ser {FOUNDATION_CENTER_EXPECTED_CCC}; ahora figura {center.main_ccc or 'vacío'}.")
         if not center_address_ok:
             issues.append("Revisa el domicilio del centro de trabajo indicado en la ficha recibida.")
         if not center_city_ok:
