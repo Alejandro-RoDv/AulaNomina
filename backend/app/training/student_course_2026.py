@@ -93,7 +93,7 @@ STUDENT_ACTIVITY_COPY_2026: dict[str, dict[str, str]] = {
     "A02": {
         "title": "Empresa y centro de trabajo",
         "theory": "La empresa es el empleador y el centro de trabajo identifica dónde se presta el servicio. Ambos datos sirven de base para contratos, afiliación, nóminas y cotización.",
-        "task": "Prepara la empresa y su centro de trabajo: revisa los datos del caso y corrige el CCC principal del centro antes de dar de alta trabajadores.",
+        "task": "Lee el correo recibido de Administración y revisa las dos fichas adjuntas. Prepara o corrige la empresa y el centro de trabajo sin duplicar registros. Comprueba que cada uno tenga el CCC que le corresponde.",
     },
     "A03": {
         "title": "Convenio colectivo",
