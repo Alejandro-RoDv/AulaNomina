@@ -169,7 +169,7 @@ def test_a02_validator_explains_the_exact_ccc_error(db):
     assert review["passed"] is False
     assert review["evidence"]["center_main_ccc_ok"] is False
     assert review["evidence"]["issues"] == [
-        f"El CCC propio del centro debe tener régimen 0111 y código 14149990011; ahora figura 0111/14149990012."
+        f"El CCC propio del centro debe ser {FOUNDATION_CENTER_EXPECTED_CCC}; ahora figura 0111/14149990012."
     ]
     assert FOUNDATION_CENTER_EXPECTED_CCC == "0111/14149990011"
 
