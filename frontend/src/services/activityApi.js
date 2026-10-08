@@ -122,6 +122,14 @@ if (typeof window !== "undefined") {
   });
 }
 
+export function deliverA02Briefing(assignmentId) {
+  return apiRequest(
+    `/mail/activity-briefings/a02/${assignmentId}`,
+    { method: "POST" },
+    "No se ha podido entregar el encargo de empresa y centro al buzón"
+  );
+}
+
 export function validateActivity(assignmentId, taskId) {
   return apiRequest(
     `/case-assignments/${assignmentId}/steps/${taskId}/validate`,
