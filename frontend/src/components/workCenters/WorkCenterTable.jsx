@@ -143,7 +143,7 @@ export default function WorkCenterTable({
             </div>
 
             <form onSubmit={handleEditSubmit} style={styles.form}>
-              <div style={styles.formRow}>
+              <div style={styles.formGridTwo}>
                 <div style={styles.formGroup}>
                   <label>Empresa madre</label>
                   <select name="company_id" value={editForm.company_id} onChange={handleEditChange} required style={styles.input}>
@@ -159,16 +159,16 @@ export default function WorkCenterTable({
                 </div>
               </div>
 
-              <div style={styles.formRow}>
+              <div style={styles.formGridCcc}>
                 <div style={styles.formGroup}>
                   <label>Convenio del centro</label>
                   <input name="collective_agreement" value={editForm.collective_agreement} onChange={handleEditChange} style={styles.input} />
                 </div>
                 <div style={styles.formGroup}>
-                  <CccFields value={companies.find((company) => String(company.id) === String(editForm.company_id))?.ccc || ""} onChange={() => {}} label="CCC de la empresa (sincronizado)" readOnly inputStyle={styles.input} idPrefix="edit-center-company-ccc" />
+                  <CccFields value={companies.find((company) => String(company.id) === String(editForm.company_id))?.ccc || ""} onChange={() => {}} label="CCC de la empresa (sincronizado)" readOnly inputStyle={styles.input} style={styles.cccFields} idPrefix="edit-center-company-ccc" />
                 </div>
                 <div style={styles.formGroup}>
-                  <CccFields value={editForm.main_ccc} onChange={(value) => setEditForm((current) => ({ ...current, main_ccc: value }))} label="CCC propio del centro" inputStyle={styles.input} idPrefix="edit-center-main-ccc" />
+                  <CccFields value={editForm.main_ccc} onChange={(value) => setEditForm((current) => ({ ...current, main_ccc: value }))} label="CCC propio del centro" inputStyle={styles.input} style={styles.cccFields} idPrefix="edit-center-main-ccc" />
                 </div>
               </div>
 
@@ -179,17 +179,20 @@ export default function WorkCenterTable({
                 </div>
               </div>
 
-              <div style={styles.formRow}>
+              <div style={styles.formGridTwo}>
                 <div style={styles.formGroup}><label>Ciudad</label><input name="city" value={editForm.city} onChange={handleEditChange} style={styles.input} /></div>
                 <div style={styles.formGroup}><label>Provincia</label><input name="province" value={editForm.province} onChange={handleEditChange} style={styles.input} /></div>
               </div>
 
-              <div style={styles.formRow}>
+              <div style={styles.formGridFour}>
                 <div style={styles.formGroup}><label>Teléfono</label><input name="phone" value={editForm.phone} onChange={handleEditChange} style={styles.input} /></div>
                 <div style={styles.formGroup}><label>Fax</label><input name="fax" value={editForm.fax} onChange={handleEditChange} style={styles.input} /></div>
                 <div style={styles.formGroup}><label>Móvil</label><input name="mobile" value={editForm.mobile} onChange={handleEditChange} style={styles.input} /></div>
                 <div style={styles.formGroup}><label>Email</label><input name="email" value={editForm.email} onChange={handleEditChange} style={styles.input} /></div>
-                <div style={styles.formGroup}><label>Web</label><input name="website" value={editForm.website} onChange={handleEditChange} style={styles.input} /></div>
+              </div>
+
+              <div style={styles.formRow}>
+                <div style={styles.formGroupWide}><label>Web</label><input name="website" value={editForm.website} onChange={handleEditChange} style={styles.input} /></div>
               </div>
 
               {editError && <div style={styles.error}>{editError}</div>}
@@ -254,7 +257,11 @@ const styles = {
   closeButton: { border: "none", backgroundColor: "transparent", fontSize: "28px", lineHeight: 1, cursor: "pointer", color: "#334155" },
   form: { display: "flex", flexDirection: "column", gap: "16px" },
   formRow: { display: "flex", gap: "16px", flexWrap: "wrap" },
-  formGroup: { flex: 1, minWidth: "220px", display: "flex", flexDirection: "column", gap: "6px", color: "#475569", fontSize: "12px", fontWeight: 700 },
+  formGridTwo: { display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "16px" },
+  formGridCcc: { display: "grid", gridTemplateColumns: "minmax(220px, 0.95fr) minmax(280px, 1.15fr) minmax(280px, 1.15fr)", gap: "16px", alignItems: "start" },
+  formGridFour: { display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: "16px" },
+  formGroup: { minWidth: 0, display: "flex", flexDirection: "column", gap: "6px", color: "#475569", fontSize: "12px", fontWeight: 700 },
+  cccFields: { width: "100%", minWidth: 0, flex: "none" },
   formGroupWide: { flex: 1, minWidth: "100%", display: "flex", flexDirection: "column", gap: "6px", color: "#475569", fontSize: "12px", fontWeight: 700 },
   input: { padding: "9px 11px", border: "1px solid #cbd5e1", borderRadius: "7px", fontSize: "14px", color: "#0f172a" },
   confirmText: { margin: "0 0 16px", color: "#475569", lineHeight: 1.5 },
