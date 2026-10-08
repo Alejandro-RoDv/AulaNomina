@@ -10,7 +10,7 @@ from app.db import Base
 from app.models.case_assignment import CaseAssignment
 from app.models.case_study import CaseStudy, CaseTask
 from app.models.mail import EmailThread, Mailbox
-from app.training.activity_mail_2026 import deliver_a02_mail_on_open
+from app.training.activity_mail_2026 import deliver_a02_mail_on_open, deliver_activity_mail_on_open
 from app.training.foundation_runtime_cases_2026 import (
     FOUNDATION_CENTER_EXPECTED_CCC,
     FOUNDATION_COMPANY_CCC,
@@ -35,10 +35,10 @@ def db():
         engine.dispose()
 
 
-def _assignment(db):
+def _assignment(db, scenario_code="TRAIN-2026-FOUND-A02"):
     definition = next(
         case for case in build_foundation_runtime_cases_2026()
-        if case.scenario_code == "TRAIN-2026-FOUND-A02"
+        if case.scenario_code == scenario_code
     )
     case = CaseStudy(**definition.model_dump(exclude={"tasks"}))
     db.add(case)
@@ -130,4 +130,34 @@ def test_different_activity_cannot_receive_a02_documents(db):
 
     with pytest.raises(ValueError, match="no corresponde"):
         deliver_a02_mail_on_open(db, mailbox, assignment.id)
+    assert db.query(EmailThread).count() == 0
+
+
+def test_other_activities_also_receive_a_first_open_mail(db):
+    assignment = _assignment(db, "TRAIN-2026-FOUND-A03")
+    mailbox = Mailbox(role="student", display_name="Alumno demo", address="other@example.test")
+    db.add(mailbox)
+    db.commit()
+
+    tasks = sorted(assignment.case_study.tasks, key=lambda task: task.task_order)
+    first = deliver_activity_mail_on_open(db, mailbox, assignment.id, tasks[0].id)
+    second = deliver_activity_mail_on_open(db, mailbox, assignment.id, tasks[1].id)
+
+    assert first.id == second.id
+    assert first.subject.startswith("A03 ·")
+    assert "Elena Ruiz Mora" in first.messages[0].body_text
+    assert len(first.messages) == 1
+    assert db.query(EmailThread).filter(EmailThread.mailbox_id == mailbox.id).count() == 1
+
+
+def test_other_activity_rejects_task_from_different_assignment(db):
+    assignment = _assignment(db, "TRAIN-2026-FOUND-A03")
+    wrong_assignment = _assignment(db, "TRAIN-2026-FOUND-A05")
+    mailbox = Mailbox(role="student", display_name="Alumno demo", address="wrong-task@example.test")
+    db.add(mailbox)
+    db.commit()
+
+    wrong_task_id = wrong_assignment.case_study.tasks[0].id
+    with pytest.raises(ValueError, match="no pertenece"):
+        deliver_activity_mail_on_open(db, mailbox, assignment.id, wrong_task_id)
     assert db.query(EmailThread).count() == 0
