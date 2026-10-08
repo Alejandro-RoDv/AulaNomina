@@ -30,10 +30,18 @@ COURSE_VERSION = "2026.1-phase-a"
 FOUNDATION_COMPANY_CIF = "B14990001"
 FOUNDATION_COMPANY_NAME = "Aula Gestión Sur, S.L."
 FOUNDATION_COMPANY_CCC = "0111/14149990001"
+FOUNDATION_COMPANY_ADDRESS = "Avenida de la Gestión, 25"
+FOUNDATION_COMPANY_EMAIL = "rrhh@aulagestionsur.demo"
+FOUNDATION_COMPANY_PHONE = "957900321"
+FOUNDATION_COMPANY_CONTACT = "Marina Ortega Salas"
+FOUNDATION_COMPANY_CNAE = "8211"
 FOUNDATION_CENTER_CODE = "F.01"
 FOUNDATION_CENTER_NAME = "Centro Administración Córdoba"
 FOUNDATION_CENTER_BASELINE_CCC = "0111/14149990099"
 FOUNDATION_CENTER_EXPECTED_CCC = "0111/14149990011"
+FOUNDATION_CENTER_ADDRESS = "Calle Administración, 12"
+FOUNDATION_CENTER_EMAIL = "centro@aulagestionsur.demo"
+FOUNDATION_CENTER_PHONE = "957900322"
 FOUNDATION_AGREEMENT_CODE = "SIM-ADM-2026"
 
 A03_EMPLOYEE_DNI = "30999001R"
@@ -210,7 +218,7 @@ def build_foundation_runtime_cases_2026() -> list[CaseStudyCreate]:
         CaseStudyCreate(
             scenario_code="TRAIN-2026-FOUND-A02",
             title="Empresa y centro listos para operar",
-            description="Práctica A02: revisar la estructura administrativa de una empresa y corregir el CCC principal erróneo de su centro de trabajo.",
+            description="Práctica A02: preparar la ficha de empresa y su centro de trabajo a partir de la documentación recibida por correo.",
             difficulty="basic",
             category="general",
             status="active",
@@ -233,8 +241,8 @@ def build_foundation_runtime_cases_2026() -> list[CaseStudyCreate]:
             completion_message="La empresa está identificada y el centro queda adscrito con el CCC principal correcto para los procesos posteriores.",
             tasks=[
                 _task(
-                    title="Corregir la estructura empresa-centro",
-                    description=f"Revisa {FOUNDATION_COMPANY_NAME}. El centro {FOUNDATION_CENTER_NAME} está adscrito a la empresa, pero su CCC propio debe quedar con régimen 0111 y código 14149990011.",
+                    title="Preparar los datos de empresa y centro",
+                    description="Lee el encargo recibido en Correo. Comprueba los datos de la empresa y del centro de trabajo y crea o corrige sus fichas sin duplicarlas. Verifica especialmente los CCC antes de comprobar la actividad.",
                     module="companies",
                     expected_result="Empresa y centro coherentes, activos y con CCC principal correcto",
                     expected_action="review_company_structure",
@@ -423,10 +431,10 @@ def _upsert_company(db: Session) -> Company:
         db.flush()
     company.name = FOUNDATION_COMPANY_NAME
     company.ccc = FOUNDATION_COMPANY_CCC
-    company.address = "Avenida de la Gestión, 25"
+    company.address = FOUNDATION_COMPANY_ADDRESS
     company.city = "Córdoba"
     company.province = "Córdoba"
-    company.company_email = "rrhh@aulagestionsur.demo"
+    company.company_email = FOUNDATION_COMPANY_EMAIL
     company.status = "alta"
     company.is_active = True
     return company
@@ -442,10 +450,10 @@ def _upsert_center(db: Session, company: Company) -> WorkCenter:
     center.name = FOUNDATION_CENTER_NAME
     center.general_ccc = FOUNDATION_COMPANY_CCC
     center.main_ccc = FOUNDATION_CENTER_BASELINE_CCC
-    center.address = "Calle Administración, 12"
+    center.address = FOUNDATION_CENTER_ADDRESS
     center.city = "Córdoba"
     center.province = "Córdoba"
-    center.email = "centro@aulagestionsur.demo"
+    center.email = FOUNDATION_CENTER_EMAIL
     center.is_active = True
     return center
 
