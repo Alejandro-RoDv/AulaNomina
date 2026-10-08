@@ -159,3 +159,30 @@ def test_a02_validator_explains_the_exact_ccc_error(db):
         f"El CCC propio del centro debe tener régimen 0111 y código 14149990011; ahora figura 0111/14149990012."
     ]
     assert FOUNDATION_CENTER_EXPECTED_CCC == "0111/14149990011"
+
+
+def test_a02_validates_existing_center_with_different_internal_code(db):
+    company = create_company(
+        db,
+        CompanyCreate(
+            name=FOUNDATION_COMPANY_NAME,
+            cif=FOUNDATION_COMPANY_CIF,
+            ccc=FOUNDATION_COMPANY_CCC,
+            city="Córdoba",
+        ),
+    )
+    create_work_center(
+        db,
+        WorkCenterCreate(
+            company_id=company.id,
+            center_code="CENTRO-REAL",
+            name=FOUNDATION_CENTER_NAME,
+            main_ccc=FOUNDATION_CENTER_EXPECTED_CCC,
+        ),
+    )
+
+    review = _review_a02(db)
+
+    assert review["passed"] is True
+    assert review["evidence"]["center_main_ccc_ok"] is True
+    assert review["evidence"]["issues"] == []
