@@ -118,6 +118,7 @@ export default function ActivitiesCenter() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [checkingId, setCheckingId] = useState(null);
+  const [openingMailId, setOpeningMailId] = useState(null);
   const [responseDraft, setResponseDraft] = useState({});
   const requestedBriefings = useRef(new Set());
 
@@ -275,13 +276,40 @@ export default function ActivitiesCenter() {
     openCaseModule({ ...selectedActivity.context, mailThreadId: selectedActivity.mail_context?.thread_id });
   };
 
-  const openSelectedMail = () => {
-    const threadId = selectedActivity?.mail_context?.thread_id;
-    if (!threadId) return;
-    persistActivityContext(selectedActivity);
-    // Abrir durante el clic evita el bloqueo de ventanas tras una petición async.
-    // MailRoute prepara el hilo antes de mostrarlo.
-    window.open(mailUrl(threadId), "_blank", "noopener,noreferrer");
+  const openSelectedMail = async () => {
+    const activity = selectedActivity;
+    if (!activity) return;
+    persistActivityContext(activity);
+
+    const existingThreadId = activity.mail_context?.thread_id;
+    if (existingThreadId) {
+      window.open(mailUrl(existingThreadId), "_blank", "noopener,noreferrer");
+      return;
+    }
+
+    // Reservar la pestaña durante el clic para que el navegador no bloquee
+    // la navegación mientras se genera el correo por primera vez.
+    const mailTab = window.open("about:blank", "_blank");
+    if (mailTab) mailTab.opener = null;
+    try {
+      setOpeningMailId(activity.id);
+      setError("");
+      const thread = await deliverActivityBriefing(activity.assignment_id, activity.task_id);
+      if (!thread?.id) throw new Error("No se ha podido localizar el correo de esta actividad.");
+      window.dispatchEvent(new Event("aulanomina-mail-stats-refresh"));
+      if (mailTab && !mailTab.closed) {
+        mailTab.location.replace(mailUrl(thread.id));
+        await loadCourse({ preserveSelection: true });
+      } else {
+        // Si se bloquearon las ventanas emergentes, navegar en la pestaña actual.
+        window.location.assign(mailUrl(thread.id));
+      }
+    } catch (requestError) {
+      if (mailTab && !mailTab.closed) mailTab.close();
+      setError(requestError.message || "No se ha podido abrir el correo del ejercicio.");
+    } finally {
+      setOpeningMailId(null);
+    }
   };
 
   const validateSelectedExplicitly = async () => {
@@ -442,27 +470,26 @@ export default function ActivitiesCenter() {
                   <p className="activity-center__brief-text">{selectedActivity.theory || selectedActivity.objective}</p>
                 </section>
 
-                {selectedActivity.mail_context ? (
-                  <section className="activity-center__task-block">
-                    <span className="activity-center__section-label">Información del caso</span>
-                    <button type="button" className="activity-center__mail-card" onClick={openSelectedMail}>
-                      <Mail size={18} aria-hidden="true" />
-                      <span className="activity-center__mail-card-copy">
-                        <strong>Lee el correo</strong>
-                        <span>{selectedActivity.mail_context.sender} · {cleanMailSubject(selectedActivity.mail_context.subject)}</span>
-                        {selectedActivity.mail_context.has_attachments && (
-                          <small>{selectedActivity.mail_context.attachment_count} adjunto{selectedActivity.mail_context.attachment_count === 1 ? "" : "s"}</small>
-                        )}
-                      </span>
-                      <span className="activity-center__mail-card-action">Abrir correo <ArrowRight size={14} aria-hidden="true" /></span>
-                    </button>
-                  </section>
-                ) : (
-                  <section className="activity-center__task-block">
-                    <span className="activity-center__section-label">Información del caso</span>
-                    <p>El encargo se envía al correo interno al abrir esta actividad. Consulta Correo para leer los datos y la documentación del supuesto.</p>
-                  </section>
-                )}
+                <section className="activity-center__task-block">
+                  <span className="activity-center__section-label">Información del caso</span>
+                  <p className="activity-center__mail-summary">
+                    {selectedActivity.mail_context
+                      ? `${selectedActivity.mail_context.sender} · ${cleanMailSubject(selectedActivity.mail_context.subject)}`
+                      : "Los datos y documentos del ejercicio están en el correo de AulaNómina."}
+                  </p>
+                  <button
+                    type="button"
+                    className="activity-center__mail-direct-button"
+                    onClick={openSelectedMail}
+                    disabled={openingMailId === selectedActivity.id}
+                  >
+                    {openingMailId === selectedActivity.id
+                      ? <RefreshCw size={15} className="is-spinning" aria-hidden="true" />
+                      : <Mail size={15} aria-hidden="true" />}
+                    {openingMailId === selectedActivity.id ? "Abriendo correo…" : "Abrir correo del ejercicio"}
+                    <ArrowRight size={14} aria-hidden="true" />
+                  </button>
+                </section>
 
                 <section className="activity-center__task-block">
                   <span className="activity-center__section-label">Hazlo en AulaNomina</span>
