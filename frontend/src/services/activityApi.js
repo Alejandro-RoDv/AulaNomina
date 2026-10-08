@@ -36,7 +36,8 @@ async function fetchActivityMailThreads() {
 }
 
 function scheduleActivityMailLoad() {
-  if (mailThreadsCache !== null || mailThreadsPromise) return;
+  if (mailThreadsCache !== null) return Promise.resolve(mailThreadsCache);
+  if (mailThreadsPromise) return mailThreadsPromise;
 
   mailThreadsPromise = fetchActivityMailThreads()
     .then((threads) => {
@@ -49,6 +50,7 @@ function scheduleActivityMailLoad() {
     .finally(() => {
       mailThreadsPromise = null;
     });
+  return mailThreadsPromise;
 }
 
 function threadTrainingCode(thread) {
@@ -122,7 +124,9 @@ if (typeof window !== "undefined") {
   });
 }
 
-export function deliverActivityBriefing(assignmentId, taskId) {
+export async function deliverActivityBriefing(assignmentId, taskId) {
+  // Evitar competir con el sembrado de correos existentes en el primer acceso.
+  await scheduleActivityMailLoad();
   return apiRequest(
     `/mail/activity-briefings/${assignmentId}/${taskId}`,
     { method: "POST" },
