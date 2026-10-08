@@ -112,8 +112,38 @@ function visibleCaseData(items = []) {
   };
   return items
     .filter((item) => !["Referencia", "Código centro"].includes(item?.label))
-    .map((item) => ({ ...item, label: rename[item.label] || item.label }))
-    .slice(0, 6);
+    .map((item) => ({ ...item, label: rename[item.label] || item.label }));
+}
+
+function organizationCaseData(items = []) {
+  const values = new Map(items.map((item) => [item.label, item.value]));
+  // Compatible con actividades ya guardadas con el CCC dividido en dos campos.
+  const ccc = (full, regime, account) =>
+    values.get(full) || (values.get(regime) && values.get(account)
+      ? `${values.get(regime)}/${values.get(account)}`
+      : "—");
+
+  return [
+    {
+      key: "company",
+      heading: "Datos de la empresa",
+      fields: [
+        { label: "Razón social", value: values.get("Empresa") },
+        { label: "CIF", value: values.get("CIF") },
+        { label: "CCC de la empresa", value: ccc("CCC de la empresa", "CCC empresa · Régimen", "CCC empresa · Código de cuenta"), highlight: true },
+      ],
+    },
+    {
+      key: "center",
+      heading: "Datos del centro de trabajo",
+      fields: [
+        { label: "Centro", value: values.get("Centro") },
+        { label: "Código del centro", value: values.get("Código centro") },
+        { label: "CCC propio que debes configurar", value: values.get("CCC propio del centro (correcto)")
+          || ccc("CCC que debe tener el centro", "CCC centro · Régimen", "CCC centro · Código de cuenta"), highlight: true },
+      ],
+    },
+  ];
 }
 
 export default function ActivitiesCenter() {
@@ -195,6 +225,8 @@ export default function ActivitiesCenter() {
     : "Progreso del tema actual no disponible";
   const failedMessages = failedValidationMessages(selectedActivity);
   const caseData = visibleCaseData(selectedActivity?.case_data || []);
+  const isOrganizationCase = selectedActivity?.context?.trainingCode === "A02" || selectedActivity?.id === "practice:A02";
+  const organizationData = isOrganizationCase ? organizationCaseData(selectedActivity?.case_data || []) : [];
   const moduleActionLabel = selectedActivity?.context
     && selectedActivity.context.moduleCode !== "general"
     ? getCaseActionLabel(selectedActivity.context.actionCode, selectedActivity.context.moduleCode)
@@ -427,14 +459,32 @@ export default function ActivitiesCenter() {
                   <section className="activity-center__brief-card">
                     <span className="activity-center__section-label">Datos que necesitas</span>
                     <div className="activity-center__case-data">
-                      <dl>
-                        {caseData.map((item) => (
-                          <div key={`${item.label}-${item.value}`}>
-                            <dt>{item.label}</dt>
-                            <dd>{item.value}</dd>
-                          </div>
-                        ))}
-                      </dl>
+                      {isOrganizationCase ? (
+                        <div className="activity-center__organization-data">
+                          {organizationData.map((group) => (
+                            <section key={group.key} className="activity-center__organization-group">
+                              <h4>{group.heading}</h4>
+                              <dl>
+                                {group.fields.map((field) => (
+                                  <div key={field.label} className={field.highlight ? "is-ccc" : ""}>
+                                    <dt>{field.label}</dt>
+                                    <dd>{field.value || "—"}</dd>
+                                  </div>
+                                ))}
+                              </dl>
+                            </section>
+                          ))}
+                        </div>
+                      ) : (
+                        <dl>
+                          {caseData.map((item) => (
+                            <div key={`${item.label}-${item.value}`}>
+                              <dt>{item.label}</dt>
+                              <dd>{item.value}</dd>
+                            </div>
+                          ))}
+                        </dl>
+                      )}
                     </div>
                   </section>
                 ) : null}
