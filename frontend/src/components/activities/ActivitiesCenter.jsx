@@ -18,6 +18,7 @@ import {
 import {
   completeActivityManually,
   deliverA02Briefing,
+  deliverActivityBriefing,
   fetchActivityCourse,
   saveActivityResponse,
   validateActivity,
@@ -106,16 +107,6 @@ function cleanMailSubject(subject) {
   return String(subject || "").replace(/^[A-Z]\d+\s*·\s*/i, "");
 }
 
-function visibleCaseData(items = []) {
-  const rename = {
-    "CCC principal correcto": "CCC que debe tener el centro",
-    "CCC esperado": "CCC que debes utilizar",
-  };
-  return items
-    .filter((item) => !["Referencia", "Código centro"].includes(item?.label))
-    .map((item) => ({ ...item, label: rename[item.label] || item.label }));
-}
-
 export default function ActivitiesCenter() {
   const [open, setOpen] = useState(false);
   const [course, setCourse] = useState(null);
@@ -195,7 +186,6 @@ export default function ActivitiesCenter() {
     ? `${currentTopic.completed || 0} de ${currentTopic.total} actividades completadas en el tema actual`
     : "Progreso del tema actual no disponible";
   const failedMessages = failedValidationMessages(selectedActivity);
-  const caseData = visibleCaseData(selectedActivity?.case_data || []);
   const isOrganizationCase = selectedActivity?.context?.trainingCode === "A02" || selectedActivity?.training_code === "A02";
   const moduleActionLabel = selectedActivity?.context
     && selectedActivity.context.moduleCode !== "general"
@@ -226,20 +216,27 @@ export default function ActivitiesCenter() {
   }, [selectedActivity?.id, selectedActivity?.mail_context?.thread_id, selectedActivity?.mail_context?.locked, loadCourse]);
 
   useEffect(() => {
-    if (!open || !isOrganizationCase || !selectedActivity?.assignment_id) return;
+    if (!open || !selectedActivity?.assignment_id || !selectedActivity?.task_id || selectedActivity.mail_context) return;
     const assignmentId = selectedActivity.assignment_id;
-    if (requestedBriefings.current.has(assignmentId)) return;
+    const taskId = selectedActivity.task_id;
+    const trainingCode = selectedActivity.training_code || selectedActivity.context?.trainingCode || taskId;
+    const requestKey = `${assignmentId}:${trainingCode}`;
+    if (requestedBriefings.current.has(requestKey)) return;
 
-    requestedBriefings.current.add(assignmentId);
+    requestedBriefings.current.add(requestKey);
     let cancelled = false;
 
     const sendBriefing = async () => {
       try {
-        await deliverA02Briefing(assignmentId);
+        if (isOrganizationCase) {
+          await deliverA02Briefing(assignmentId);
+        } else {
+          await deliverActivityBriefing(assignmentId, taskId);
+        }
         window.dispatchEvent(new Event("aulanomina-mail-stats-refresh"));
         if (!cancelled) await loadCourse({ preserveSelection: true });
       } catch (requestError) {
-        requestedBriefings.current.delete(assignmentId);
+        requestedBriefings.current.delete(requestKey);
         if (!cancelled) {
           setError(requestError.message || "No se ha podido recibir el correo del ejercicio.");
         }
@@ -247,7 +244,15 @@ export default function ActivitiesCenter() {
     };
     sendBriefing();
     return () => { cancelled = true; };
-  }, [open, isOrganizationCase, selectedActivity?.assignment_id, loadCourse]);
+  }, [
+    open,
+    isOrganizationCase,
+    selectedActivity?.assignment_id,
+    selectedActivity?.task_id,
+    selectedActivity?.training_code,
+    selectedActivity?.mail_context,
+    loadCourse,
+  ]);
 
   const openCenter = async () => {
     setOpen(true);
@@ -449,26 +454,12 @@ export default function ActivitiesCenter() {
                       <span className="activity-center__mail-card-action">Abrir correo <ArrowRight size={14} aria-hidden="true" /></span>
                     </button>
                   </section>
-                ) : isOrganizationCase ? (
+                ) : (
                   <section className="activity-center__task-block">
                     <span className="activity-center__section-label">Información del caso</span>
-                    <p>El encargo con los datos de empresa y centro se está preparando en Correo. Los documentos no se muestran en la ficha del ejercicio.</p>
+                    <p>El encargo se envía al correo interno al abrir esta actividad. Consulta Correo para leer los datos y la documentación del supuesto.</p>
                   </section>
-                ) : caseData.length > 0 ? (
-                  <section className="activity-center__brief-card">
-                    <span className="activity-center__section-label">Datos que necesitas</span>
-                    <div className="activity-center__case-data">
-                      <dl>
-                        {caseData.map((item) => (
-                          <div key={`${item.label}-${item.value}`}>
-                            <dt>{item.label}</dt>
-                            <dd>{item.value}</dd>
-                          </div>
-                        ))}
-                      </dl>
-                    </div>
-                  </section>
-                ) : null}
+                )}
 
                 <section className="activity-center__task-block">
                   <span className="activity-center__section-label">Hazlo en AulaNomina</span>
