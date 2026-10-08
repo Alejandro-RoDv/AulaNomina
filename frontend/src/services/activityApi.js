@@ -128,7 +128,7 @@ export async function deliverActivityBriefing(assignmentId, taskId) {
   // Evitar competir con el sembrado de correos existentes en el primer acceso.
   await scheduleActivityMailLoad();
   return apiRequest(
-    `/mail/activity-briefings/${assignmentId}/${taskId}`,
+    `/mail/activity-briefings/course/${assignmentId}/${taskId}`,
     { method: "POST" },
     "No se ha podido entregar el encargo al buzón de AulaNómina"
   );
