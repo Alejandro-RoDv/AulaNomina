@@ -495,6 +495,30 @@ def deliver_a02_mail_on_open(db: Session, mailbox: Mailbox, assignment_id: int) 
     return thread
 
 
+def _activity_briefing_body(db: Session, case: CaseStudy, task: CaseTask, code: str) -> str:
+    """Traslada al correo los datos de la actividad que antes veía el alumno."""
+    from app.services.activity_service import _case_data
+    from app.services.training_activity_runtime_service import _training_case_data
+
+    body = _body(case, code)
+    rows = _training_case_data(task, code, _case_data(db, case, task))
+    missing = []
+    for row in rows:
+        label = str(row.get("label") or "").strip()
+        value = row.get("value")
+        if not label or label in {"Referencia", "Código centro"} or value in {None, ""}:
+            continue
+        if isinstance(value, (dict, list, tuple)):
+            continue
+        text = f"- {label}: {value}"
+        if text not in body:
+            missing.append(text)
+
+    if missing:
+        body += "\n\nDatos adicionales facilitados para este encargo:\n" + "\n".join(missing)
+    return body
+
+
 def deliver_activity_mail_on_open(
     db: Session, mailbox: Mailbox, assignment_id: int, task_id: int
 ) -> EmailThread:
@@ -575,7 +599,7 @@ def deliver_activity_mail_on_open(
         sender_address=sender_address,
         recipient_name=mailbox.display_name,
         recipient_address=mailbox.address,
-        body_text=_body(case, code),
+        body_text=_activity_briefing_body(db, case, task, code),
         sent_at=sent_at,
         direction="incoming",
         message_type="initial",
