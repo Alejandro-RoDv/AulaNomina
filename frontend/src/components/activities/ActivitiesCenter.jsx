@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   ArrowLeft,
@@ -17,6 +17,7 @@ import {
 
 import {
   completeActivityManually,
+  deliverA02Briefing,
   fetchActivityCourse,
   saveActivityResponse,
   validateActivity,
@@ -115,37 +116,6 @@ function visibleCaseData(items = []) {
     .map((item) => ({ ...item, label: rename[item.label] || item.label }));
 }
 
-function organizationCaseData(items = []) {
-  const values = new Map(items.map((item) => [item.label, item.value]));
-  // Compatible con actividades ya guardadas con el CCC dividido en dos campos.
-  const ccc = (full, regime, account) =>
-    values.get(full) || (values.get(regime) && values.get(account)
-      ? `${values.get(regime)}/${values.get(account)}`
-      : "—");
-
-  return [
-    {
-      key: "company",
-      heading: "Datos de la empresa",
-      fields: [
-        { label: "Razón social", value: values.get("Empresa") },
-        { label: "CIF", value: values.get("CIF") },
-        { label: "CCC de la empresa", value: ccc("CCC de la empresa", "CCC empresa · Régimen", "CCC empresa · Código de cuenta"), highlight: true },
-      ],
-    },
-    {
-      key: "center",
-      heading: "Datos del centro de trabajo",
-      fields: [
-        { label: "Centro", value: values.get("Centro") },
-        { label: "Código del centro", value: values.get("Código centro") },
-        { label: "CCC propio que debes configurar", value: values.get("CCC propio del centro (correcto)")
-          || ccc("CCC que debe tener el centro", "CCC centro · Régimen", "CCC centro · Código de cuenta"), highlight: true },
-      ],
-    },
-  ];
-}
-
 export default function ActivitiesCenter() {
   const [open, setOpen] = useState(false);
   const [course, setCourse] = useState(null);
@@ -155,6 +125,7 @@ export default function ActivitiesCenter() {
   const [error, setError] = useState("");
   const [checkingId, setCheckingId] = useState(null);
   const [responseDraft, setResponseDraft] = useState({});
+  const requestedBriefings = useRef(new Set());
 
   const loadCourse = useCallback(async ({ preserveSelection = true } = {}) => {
     try {
@@ -225,8 +196,7 @@ export default function ActivitiesCenter() {
     : "Progreso del tema actual no disponible";
   const failedMessages = failedValidationMessages(selectedActivity);
   const caseData = visibleCaseData(selectedActivity?.case_data || []);
-  const isOrganizationCase = selectedActivity?.context?.trainingCode === "A02" || selectedActivity?.id === "practice:A02";
-  const organizationData = isOrganizationCase ? organizationCaseData(selectedActivity?.case_data || []) : [];
+  const isOrganizationCase = selectedActivity?.context?.trainingCode === "A02" || selectedActivity?.training_code === "A02";
   const moduleActionLabel = selectedActivity?.context
     && selectedActivity.context.moduleCode !== "general"
     ? getCaseActionLabel(selectedActivity.context.actionCode, selectedActivity.context.moduleCode)
@@ -254,6 +224,30 @@ export default function ActivitiesCenter() {
     unlock();
     return () => { cancelled = true; };
   }, [selectedActivity?.id, selectedActivity?.mail_context?.thread_id, selectedActivity?.mail_context?.locked, loadCourse]);
+
+  useEffect(() => {
+    if (!open || !isOrganizationCase || !selectedActivity?.assignment_id) return;
+    const assignmentId = selectedActivity.assignment_id;
+    if (requestedBriefings.current.has(assignmentId)) return;
+
+    requestedBriefings.current.add(assignmentId);
+    let cancelled = false;
+
+    const sendBriefing = async () => {
+      try {
+        await deliverA02Briefing(assignmentId);
+        window.dispatchEvent(new Event("aulanomina-mail-stats-refresh"));
+        if (!cancelled) await loadCourse({ preserveSelection: true });
+      } catch (requestError) {
+        requestedBriefings.current.delete(assignmentId);
+        if (!cancelled) {
+          setError(requestError.message || "No se ha podido recibir el correo del ejercicio.");
+        }
+      }
+    };
+    sendBriefing();
+    return () => { cancelled = true; };
+  }, [open, isOrganizationCase, selectedActivity?.assignment_id, loadCourse]);
 
   const openCenter = async () => {
     setOpen(true);
@@ -455,36 +449,23 @@ export default function ActivitiesCenter() {
                       <span className="activity-center__mail-card-action">Abrir correo <ArrowRight size={14} aria-hidden="true" /></span>
                     </button>
                   </section>
+                ) : isOrganizationCase ? (
+                  <section className="activity-center__task-block">
+                    <span className="activity-center__section-label">Información del caso</span>
+                    <p>El encargo con los datos de empresa y centro se está preparando en Correo. Los documentos no se muestran en la ficha del ejercicio.</p>
+                  </section>
                 ) : caseData.length > 0 ? (
                   <section className="activity-center__brief-card">
                     <span className="activity-center__section-label">Datos que necesitas</span>
                     <div className="activity-center__case-data">
-                      {isOrganizationCase ? (
-                        <div className="activity-center__organization-data">
-                          {organizationData.map((group) => (
-                            <section key={group.key} className="activity-center__organization-group">
-                              <h4>{group.heading}</h4>
-                              <dl>
-                                {group.fields.map((field) => (
-                                  <div key={field.label} className={field.highlight ? "is-ccc" : ""}>
-                                    <dt>{field.label}</dt>
-                                    <dd>{field.value || "—"}</dd>
-                                  </div>
-                                ))}
-                              </dl>
-                            </section>
-                          ))}
-                        </div>
-                      ) : (
-                        <dl>
-                          {caseData.map((item) => (
-                            <div key={`${item.label}-${item.value}`}>
-                              <dt>{item.label}</dt>
-                              <dd>{item.value}</dd>
-                            </div>
-                          ))}
-                        </dl>
-                      )}
+                      <dl>
+                        {caseData.map((item) => (
+                          <div key={`${item.label}-${item.value}`}>
+                            <dt>{item.label}</dt>
+                            <dd>{item.value}</dd>
+                          </div>
+                        ))}
+                      </dl>
                     </div>
                   </section>
                 ) : null}
