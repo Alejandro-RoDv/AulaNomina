@@ -122,6 +122,14 @@ if (typeof window !== "undefined") {
   });
 }
 
+export function deliverActivityBriefing(assignmentId, taskId) {
+  return apiRequest(
+    `/mail/activity-briefings/${assignmentId}/${taskId}`,
+    { method: "POST" },
+    "No se ha podido entregar el encargo al buzón de AulaNómina"
+  );
+}
+
 export function deliverA02Briefing(assignmentId) {
   return apiRequest(
     `/mail/activity-briefings/a02/${assignmentId}`,
