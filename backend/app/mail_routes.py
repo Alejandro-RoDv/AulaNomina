@@ -45,7 +45,11 @@ from app.services.mail_thread_workflow_service import (
     restore_mailbox_view_state,
     update_thread,
 )
-from app.training.activity_mail_2026 import deliver_a02_mail_on_open, ensure_activity_mail_2026
+from app.training.activity_mail_2026 import (
+    deliver_a02_mail_on_open,
+    deliver_activity_mail_on_open,
+    ensure_activity_mail_2026,
+)
 from app.training.document_runtime_bootstrap_2026 import bootstrap_document_training_2026
 from app.training.integrated_runtime_mail_2026 import ensure_integrated_training_mail_2026
 
@@ -107,6 +111,26 @@ def read_demo_mailbox(
     if principal is not None and not principal.is_staff:
         return get_scoped_mailbox(db, principal)
     return _prepare_demo_mailbox(db)
+
+
+@router.post("/activity-briefings/{assignment_id}/{task_id}", response_model=EmailThreadResponse)
+def deliver_course_activity_briefing(
+    assignment_id: int,
+    task_id: int,
+    db: Session = Depends(get_db),
+    principal: AuthPrincipal | None = Depends(get_optional_principal),
+):
+    """Entrega el supuesto por correo al abrir una actividad del alumno."""
+    assert_assignment_access(db, principal, assignment_id)
+    mailbox = (
+        ensure_user_mailbox(db, principal)
+        if principal is not None and not principal.is_staff
+        else get_demo_mailbox(db)
+    )
+    try:
+        return deliver_activity_mail_on_open(db, mailbox, assignment_id, task_id)
+    except ValueError as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
 
 
 @router.post("/activity-briefings/a02/{assignment_id}", response_model=EmailThreadResponse)
