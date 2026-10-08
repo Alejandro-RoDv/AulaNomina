@@ -243,12 +243,10 @@ def build_foundation_runtime_cases_2026() -> list[CaseStudyCreate]:
                     case_facts=[
                         {"label": "Empresa", "value": FOUNDATION_COMPANY_NAME},
                         {"label": "CIF", "value": FOUNDATION_COMPANY_CIF},
-                        {"label": "CCC empresa · Régimen", "value": "0111"},
-                        {"label": "CCC empresa · Código de cuenta", "value": "14149990001"},
+                        {"label": "CCC de la empresa", "value": FOUNDATION_COMPANY_CCC},
                         {"label": "Centro", "value": FOUNDATION_CENTER_NAME},
                         {"label": "Código centro", "value": FOUNDATION_CENTER_CODE},
-                        {"label": "CCC centro · Régimen", "value": "0111"},
-                        {"label": "CCC centro · Código de cuenta", "value": "14149990011"},
+                        {"label": "CCC propio del centro (correcto)", "value": FOUNDATION_CENTER_EXPECTED_CCC},
                     ],
                 )
             ],
