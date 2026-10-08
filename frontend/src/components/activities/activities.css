@@ -473,10 +473,68 @@
 }
 
 .activity-center__case-data dd {
-  overflow: hidden;
+  min-width: 0;
   color: #25354c;
   font-weight: 700;
-  text-overflow: ellipsis;
+  overflow-wrap: anywhere;
+}
+
+.activity-center__organization-data {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.activity-center__organization-group {
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid #dbe3ef;
+  border-radius: 9px;
+  background: #fbfcfe;
+}
+
+.activity-center__organization-group h4 {
+  margin: 0 0 12px;
+  color: #1e293b;
+  font-size: 14px;
+  font-weight: 750;
+}
+
+.activity-center__organization-group dl {
+  display: block;
+  margin: 0;
+}
+
+.activity-center__organization-group dl > div {
+  display: block;
+  padding: 9px 0;
+}
+
+.activity-center__organization-group dt {
+  margin-bottom: 4px;
+  color: #64748b;
+  font-size: 12px;
+}
+
+.activity-center__organization-group dd {
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+.activity-center__organization-group dl > div.is-ccc {
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid #c9d9ef;
+  border-radius: 8px;
+  background: #eff6ff;
+}
+
+.activity-center__organization-group .is-ccc dd {
+  color: #1d4ed8;
+  font-size: 16px;
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
 }
 
 .activity-center__mail-note {
@@ -836,6 +894,7 @@
   .activity-center__workspace { grid-template-columns: 320px minmax(0, 1fr); }
   .activity-center__detail { padding: 24px; }
   .activity-center__case-data dl { grid-template-columns: 1fr; }
+  .activity-center__organization-data { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 760px) {
