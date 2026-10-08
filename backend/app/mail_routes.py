@@ -22,8 +22,10 @@ from app.services.case_scenario_service import reset_assignment_progress
 from app.services.integrated_demo_case_service import ensure_integrated_demo_case
 from app.services.integrated_demo_process_seed import ensure_integrated_fie_communication
 from app.services.learner_scope_service import (
+    assert_assignment_access,
     assert_mailbox_access,
     assert_thread_access,
+    ensure_user_mailbox,
     get_scoped_mailbox,
 )
 from app.services.mail_attachment_service import attachment_download, attachment_preview
@@ -43,7 +45,7 @@ from app.services.mail_thread_workflow_service import (
     restore_mailbox_view_state,
     update_thread,
 )
-from app.training.activity_mail_2026 import ensure_activity_mail_2026
+from app.training.activity_mail_2026 import deliver_a02_mail_on_open, ensure_activity_mail_2026
 from app.training.document_runtime_bootstrap_2026 import bootstrap_document_training_2026
 from app.training.integrated_runtime_mail_2026 import ensure_integrated_training_mail_2026
 
@@ -105,6 +107,24 @@ def read_demo_mailbox(
     if principal is not None and not principal.is_staff:
         return get_scoped_mailbox(db, principal)
     return _prepare_demo_mailbox(db)
+
+
+@router.post("/activity-briefings/a02/{assignment_id}", response_model=EmailThreadResponse)
+def deliver_a02_activity_briefing(
+    assignment_id: int,
+    db: Session = Depends(get_db),
+    principal: AuthPrincipal | None = Depends(get_optional_principal),
+):
+    """Entrega al buzón del alumno el encargo A02 una sola vez."""
+    assert_assignment_access(db, principal, assignment_id)
+    if principal is not None and not principal.is_staff:
+        mailbox = ensure_user_mailbox(db, principal)
+    else:
+        mailbox = get_demo_mailbox(db)
+    try:
+        return deliver_a02_mail_on_open(db, mailbox, assignment_id)
+    except ValueError as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
 
 
 @router.post("/demo-mailbox/reset", response_model=MailboxResponse)
