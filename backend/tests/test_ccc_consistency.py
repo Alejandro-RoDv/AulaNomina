@@ -15,12 +15,18 @@ from app.services.ccc_service import canonical_ccc, ccc_parts, compose_ccc, same
 from app.services.training_foundation_review_service import _review_a02
 from app.services.training_validation_feedback import enrich_validation_result
 from app.training.foundation_runtime_cases_2026 import (
+    FOUNDATION_CENTER_ADDRESS,
     FOUNDATION_CENTER_CODE,
+    FOUNDATION_CENTER_EMAIL,
     FOUNDATION_CENTER_EXPECTED_CCC,
     FOUNDATION_CENTER_NAME,
+    FOUNDATION_CENTER_PHONE,
+    FOUNDATION_COMPANY_ADDRESS,
     FOUNDATION_COMPANY_CCC,
     FOUNDATION_COMPANY_CIF,
+    FOUNDATION_COMPANY_EMAIL,
     FOUNDATION_COMPANY_NAME,
+    FOUNDATION_COMPANY_PHONE,
 )
 
 
@@ -138,7 +144,10 @@ def test_a02_validator_explains_the_exact_ccc_error(db):
             name=FOUNDATION_COMPANY_NAME,
             cif=FOUNDATION_COMPANY_CIF,
             ccc=FOUNDATION_COMPANY_CCC,
+            address=FOUNDATION_COMPANY_ADDRESS,
             city="Córdoba",
+            company_email=FOUNDATION_COMPANY_EMAIL,
+            company_phone=FOUNDATION_COMPANY_PHONE,
         ),
     )
     create_work_center(
@@ -148,6 +157,10 @@ def test_a02_validator_explains_the_exact_ccc_error(db):
             center_code=FOUNDATION_CENTER_CODE,
             name=FOUNDATION_CENTER_NAME,
             main_ccc="0111/14149990012",
+            address=FOUNDATION_CENTER_ADDRESS,
+            city="Córdoba",
+            email=FOUNDATION_CENTER_EMAIL,
+            phone=FOUNDATION_CENTER_PHONE,
         ),
     )
 
@@ -168,7 +181,10 @@ def test_a02_validates_existing_center_with_different_internal_code(db):
             name=FOUNDATION_COMPANY_NAME,
             cif=FOUNDATION_COMPANY_CIF,
             ccc=FOUNDATION_COMPANY_CCC,
+            address=FOUNDATION_COMPANY_ADDRESS,
             city="Córdoba",
+            company_email=FOUNDATION_COMPANY_EMAIL,
+            company_phone=FOUNDATION_COMPANY_PHONE,
         ),
     )
     create_work_center(
@@ -178,6 +194,10 @@ def test_a02_validates_existing_center_with_different_internal_code(db):
             center_code="CENTRO-REAL",
             name=FOUNDATION_CENTER_NAME,
             main_ccc=FOUNDATION_CENTER_EXPECTED_CCC,
+            address=FOUNDATION_CENTER_ADDRESS,
+            city="Córdoba",
+            email=FOUNDATION_CENTER_EMAIL,
+            phone=FOUNDATION_CENTER_PHONE,
         ),
     )
 
