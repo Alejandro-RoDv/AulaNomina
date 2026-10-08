@@ -10,6 +10,21 @@ from sqlalchemy.orm import Session
 from app.models.case_assignment import CaseAssignment
 from app.models.case_study import CaseStudy
 from app.models.mail import EmailAttachment, EmailMessage, EmailThread, Mailbox
+from app.training.foundation_runtime_cases_2026 import (
+    FOUNDATION_CENTER_ADDRESS,
+    FOUNDATION_CENTER_EMAIL,
+    FOUNDATION_CENTER_EXPECTED_CCC,
+    FOUNDATION_CENTER_NAME,
+    FOUNDATION_CENTER_PHONE,
+    FOUNDATION_COMPANY_ADDRESS,
+    FOUNDATION_COMPANY_CCC,
+    FOUNDATION_COMPANY_CIF,
+    FOUNDATION_COMPANY_CNAE,
+    FOUNDATION_COMPANY_CONTACT,
+    FOUNDATION_COMPANY_EMAIL,
+    FOUNDATION_COMPANY_NAME,
+    FOUNDATION_COMPANY_PHONE,
+)
 
 
 MAIL_CODES = {
@@ -317,6 +332,167 @@ def ensure_activity_mail_2026(db: Session, mailbox: Mailbox) -> list[int]:
 
     db.commit()
     return thread_ids
+
+
+def _a02_mail_documents() -> list[tuple[str, str]]:
+    """Fichas ficticias legibles, en lugar de un volcado JSON técnico."""
+    empresa = (
+        "AULANÓMINA · DOCUMENTACIÓN SIMULADA\n"
+        "FICHA DE IDENTIFICACIÓN EMPRESARIAL\n\n"
+        f"Razón social: {FOUNDATION_COMPANY_NAME}\n"
+        f"NIF de empresa: {FOUNDATION_COMPANY_CIF}\n"
+        "Naturaleza: entidad privada, sociedad limitada\n"
+        "Estado administrativo: alta\n"
+        "Inicio de actividad de referencia: 01/01/2026\n"
+        f"CCC de la empresa: {FOUNDATION_COMPANY_CCC}\n"
+        f"Domicilio social: {FOUNDATION_COMPANY_ADDRESS}\n"
+        "Localidad: Córdoba\n"
+        "Provincia: Córdoba\n"
+        f"Teléfono: {FOUNDATION_COMPANY_PHONE}\n"
+        f"Correo electrónico: {FOUNDATION_COMPANY_EMAIL}\n"
+        f"Persona de contacto: {FOUNDATION_COMPANY_CONTACT}\n"
+        f"CNAE 2009: {FOUNDATION_COMPANY_CNAE} - Servicios administrativos combinados\n\n"
+        "Los datos de pólizas, seguros, IBAN y régimen fiscal no forman parte "
+        "de este encargo y no deben inventarse.\n"
+    )
+    centro = (
+        "AULANÓMINA · DOCUMENTACIÓN SIMULADA\n"
+        "FICHA DE CENTRO DE TRABAJO\n\n"
+        f"Empresa titular: {FOUNDATION_COMPANY_NAME}\n"
+        f"Centro: {FOUNDATION_CENTER_NAME}\n"
+        f"CCC de la empresa titular: {FOUNDATION_COMPANY_CCC}\n"
+        f"CCC propio del centro (debe quedar registrado): {FOUNDATION_CENTER_EXPECTED_CCC}\n"
+        f"Domicilio del centro: {FOUNDATION_CENTER_ADDRESS}\n"
+        "Localidad: Córdoba\n"
+        "Provincia: Córdoba\n"
+        f"Teléfono del centro: {FOUNDATION_CENTER_PHONE}\n"
+        f"Correo del centro: {FOUNDATION_CENTER_EMAIL}\n\n"
+        "El CCC de empresa se sincroniza desde la ficha de la empresa. "
+        "El CCC propio del centro es distinto y se configura en la ficha del centro.\n"
+    )
+    return [
+        ("Ficha_identificacion_empresa_A02.txt", empresa),
+        ("Ficha_centro_trabajo_A02.txt", centro),
+    ]
+
+
+def _a02_mail_body() -> str:
+    return (
+        "Buenos días:\n\n"
+        "Necesitamos dejar preparada la empresa Aula Gestión Sur, S.L. y su centro "
+        "de trabajo de Córdoba antes de tramitar incorporaciones. "
+        "Te adjunto la ficha de identificación empresarial y la ficha del centro "
+        "(documentación ficticia para esta práctica).\n\n"
+        "DATOS ESENCIALES DE LA EMPRESA\n\n"
+        f"Razón social: {FOUNDATION_COMPANY_NAME}\n\n"
+        f"NIF: {FOUNDATION_COMPANY_CIF}\n\n"
+        f"CCC de la empresa: {FOUNDATION_COMPANY_CCC}\n\n"
+        f"Domicilio social: {FOUNDATION_COMPANY_ADDRESS}, Córdoba (Córdoba)\n\n"
+        f"Teléfono: {FOUNDATION_COMPANY_PHONE} · Correo: {FOUNDATION_COMPANY_EMAIL}\n\n"
+        "DATOS DEL CENTRO DE TRABAJO\n\n"
+        f"Nombre: {FOUNDATION_CENTER_NAME}\n\n"
+        f"CCC propio del centro que debe figurar: {FOUNDATION_CENTER_EXPECTED_CCC}\n\n"
+        f"Domicilio: {FOUNDATION_CENTER_ADDRESS}, Córdoba (Córdoba)\n\n"
+        "INSTRUCCIONES\n\n"
+        "1. En Organización > Empresas, localiza la empresa. Si no existe, "
+        "créala usando la documentación adjunta; si ya existe, revisa los datos, "
+        "sin crear duplicados.\n\n"
+        "2. En Centros, localiza o da de alta el centro y vincúlalo a la empresa. "
+        "Configura su CCC propio conforme a la ficha adjunta. "
+        "No cambies el CCC de la empresa: son dos números diferentes.\n\n"
+        "3. Rellena los datos identificativos, domicilio y contacto relevantes. "
+        "No inventes pólizas, IBAN ni otros campos de los que no se ha facilitado información.\n\n"
+        "4. Vuelve al curso y comprueba la actividad.\n\n"
+        "Gracias,\nDepartamento de Administración\nAula Gestión Sur, S.L."
+    )
+
+
+def deliver_a02_mail_on_open(db: Session, mailbox: Mailbox, assignment_id: int) -> EmailThread:
+    """Entrega idempotente del encargo al abrir A02 por primera vez.
+
+    El bloqueo de la asignación evita dos envíos al pulsar varias veces. No se
+    reabre un correo archivado ni se pierden lecturas o respuestas anteriores.
+    """
+    assignment = (
+        db.query(CaseAssignment)
+        .filter(CaseAssignment.id == assignment_id)
+        .with_for_update()
+        .first()
+    )
+    if assignment is None or assignment.case_study is None:
+        raise ValueError("Asignación formativa no encontrada")
+    case = assignment.case_study
+    if str(case.scenario_code or "").upper() != "TRAIN-2026-FOUND-A02":
+        raise ValueError("Esta asignación no corresponde a la actividad A02")
+
+    thread = (
+        db.query(EmailThread)
+        .filter(
+            EmailThread.mailbox_id == mailbox.id,
+            EmailThread.case_assignment_id == assignment.id,
+            EmailThread.case_reference == case.scenario_code,
+            EmailThread.related_entity_type != "training_duplicate",
+        )
+        .order_by(EmailThread.id.asc())
+        .first()
+    )
+    if thread is not None:
+        if thread.folder == "training_locked":
+            thread.folder = "inbox"
+            thread.updated_at = datetime.utcnow()
+            db.commit()
+        return thread
+
+    sent_at = datetime.utcnow()
+    task = _tasks_for_code(case, "A02")[0]
+    thread = EmailThread(
+        mailbox_id=mailbox.id,
+        company_id=case.company_id,
+        case_study_id=case.id,
+        case_assignment_id=assignment.id,
+        case_task_id=task.id,
+        related_entity_type="case_study",
+        related_entity_id=case.id,
+        subject="A02 · Documentación para el alta de empresa y centro",
+        preview="Encargo de Administración: fichas de empresa y centro de trabajo para preparar el ERP.",
+        folder="inbox",
+        status="open",
+        priority="normal",
+        category="contract",
+        case_reference=case.scenario_code,
+        is_read=False,
+        expected_actions=["Revisar o crear empresa", "Revisar o crear centro", "Verificar CCC propio del centro"],
+        context_actions=["companies", "work-centers"],
+        created_at=sent_at,
+        updated_at=sent_at,
+    )
+    db.add(thread)
+    db.flush()
+    message = EmailMessage(
+        thread_id=thread.id,
+        sender_name="Departamento de Administración",
+        sender_address="administracion@aulagestionsur.demo",
+        recipient_name=mailbox.display_name,
+        recipient_address=mailbox.address,
+        body_text=_a02_mail_body(),
+        sent_at=sent_at,
+        direction="incoming",
+        message_type="initial",
+    )
+    db.add(message)
+    db.flush()
+    for filename, content in _a02_mail_documents():
+        db.add(EmailAttachment(
+            message_id=message.id,
+            filename=filename,
+            content_type="text/plain",
+            storage_reference=f"demo://training-mail/A02/{filename}",
+            document_type="training_case_data",
+            content_text=content,
+            size_bytes=len(content.encode("utf-8")),
+        ))
+    db.commit()
+    return thread
 
 
 def attach_activity_mail_context(db: Session, course: dict) -> dict:
