@@ -616,9 +616,20 @@ def attach_activity_mail_context(db: Session, course: dict) -> dict:
     for activity in activities:
         training_code = str(activity.get("training_code") or "").upper()
         scenario_code = str(activity.get("scenario_code") or "")
-        candidates = by_assignment.get(activity.get("assignment_id"), [])
+        def matches_training_code(thread):
+            if not training_code:
+                return True
+            return str(thread.subject or "").upper().startswith(f"{training_code} ·")
+
+        candidates = [
+            thread for thread in by_assignment.get(activity.get("assignment_id"), [])
+            if matches_training_code(thread)
+        ]
         if not candidates:
-            candidates = by_reference.get(scenario_code, [])
+            candidates = [
+                thread for thread in by_reference.get(scenario_code, [])
+                if matches_training_code(thread)
+            ]
         if not candidates and training_code:
             candidates = by_code.get(training_code, [])
         if not candidates:
