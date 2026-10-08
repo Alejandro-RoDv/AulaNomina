@@ -110,6 +110,17 @@ def _review_decision(task, progress) -> dict[str, Any]:
 def _review_a02(db: Session) -> dict[str, Any]:
     company = db.query(Company).filter(Company.cif == FOUNDATION_COMPANY_CIF).first()
     center = db.query(WorkCenter).filter(WorkCenter.center_code == FOUNDATION_CENTER_CODE).first()
+    # Los centros creados desde el ERP pueden llevar otro código interno.
+    # Identifica el centro del supuesto por empresa y nombre si el código no coincide.
+    if center is None and company is not None:
+        center = (
+            db.query(WorkCenter)
+            .filter(
+                WorkCenter.company_id == company.id,
+                WorkCenter.name == FOUNDATION_CENTER_NAME,
+            )
+            .first()
+        )
     company_name_ok = bool(company and company.name == FOUNDATION_COMPANY_NAME)
     company_ccc_ok = bool(company and same_ccc(company.ccc, FOUNDATION_COMPANY_CCC))
     company_city_ok = bool(company and _normalize(company.city) == "cordoba")
