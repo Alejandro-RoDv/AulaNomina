@@ -113,7 +113,7 @@ def read_demo_mailbox(
     return _prepare_demo_mailbox(db)
 
 
-@router.post("/activity-briefings/{assignment_id}/{task_id}", response_model=EmailThreadResponse)
+@router.post("/activity-briefings/course/{assignment_id}/{task_id}", response_model=EmailThreadResponse)
 def deliver_course_activity_briefing(
     assignment_id: int,
     task_id: int,
