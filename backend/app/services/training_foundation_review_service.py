@@ -129,7 +129,7 @@ def _review_a02(db: Session) -> dict[str, Any]:
         )
     company_name_ok = bool(company and company.name == FOUNDATION_COMPANY_NAME)
     company_ccc_ok = bool(company and same_ccc(company.ccc, FOUNDATION_COMPANY_CCC))
-    company_city_ok = bool(company and _normalize(company.city) == "cordoba")
+    company_city_ok = bool(company and _normalize(company.city) == "sevilla")
     company_address_ok = bool(company and _normalize(company.address) == _normalize(FOUNDATION_COMPANY_ADDRESS))
     company_email_ok = bool(company and _normalize(company.company_email) == _normalize(FOUNDATION_COMPANY_EMAIL))
     company_phone_ok = bool(company and "".join(filter(str.isdigit, company.company_phone or "")) == FOUNDATION_COMPANY_PHONE)
@@ -141,7 +141,7 @@ def _review_a02(db: Session) -> dict[str, Any]:
     center_general_ccc_ok = bool(center and company and same_ccc(center.general_ccc, company.ccc))
     center_main_ccc_ok = bool(center and same_ccc(center.main_ccc, FOUNDATION_CENTER_EXPECTED_CCC))
     center_address_ok = bool(center and _normalize(center.address) == _normalize(FOUNDATION_CENTER_ADDRESS))
-    center_city_ok = bool(center and _normalize(center.city) == "cordoba")
+    center_city_ok = bool(center and _normalize(center.city) == "sevilla")
     center_email_ok = bool(center and _normalize(center.email) == _normalize(FOUNDATION_CENTER_EMAIL))
     center_phone_ok = bool(center and "".join(filter(str.isdigit, center.phone or "")) == FOUNDATION_CENTER_PHONE)
     center_active_ok = bool(center and center.is_active)
@@ -157,7 +157,7 @@ def _review_a02(db: Session) -> dict[str, Any]:
         if not company_ccc_ok:
             issues.append(f"El CCC de la empresa debe ser {FOUNDATION_COMPANY_CCC}; ahora figura {company.ccc or 'vacío'}.")
         if not company_city_ok:
-            issues.append("La ciudad de la empresa debe ser Córdoba.")
+            issues.append("La ciudad de la empresa debe ser Sevilla.")
         if not company_address_ok:
             issues.append("Revisa el domicilio social de la empresa indicado en la ficha recibida.")
         if not company_email_ok:
@@ -180,7 +180,7 @@ def _review_a02(db: Session) -> dict[str, Any]:
         if not center_address_ok:
             issues.append("Revisa el domicilio del centro de trabajo indicado en la ficha recibida.")
         if not center_city_ok:
-            issues.append("La localidad del centro de trabajo debe ser Córdoba.")
+            issues.append("La localidad del centro de trabajo debe ser Sevilla.")
         if not center_email_ok:
             issues.append("Revisa el correo electrónico del centro indicado en la ficha recibida.")
         if not center_phone_ok:
