@@ -32,16 +32,16 @@ FOUNDATION_COMPANY_NAME = "Aula Gestión Sur, S.L."
 FOUNDATION_COMPANY_CCC = "0111/14149990001"
 FOUNDATION_COMPANY_ADDRESS = "Avenida de la Gestión, 25"
 FOUNDATION_COMPANY_EMAIL = "rrhh@aulagestionsur.demo"
-FOUNDATION_COMPANY_PHONE = "957900321"
+FOUNDATION_COMPANY_PHONE = "954900321"
 FOUNDATION_COMPANY_CONTACT = "Marina Ortega Salas"
 FOUNDATION_COMPANY_CNAE = "8211"
 FOUNDATION_CENTER_CODE = "F.01"
-FOUNDATION_CENTER_NAME = "Centro Administración Córdoba"
+FOUNDATION_CENTER_NAME = "Centro Administración Sevilla"
 FOUNDATION_CENTER_BASELINE_CCC = "0111/14149990099"
 FOUNDATION_CENTER_EXPECTED_CCC = "0111/14149990011"
 FOUNDATION_CENTER_ADDRESS = "Calle Administración, 12"
 FOUNDATION_CENTER_EMAIL = "centro@aulagestionsur.demo"
-FOUNDATION_CENTER_PHONE = "957900322"
+FOUNDATION_CENTER_PHONE = "954900322"
 FOUNDATION_AGREEMENT_CODE = "SIM-ADM-2026"
 
 A03_EMPLOYEE_DNI = "30999001R"
@@ -432,8 +432,8 @@ def _upsert_company(db: Session) -> Company:
     company.name = FOUNDATION_COMPANY_NAME
     company.ccc = FOUNDATION_COMPANY_CCC
     company.address = FOUNDATION_COMPANY_ADDRESS
-    company.city = "Córdoba"
-    company.province = "Córdoba"
+    company.city = "Sevilla"
+    company.province = "Sevilla"
     company.company_email = FOUNDATION_COMPANY_EMAIL
     company.status = "alta"
     company.is_active = True
@@ -449,10 +449,13 @@ def _upsert_center(db: Session, company: Company) -> WorkCenter:
     center.company_id = company.id
     center.name = FOUNDATION_CENTER_NAME
     center.general_ccc = FOUNDATION_COMPANY_CCC
-    center.main_ccc = FOUNDATION_CENTER_BASELINE_CCC
+    # El CCC incorrecto solo se aplica al crear el centro; nunca se sobrescriben
+    # las correcciones del alumno en accesos posteriores.
+    if not center.main_ccc:
+        center.main_ccc = FOUNDATION_CENTER_BASELINE_CCC
     center.address = FOUNDATION_CENTER_ADDRESS
-    center.city = "Córdoba"
-    center.province = "Córdoba"
+    center.city = "Sevilla"
+    center.province = "Sevilla"
     center.email = FOUNDATION_CENTER_EMAIL
     center.is_active = True
     return center
@@ -490,8 +493,8 @@ def _upsert_employee(
     employee.birth_date = date(1997, 5, 16)
     employee.nationality = "Española"
     employee.address = "Calle Formación, 18"
-    employee.city = "Córdoba"
-    employee.province = "Córdoba"
+    employee.city = "Sevilla"
+    employee.province = "Sevilla"
     employee.postal_code = postal_code
     employee.mobile_phone = mobile_phone
     employee.phone = mobile_phone
@@ -559,7 +562,7 @@ def prepare_foundation_training_data_2026(db: Session) -> None:
         naf="149990000002",
         email="nuria.gomez@aulagestionsur.demo",
         mobile_phone="600000000",
-        postal_code="14099",
+        postal_code="41099",
     )
     db.commit()
 
