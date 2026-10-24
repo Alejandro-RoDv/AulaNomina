@@ -38,5 +38,11 @@ export function buildWorkCenterPayload(form) {
     address: form.address || null,
     city: form.city || null,
     province: form.province || null,
+    collective_agreement: form.collective_agreement || null,
+    phone: form.phone || null,
+    fax: form.fax || null,
+    mobile: form.mobile || null,
+    email: form.email || null,
+    website: form.website || null,
   };
 }
