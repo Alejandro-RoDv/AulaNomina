@@ -437,6 +437,7 @@ def _upsert_company(db: Session) -> Company:
     company.city = "Sevilla"
     company.province = "Sevilla"
     company.company_email = FOUNDATION_COMPANY_EMAIL
+    company.company_phone = FOUNDATION_COMPANY_PHONE
     company.status = "alta"
     company.is_active = True
     return company
@@ -463,6 +464,7 @@ def _upsert_center(db: Session, company: Company) -> WorkCenter:
     center.city = "Sevilla"
     center.province = "Sevilla"
     center.email = FOUNDATION_CENTER_EMAIL
+    center.phone = FOUNDATION_CENTER_PHONE
     center.is_active = True
     return center
 
