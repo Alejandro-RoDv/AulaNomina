@@ -11,6 +11,15 @@ def create_work_center(db: Session, work_center: WorkCenterCreate):
     company = db.query(Company).filter(Company.id == data["company_id"]).first()
     data["general_ccc"] = canonical_ccc(company.ccc) if company else None
     data["main_ccc"] = canonical_ccc(data.get("main_ccc"))
+    existing = get_work_center_by_code(db, data["center_code"])
+    if existing is not None and not existing.is_active:
+        # Reactivar mantiene el ID y las relaciones históricas del centro.
+        for key, value in data.items():
+            setattr(existing, key, value)
+        existing.is_active = True
+        db.commit()
+        db.refresh(existing)
+        return existing
     db_work_center = WorkCenter(**data)
     db.add(db_work_center)
     db.commit()
