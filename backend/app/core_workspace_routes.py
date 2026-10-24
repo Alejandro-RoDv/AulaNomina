@@ -160,8 +160,10 @@ def delete_company_endpoint(company_id: int, db: Session = Depends(get_db)):
 def create_work_center_endpoint(work_center: WorkCenterCreate, db: Session = Depends(get_db)):
     if not get_company(db, work_center.company_id):
         raise HTTPException(status_code=404, detail="Empresa no encontrada")
-    if work_center.center_code and get_work_center_by_code(db, work_center.center_code):
-        raise HTTPException(status_code=400, detail="Ya existe un centro con ese código")
+    existing_center = get_work_center_by_code(db, work_center.center_code) if work_center.center_code else None
+    if existing_center and existing_center.is_active:
+        raise HTTPException(status_code=400, detail="Ya existe un centro activo con ese código")
+    # Si está desactivado, create_work_center recupera el registro existente.
     return create_work_center(db, work_center)
 
 
