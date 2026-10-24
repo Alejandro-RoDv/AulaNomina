@@ -430,6 +430,11 @@ def _upsert_company(db: Session) -> Company:
         db.add(company)
         db.flush()
     else:
+        # Migración del supuesto antiguo, sin tocar campos que haya editado el alumno.
+        if company.city == "Córdoba":
+            company.city = "Sevilla"
+        if company.province == "Córdoba":
+            company.province = "Sevilla"
         return company
     company.name = FOUNDATION_COMPANY_NAME
     company.ccc = FOUNDATION_COMPANY_CCC
@@ -450,8 +455,14 @@ def _upsert_center(db: Session, company: Company) -> WorkCenter:
         db.add(center)
         db.flush()
     else:
-        # No resembrar una ficha ya existente: las modificaciones del alumno
-        # deben sobrevivir a la recarga del curso.
+        # Migrar exclusivamente las referencias del supuesto anterior.
+        if center.name == "Centro Administración Córdoba":
+            center.name = FOUNDATION_CENTER_NAME
+        if center.city == "Córdoba":
+            center.city = "Sevilla"
+        if center.province == "Córdoba":
+            center.province = "Sevilla"
+        # No modificar el CCC ni los datos introducidos por el alumno.
         return center
     center.company_id = company.id
     center.name = FOUNDATION_CENTER_NAME
