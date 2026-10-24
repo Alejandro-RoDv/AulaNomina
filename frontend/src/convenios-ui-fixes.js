@@ -128,69 +128,27 @@ function applyControlLayout() {
   });
 }
 
+// Las alertas de convenios deben pertenecer a su módulo React.
+// No insertar pestañas en navegaciones ajenas ni ocultar elementos del ERP.
 function ensureAlertsTab() {
-  const nav = Array.from(document.querySelectorAll("nav")).find((node) => Array.from(node.querySelectorAll("button")).some((button) => button.textContent?.trim() === "Resumen"));
-  if (!nav || nav.querySelector("[data-aulanomina-alerts-tab='true']")) return;
-
-  const button = document.createElement("button");
-  button.type = "button";
-  button.textContent = "Alertas";
-  button.dataset.aulanominaAlertsTab = "true";
-  styleButtonAsTab(button, false);
-  nav.appendChild(button);
-
-  const panel = document.createElement("section");
-  panel.dataset.aulanominaAlertsPanel = "true";
-  panel.style.display = "none";
-  panel.style.border = "1px solid #e5e7eb";
-  panel.style.backgroundColor = "#fff";
-  panel.style.marginTop = "0";
-  nav.insertAdjacentElement("afterend", panel);
-
-  function renderAlertsPanel() {
-    const alerts = readAlertsFromOverview();
-    panel.innerHTML = `
-      <header style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;border-bottom:1px solid #e5e7eb;padding:11px 13px;background:#f9fafb;">
-        <h3 style="margin:0;font-size:17px;font-weight:850;color:#111827;">Alertas del convenio</h3>
-        <p style="margin:0;color:#6b7280;font-size:13.5px;font-weight:600;">Revisiones útiles para docencia y validación.</p>
-      </header>
-      <div style="padding:16px 18px;">
-        ${alerts.length ? `<ul style="margin:0;padding-left:18px;color:#92400e;font-size:14.5px;line-height:1.8;font-weight:750;">${alerts.map((item) => `<li>${item}</li>`).join("")}</ul>` : `<div style="color:#166534;font-size:14.5px;font-weight:750;">Sin alertas críticas.</div>`}
-      </div>
-    `;
-  }
-
-  button.addEventListener("click", () => {
-    renderAlertsPanel();
-    Array.from(nav.querySelectorAll("button")).forEach((tabButton) => styleButtonAsTab(tabButton, tabButton === button));
-    Array.from(nav.parentElement.children).forEach((child) => {
-      if (child === nav || child === panel) return;
-      if (child.tagName === "SECTION" || child.tagName === "DIV") child.dataset.aulanominaHiddenByAlerts = "true";
-    });
-    document.querySelectorAll("[data-aulanomina-hidden-by-alerts='true']").forEach((node) => { node.style.display = "none"; });
-    panel.style.display = "block";
-  });
-
-  Array.from(nav.querySelectorAll("button:not([data-aulanomina-alerts-tab='true'])")).forEach((tabButton) => {
-    tabButton.addEventListener("click", () => {
-      panel.style.display = "none";
-      document.querySelectorAll("[data-aulanomina-hidden-by-alerts='true']").forEach((node) => {
-        node.style.display = "";
-        delete node.dataset.aulanominaHiddenByAlerts;
-      });
-      styleButtonAsTab(button, false);
-    });
+  document.querySelectorAll("[data-aulanomina-alerts-tab='true'], [data-aulanomina-alerts-panel='true']").forEach((node) => node.remove());
+  document.querySelectorAll("[data-aulanomina-hidden-by-alerts='true']").forEach((node) => {
+    node.style.display = "";
+    delete node.dataset.aulanominaHiddenByAlerts;
   });
 }
 
 function applyConveniosEnhancements() {
   document.body.classList.toggle("aulanomina-convenios-page", isConveniosPage());
-  if (!isConveniosPage()) return;
+  if (!isConveniosPage()) {
+    ensureAlertsTab();
+    return;
+  }
   applyModuleFontSize();
   applyRecordActionsBox();
   applyControlLayout();
-  readAlertsFromOverview();
   ensureAlertsTab();
+  readAlertsFromOverview();
 }
 
 const observer = new MutationObserver(() => window.requestAnimationFrame(applyConveniosEnhancements));
