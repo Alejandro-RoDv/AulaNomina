@@ -429,6 +429,8 @@ def _upsert_company(db: Session) -> Company:
         company = Company(name=FOUNDATION_COMPANY_NAME, cif=FOUNDATION_COMPANY_CIF)
         db.add(company)
         db.flush()
+    else:
+        return company
     company.name = FOUNDATION_COMPANY_NAME
     company.ccc = FOUNDATION_COMPANY_CCC
     company.address = FOUNDATION_COMPANY_ADDRESS
@@ -446,6 +448,10 @@ def _upsert_center(db: Session, company: Company) -> WorkCenter:
         center = WorkCenter(company_id=company.id, center_code=FOUNDATION_CENTER_CODE, name=FOUNDATION_CENTER_NAME)
         db.add(center)
         db.flush()
+    else:
+        # No resembrar una ficha ya existente: las modificaciones del alumno
+        # deben sobrevivir a la recarga del curso.
+        return center
     center.company_id = company.id
     center.name = FOUNDATION_CENTER_NAME
     center.general_ccc = FOUNDATION_COMPANY_CCC
